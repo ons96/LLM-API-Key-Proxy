@@ -1,0 +1,97 @@
+# Render Blueprint for LLM-API-Key-Proxy
+#
+# Usage:
+# 1) Push this repo to GitHub
+# 2) In Render: "New" -> "Blueprint" -> select the repo
+# 3) Fill in the required secrets (PROXY_API_KEY, provider keys, OAuth exports, etc.)
+
+services:
+  - type: web
+    name: llm-api-key-proxy
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python src/proxy_app/main.py --host 0.0.0.0 --port $PORT
+
+    envVars:
+      # --- Required ---
+      - key: PROXY_API_KEY
+        sync: false
+
+      # --- G4F Providers (Fallback Layer) ---
+      - key: G4F_API_KEY
+        sync: false
+      - key: G4F_MAIN_API_BASE
+        value: https://g4f.dev/v1
+      - key: G4F_GROQ_API_BASE
+        value: https://g4f.dev/api/groq
+      - key: G4F_GROK_API_BASE
+        value: https://g4f.dev/api/grok
+      - key: G4F_GEMINI_API_BASE
+        value: https://g4f.dev/api/gemini
+      - key: G4F_NVIDIA_API_BASE
+        value: https://g4f.dev/api/nvidia
+
+      # --- Provider Priority (optional overrides) ---
+      - key: PROVIDER_PRIORITY_ANTIGRAVITY
+        value: "1"
+      - key: PROVIDER_PRIORITY_GEMINI_CLI
+        value: "1"
+      - key: PROVIDER_PRIORITY_QWEN_CODE
+        value: "1"
+      - key: PROVIDER_PRIORITY_IFLOW
+        value: "1"
+      - key: PROVIDER_PRIORITY_G4F_MAIN
+        value: "2"
+      - key: PROVIDER_PRIORITY_G4F_GROQ
+        value: "2"
+      - key: PROVIDER_PRIORITY_G4F_GROK
+        value: "2"
+      - key: PROVIDER_PRIORITY_G4F_GEMINI
+        value: "2"
+      - key: PROVIDER_PRIORITY_G4F_NVIDIA
+        value: "2"
+      - key: PROVIDER_PRIORITY_OPENAI
+        value: "3"
+      - key: PROVIDER_PRIORITY_ANTHROPIC
+        value: "3"
+      - key: PROVIDER_PRIORITY_OPENROUTER
+        value: "3"
+      - key: PROVIDER_PRIORITY_GROQ
+        value: "3"
+      - key: PROVIDER_PRIORITY_MISTRAL
+        value: "3"
+
+      # --- Provider API keys (optional; add the ones you use) ---
+      - key: GEMINI_API_KEY_1
+        sync: false
+      - key: OPENAI_API_KEY_1
+        sync: false
+      - key: ANTHROPIC_API_KEY_1
+        sync: false
+      - key: OPENROUTER_API_KEY_1
+        sync: false
+      - key: GROQ_API_KEY_1
+        sync: false
+      - key: MISTRAL_API_KEY_1
+        sync: false
+      - key: NVIDIA_NIM_API_KEY_1
+        sync: false
+      - key: COHERE_API_KEY_1
+        sync: false
+      - key: CHUTES_API_KEY_1
+        sync: false
+
+      # --- OAuth import paths (one-time local -> cloud import) ---
+      # For stateless deployments, prefer exporting OAuth credentials to env vars via
+      # `python -m rotator_library.credential_tool` and paste the generated variables into Render.
+      - key: GEMINI_CLI_OAUTH_1
+        sync: false
+      - key: QWEN_CODE_OAUTH_1
+        sync: false
+      - key: IFLOW_OAUTH_1
+        sync: false
+
+      # --- Non-interactive startup ---
+      - key: SKIP_OAUTH_INIT_CHECK
+        value: "true"

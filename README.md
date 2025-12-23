@@ -639,6 +639,58 @@ Customize OAuth callback ports if defaults conflict:
 
 ---
 
+## G4F Fallback Providers
+
+The proxy can use **g4f.dev** as a free-tier fallback layer. g4f exposes multiple OpenAI-compatible endpoints; the proxy registers them as additional providers (no changes required in your OpenAI SDK clients).
+
+### Providers
+
+| Provider | API Base | API Key |
+|---------|----------|---------|
+| `g4f-main` | `https://g4f.dev/v1` | from `G4F_API_KEY` |
+| `g4f-groq` | `https://g4f.dev/api/groq` | defaults to `secret` |
+| `g4f-grok` | `https://g4f.dev/api/grok` | defaults to `secret` |
+| `g4f-gemini` | `https://g4f.dev/api/gemini` | defaults to `secret` |
+| `g4f-nvidia` | `https://g4f.dev/api/nvidia` | defaults to `secret` |
+
+> Provider names are normalized internally (`g4f-main` and `g4f_main` both work).
+
+### Getting a free G4F API key
+
+1. Visit https://g4f.dev/api_key.html
+2. Copy your key
+3. Set `G4F_API_KEY` in your environment / `.env`
+
+### Provider priority & fallback behavior
+
+The client supports priority tiers configured via environment variables:
+
+- `PROVIDER_PRIORITY_<PROVIDER_NAME>=<tier_number>`
+- Tier `1` is highest priority, then `2`, then `3`, etc.
+
+**Default fallback order:**
+
+1. Primary tier: Antigravity, Gemini CLI, Qwen Code, iFlow
+2. Secondary tier: g4f providers (`g4f-main`, `g4f-groq`, `g4f-grok`, `g4f-gemini`, `g4f-nvidia`)
+3. Tertiary tier: standard providers (OpenAI, Anthropic, OpenRouter, Groq, Mistral, NVIDIA, Cohere, Chutes, Bedrock)
+
+When a request fails due to **rate limits / quota exhaustion / transient provider errors**, the proxy automatically tries the next provider in the same tier, then proceeds to the next tier.
+
+> Fallback works best when the same model ID is accepted across the providers you want to fall back between (g4f is usually the most permissive).
+
+### Render.com (and other cloud platforms)
+
+On Render: **Dashboard → Your Service → Environment**
+
+- Set `PROXY_API_KEY` (required)
+- Set `G4F_API_KEY` (recommended if you want the g4f fallback layer)
+- Optionally set `PROVIDER_PRIORITY_*` overrides
+- For OAuth providers (Gemini CLI / Antigravity / Qwen Code / iFlow), export credentials to env vars using the credential tool and paste them into Render
+
+This remains compatible with **Kilo Code, Cline, Cursor, Continue**, and any other OpenAI-compatible client.
+
+---
+
 ## Deployment
 
 <details>
@@ -675,14 +727,16 @@ See the [Deployment Guide](Deployment%20guide.md) for complete instructions.
 
 **Quick Setup:**
 1. Fork the repository
-2. Create a `.env` file with your credentials
-3. Create a new Web Service pointing to your repo
-4. Set build command: `pip install -r requirements.txt`
-5. Set start command: `uvicorn src.proxy_app.main:app --host 0.0.0.0 --port $PORT`
-6. Upload `.env` as a secret file
+2. Create a new Web Service pointing to your repo
+3. Set build command: `pip install -r requirements.txt`
+4. Set start command: `python src/proxy_app/main.py --host 0.0.0.0 --port $PORT`
+5. Add your variables in the platform UI (Render: **Environment** tab)
+
+> If you prefer Render Blueprints, this repo includes a `render.yaml` you can deploy directly.
 
 **OAuth Credentials:**
 Export OAuth credentials to environment variables using the credential tool, then add them to your platform's environment settings.
+Set `SKIP_OAUTH_INIT_CHECK=true` on non-interactive platforms.
 
 </details>
 
