@@ -42,6 +42,62 @@ from .model_definitions import ModelDefinitions
 from .utils.paths import get_default_root, get_logs_dir, get_oauth_dir, get_data_file
 
 
+DEFAULT_PROVIDER_PRIORITY_TIERS: Dict[str, int] = {
+    # Primary tier
+    "antigravity": 1,
+    "gemini_cli": 1,
+    "qwen_code": 1,
+    "iflow": 1,
+    # Secondary tier (g4f fallback layer)
+    "g4f_main": 2,
+    "g4f_groq": 2,
+    "g4f_grok": 2,
+    "g4f_gemini": 2,
+    "g4f_nvidia": 2,
+    # Tertiary tier (standard providers)
+    "openai": 3,
+    "anthropic": 3,
+    "openrouter": 3,
+    "groq": 3,
+    "mistral": 3,
+    "nvidia_nim": 3,
+    "cohere": 3,
+    "chutes": 3,
+    "bedrock": 3,
+}
+
+# Stable ordering inside a tier when multiple providers share the same tier.
+DEFAULT_PROVIDER_PRIORITY_ORDER: List[str] = [
+    "antigravity",
+    "gemini_cli",
+    "qwen_code",
+    "iflow",
+    "g4f_main",
+    "g4f_groq",
+    "g4f_grok",
+    "g4f_gemini",
+    "g4f_nvidia",
+    "openai",
+    "anthropic",
+    "openrouter",
+    "groq",
+    "mistral",
+    "nvidia_nim",
+    "cohere",
+    "chutes",
+    "bedrock",
+]
+
+NORMAL_ERROR_TYPES_FOR_PROVIDER_FALLBACK = frozenset(
+    {
+        "rate_limit",
+        "quota_exceeded",
+        "server_error",
+        "api_connection",
+    }
+)
+
+
 class StreamedAPIError(Exception):
     """Custom exception to signal an API error received over a stream."""
 
@@ -152,6 +208,12 @@ class RotatingClient:
         for provider, paths in self.oauth_credentials.items():
             all_credentials.setdefault(provider, []).extend(paths)
         self.all_credentials = all_credentials
+
+        # Provider priority tiers (for cross-provider fallback)
+        self.provider_priority_tiers = self._load_provider_priority_tiers()
+        self._provider_order_index = {
+            name: idx for idx, name in enumerate(DEFAULT_PROVIDER_PRIORITY_ORDER)
+        }
 
         self.max_retries = max_retries
         self.global_timeout = global_timeout
@@ -293,6 +355,304 @@ class RotatingClient:
                     f"Invalid max_concurrent for '{provider}': {max_val}. Setting to 1."
                 )
                 self.max_concurrent_requests_per_key[provider] = 1
+
+    # ----------------------------------------------------------------------
+    # Provider priority + cross-provider fallback helpers
+    # ----------------------------------------------------------------------
+
+    @staticmethod
+    def _canonical_provider_name(provider: str) -> str:
+        p = (provider or "").strip().lower().replace("-", "_")
+        if p == "nvidia":
+            return "nvidia_nim"
+        if p == "g4f":
+            return "g4f_main"
+        return p
+
+    def _normalize_model_provider(self, model: str) -> str:
+        if not model or "/" not in model:
+            return model
+
+        raw_provider, rest = model.split("/", 1)
+        provider = self._canonical_provider_name(raw_provider)
+        if provider == raw_provider:
+            return model
+        return f"{provider}/{rest}"
+
+    def _load_provider_priority_tiers(self) -> Dict[str, int]:
+        tiers = dict(DEFAULT_PROVIDER_PRIORITY_TIERS)
+
+        for env_key, env_val in os.environ.items():
+            if not env_key.startswith("PROVIDER_PRIORITY_"):
+                continue
+
+            raw_provider = env_key[len("PROVIDER_PRIORITY_") :]
+            provider = self._canonical_provider_name(raw_provider)
+            try:
+                tier = int(env_val)
+                if tier < 1:
+                    raise ValueError("tier must be >= 1")
+            except Exception:
+                lib_logger.warning(
+                    f"Invalid {env_key}={env_val!r}. Must be an integer >= 1. Ignoring."
+                )
+                continue
+
+            tiers[provider] = tier
+
+        # Log effective tiers for configured providers (debug only)
+        if self.all_credentials:
+            effective = {
+                p: tiers.get(p, 3) for p in sorted(self.all_credentials.keys())
+            }
+            lib_logger.debug(f"Provider priority tiers: {effective}")
+
+        return tiers
+
+    def _get_provider_tier(self, provider: str) -> int:
+        return self.provider_priority_tiers.get(provider, 3)
+
+    def _provider_sort_key(self, provider: str) -> tuple:
+        return (
+            self._get_provider_tier(provider),
+            self._provider_order_index.get(provider, 10_000),
+            provider,
+        )
+
+    def _get_ordered_providers(self) -> List[str]:
+        providers = list(self.all_credentials.keys())
+        providers.sort(key=self._provider_sort_key)
+        return providers
+
+    def _get_provider_candidates(self, requested_provider: str) -> List[str]:
+        ordered = self._get_ordered_providers()
+
+        if not requested_provider or requested_provider == "auto":
+            return ordered
+
+        requested_provider = self._canonical_provider_name(requested_provider)
+        if requested_provider not in self.all_credentials:
+            raise ValueError(
+                f"No API keys or OAuth credentials configured for provider: {requested_provider}"
+            )
+
+        requested_tier = self._get_provider_tier(requested_provider)
+
+        # If a user explicitly targets a provider, respect that choice first.
+        # Only allow cross-provider fallback for higher-priority tiers (1/2).
+        # For tier 3 providers (OpenAI/Anthropic/etc), fallback is typically done by switching
+        # the model/provider explicitly, since model IDs are not generally interchangeable.
+        if requested_tier >= 3:
+            return [requested_provider]
+
+        fallback_providers = [
+            p
+            for p in ordered
+            if p != requested_provider and self._get_provider_tier(p) >= requested_tier
+        ]
+
+        return [requested_provider] + fallback_providers
+
+    def _build_model_for_provider(self, provider: str, model: str) -> str:
+        if not model:
+            return model
+        if "/" in model:
+            # Replace only the provider segment
+            _, rest = model.split("/", 1)
+            return f"{provider}/{rest}"
+        return f"{provider}/{model}"
+
+    def _is_provider_exhausted_error(self, response: Any) -> bool:
+        if not isinstance(response, dict) or "error" not in response:
+            return False
+
+        err = response.get("error")
+        if not isinstance(err, dict):
+            return False
+
+        err_type = err.get("type")
+        if err_type not in {
+            "proxy_all_credentials_exhausted",
+            "proxy_timeout",
+            "proxy_busy",
+        }:
+            return False
+
+        details = err.get("details")
+        if not isinstance(details, dict):
+            return err_type in {"proxy_timeout", "proxy_busy"}
+
+        if details.get("abnormal_errors"):
+            return False
+
+        if details.get("timeout"):
+            return True
+
+        normal_summary = str(details.get("normal_error_summary", ""))
+        return any(t in normal_summary for t in NORMAL_ERROR_TYPES_FOR_PROVIDER_FALLBACK)
+
+    async def _execute_with_provider_fallback(
+        self,
+        api_call: callable,
+        request: Optional[Any],
+        pre_request_callback: Optional[callable] = None,
+        **kwargs,
+    ) -> Any:
+        model = kwargs.get("model")
+        if not model:
+            raise ValueError("'model' is a required parameter.")
+
+        model = self._normalize_model_provider(model)
+        kwargs = kwargs.copy()
+        kwargs["model"] = model
+
+        requested_provider = model.split("/", 1)[0] if "/" in model else "auto"
+        provider_candidates = self._get_provider_candidates(requested_provider)
+
+        deadline = time.time() + self.global_timeout
+        last_response: Any = None
+
+        for provider in provider_candidates:
+            if time.time() >= deadline:
+                break
+
+            provider_model = self._build_model_for_provider(provider, model)
+            provider_kwargs = kwargs.copy()
+            provider_kwargs["model"] = provider_model
+
+            lib_logger.info(
+                f"Provider fallback: attempting {provider_model} (tier={self._get_provider_tier(provider)})"
+            )
+
+            response = await self._execute_with_retry(
+                api_call,
+                request=request,
+                pre_request_callback=pre_request_callback,
+                deadline=deadline,
+                **provider_kwargs,
+            )
+            last_response = response
+
+            if response is None:
+                lib_logger.warning(
+                    f"Provider fallback: {provider} returned no response for {provider_model}. Trying next provider."
+                )
+                continue
+
+            if self._is_provider_exhausted_error(response):
+                lib_logger.warning(
+                    f"Provider fallback: {provider} exhausted/unavailable for {provider_model}. Trying next provider."
+                )
+                continue
+
+            return response
+
+        return last_response
+
+    async def _streaming_acompletion_with_provider_fallback(
+        self,
+        request: Optional[Any],
+        pre_request_callback: Optional[callable] = None,
+        **kwargs,
+    ) -> AsyncGenerator[str, None]:
+        model = kwargs.get("model")
+        if not model:
+            raise ValueError("'model' is a required parameter.")
+
+        model = self._normalize_model_provider(model)
+        kwargs = kwargs.copy()
+        kwargs["model"] = model
+
+        requested_provider = model.split("/", 1)[0] if "/" in model else "auto"
+        provider_candidates = self._get_provider_candidates(requested_provider)
+
+        deadline = time.time() + self.global_timeout
+        last_error_chunks: Optional[List[str]] = None
+
+        for provider in provider_candidates:
+            if time.time() >= deadline:
+                break
+
+            provider_model = self._build_model_for_provider(provider, model)
+            provider_kwargs = kwargs.copy()
+            provider_kwargs["model"] = provider_model
+
+            lib_logger.info(
+                f"Provider fallback (streaming): attempting {provider_model} (tier={self._get_provider_tier(provider)})"
+            )
+
+            stream = self._streaming_acompletion_with_retry(
+                request=request,
+                pre_request_callback=pre_request_callback,
+                deadline=deadline,
+                **provider_kwargs,
+            )
+
+            buffered: List[str] = []
+            started = False
+            async for chunk in stream:
+                if not started:
+                    # Buffer potential error chunks until we see the first non-error payload.
+                    # If we already buffered an error and the stream immediately sends [DONE],
+                    # keep buffering so we can attempt the next provider.
+                    if buffered and chunk.startswith("data: ") and "[DONE]" in chunk:
+                        buffered.append(chunk)
+                        continue
+
+                    if chunk.startswith("data: ") and "[DONE]" not in chunk:
+                        payload_text = chunk[len("data: ") :].strip()
+                        try:
+                            payload = json.loads(payload_text)
+                        except Exception:
+                            payload = None
+
+                        if isinstance(payload, dict) and "error" in payload:
+                            buffered.append(chunk)
+                            continue
+
+                    started = True
+                    for b in buffered:
+                        yield b
+                    buffered.clear()
+
+                yield chunk
+
+            if started:
+                return
+
+            # Stream ended without producing any non-error payload.
+            if not buffered:
+                lib_logger.warning(
+                    f"Provider fallback (streaming): {provider} produced no output for {provider_model}. Trying next provider."
+                )
+                continue
+
+            if buffered:
+                # Decide whether we should treat this as a provider-level failure.
+                last_error_chunks = buffered
+                first = buffered[0]
+                payload_text = (
+                    first[len("data: ") :].strip() if first.startswith("data: ") else ""
+                )
+                try:
+                    payload = json.loads(payload_text)
+                except Exception:
+                    payload = None
+
+                if isinstance(payload, dict) and self._is_provider_exhausted_error(payload):
+                    lib_logger.warning(
+                        f"Provider fallback (streaming): {provider} exhausted/unavailable. Trying next provider."
+                    )
+                    continue
+
+                for b in buffered:
+                    yield b
+                return
+
+        # No provider succeeded; emit last captured error if we have one.
+        if last_error_chunks:
+            for c in last_error_chunks:
+                yield c
 
     def _is_model_ignored(self, provider: str, model_id: str) -> bool:
         """
@@ -482,7 +842,7 @@ class RotatingClient:
         if not model:
             return kwargs
 
-        provider = model.split("/")[0]
+        provider = self._canonical_provider_name(model.split("/")[0])
 
         # Handle custom OpenAI-compatible providers
         # Check if this is a custom provider by looking for API_BASE environment variable
@@ -565,6 +925,8 @@ class RotatingClient:
     def _is_custom_openai_compatible_provider(self, provider_name: str) -> bool:
         """Checks if a provider is a custom OpenAI-compatible provider."""
         import os
+
+        provider_name = self._canonical_provider_name(provider_name)
 
         # Check if the provider has an API_BASE environment variable
         api_base_env = f"{provider_name.upper()}_API_BASE"
@@ -868,12 +1230,17 @@ class RotatingClient:
         api_call: callable,
         request: Optional[Any],
         pre_request_callback: Optional[callable] = None,
+        deadline: Optional[float] = None,
         **kwargs,
     ) -> Any:
         """A generic retry mechanism for non-streaming API calls."""
         model = kwargs.get("model")
         if not model:
             raise ValueError("'model' is a required parameter.")
+
+        model = self._normalize_model_provider(model)
+        kwargs = kwargs.copy()
+        kwargs["model"] = model
 
         provider = model.split("/")[0]
         if provider not in self.all_credentials:
@@ -882,7 +1249,8 @@ class RotatingClient:
             )
 
         # Establish a global deadline for the entire request lifecycle.
-        deadline = time.time() + self.global_timeout
+        if deadline is None:
+            deadline = time.time() + self.global_timeout
 
         # Create a mutable copy of the keys and shuffle it to ensure
         # that the key selection is randomized, which is crucial when
@@ -1600,11 +1968,23 @@ class RotatingClient:
         self,
         request: Optional[Any],
         pre_request_callback: Optional[callable] = None,
+        deadline: Optional[float] = None,
         **kwargs,
     ) -> AsyncGenerator[str, None]:
         """A dedicated generator for retrying streaming completions with full request preparation and per-key retries."""
         model = kwargs.get("model")
+        if not model:
+            raise ValueError("'model' is a required parameter.")
+
+        model = self._normalize_model_provider(model)
+        kwargs = kwargs.copy()
+        kwargs["model"] = model
+
         provider = model.split("/")[0]
+        if provider not in self.all_credentials:
+            raise ValueError(
+                f"No API keys or OAuth credentials configured for provider: {provider}"
+            )
 
         # Create a mutable copy of the keys and shuffle it.
         credentials_for_provider = list(self.all_credentials[provider])
@@ -1623,7 +2003,8 @@ class RotatingClient:
             # If all credentials are unavailable, keep the original list
             # (better to try unavailable creds than fail immediately)
 
-        deadline = time.time() + self.global_timeout
+        if deadline is None:
+            deadline = time.time() + self.global_timeout
         tried_creds = set()
         last_exception = None
         kwargs = self._convert_model_params(**kwargs)
@@ -2412,7 +2793,9 @@ class RotatingClient:
         """
         # Handle iflow provider: remove stream_options to avoid HTTP 406
         model = kwargs.get("model", "")
-        provider = model.split("/")[0] if "/" in model else ""
+        provider = (
+            self._canonical_provider_name(model.split("/")[0]) if "/" in model else ""
+        )
 
         if provider == "iflow" and "stream_options" in kwargs:
             lib_logger.debug(
@@ -2428,11 +2811,11 @@ class RotatingClient:
                 if "include_usage" not in kwargs["stream_options"]:
                     kwargs["stream_options"]["include_usage"] = True
 
-            return self._streaming_acompletion_with_retry(
+            return self._streaming_acompletion_with_provider_fallback(
                 request=request, pre_request_callback=pre_request_callback, **kwargs
             )
         else:
-            return self._execute_with_retry(
+            return self._execute_with_provider_fallback(
                 litellm.acompletion,
                 request=request,
                 pre_request_callback=pre_request_callback,
@@ -2458,7 +2841,7 @@ class RotatingClient:
         Returns:
             The embedding response object, or None if all retries fail.
         """
-        return self._execute_with_retry(
+        return self._execute_with_provider_fallback(
             litellm.aembedding,
             request=request,
             pre_request_callback=pre_request_callback,

@@ -351,6 +351,31 @@ for key, value in os.environ.items():
             api_keys[provider] = []
         api_keys[provider].append(value)
 
+# --- Provider convenience mappings / defaults ---
+# G4F providers use a single shared key (G4F_API_KEY) + multiple OpenAI-compatible API bases.
+# We map G4F_API_KEY -> g4f_main, and default other g4f endpoints to api_key="secret".
+g4f_shared_key = os.getenv("G4F_API_KEY")
+if g4f_shared_key:
+    # If the generic discovery treated G4F_API_KEY as provider "g4f", remove that entry.
+    api_keys.pop("g4f", None)
+    api_keys.setdefault("g4f_main", [])
+    if g4f_shared_key not in api_keys["g4f_main"]:
+        api_keys["g4f_main"].append(g4f_shared_key)
+
+for g4f_provider in ["g4f_groq", "g4f_grok", "g4f_gemini", "g4f_nvidia"]:
+    # Only enable the provider if its API base is configured.
+    if os.getenv(f"{g4f_provider.upper()}_API_BASE"):
+        api_keys.setdefault(g4f_provider, [])
+        if not api_keys[g4f_provider]:
+            api_keys[g4f_provider].append(
+                os.getenv(f"{g4f_provider.upper()}_API_KEY", "secret")
+            )
+
+# NVIDIA: accept NVIDIA_API_KEY_* as alias for NVIDIA_NIM_API_KEY_*.
+if "nvidia" in api_keys:
+    api_keys.setdefault("nvidia_nim", [])
+    api_keys["nvidia_nim"].extend(api_keys.pop("nvidia"))
+
 # Load model ignore lists from environment variables
 ignore_models = {}
 for key, value in os.environ.items():
