@@ -54,6 +54,124 @@ python src/proxy_app/main.py
 
 ---
 
+## G4F Fallback Providers
+
+G4F provides free, open-source access to multiple LLM providers through a unified API. This proxy integrates g4f as a **fallback layer** that automatically activates when your primary providers (Antigravity, Gemini CLI, etc.) are rate-limited.
+
+### What is G4F?
+
+G4F is a free service that routes requests to various LLM providers (Groq, Grok, Gemini, NVIDIA, etc.) without requiring individual API keys for each. Perfect for:
+- Development and testing
+- Free tier usage when paid providers are rate-limited
+- Quick fallback without changing client code
+
+### Available G4F Providers
+
+This proxy includes 5 g4f provider endpoints:
+
+| Provider | Base URL | Use Case |
+|----------|----------|----------|
+| **g4f-main** | https://g4f.dev/v1 | General purpose (OpenAI-compatible) |
+| **g4f-groq** | https://g4f.dev/api/groq | Groq LPU (fastest inference) |
+| **g4f-grok** | https://g4f.dev/api/grok | Xai's Grok model |
+| **g4f-gemini** | https://g4f.dev/api/gemini | Google Gemini models |
+| **g4f-nvidia** | https://g4f.dev/api/nvidia | NVIDIA inference endpoints |
+
+### Getting Started with G4F
+
+1. **Get a free API key** (optional, but recommended):
+   - Visit https://g4f.dev/api_key.html
+   - Sign up for a free account
+   - Copy your API key
+
+2. **Configure your .env file**:
+   ```env
+   # Your G4F API key (or leave as "secret" for public tier)
+   G4F_API_KEY="your_free_api_key_from_g4f"
+
+   # Provider priorities (optional - defaults are already configured)
+   PROVIDER_PRIORITY_G4F_MAIN=2        # Secondary tier (fallback)
+   ```
+
+3. **Use via any OpenAI-compatible client**:
+   ```python
+   from openai import OpenAI
+
+   client = OpenAI(
+       api_key="your_proxy_api_key",
+       base_url="http://localhost:8000/v1"
+   )
+
+   # When primary providers are rate-limited, automatically falls back to g4f
+   response = client.chat.completions.create(
+       model="gpt-4",
+       messages=[{"role": "user", "content": "Hello!"}]
+   )
+   ```
+
+### Provider Priority & Fallback
+
+The proxy uses a **3-tier priority system** to route requests intelligently:
+
+```
+Tier 1 (Primary): Antigravity, Gemini CLI, Qwen Code, iFlow
+  ↓ (if rate-limited)
+Tier 2 (Fallback): G4F providers (free tier)
+  ↓ (if rate-limited)
+Tier 3 (Last Resort): OpenAI, Anthropic, OpenRouter, Groq, Mistral, etc.
+```
+
+**How it works:**
+1. Request comes in for a model
+2. Try Tier 1 providers first (your primary, paid providers)
+3. If Tier 1 is rate-limited (HTTP 429), automatically try Tier 2 (g4f fallback)
+4. If Tier 2 is rate-limited, try Tier 3 (standard API providers)
+5. Return the first successful response
+
+This means you can confidently use the proxy knowing that if your primary provider is rate-limited, a free fallback is available automatically.
+
+### Compatibility
+
+All g4f providers are fully compatible with:
+- ✅ OpenAI Python SDK
+- ✅ OpenAI TypeScript/JavaScript SDK
+- ✅ Kilo Code
+- ✅ Cline
+- ✅ Any OpenAI-compatible client (LiteLLM, etc.)
+- ✅ Streaming responses
+- ✅ Tool calling (where supported by g4f backend)
+
+### Setting G4F_API_KEY on Render
+
+If deploying to Render:
+
+1. Go to your Render service dashboard
+2. Click **Environment** (left sidebar)
+3. Add a new environment variable:
+   - Key: `G4F_API_KEY`
+   - Value: Your free API key from https://g4f.dev/api_key.html (or `secret`)
+4. Click **Save Changes**
+5. Your service will automatically restart with the new configuration
+
+### Limitations & Notes
+
+- G4F is a community-supported project (no SLAs or guarantees)
+- Rate limits apply (typically per-IP, not per-user)
+- Some advanced features like vision/image input may be limited
+- Best used as a fallback layer, not as a primary provider
+- Check https://g4f.dev/ for current provider status
+
+### Monitoring G4F Usage
+
+The proxy logs all provider attempts, including fallbacks. Check your logs to see:
+- When primary providers are rate-limited
+- Which fallback providers are being used
+- Overall success rates per provider
+
+This helps you understand when to increase quota on primary providers.
+
+---
+
 ## Connecting to the Proxy
 
 Once the proxy is running, configure your application with these settings:
