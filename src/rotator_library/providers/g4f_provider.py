@@ -95,7 +95,7 @@ class G4FProvider(ProviderInterface):
         self._api_key = os.getenv("G4F_API_KEY")
         
         for endpoint_name, config in G4F_ENDPOINTS.items():
-            env_value = os.getenv(config["env_var"])
+            env_value: Optional[str] = os.getenv(config["env_var"])
             if env_value:
                 self._endpoints[endpoint_name] = env_value.rstrip("/")
                 lib_logger.debug(f"G4F endpoint '{endpoint_name}': {self._endpoints[endpoint_name]}")
@@ -183,18 +183,18 @@ class G4FProvider(ProviderInterface):
                 # Try alternative response formats
                 if "error" in response:
                     error_msg = response["error"].get("message", "Unknown G4F error")
+                    error_code = response.get("error", {}).get("code", 500)
                     raise litellm.APIError(
+                        status_code=error_code,
                         message=error_msg,
-                        model=model,
-                        response=httpx.Response(
-                            status_code=response.get("error", {}).get("code", 500),
-                            content=json.dumps(response["error"]).encode()
-                        )
+                        llm_provider="g4f",
+                        model=model
                     )
                 raise litellm.APIError(
+                    status_code=500,
                     message="Empty response from G4F",
-                    model=model,
-                    response=httpx.Response(status_code=500, content=b"Empty response")
+                    llm_provider="g4f",
+                    model=model
                 )
             
             # Convert G4F response to LiteLLM format
@@ -242,9 +242,10 @@ class G4FProvider(ProviderInterface):
         except Exception as e:
             lib_logger.error(f"Error parsing G4F response: {e}")
             raise litellm.APIError(
+                status_code=500,
                 message=f"Failed to parse G4F response: {str(e)}",
-                model=model,
-                response=httpx.Response(status_code=500, content=str(e).encode())
+                llm_provider="g4f",
+                model=model
             )
     
     def _parse_chunk(self, chunk: Dict[str, Any], model: str) -> Dict[str, Any]:
@@ -373,9 +374,10 @@ class G4FProvider(ProviderInterface):
         endpoint = self._get_endpoint_for_model(model)
         if not endpoint:
             raise litellm.APIError(
+                status_code=503,
                 message="No G4F endpoint configured. Set G4F_MAIN_API_BASE or other G4F_*_API_BASE variables.",
-                model=model,
-                response=httpx.Response(status_code=503, content=b"No G4F endpoint")
+                llm_provider="g4f",
+                model=model
             )
         
         lib_logger.info(f"G4F request: model={model}, endpoint={endpoint}, stream={stream}")
@@ -407,16 +409,18 @@ class G4FProvider(ProviderInterface):
             lib_logger.error(f"G4F HTTP error: {e.response.status_code} - {error_body[:200]}")
             
             raise litellm.APIError(
+                status_code=e.response.status_code,
                 message=f"G4F API error: {e.response.status_code}",
-                model=model,
-                response=e.response
+                llm_provider="g4f",
+                model=model
             )
         except Exception as e:
             lib_logger.error(f"G4F request error: {e}")
             raise litellm.APIError(
+                status_code=500,
                 message=f"G4F request failed: {str(e)}",
-                model=model,
-                response=httpx.Response(status_code=500, content=str(e).encode())
+                llm_provider="g4f",
+                model=model
             )
     
     async def _non_stream_completion(

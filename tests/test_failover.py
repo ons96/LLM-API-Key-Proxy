@@ -2,8 +2,8 @@
 Test suite for failover scenarios between provider tiers.
 """
 import pytest
-import pytest_asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+import asyncio
+from unittest.mock import AsyncMock, patch
 import os
 import sys
 import httpx
@@ -20,7 +20,6 @@ os.environ["G4F_MAIN_API_BASE"] = "https://test-g4f.example.com"
 
 from rotator_library.providers.g4f_provider import G4FProvider
 from rotator_library.client import get_provider_priority
-from rotator_library.usage_manager import UsageManager
 
 
 class TestG4FFailoverScenarios:

@@ -2,8 +2,7 @@
 Test suite for G4F provider functionality.
 """
 import pytest
-import pytest_asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 import httpx
 import os
 import sys
@@ -19,7 +18,7 @@ os.environ["G4F_GROK_API_BASE"] = "https://test-g4f-grok.example.com"
 os.environ["G4F_GEMINI_API_BASE"] = "https://test-g4f-gemini.example.com"
 os.environ["G4F_NVIDIA_API_BASE"] = "https://test-g4f-nvidia.example.com"
 
-from rotator_library.providers.g4f_provider import G4FProvider, G4F_ENDPOINTS
+from rotator_library.providers.g4f_provider import G4FProvider
 
 
 class TestG4FProviderInitialization:

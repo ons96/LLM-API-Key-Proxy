@@ -2,8 +2,6 @@
 Test suite for priority tier routing functionality.
 """
 import pytest
-import pytest_asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
 import os
 import sys
 
@@ -20,7 +18,7 @@ _test_env = {
 }
 
 from rotator_library.providers.g4f_provider import G4FProvider
-from rotator_library.client import DEFAULT_PROVIDER_PRIORITIES, get_provider_priority
+from rotator_library.client import get_provider_priority
 
 
 class TestProviderPriorityResolution:
