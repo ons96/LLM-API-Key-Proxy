@@ -639,6 +639,118 @@ Customize OAuth callback ports if defaults conflict:
 
 ---
 
+## G4F Fallback Providers
+
+<details>
+<summary><b>G4F (g4f) Fallback Integration</b></summary>
+
+G4F (g4f) is a unified wrapper for multiple free LLM providers. The proxy integrates G4F as a **Tier 5 fallback provider** - only used when all other providers are exhausted or rate-limited.
+
+### When G4F is Used
+
+1. **Primary providers fail** — OpenAI, Anthropic, Groq, etc. are rate-limited or unavailable
+2. **Higher-tier providers exhausted** — All Tier 1-3 providers have hit their limits
+3. **G4F is configured** — At least one G4F endpoint is set up
+
+### Priority Tier System
+
+| Tier | Providers | Description |
+|------|-----------|-------------|
+| 1 | OpenAI, Anthropic | Premium paid providers (highest priority) |
+| 2 | Groq, OpenRouter | Fast/affordable providers |
+| 3 | Gemini, Mistral | Standard providers |
+| 5 | **G4F** | Fallback providers (last resort) |
+
+### Configuration
+
+Add G4F endpoints to your `.env`:
+
+```env
+# G4F API Key (optional - most endpoints don't require one)
+G4F_API_KEY=""
+
+# Provider Base URLs
+G4F_MAIN_API_BASE="https://your-g4f-proxy"      # Main g4f-compatible API
+G4F_GROQ_API_BASE=""                            # Groq-compatible endpoint
+G4F_GROK_API_BASE=""                            # Grok-compatible endpoint
+G4F_GEMINI_API_BASE=""                          # Gemini-compatible endpoint
+G4F_NVIDIA_API_BASE=""                          # NVIDIA-compatible endpoint
+
+# Provider Priority (optional - defaults shown)
+PROVIDER_PRIORITY_OPENAI=1
+PROVIDER_PRIORITY_GROQ=2
+PROVIDER_PRIORITY_GEMINI=3
+PROVIDER_PRIORITY_G4F=5
+```
+
+### Endpoint Routing
+
+G4F automatically routes requests to the appropriate endpoint based on model name:
+
+| Model Pattern | Routes To |
+|---------------|-----------|
+| `g4f/llama-3.1-*` | G4F_GROQ_API_BASE |
+| `g4f/grok-*` | G4F_GROK_API_BASE |
+| `g4f/gemini-*` | G4F_GEMINI_API_BASE |
+| `g4f/nemotron-*` | G4F_NVIDIA_API_BASE |
+| `g4f/*` (other) | G4F_MAIN_API_BASE |
+
+### Usage
+
+Use G4F models with the standard format:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://127.0.0.1:8000/v1",
+    api_key="your-proxy-api-key"
+)
+
+# G4F will be used as fallback if primary providers fail
+response = client.chat.completions.create(
+    model="g4f/gpt-4",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+```
+
+### Limitations
+
+| Feature | Support |
+|---------|---------|
+| Chat Completions | ✅ Full support |
+| Streaming | ✅ Full support |
+| Embeddings | ❌ Not supported |
+| Tool Calling | ⚠️ Limited |
+| Vision/Images | ⚠️ Limited |
+| Token Usage | ⚠️ May not be included |
+
+### Performance Notes
+
+- **Response times** may be higher than direct API calls
+- **Rate limits** vary by underlying provider
+- **Availability** is not guaranteed
+- **Recommended** for development/testing or as last resort
+
+### Monitoring
+
+When G4F providers are used:
+
+- Logs include `provider=g4f` in request metadata
+- Response includes `x-fallback-provider` header
+- Check `/v1/providers` endpoint for fallback status
+
+### Best Practices
+
+1. **Configure multiple endpoints** — G4F can route to different endpoints based on model
+2. **Set reasonable timeouts** — G4F responses may be slower
+3. **Monitor usage** — Track how often G4F is used as fallback
+4. **Don't rely on G4F** — It's a fallback, not a primary provider
+
+</details>
+
+---
+
 ## Deployment
 
 <details>

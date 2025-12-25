@@ -7,6 +7,9 @@ from .provider_interface import ProviderInterface
 # --- Provider Plugin System ---
 
 # Dictionary to hold discovered provider classes, mapping provider name to class
+# G4F Provider
+from .g4f_provider import G4FProvider
+
 PROVIDER_PLUGINS: Dict[str, Type[ProviderInterface]] = {}
 
 
@@ -114,6 +117,12 @@ def _register_providers():
                 "qwen_code",
                 "gemini_cli",
                 "antigravity",
+                # G4F variants are handled by G4FProvider
+                "g4f",
+                "g4f_groq",
+                "g4f_grok",
+                "g4f_gemini",
+                "g4f_nvidia",
             ]:
                 continue
 
