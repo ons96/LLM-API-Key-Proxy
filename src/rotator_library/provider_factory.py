@@ -10,6 +10,12 @@ PROVIDER_MAP = {
     "qwen_code": QwenAuthBase,
     "iflow": IFlowAuthBase,
     "antigravity": AntigravityAuthBase,
+    # G4F providers use API key auth directly - no special auth class needed
+    "g4f": None,
+    "g4f_groq": None,
+    "g4f_grok": None,
+    "g4f_gemini": None,
+    "g4f_nvidia": None,
 }
 
 def get_provider_auth_class(provider_name: str):
