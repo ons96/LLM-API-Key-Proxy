@@ -40,6 +40,7 @@ from .credential_manager import CredentialManager
 from .background_refresher import BackgroundRefresher
 from .model_definitions import ModelDefinitions
 from .utils.paths import get_default_root, get_logs_dir, get_oauth_dir, get_data_file
+from .provider_priority_manager import ProviderPriorityManager
 
 
 class StreamedAPIError(Exception):
@@ -283,6 +284,10 @@ class RotatingClient:
         self.whitelist_models = whitelist_models or {}
         self.enable_request_logging = enable_request_logging
         self.model_definitions = ModelDefinitions()
+        
+        # Initialize provider priority manager for tier-based fallback routing
+        self.priority_manager = ProviderPriorityManager(os.environ)
+        lib_logger.info(f"Priority manager initialized: {self.priority_manager}")
 
         # Store and validate max concurrent requests per key
         self.max_concurrent_requests_per_key = max_concurrent_requests_per_key or {}
