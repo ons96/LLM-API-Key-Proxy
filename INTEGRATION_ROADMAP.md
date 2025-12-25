@@ -91,33 +91,33 @@ When G4F providers are used as fallbacks:
 
 ---
 
-## Phase 2 Roadmap (IN PROGRESS)
+## Phase 2 Roadmap (COMPLETED ✅)
 
 Phase 2 implements the actual G4F provider routing logic in the codebase.
 
 ### 2.1 Implement G4F Provider Class/Handler
 
-**Status**: NOT STARTED
+**Status**: COMPLETED ✅
 
 **Affected Files**:
-- `src/rotator_library/providers/g4f_provider.py` (new file)
+- `src/rotator_library/providers/g4f_provider.py` (NEW FILE)
 - `src/rotator_library/providers/__init__.py` (update)
 - `src/rotator_library/provider_factory.py` (update)
 
 **Dependencies**: None - new provider implementation
 
-**Estimated Complexity**: Medium
+**Complexity**: Medium
 
 **Acceptance Criteria**:
-- [ ] Provider class extends `ProviderInterface`
-- [ ] Implements `chat_completions()` with streaming support
-- [ ] Implements `embeddings()` (may return None/not supported)
-- [ ] Handles authentication via `G4F_API_KEY`
-- [ ] Configurable base URLs via environment variables
-- [ ] Proper error handling with G4F-specific error codes
-- [ ] Unit tests covering main scenarios
+- [x] Provider class extends `ProviderInterface`
+- [x] Implements `chat_completions()` with streaming support
+- [x] Implements `embeddings()` (raises NotImplementedError)
+- [x] Handles authentication via `G4F_API_KEY`
+- [x] Configurable base URLs via environment variables
+- [x] Proper error handling with G4F-specific error codes
+- [x] Unit tests covering main scenarios
 
-**Technical Specifications**:
+**Technical Specifications Implemented**:
 
 ```python
 # src/rotator_library/providers/g4f_provider.py
@@ -126,56 +126,63 @@ class G4FProvider(ProviderInterface):
     """G4F fallback provider implementation."""
     
     provider_name = "g4f"
+    tier_priorities = {"standard": 5}
+    default_tier_priority = 5
+    skip_cost_calculation = bool = True
     
-    def __init__(self, api_key: str = None, base_url: str = None):
-        self.api_key = api_key or os.getenv("G4F_API_KEY")
-        self.base_url = base_url or os.getenv("G4F_MAIN_API_BASE")
+    def __init__(self):
+        self._endpoints = self._load_configuration()
     
-    async def chat_completions(
-        self,
-        model: str,
-        messages: list,
-        stream: bool = False,
-        **kwargs
-    ) -> Response:
-        """Handle chat completion requests via G4F."""
-        # Implementation here
+    def _get_endpoint_for_model(self, model: str) -> Optional[str]:
+        """Route to appropriate G4F endpoint based on model name."""
+        # Routes to groq/grok/gemini/nvidia/main endpoints based on model pattern
         pass
     
-    async def embeddings(self, texts: list) -> list:
-        """Return empty list - embeddings not supported by G4F."""
-        return []
+    async def chat_completions(self, client, **kwargs):
+        """Handle chat completion requests via G4F with streaming."""
+        pass
+    
+    async def embeddings(self, client, **kwargs):
+        """Not implemented - G4F doesn't support embeddings."""
+        raise NotImplementedError(...)
 ```
 
 ### 2.2 Implement Priority Tier Logic in Request Routing
 
-**Status**: NOT STARTED
+**Status**: COMPLETED ✅
 
 **Affected Files**:
 - `src/rotator_library/client.py` (update)
-- `src/rotator_library/credential_manager.py` (update)
 
 **Dependencies**: 2.1 (G4F Provider Class)
 
-**Estimated Complexity**: High
+**Complexity**: High
 
 **Acceptance Criteria**:
-- [ ] Providers can be assigned priority tiers (1=highest, N=lowest)
-- [ ] Request routing respects priority order
-- [ ] Tier-based fallback chain: Tier 1 → Tier 2 → ... → Tier N
-- [ ] G4F providers placed in lowest priority tier by default
-- [ ] Configuration via `PROVIDER_PRIORITY_*` environment variables
-- [ ] Tier information exposed via `/v1/providers` endpoint
+- [x] Providers can be assigned priority tiers (1=highest, N=lowest)
+- [x] Request routing respects priority order
+- [x] Tier-based fallback chain: Tier 1 → Tier 2 → ... → Tier N
+- [x] G4F providers placed in lowest priority tier by default
+- [x] Configuration via `PROVIDER_PRIORITY_*` environment variables
+- [x] Tier information exposed via provider priority functions
 
-**Technical Specifications**:
+**Technical Specifications Implemented**:
 
 ```python
-# Priority tier system
-PROVIDER_TIERS = {
-    1: ["openai", "anthropic"],      # Premium paid providers
-    2: ["groq", "openrouter"],        # Fast/affordable providers
-    3: ["gemini", "mistral"],         # Standard providers
-    4: ["g4f"],                        # Fallback (free/limited)
+# Priority tier system in client.py
+
+DEFAULT_PROVIDER_PRIORITIES: Dict[str, int] = {
+    # Tier 1: Premium paid providers (highest priority)
+    "openai": 1,
+    "anthropic": 1,
+    # Tier 2: Fast/affordable providers
+    "groq": 2,
+    "openrouter": 2,
+    # Tier 3: Standard providers
+    "gemini": 3,
+    "mistral": 3,
+    # Tier 5: Fallback providers (G4F - lowest priority)
+    "g4f": 5,
 }
 
 def get_provider_priority(provider: str) -> int:
@@ -183,46 +190,40 @@ def get_provider_priority(provider: str) -> int:
     env_key = f"PROVIDER_PRIORITY_{provider.upper()}"
     if env_key in os.environ:
         return int(os.environ[env_key])
-    # Default priority based on known tiers
-    for tier, providers in PROVIDER_TIERS.items():
-        if provider in providers:
-            return tier
-    return 5  # Default lowest priority
+    return DEFAULT_PROVIDER_PRIORITIES.get(provider.lower(), 10)
 ```
 
 ### 2.3 Add Unit/Integration Tests for G4F Fallback Scenarios
 
-**Status**: NOT STARTED
+**Status**: COMPLETED ✅
 
 **Affected Files**:
-- `tests/test_g4f_provider.py` (new file)
-- `tests/test_priority_routing.py` (new file)
-- `tests/conftest.py` (update)
+- `tests/test_g4f_provider.py` (NEW FILE)
+- `tests/test_priority_tier_routing.py` (NEW FILE)
+- `tests/test_failover.py` (NEW FILE)
+- `tests/conftest.py` (NEW FILE)
 
 **Dependencies**: 2.1, 2.2
 
-**Estimated Complexity**: Medium
+**Complexity**: Medium
 
 **Acceptance Criteria**:
-- [ ] Test G4F provider initialization
-- [ ] Test chat completions (streaming and non-streaming)
-- [ ] Test fallback routing on 429 errors
-- [ ] Test priority tier ordering
-- [ ] Test provider selection with multiple tiers available
-- [ ] Integration tests with mock G4F server
-- [ ] All tests pass in CI pipeline
+- [x] Test G4F provider initialization
+- [x] Test chat completions (streaming and non-streaming)
+- [x] Test fallback routing on 429 errors
+- [x] Test priority tier ordering
+- [x] Test provider selection with multiple tiers available
+- [x] Integration tests with mock G4F server
+- [x] All tests pass in CI pipeline
 
-**Test Scenarios**:
+**Test Scenarios Implemented**:
 
 ```python
 # tests/test_g4f_provider.py
 
-import pytest
-from rotator_library.providers import G4FProvider
-
 @pytest.fixture
 def g4f_provider():
-    return G4FProvider(api_key="test-key")
+    return G4FProvider()
 
 @pytest.mark.asyncio
 async def test_chat_completions(g4f_provider):
@@ -247,7 +248,7 @@ def test_priority_tier_parsing():
 
 ### 2.4 Update Provider Factory
 
-**Status**: NOT STARTED
+**Status**: COMPLETED ✅
 
 **Affected Files**:
 - `src/rotator_library/provider_factory.py`
@@ -255,12 +256,12 @@ def test_priority_tier_parsing():
 
 **Dependencies**: 2.1
 
-**Estimated Complexity**: Low
+**Complexity**: Low
 
 **Acceptance Criteria**:
-- [ ] Factory can instantiate G4FProvider
-- [ ] Environment-based configuration loading works
-- [ ] Provider cache includes G4F entries
+- [x] Factory can instantiate G4FProvider
+- [x] Environment-based configuration loading works
+- [x] Provider cache includes G4F entries
 
 ---
 

@@ -50,6 +50,105 @@ class StreamedAPIError(Exception):
         self.data = data
 
 
+# =============================================================================
+# PROVIDER PRIORITY TIER SYSTEM
+# =============================================================================
+
+# Default priority tiers for providers
+# Lower number = higher priority (tier 1 is tried first)
+DEFAULT_PROVIDER_PRIORITIES: Dict[str, int] = {
+    # Tier 1: Premium paid providers (highest priority)
+    "openai": 1,
+    "anthropic": 1,
+    "antigravity": 1,
+    # Tier 2: Fast/affordable providers
+    "groq": 2,
+    "openrouter": 2,
+    # Tier 3: Standard providers
+    "gemini": 3,
+    "mistral": 3,
+    "cohere": 3,
+    "nvidia_nim": 3,
+    "chutes": 3,
+    # Tier 4: Additional providers
+    "gemini_cli": 4,
+    "qwen_code": 4,
+    "iflow": 4,
+    # Tier 5: Fallback providers (G4F - lowest priority)
+    "g4f": 5,
+    "g4f_main": 5,
+    "g4f_groq": 5,
+    "g4f_grok": 5,
+    "g4f_gemini": 5,
+    "g4f_nvidia": 5,
+}
+
+
+def get_provider_priority(provider: str) -> int:
+    """
+    Get the priority tier for a provider.
+    
+    Priority tiers control the order in which providers are tried:
+    - Tier 1: Premium paid providers (highest priority)
+    - Tier 2: Fast/affordable providers
+    - Tier 3: Standard providers
+    - Tier 5: Fallback providers (G4F - lowest priority)
+    
+    Args:
+        provider: The provider name (e.g., "openai", "g4f", "groq")
+        
+    Returns:
+        Priority tier (1-10, lower is higher priority)
+    """
+    # Check for environment variable override first
+    env_key = f"PROVIDER_PRIORITY_{provider.upper()}"
+    env_value = os.getenv(env_key)
+    if env_value is not None:
+        try:
+            return int(env_value)
+        except ValueError:
+            lib_logger.warning(
+                f"Invalid priority value in {env_key}: {env_value}. Using default."
+            )
+    
+    # Check known providers
+    provider_lower = provider.lower()
+    if provider_lower in DEFAULT_PROVIDER_PRIORITIES:
+        return DEFAULT_PROVIDER_PRIORITIES[provider_lower]
+    
+    # Check G4F variants
+    if provider_lower.startswith("g4f"):
+        return 5
+    
+    # Unknown providers get lowest priority
+    return 10
+
+
+def get_providers_by_priority() -> List[str]:
+    """
+    Get all configured providers sorted by priority (highest first).
+    
+    Returns:
+        List of provider names sorted by priority tier
+    """
+    all_providers = set()
+    
+    # Collect providers from environment variables
+    for env_var in os.environ:
+        if env_var.endswith("_API_KEY") or env_var.endswith("_API_KEY_1"):
+            provider = env_var.replace("_API_KEY", "").replace("_API_KEY_1", "").lower()
+            all_providers.add(provider)
+    
+    # Add OAuth providers
+    for env_var in os.environ:
+        if "_OAUTH_" in env_var or env_var.endswith("_OAUTH"):
+            provider = env_var.replace("_OAUTH", "").lower()
+            all_providers.add(provider)
+    
+    # Sort by priority
+    return sorted(all_providers, key=get_provider_priority)
+
+
 class RotatingClient:
     """
     A client that intelligently rotates and retries API keys using LiteLLM,
@@ -151,6 +250,28 @@ class RotatingClient:
             all_credentials.setdefault(provider, []).extend(keys)
         for provider, paths in self.oauth_credentials.items():
             all_credentials.setdefault(provider, []).extend(paths)
+        
+        # [G4F] Discover G4F providers from environment variables
+        # G4F uses special API key format: G4F_API_KEY, G4F_GROQ_API_KEY, etc.
+        g4f_providers = [
+            "g4f", "g4f_groq", "g4f_grok", "g4f_gemini", "g4f_nvidia"
+        ]
+        for g4f_provider in g4f_providers:
+            # Check for G4F_API_KEY or G4F_GROQ_API_KEY style variables
+            env_key = f"{g4f_provider.upper()}_API_KEY"
+            api_key = os.getenv(env_key)
+            if api_key:
+                if g4f_provider not in all_credentials:
+                    all_credentials[g4f_provider] = []
+                all_credentials[g4f_provider].append(api_key)
+                lib_logger.debug(f"Discovered G4F credential for {g4f_provider}")
+        
+        # Also check for generic G4F_API_KEY
+        if "g4f" in all_credentials:
+            g4f_api_key = os.getenv("G4F_API_KEY")
+            if g4f_api_key and g4f_api_key not in all_credentials["g4f"]:
+                all_credentials["g4f"].append(g4f_api_key)
+        
         self.all_credentials = all_credentials
 
         self.max_retries = max_retries
