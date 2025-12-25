@@ -114,6 +114,11 @@ def _register_providers():
                 "qwen_code",
                 "gemini_cli",
                 "antigravity",
+                "g4f",
+                "g4f_groq",
+                "g4f_grok",
+                "g4f_gemini",
+                "g4f_nvidia",
             ]:
                 continue
 

@@ -30,6 +30,16 @@ class DetailedLogger:
     to prevent memory issues, especially with streaming responses.
     """
 
+    @staticmethod
+    def _sanitize_headers(headers: Dict[str, Any]) -> Dict[str, Any]:
+        redacted: Dict[str, Any] = {}
+        for k, v in headers.items():
+            if k.lower() in ("authorization", "proxy-authorization", "x-api-key"):
+                redacted[k] = "[REDACTED]"
+            else:
+                redacted[k] = v
+        return redacted
+
     def __init__(self):
         """
         Initializes the logger for a single request, creating a unique directory to store all related log files.
@@ -64,7 +74,7 @@ class DetailedLogger:
         request_data = {
             "request_id": self.request_id,
             "timestamp_utc": datetime.utcnow().isoformat(),
-            "headers": dict(headers),
+            "headers": self._sanitize_headers(dict(headers)),
             "body": body,
         }
         self._write_json("request.json", request_data)
@@ -90,7 +100,7 @@ class DetailedLogger:
             "timestamp_utc": datetime.utcnow().isoformat(),
             "status_code": status_code,
             "duration_ms": round(duration_ms),
-            "headers": dict(headers) if headers else None,
+            "headers": self._sanitize_headers(dict(headers)) if headers else None,
             "body": body,
         }
         self._write_json("final_response.json", response_data)

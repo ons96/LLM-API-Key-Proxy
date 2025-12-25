@@ -73,10 +73,10 @@ if _env_files_found:
     _env_names = [_ef.name for _ef in _env_files_found]
     print(f"📁 Loaded {len(_env_files_found)} .env file(s): {', '.join(_env_names)}")
 
-# Get proxy API key for display
+# Get proxy API key for display (never print the raw key)
 proxy_api_key = os.getenv("PROXY_API_KEY")
 if proxy_api_key:
-    key_display = f"✓ {proxy_api_key}"
+    key_display = f"✓ ...{proxy_api_key[-6:]}"
 else:
     key_display = "✗ Not Set (INSECURE - anyone can access!)"
 
@@ -99,7 +99,7 @@ with _console.status("[dim]Loading FastAPI framework...", spinner="dots"):
     from contextlib import asynccontextmanager
     from fastapi import FastAPI, Request, HTTPException, Depends
     from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import StreamingResponse
+    from fastapi.responses import StreamingResponse, Response, JSONResponse
     from fastapi.security import APIKeyHeader
 
 print("  → Loading core dependencies...")
@@ -127,6 +127,13 @@ with _console.status("[dim]Initializing proxy core...", spinner="dots"):
     from proxy_app.request_logger import log_request_to_console
     from proxy_app.batch_manager import EmbeddingBatcher
     from proxy_app.detailed_logger import DetailedLogger
+    from proxy_app.metrics import (
+        CONTENT_TYPE_LATEST,
+        get_route_template,
+        metrics_payload,
+        observe_http_request,
+    )
+    from proxy_app.response_cache import ResponseCache
 
 print("  → Discovering provider plugins...")
 # Provider lazy loading happens during import, so time it here
@@ -341,6 +348,8 @@ if ENABLE_REQUEST_LOGGING:
     logging.info("Request logging is enabled.")
 PROXY_API_KEY = os.getenv("PROXY_API_KEY")
 # Note: PROXY_API_KEY validation moved to server startup to allow credential tool to run first
+
+RESPONSE_CACHE = ResponseCache()
 
 # Discover API keys from environment variables
 api_keys = {}

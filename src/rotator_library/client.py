@@ -39,6 +39,13 @@ from .cooldown_manager import CooldownManager
 from .credential_manager import CredentialManager
 from .background_refresher import BackgroundRefresher
 from .model_definitions import ModelDefinitions
+from .timeout_config import TimeoutConfig
+from .telemetry import (
+    record_credential_use,
+    record_failover,
+    record_provider_error,
+    record_provider_request,
+)
 from .utils.paths import get_default_root, get_logs_dir, get_oauth_dir, get_data_file
 
 
@@ -275,7 +282,26 @@ class RotatingClient:
             sequential_fallback_multipliers=sequential_fallback_multipliers,
         )
         self._model_list_cache = {}
-        self.http_client = httpx.AsyncClient()
+
+        # Shared connection pool for all provider calls that use httpx directly.
+        # LiteLLM may use its own internal transport, but our custom providers (OAuth flows,
+        # G4F, etc.) benefit significantly from keep-alive.
+        max_connections = int(os.getenv("HTTPX_MAX_CONNECTIONS", "200"))
+        max_keepalive = int(os.getenv("HTTPX_MAX_KEEPALIVE_CONNECTIONS", "50"))
+        keepalive_expiry = float(os.getenv("HTTPX_KEEPALIVE_EXPIRY_SECONDS", "30"))
+
+        limits = httpx.Limits(
+            max_connections=max_connections,
+            max_keepalive_connections=max_keepalive,
+            keepalive_expiry=keepalive_expiry,
+        )
+
+        self.http_client = httpx.AsyncClient(
+            timeout=TimeoutConfig.non_streaming(),
+            limits=limits,
+            headers={"User-Agent": "LLM-API-Key-Proxy"},
+        )
+
         self.all_providers = AllProviders()
         self.cooldown_manager = CooldownManager()
         self.litellm_provider_params = litellm_provider_params or {}
@@ -566,9 +592,35 @@ class RotatingClient:
         """Checks if a provider is a custom OpenAI-compatible provider."""
         import os
 
-        # Check if the provider has an API_BASE environment variable
         api_base_env = f"{provider_name.upper()}_API_BASE"
         return os.getenv(api_base_env) is not None
+
+    def _is_error_response(self, response: Any) -> bool:
+        return isinstance(response, dict) and "error" in response
+
+    def _replace_provider_in_model(self, model: str, new_provider: str) -> str:
+        if "/" not in model:
+            return f"{new_provider}/{model}"
+        _, rest = model.split("/", 1)
+        return f"{new_provider}/{rest}"
+
+    def _get_fallback_chain(self, provider: str) -> List[str]:
+        if os.getenv("G4F_FALLBACK_ENABLED", "true").lower() != "true":
+            return []
+
+        env_key = f"FALLBACK_PROVIDERS_{provider.upper()}"
+        env_value = os.getenv(env_key)
+        if env_value:
+            return [p.strip().lower() for p in env_value.split(",") if p.strip()]
+
+        mapping = {
+            "openai": "g4f",
+            "groq": "g4f_groq",
+            "gemini": "g4f_gemini",
+            "nvidia_nim": "g4f_nvidia",
+        }
+        fallback = mapping.get(provider, "g4f")
+        return [fallback]
 
     def _get_provider_instance(self, provider_name: str):
         """
@@ -868,6 +920,7 @@ class RotatingClient:
         api_call: callable,
         request: Optional[Any],
         pre_request_callback: Optional[callable] = None,
+        operation: str = "chat_completions",
         **kwargs,
     ) -> Any:
         """A generic retry mechanism for non-streaming API calls."""
@@ -883,6 +936,7 @@ class RotatingClient:
 
         # Establish a global deadline for the entire request lifecycle.
         deadline = time.time() + self.global_timeout
+        request_start = time.perf_counter()
 
         # Create a mutable copy of the keys and shuffle it to ensure
         # that the key selection is randomized, which is crucial when
@@ -1041,6 +1095,12 @@ class RotatingClient:
                 )
                 key_acquired = True
                 tried_creds.add(current_cred)
+                record_credential_use(
+                    provider=provider,
+                    priority=credential_priorities.get(current_cred)
+                    if credential_priorities
+                    else None,
+                )
 
                 litellm_kwargs = self.all_providers.get_provider_kwargs(**kwargs.copy())
 
@@ -1124,6 +1184,13 @@ class RotatingClient:
                             )
                             await self.usage_manager.release_key(current_cred, model)
                             key_acquired = False
+
+                            record_provider_request(
+                                provider=provider,
+                                operation=operation,
+                                outcome="success",
+                                duration_seconds=time.perf_counter() - request_start,
+                            )
                             return response
 
                         except (
@@ -1132,6 +1199,11 @@ class RotatingClient:
                         ) as e:
                             last_exception = e
                             classified_error = classify_error(e, provider=provider)
+                            record_provider_error(
+                                provider=provider,
+                                operation=operation,
+                                error_type=classified_error.error_type,
+                            )
                             error_message = str(e).split("\n")[0]
 
                             log_failure(
@@ -1359,6 +1431,13 @@ class RotatingClient:
                             )
                             await self.usage_manager.release_key(current_cred, model)
                             key_acquired = False
+
+                            record_provider_request(
+                                provider=provider,
+                                operation=operation,
+                                outcome="success",
+                                duration_seconds=time.perf_counter() - request_start,
+                            )
                             return response
 
                         except litellm.RateLimitError as e:
@@ -1373,6 +1452,11 @@ class RotatingClient:
                                 else {},
                             )
                             classified_error = classify_error(e, provider=provider)
+                            record_provider_error(
+                                provider=provider,
+                                operation=operation,
+                                error_type=classified_error.error_type,
+                            )
 
                             # Extract a clean error message for the user-facing log
                             error_message = str(e).split("\n")[0]
@@ -1586,6 +1670,13 @@ class RotatingClient:
             # Log concise summary for server logs
             lib_logger.error(error_accumulator.build_log_message())
 
+            record_provider_request(
+                provider=provider,
+                operation=operation,
+                outcome="error",
+                duration_seconds=time.perf_counter() - request_start,
+            )
+
             # Return the structured error response for the client
             return error_accumulator.build_client_error_response()
 
@@ -1593,6 +1684,12 @@ class RotatingClient:
         lib_logger.warning(
             "Unexpected state: request failed with no recorded errors. "
             "This may indicate a logic error in error tracking."
+        )
+        record_provider_request(
+            provider=provider,
+            operation=operation,
+            outcome="error",
+            duration_seconds=time.perf_counter() - request_start,
         )
         return None
 
@@ -2428,16 +2525,111 @@ class RotatingClient:
                 if "include_usage" not in kwargs["stream_options"]:
                     kwargs["stream_options"]["include_usage"] = True
 
-            return self._streaming_acompletion_with_retry(
+            primary_stream = self._streaming_acompletion_with_retry(
                 request=request, pre_request_callback=pre_request_callback, **kwargs
             )
-        else:
-            return self._execute_with_retry(
+
+            fallback_chain = [
+                p
+                for p in self._get_fallback_chain(provider)
+                if p != provider and p in self.all_credentials
+            ]
+
+            if not fallback_chain:
+                return primary_stream
+
+            async def stream_with_fallback() -> AsyncGenerator[str, None]:
+                stream = primary_stream
+                current_provider = provider
+
+                for candidate in [None] + fallback_chain:
+                    if candidate is not None:
+                        new_kwargs = kwargs.copy()
+                        new_kwargs["model"] = self._replace_provider_in_model(model, candidate)
+                        record_failover(
+                            from_provider=current_provider,
+                            to_provider=candidate,
+                            operation="chat_completions",
+                        )
+                        lib_logger.warning(
+                            f"Failing over streaming request {model} from {current_provider} -> {candidate}"
+                        )
+                        stream = self._streaming_acompletion_with_retry(
+                            request=request,
+                            pre_request_callback=pre_request_callback,
+                            **new_kwargs,
+                        )
+                        current_provider = candidate
+
+                    try:
+                        first_chunk = await stream.__anext__()
+                    except StopAsyncIteration:
+                        continue
+
+                    # If the first chunk is an immediate error payload, try next fallback.
+                    if first_chunk.startswith("data:"):
+                        try:
+                            raw = first_chunk[len("data:") :].strip()
+                            parsed = json.loads(raw)
+                            if isinstance(parsed, dict) and "error" in parsed:
+                                await stream.aclose()
+                                continue
+                        except Exception:
+                            pass
+
+                    yield first_chunk
+                    async for chunk in stream:
+                        yield chunk
+                    return
+
+            return stream_with_fallback()
+
+        async def run_non_stream() -> Any:
+            primary = await self._execute_with_retry(
                 litellm.acompletion,
                 request=request,
                 pre_request_callback=pre_request_callback,
+                operation="chat_completions",
                 **kwargs,
             )
+
+            if not self._is_error_response(primary):
+                return primary
+
+            fallback_chain = [
+                p
+                for p in self._get_fallback_chain(provider)
+                if p != provider and p in self.all_credentials
+            ]
+
+            for candidate in fallback_chain:
+                new_kwargs = kwargs.copy()
+                new_kwargs["model"] = self._replace_provider_in_model(model, candidate)
+                record_failover(
+                    from_provider=provider, to_provider=candidate, operation="chat_completions"
+                )
+                lib_logger.warning(
+                    f"Failing over request {model} from {provider} -> {candidate}"
+                )
+
+                resp = await self._execute_with_retry(
+                    litellm.acompletion,
+                    request=request,
+                    pre_request_callback=pre_request_callback,
+                    operation="chat_completions",
+                    **new_kwargs,
+                )
+
+                if not self._is_error_response(resp):
+                    try:
+                        setattr(resp, "_proxy_fallback_provider", candidate)
+                    except Exception:
+                        pass
+                    return resp
+
+            return primary
+
+        return run_non_stream()
 
     def aembedding(
         self,
@@ -2462,6 +2654,7 @@ class RotatingClient:
             litellm.aembedding,
             request=request,
             pre_request_callback=pre_request_callback,
+            operation="embeddings",
             **kwargs,
         )
 
