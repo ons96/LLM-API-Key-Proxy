@@ -637,6 +637,47 @@ Customize OAuth callback ports if defaults conflict:
 
 </details>
 
+## G4F Fallback Providers
+
+The proxy supports using [g4f](https://github.com/xtekky/g4f) as a fallback provider when primary API keys are exhausted or rate-limited.
+
+### Setup
+
+1. Configure G4F provider URLs in `.env`:
+   ```env
+   G4F_MAIN_API_BASE="https://your-g4f-proxy-url"
+   G4F_GROQ_API_BASE="https://your-g4f-groq-url"
+   ```
+
+2. Set provider priority tiers to control fallback order:
+   ```env
+   PROVIDER_PRIORITY_G4F=5
+   PROVIDER_PRIORITY_GROQ=2
+   ```
+
+### Compatibility
+
+| Feature | Supported |
+|---------|-----------|
+| Chat Completions | ✅ Yes |
+| Streaming | ✅ Yes |
+| Embeddings | ❌ Not supported |
+| Tool Calling | ⚠️ Limited |
+| Vision/Images | ⚠️ Limited |
+
+### Monitoring
+
+When G4F providers are used as fallbacks:
+- Logs will indicate `provider=g4f` in request metadata
+- Response includes `x-fallback-provider` header
+- Check `/v1/providers` endpoint for fallback status
+
+### Limitations
+
+- Rate limits vary by underlying provider
+- Response times may be higher than direct API calls
+- Not suitable for production high-volume workloads
+
 ---
 
 ## Deployment
