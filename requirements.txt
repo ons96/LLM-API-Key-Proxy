@@ -19,3 +19,7 @@ aiohttp
 colorlog
 
 rich
+
+# Fallback Provider
+g4f
+curl_cffi
