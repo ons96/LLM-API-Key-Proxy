@@ -4,13 +4,18 @@ Test script to verify G4F provider integration in the factory system.
 This tests that the G4F provider can be properly instantiated and managed.
 """
 
+
 import os
 import sys
 import asyncio
 from pathlib import Path
 
 # Add the src directory to Python path
-sys.path.insert(0, str(Path(__file__).parent))
+# Current file is in tests/, so we need to go up one level to root, then into src
+PROJECT_ROOT = Path(__file__).parent.parent
+SRC_DIR = PROJECT_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 from rotator_library.provider_factory import (
     get_provider_class, 
@@ -145,6 +150,47 @@ def test_provider_maps():
     return True
 
 
+    return True
+
+
+def test_priority_manager():
+    """Test the ProviderPriorityManager logic."""
+    print("\n🔍 Testing Provider Priority Manager...")
+    print("=" * 50)
+    
+    from rotator_library.provider_priority_manager import ProviderPriorityManager, ProviderTier
+    
+    # Initialize manager
+    manager = ProviderPriorityManager()
+    
+    # Test 1: Check G4F default priority
+    print("Test 1: Checking G4F priority...")
+    g4f_tier = manager.get_provider_tier("g4f")
+    print(f"G4F Tier: {g4f_tier.tier if g4f_tier else 'None'}")
+    assert g4f_tier is not None
+    assert g4f_tier.tier == ProviderTier.FALLBACK
+    print("✅ G4F defaulted to FALLBACK tier")
+
+    # Test 2: Check Fallback Chain
+    print("\nTest 2: Checking Fallback Chain...")
+    # Simulate available providers: OpenAI (Premium) and G4F (Fallback)
+    available = ["openai", "g4f", "unused"]
+    
+    # Requesting OpenAI should give OpenAI -> G4F
+    chain_openai = manager.get_fallback_chain("openai", available)
+    print(f"Fallback chain for 'openai': {chain_openai}")
+    assert chain_openai == ["openai", "g4f"]
+    print("✅ OpenAI fallback chain correct")
+    
+    # Requesting G4F should just give G4F
+    chain_g4f = manager.get_fallback_chain("g4f", available)
+    print(f"Fallback chain for 'g4f': {chain_g4f}")
+    assert chain_g4f == ["g4f"]
+    print("✅ G4F fallback chain correct")
+
+    return True
+
+
 def main():
     """Run all tests."""
     print("G4F Provider Integration Test Suite")
@@ -154,6 +200,7 @@ def main():
         # Run synchronous tests
         test_provider_factory_integration()
         test_provider_maps()
+        test_priority_manager()
         
         # Run async test
         asyncio.run(test_g4f_provider_instantiation())

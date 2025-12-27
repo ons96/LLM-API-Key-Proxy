@@ -300,6 +300,17 @@ The proxy includes a powerful text-based UI for configuration and management.
 - **OAuth discovery** from standard paths (`~/.gemini/`, `~/.qwen/`, `~/.iflow/`)
 - **Duplicate detection** warns when same account added multiple times
 - **Credential prioritization** — paid tier used before free tier
+### G4F Fallback Providers (Optional)
+The proxy supports using [gpt4free (g4f)](https://github.com/xtekky/gpt4free) as a fallback provider when your paid API keys are exhausted or rate-limited. This allows for a "free tier" failover mechanism.
+
+**Setup:**
+1.  Ensure you have the `free` profile enabled in Docker Compose (or install `g4f[all]` locally).
+2.  Set `PROVIDER_PRIORITY_G4F=5` (or a lower number than your paid providers) in your `.env`.
+3.  Set `G4F_MAIN_API_BASE` if utilizing a specific G4F server instance, otherwise it uses the embedded python library.
+
+**Warning:**
+> [!WARNING]
+> G4F providers are community-maintained and may be unstable, slow, or unavailable. Do not rely on them for production-critical reliability. They are intended as a last-resort fallback.
 - **Stateless deployment** — export OAuth to environment variables
 - **Local-first storage** — credentials isolated in `oauth_creds/` directory
 

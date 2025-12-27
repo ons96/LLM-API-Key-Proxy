@@ -875,6 +875,50 @@ class RotatingClient:
         pre_request_callback: Optional[callable] = None,
         **kwargs,
     ) -> Any:
+        # Wrapper handling provider fallback logic
+        model = kwargs.get("model", "")
+        original_provider = model.split("/")[0] if "/" in model else ""
+        available_providers = list(self.all_credentials.keys())
+        
+        chain = self.priority_manager.get_fallback_chain(original_provider, available_providers)
+        if not chain: 
+             chain = [original_provider]
+
+        last_exception = None
+        
+        for provider in chain:
+            try:
+                current_kwargs = kwargs.copy()
+                if provider != original_provider:
+                    base_model = model.split("/")[-1] if "/" in model else model
+                    current_kwargs["model"] = f"{provider}/{base_model}"
+                    lib_logger.info(f"Fallback: Switching from '{original_provider}' to '{provider}' (Model: {current_kwargs['model']})")
+
+                return await self._execute_provider_attempt(
+                    api_call,
+                    request,
+                    pre_request_callback,
+                    **current_kwargs
+                )
+            except Exception as e:
+                last_exception = e
+                # Fallback on network/server/auth errors (exhausted keys)
+                if isinstance(e, (litellm.APIConnectionError, litellm.Timeout, litellm.RateLimitError, litellm.ServiceUnavailableError, litellm.InternalServerError, litellm.AuthenticationError)):
+                    lib_logger.warning(f"Provider '{provider}' failed completely. Attempting next provider. Error: {e}")
+                    continue
+                raise e
+
+        if last_exception:
+            raise last_exception
+        raise Exception("All providers failed.")
+
+    async def _execute_provider_attempt(
+        self,
+        api_call: callable,
+        request: Optional[Any],
+        pre_request_callback: Optional[callable] = None,
+        **kwargs,
+    ) -> Any:
         """A generic retry mechanism for non-streaming API calls."""
         model = kwargs.get("model")
         if not model:
@@ -1606,7 +1650,52 @@ class RotatingClient:
         request: Optional[Any],
         pre_request_callback: Optional[callable] = None,
         **kwargs,
-    ) -> AsyncGenerator[str, None]:
+    ) -> Any:
+        # Wrapper handling provider fallback logic for streaming
+        model = kwargs.get("model", "")
+        original_provider = model.split("/")[0] if "/" in model else ""
+        available_providers = list(self.all_credentials.keys())
+
+        chain = self.priority_manager.get_fallback_chain(original_provider, available_providers)
+        if not chain:
+            chain = [original_provider]
+
+        last_exception = None
+
+        for provider in chain:
+            try:
+                current_kwargs = kwargs.copy()
+                if provider != original_provider:
+                    base_model = model.split("/")[-1] if "/" in model else model
+                    current_kwargs["model"] = f"{provider}/{base_model}"
+                    lib_logger.info(f"Fallback: Switching from '{original_provider}' to '{provider}' (Model: {current_kwargs['model']})")
+
+                # The generator needs to be iterated to catch setup errors
+                # But if we return the generator, the loop exits.
+                # Only when we yield from it do we hit errors?
+                # _streaming_provider_attempt is an async generator.
+                # If we use `async for` here, we are consuming it.
+                # We should yield from it.
+                async for chunk in self._streaming_provider_attempt(request, pre_request_callback, **current_kwargs):
+                    yield chunk
+                return
+            except Exception as e:
+                last_exception = e
+                if isinstance(e, (litellm.APIConnectionError, litellm.Timeout, litellm.RateLimitError, litellm.ServiceUnavailableError, litellm.InternalServerError, litellm.AuthenticationError)):
+                     lib_logger.warning(f"Provider '{provider}' failed completely. Attempting next provider. Error: {e}")
+                     continue
+                raise e
+        
+        if last_exception:
+            raise last_exception
+        raise Exception("All providers failed.")
+
+    async def _streaming_provider_attempt(
+        self,
+        request: Optional[Any],
+        pre_request_callback: Optional[callable] = None,
+        **kwargs,
+    ) -> Any:
         """A dedicated generator for retrying streaming completions with full request preparation and per-key retries."""
         model = kwargs.get("model")
         provider = model.split("/")[0]
