@@ -54,65 +54,107 @@ class G4FProvider(ProviderInterface):
     
     async def get_models(self, api_key: str, client: httpx.AsyncClient) -> List[str]:
         """
-        Fetch available models from G4F API.
+        Fetch available models from G4F.
         
-        G4F supports multiple model types from different providers,
-        so we return a comprehensive list of commonly available models.
+        Priority:
+        1. Try to get models from the G4F API endpoint (if configured)
+        2. Fall back to dynamically discovering models from the g4f library itself
         """
+        # First, try to get models from the API endpoint
         try:
-            # Try to get models from the API endpoint
-            models_url = f"{self.base_url.rstrip('/')}/models"
-            headers = {}
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
-            
-            response = await client.get(models_url, headers=headers)
-            response.raise_for_status()
-            
-            models_data = response.json()
-            models = []
-            
-            # Handle different response formats
-            if "data" in models_data:
-                # OpenAI-compatible format
-                for model in models_data["data"]:
-                    if isinstance(model, dict) and "id" in model:
-                        models.append(f"g4f/{model['id']}")
-            elif "models" in models_data:
-                # G4F-specific format
-                for model in models_data["models"]:
-                    if isinstance(model, str):
-                        models.append(f"g4f/{model}")
-                    elif isinstance(model, dict) and "name" in model:
-                        models.append(f"g4f/{model['name']}")
-            
-            if models:
-                lib_logger.info(f"Discovered {len(models)} models from G4F API")
-                return models
+            if self.base_url and "example.com" not in self.base_url:
+                models_url = f"{self.base_url.rstrip('/')}/models"
+                headers = {}
+                if self.api_key:
+                    headers["Authorization"] = f"Bearer {self.api_key}"
                 
+                response = await client.get(models_url, headers=headers, timeout=10.0)
+                response.raise_for_status()
+                
+                models_data = response.json()
+                models = []
+                
+                # Handle different response formats
+                if "data" in models_data:
+                    # OpenAI-compatible format
+                    for model in models_data["data"]:
+                        if isinstance(model, dict) and "id" in model:
+                            models.append(f"g4f/{model['id']}")
+                elif "models" in models_data:
+                    # G4F-specific format
+                    for model in models_data["models"]:
+                        if isinstance(model, str):
+                            models.append(f"g4f/{model}")
+                        elif isinstance(model, dict) and "name" in model:
+                            models.append(f"g4f/{model['name']}")
+                
+                if models:
+                    lib_logger.info(f"Discovered {len(models)} models from G4F API")
+                    return models
+                    
         except httpx.RequestError as e:
-            lib_logger.warning(f"Failed to fetch G4F models from API: {e}")
+            lib_logger.debug(f"Failed to fetch G4F models from API: {e}")
         except Exception as e:
-            lib_logger.warning(f"Error parsing G4F models response: {e}")
+            lib_logger.debug(f"Error parsing G4F models response: {e}")
         
-        # Fallback to static model list based on common G4F providers
+        # Fallback: Dynamically discover all models from the g4f library
+        try:
+            from g4f.models import ModelUtils
+            
+            # Get all model names from g4f's model registry
+            all_model_names = list(ModelUtils.convert.keys())
+            
+            # Filter to only include text-based chat models (exclude image/audio/video models)
+            # by checking if they contain common non-chat keywords
+            excluded_keywords = ['flux', 'dall-e', 'midjourney', 'stable-diffusion', 
+                                 'sdxl', 'playground', 'imagen', 'whisper', 'tts',
+                                 'suno', 'audio', 'music', 'video', 'image']
+            
+            chat_models = []
+            for model_name in all_model_names:
+                model_lower = model_name.lower()
+                # Skip if it contains excluded keywords (image/audio generation models)
+                if not any(kw in model_lower for kw in excluded_keywords):
+                    chat_models.append(f"g4f/{model_name}")
+            
+            lib_logger.info(f"Discovered {len(chat_models)} chat models from g4f library (filtered from {len(all_model_names)} total)")
+            return chat_models
+            
+        except ImportError as e:
+            lib_logger.warning(f"g4f library not available for dynamic model discovery: {e}")
+        except Exception as e:
+            lib_logger.warning(f"Error discovering g4f models: {e}")
+        
+        # Final fallback: static list of common models
         static_models = [
             "g4f/gpt-3.5-turbo",
             "g4f/gpt-4",
-            "g4f/gpt-4-turbo",
+            "g4f/gpt-4o",
+            "g4f/gpt-4o-mini",
             "g4f/claude-3-sonnet",
             "g4f/claude-3-haiku",
+            "g4f/claude-3.5-sonnet",
             "g4f/gemini-pro",
-            "g4f/gemini-pro-vision",
-            "g4f/llama-2-70b",
-            "g4f/mixtral-8x7b",
-            "g4f/mistral-7b",
+            "g4f/gemini-1.5-pro",
+            "g4f/gemini-1.5-flash",
             "g4f/llama-3-8b",
             "g4f/llama-3-70b",
+            "g4f/llama-3.1-8b",
+            "g4f/llama-3.1-70b",
+            "g4f/llama-3.1-405b",
+            "g4f/llama-3.2-11b",
+            "g4f/llama-3.2-90b",
+            "g4f/mixtral-8x7b",
+            "g4f/mistral-7b",
+            "g4f/qwen-2-72b",
+            "g4f/command-r-plus",
+            "g4f/deepseek-coder",
+            "g4f/phi-3-mini",
         ]
         
         lib_logger.info(f"Using fallback static model list: {len(static_models)} models")
         return static_models
+
     
     def has_custom_logic(self) -> bool:
         """
