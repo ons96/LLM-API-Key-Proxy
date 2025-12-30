@@ -80,7 +80,19 @@ The G4F provider includes:
 #### 1. Basic Configuration
 ```bash
 # Add to your .env file
+#
+# If your endpoint is public/unprotected, the key can be blank:
+#   G4F_API_KEY=""
+#
+# If you have multiple keys, you can also define:
+#   G4F_API_KEY_1=...
+#   G4F_API_KEY_2=...
 G4F_API_KEY=your_g4f_api_key
+
+# Base URL for the OpenAI-compatible API.
+# Both of these forms are accepted (the proxy will handle /v1 automatically):
+#   https://your-g4f-endpoint.com
+#   https://your-g4f-endpoint.com/v1
 G4F_MAIN_API_BASE=https://your-g4f-endpoint.com
 ```
 
