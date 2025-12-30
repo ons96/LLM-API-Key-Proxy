@@ -1,0 +1,201 @@
+# Router Configuration - FREE_ONLY_MODE=True by default
+free_only_mode: true
+
+# Proxy API Keys (supports rotation)
+proxy_api_keys:
+  - "${PROXY_API_KEY}"
+
+# Provider configurations
+providers:
+  groq:
+    enabled: true
+    env_var: "GROQ_API_KEY"
+    free_tier_models:
+      - "llama-3.1-8b-instant"
+      - "llama-3.3-70b-versatile"
+      - "mixtral-8x7b-32768"
+      - "gemma2-9b-it"
+    
+  g4f:
+    enabled: true
+    # g4f doesn't require API keys for free tier
+    
+  gemini:
+    enabled: true
+    env_var: "GEMINI_API_KEY"
+    free_tier_models:
+      - "gemini-1.5-flash"
+      - "gemini-1.5-flash-8b"
+      - "gemini-1.5-pro"  # Has free tier with rate limits
+    
+  brave_search:
+    enabled: true
+    env_var: "BRAVE_API_KEY"
+    free_tier: true
+    
+  tavily:
+    enabled: false  # Disabled by default under FREE_ONLY_MODE
+    env_var: "TAVILY_API_KEY"
+    free_tier: true
+    paid_tier: true  # Explicitly mark as having paid usage
+    
+  exa:
+    enabled: false  # Only limited free credits, not ongoing free
+    env_var: "EXA_API_KEY"
+    free_tier: false
+    paid_tier: true
+
+# Virtual Router Models
+router_models:
+  router/best-coding:
+    description: "Best for coding tasks"
+    candidates:
+      - provider: "groq"
+        model: "llama-3.3-70b-versatile"
+        priority: 1
+        capabilities: ["tools", "function_calling"]
+      - provider: "gemini"
+        model: "gemini-1.5-pro"
+        priority: 2
+        capabilities: ["tools", "function_calling", "vision"]
+      - provider: "g4f"
+        model: "gpt-4"
+        priority: 3
+        fallback_only: true
+        
+  router/best-reasoning:
+    description: "Best for reasoning and analysis"
+    candidates:
+      - provider: "groq"
+        model: "llama-3.3-70b-versatile"
+        priority: 1
+        capabilities: ["reasoning"]
+      - provider: "gemini"
+        model: "gemini-1.5-pro"
+        priority: 2
+        capabilities: ["reasoning", "long_context"]
+        
+  router/best-research:
+    description: "Best for research with search capabilities"
+    candidates:
+      - provider: "gemini"
+        model: "gemini-1.5-pro"
+        priority: 1
+        capabilities: ["tools", "long_context", "vision"]
+        search_enabled: true
+      - provider: "groq"
+        model: "llama-3.3-70b-versatile"
+        priority: 2
+        capabilities: ["tools"]
+        search_enabled: true
+        
+  router/best-chat:
+    description: "Best for general chat"
+    candidates:
+      - provider: "groq"
+        model: "llama-3.1-8b-instant"
+        priority: 1
+        capabilities: ["fast"]
+      - provider: "gemini"
+        model: "gemini-1.5-flash"
+        priority: 2
+        capabilities: ["fast", "vision"]
+      - provider: "g4f"
+        model: "gpt-3.5-turbo"
+        priority: 3
+        fallback_only: true
+        
+  router/best-coding-moe:
+    description: "Committee/MoE mode for coding"
+    moe_mode: true
+    max_experts: 3
+    aggregator_model: "groq/llama-3.3-70b-versatile"
+    candidates:
+      - provider: "groq"
+        model: "llama-3.3-70b-versatile"
+        role: "expert-architect"
+      - provider: "gemini"
+        model: "gemini-1.5-pro"
+        role: "expert-secure-coding"
+      - provider: "groq"
+        model: "mixtral-8x7b-32768"
+        role: "expert-optimization"
+        fallback_only: true
+
+# Search provider configuration
+search:
+  default_enabled: false  # 0 searches by default
+  max_additional_searches: 2
+  
+  providers:
+    - name: "brave"
+      enabled: true
+      priority: 1
+      free_only: true
+      
+    - name: "tavily"
+      enabled: false  # Disabled under FREE_ONLY_MODE by default
+      priority: 2
+      free_only: true
+      paid_available: true
+      
+    - name: "exa"
+      enabled: false  # Only limited free credits
+      priority: 3
+      free_only: false
+      paid_only: true
+
+# Routing behavior
+routing:
+  # Cooldown settings
+  default_cooldown_seconds: 60
+  rate_limit_cooldown_seconds: 300
+  max_consecutive_failures: 3
+  
+  # Latency tracking
+  ewma_alpha: 0.3  # EWMA smoothing factor
+  latency_window_minutes: 15
+  
+  # Timeout settings
+  default_timeout_seconds: 30
+  max_timeout_seconds: 120
+  
+  # Retry behavior
+  max_retries_per_candidate: 2
+  retry_on_transient_errors: true
+  
+# Capability requirements mapping
+capabilities:
+  needs_tools:
+    - "tools"
+    - "function_calling"
+  
+  needs_vision:
+    - "vision"
+  
+  needs_structured_output:
+    - "json_mode"
+    - "structured_output"
+  
+  needs_long_context:
+    - "long_context"
+    - "32k_context"
+    - "128k_context"
+
+# Logging configuration
+logging:
+  level: "INFO"
+  log_requests: true
+  log_candidates: true
+  log_search_decisions: true
+  # Never log: API keys, full prompts
+  safe_fields: ["model", "provider", "request_id", "latency"]
+
+# Safety limits
+safety:
+  max_tokens_per_request: 400000  # ~400K tokens max
+  max_moe_tokens_multiplier: 2.5  # Additional token allowance for MoE mode
+  forbidden_providers_under_free_mode:
+    - "openai"  # No free tier
+    - "anthropic"  # No free tier
+    - "cohere"  # No free tier
