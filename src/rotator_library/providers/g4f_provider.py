@@ -50,7 +50,7 @@ class G4FProvider(ProviderInterface):
         Select the appropriate base URL for G4F API calls.
         Returns the main API base as default fallback.
         """
-        return self.main_api_base or "https://g4f-api.example.com"
+        return self.main_api_base or "https://g4f.dev"
     
     async def get_models(self, api_key: str, client: httpx.AsyncClient) -> List[str]:
         """
