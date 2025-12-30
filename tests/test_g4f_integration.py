@@ -8,7 +8,10 @@ This tests that the G4F provider can be properly instantiated and managed.
 import os
 import sys
 import asyncio
+import json
 from pathlib import Path
+
+import httpx
 
 # Add the src directory to Python path
 # Current file is in tests/, so we need to go up one level to root, then into src
@@ -94,7 +97,7 @@ async def test_g4f_provider_instantiation():
     
     # Set up some test environment variables
     os.environ["G4F_API_KEY"] = "test-api-key"
-    os.environ["G4F_MAIN_API_BASE"] = "https://test-g4f-api.example.com"
+    os.environ["G4F_MAIN_API_BASE"] = "https://test-g4f-api.local"  # non-placeholder
     
     try:
         # Test instantiation
@@ -105,12 +108,12 @@ async def test_g4f_provider_instantiation():
         
         print(f"Provider name: {provider.provider_name}")
         print(f"API key set: {'Yes' if provider.api_key else 'No'}")
-        print(f"Base URL: {provider.base_url}")
+        print(f"Main API base: {provider.main_api_base}")
         print(f"Default tier priority: {provider.default_tier_priority}")
         
         assert provider.provider_name == "g4f", "Provider name should be 'g4f'"
         assert provider.api_key == "test-api-key", "API key should be loaded from env"
-        assert provider.base_url == "https://test-g4f-api.example.com", "Base URL should be loaded from env"
+        assert provider.main_api_base == "https://test-g4f-api.local", "Main API base should be loaded from env"
         assert provider.default_tier_priority == 5, "Default tier should be 5 (fallback)"
         
         print("✅ G4F provider instantiation successful")
@@ -131,6 +134,139 @@ async def test_g4f_provider_instantiation():
     return True
 
 
+async def test_g4f_completion_non_streaming_contract():
+    """Validate G4FProvider builds correct OpenAI-style request."""
+
+    print("\n🔍 Testing G4F Non-Streaming Completion Contract...")
+    print("=" * 50)
+
+    from rotator_library.providers.g4f_provider import G4FProvider
+
+    captured = {"request": None}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["request"] = request
+
+        assert request.url.path == "/v1/chat/completions"
+        assert request.headers.get("Authorization") == "Bearer test-key"
+
+        body = json.loads(request.content.decode("utf-8"))
+        assert body["model"] == "glm-4.5"  # provider prefix stripped
+        assert body["stream"] is False
+
+        return httpx.Response(
+            200,
+            json={
+                "id": "chatcmpl-test",
+                "object": "chat.completion",
+                "created": 1,
+                "model": "glm-4.5",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "ok"},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+
+    # Ensure we use public base (https://g4f.dev) and not a custom endpoint.
+    old_main = os.environ.pop("G4F_MAIN_API_BASE", None)
+    old_key = os.environ.pop("G4F_API_KEY", None)
+
+    try:
+        provider = G4FProvider()
+        async with httpx.AsyncClient(transport=transport) as client:
+            resp = await provider.acompletion(
+                client,
+                model="g4f/glm-4.5",
+                messages=[{"role": "user", "content": "hi"}],
+                stream=False,
+                credential_identifier="test-key",
+            )
+
+        assert resp.model == "g4f/glm-4.5"
+        assert resp.choices[0].message.content == "ok"
+
+        print("✅ G4F non-streaming contract test passed")
+
+    finally:
+        if old_main is not None:
+            os.environ["G4F_MAIN_API_BASE"] = old_main
+        if old_key is not None:
+            os.environ["G4F_API_KEY"] = old_key
+
+
+async def test_g4f_completion_streaming_contract():
+    """Validate G4FProvider streaming SSE parsing and chunk conversion."""
+
+    print("\n🔍 Testing G4F Streaming Completion Contract...")
+    print("=" * 50)
+
+    from rotator_library.providers.g4f_provider import G4FProvider
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/chat/completions"
+        assert request.headers.get("Authorization") == "Bearer test-key"
+        body = json.loads(request.content.decode("utf-8"))
+        assert body["model"] == "glm-4.5"
+        assert body["stream"] is True
+
+        chunk = {
+            "id": "chatcmpl-stream-test",
+            "object": "chat.completion.chunk",
+            "created": 1,
+            "model": "glm-4.5",
+            "choices": [
+                {"index": 0, "delta": {"role": "assistant", "content": "hi"}, "finish_reason": None}
+            ],
+        }
+
+        sse = f"data: {json.dumps(chunk)}\n\n" + "data: [DONE]\n\n"
+        return httpx.Response(
+            200,
+            headers={"Content-Type": "text/event-stream"},
+            content=sse.encode("utf-8"),
+        )
+
+    transport = httpx.MockTransport(handler)
+
+    old_main = os.environ.pop("G4F_MAIN_API_BASE", None)
+    old_key = os.environ.pop("G4F_API_KEY", None)
+
+    try:
+        provider = G4FProvider()
+        async with httpx.AsyncClient(transport=transport) as client:
+            gen = await provider.acompletion(
+                client,
+                model="g4f/glm-4.5",
+                messages=[{"role": "user", "content": "hi"}],
+                stream=True,
+                credential_identifier="test-key",
+            )
+
+            chunks = []
+            async for chunk in gen:
+                chunks.append(chunk)
+
+        assert chunks
+        assert chunks[0].model == "g4f/glm-4.5"
+        chunk0 = chunks[0].model_dump()
+        assert chunk0["choices"][0]["delta"]["content"] == "hi"
+
+        print("✅ G4F streaming contract test passed")
+
+    finally:
+        if old_main is not None:
+            os.environ["G4F_MAIN_API_BASE"] = old_main
+        if old_key is not None:
+            os.environ["G4F_API_KEY"] = old_key
+
+
 def test_provider_maps():
     """Test the provider maps in the factory."""
     
@@ -147,9 +283,6 @@ def test_provider_maps():
     
     print("✅ Provider maps are correctly configured")
     
-    return True
-
-
     return True
 
 
@@ -202,8 +335,10 @@ def main():
         test_provider_maps()
         test_priority_manager()
         
-        # Run async test
+        # Run async tests
         asyncio.run(test_g4f_provider_instantiation())
+        asyncio.run(test_g4f_completion_non_streaming_contract())
+        asyncio.run(test_g4f_completion_streaming_contract())
         
         print("\n" + "=" * 60)
         print("🎉 ALL TESTS PASSED! G4F integration is complete and working.")

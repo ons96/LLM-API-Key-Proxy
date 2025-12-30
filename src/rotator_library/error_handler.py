@@ -175,6 +175,7 @@ ABNORMAL_ERROR_TYPES = frozenset(
         "forbidden",  # 403 - credential access issue
         "authentication",  # 401 - credential invalid/revoked
         "pre_request_callback_error",  # Internal proxy error
+        "unknown",  # Unexpected error - surface per-credential details for debugging
     }
 )
 
