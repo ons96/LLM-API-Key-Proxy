@@ -9,12 +9,15 @@ import asyncio
 import logging
 import time
 import uuid
-from typing import Dict, Any, AsyncGenerator, Union
+from typing import Dict, Any, AsyncGenerator, Union, List, Tuple
 
 from fastapi import HTTPException, Request
+from pydantic import BaseModel
 
 from .router_core import RouterCore, CapabilityRequirements
 from .provider_adapter import ProviderAdapterFactory
+from rotator_library.web_search import get_web_search_manager, WebSearchResult
+from rotator_library.virtual_models import get_virtual_model_router
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +132,76 @@ class RouterIntegration:
         # Check if streaming is requested
         streaming = request_data.get("stream", False)
         
+        # Handle virtual model resolution
+        requested_model = request_data.get("model", "")
+        if self.virtual_model_router.is_virtual_model(requested_model):
+            logger.info(f"[{request_id}] Virtual model '{requested_model}' detected, resolving...")
+            try:
+                actual_model, temp, max_tokens = self.virtual_model_router.resolve_virtual_model(
+                    requested_model, 
+                    list(self.adapters.keys())
+                )
+                request_data["model"] = actual_model
+                
+                # Apply settings if not explicitly set
+                if request_data.get("temperature") is None and temp:
+                    request_data["temperature"] = temp
+                if request_data.get("max_tokens") is None and max_tokens:
+                    request_data["max_tokens"] = max_tokens
+                    
+                logger.info(f"[{request_id}] Virtual model resolved to: {actual_model}")
+            except Exception as e:
+                logger.error(f"[{request_id}] Virtual model resolution failed: {e}")
+                raise HTTPException(status_code=400, detail=f"Virtual model error: {str(e)}")
+        
+        # Handle web search integration
+        use_web_search = request_data.get("use_web_search")
+        if use_web_search is None and os.getenv("WEB_SEARCH_AUTO_DETECT", "true").lower() == "true":
+            # Check if we should search based on message content
+            messages = request_data.get("messages", [])
+            if messages:
+                last_message = messages[-1]
+                content = last_message.get("content", "")
+                if isinstance(content, str) and len(content.split()) > 3:
+                    # Auto-detect based on content analysis
+                    search_keywords = ["latest", "recent", "current", "news", "today", "now", 
+                                       "update", "status", "price", "weather", "score"]
+                    content_lower = content.lower()
+                    if any(keyword in content_lower for keyword in search_keywords):
+                        logger.info(f"[{request_id}] Auto-detected search need from message content")
+                        use_web_search = True
+        
+        if use_web_search:
+            # Extract search query from the last user message
+            messages = request_data.get("messages", [])
+            search_query = ""
+            if messages:
+                last_message = messages[-1]
+                content = last_message.get("content", "")
+                if isinstance(content, str):
+                    search_query = content[:200]  # First 200 chars as search query
+            
+            if search_query:
+                logger.info(f"[{request_id}] Performing web search for: {search_query}")
+                search_used, search_results, search_provider = await self.web_search_manager.search_if_needed(
+                    search_query, 
+                    use_web_search=True,
+                    max_results=3
+                )
+                
+                if search_used and search_results:
+                    # Format search results and add as a system message
+                    formatted_results = await self.web_search_manager.format_results_for_prompt(search_results)
+                    
+                    # Insert search results as a system message (but not if there are images/tools already)
+                    system_message = {"role": "system", "content": f"Web search results:\n{formatted_results}"}
+                    messages.insert(0, system_message)
+                    request_data["messages"] = messages
+                    request_data["_web_search_used"] = True
+                    request_data["_web_search_provider"] = search_provider
+                    
+                    logger.info(f"[{request_id}] Web search results added to context ({search_provider})")
+        
         # Route the request
         start_time = time.time()
         
@@ -139,6 +212,13 @@ class RouterIntegration:
             if streaming:
                 return self._wrap_streaming_response(response, request_id, start_time)
             else:
+                # Add web search metadata to response if applicable
+                if isinstance(response, dict) and request_data.get("_web_search_used"):
+                    if "metadata" not in response:
+                        response["metadata"] = {}
+                    response["metadata"]["web_search_used"] = True
+                    response["metadata"]["web_search_provider"] = request_data.get("_web_search_provider", "unknown")
+                
                 # Log completion
                 duration_ms = (time.time() - start_time) * 1000
                 logger.info(f"[{request_id}] Request completed in {duration_ms:.1f}ms")
@@ -171,10 +251,13 @@ class RouterIntegration:
             raise
     
     def get_models(self) -> Dict[str, Any]:
-        """Get available models (combines router and legacy models)."""
+        """Get available models (combines router, adapters, and virtual models)."""
         
         # Get models from router
         router_models = self.router.get_model_list()
+        
+        # Get virtual models
+        virtual_models = self.virtual_model_router.get_all_virtual_models()
         
         # Get models from adapters
         adapter_models = []
@@ -196,10 +279,10 @@ class RouterIntegration:
                 
                 adapter_models.append(model_entry)
         
-        # Combine and deduplicate
-        all_models = router_models + adapter_models
+        # Combine all model sources
+        all_models = router_models + adapter_models + virtual_models
         
-        # Remove duplicates (prefer router models)
+        # Remove duplicates (prefer router models, then virtual, then adapters)
         model_lookup = {model["id"]: model for model in all_models}
         return list(model_lookup.values())
     
