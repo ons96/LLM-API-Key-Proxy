@@ -158,6 +158,13 @@ This means you can confidently use the proxy knowing that if your primary provid
  - **Setup:** Add `CEREBRAS_API_KEY_1` to `.env`
  - **Key Models:** `llama-3.1-8b`, `llama-3.3-70b`, `qwen-3-32b`, `qwen-3-235b`
 
+### HuggingFace
+Free inference API for open-source models (queue-based, may wait if busy).
+- **Priority Tier:** 3 (Standard)
+- **API Base:** `https://api-inference.huggingface.co/models`
+- **Setup:** Add `HUGGINGFACE_API_KEY_1` to `.env` (get free token at https://huggingface.co/settings/tokens)
+- **Key Models:** `Qwen/Qwen2.5-72B-Instruct`, `meta-llama/Llama-3.3-70B-Instruct`, `Qwen/Qwen2.5-Coder-32B-Instruct`
+
 ### Setting G4F_API_KEY on Render
 
 If deploying to Render:
