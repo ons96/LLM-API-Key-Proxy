@@ -3,7 +3,6 @@ import httpx
 import logging
 import json
 import asyncio
-import random
 from typing import List, Dict, Any, Optional, AsyncGenerator, Union
 
 import litellm
