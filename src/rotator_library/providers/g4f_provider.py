@@ -377,6 +377,15 @@ class G4FProvider(ProviderInterface):
         for attempt in range(max_retries):
             try:
                 response = await client.post(api_url, headers=headers, json=request_data)
+
+                # Check for HTML/WAF in response body (even if 200 OK)
+                if self._is_waf_html(response.text):
+                     raise litellm.APIConnectionError(
+                        f"G4F Provider Blocked (WAF/Cloudflare): {response.text[:200]}...",
+                        None,
+                        proxy_model,
+                    )
+                
                 response.raise_for_status()
                 response_data = response.json()
                 return self._convert_g4f_response(response_data, proxy_model=proxy_model)
@@ -430,7 +439,17 @@ class G4FProvider(ProviderInterface):
                 ) as response:
                     if response.status_code >= 400:
                         try:
-                            await response.aread()
+                            # Read error body to check for WAF/HTML
+                            content = await response.aread()
+                            content_str = content.decode("utf-8", errors="ignore")
+                            if self._is_waf_html(content_str):
+                                raise litellm.APIConnectionError(
+                                    f"G4F Provider Blocked (WAF/Cloudflare): {content_str[:200]}...",
+                                    None,
+                                    proxy_model,
+                                )
+                        except litellm.APIConnectionError:
+                            raise
                         except Exception:
                             pass
                         response.raise_for_status()
@@ -442,6 +461,14 @@ class G4FProvider(ProviderInterface):
                     async for line in response.aiter_lines():
                         if not line:
                             continue
+
+                        # Check if line is HTML (WAF leaking through 200 OK)
+                        if self._is_waf_html(line):
+                             raise litellm.APIConnectionError(
+                                f"G4F Provider Blocked (WAF/Cloudflare leaked 200): {line[:200]}...",
+                                None,
+                                proxy_model,
+                            )
 
                         if line.startswith("data: "):
                             line_data = line[6:]
@@ -648,3 +675,15 @@ class G4FProvider(ProviderInterface):
 
     def get_credential_tier_name(self, credential: str) -> Optional[str]:
         return "free-tier"
+
+    @staticmethod
+    def _is_waf_html(text: str) -> bool:
+        """Check if response text looks like a WAF/Cloudflare block page."""
+        text_lower = text.lower().strip()
+        if text_lower.startswith("<!doctype html") or text_lower.startswith("<html"):
+            return True
+        if "just a moment..." in text_lower or "attention required! | cloudflare" in text_lower:
+            return True
+        if "cloudflare" in text_lower and ("captcha" in text_lower or "security" in text_lower):
+            return True
+        return False
