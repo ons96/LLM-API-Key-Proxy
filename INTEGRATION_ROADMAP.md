@@ -4,13 +4,13 @@ This document outlines the phased approach for integrating G4F (g4f) fallback pr
 
 ---
 
-## Phase 1 Summary (NOT STARTED)
+## Phase 1 Summary (COMPLETED)
 
-Phase 1 focuses on configuration and documentation updates required for G4F integration.
+Phase 1 focused on configuration and documentation updates required for G4F integration.
 
 ### Changes to `.env.example`
 
-**Status**: NOT IMPLEMENTED
+**Status**: COMPLETED
 
 The following environment variables need to be added to `.env.example`:
 
@@ -42,7 +42,7 @@ G4F_NVIDIA_API_BASE="https://g4f-nvidia.example.com"  # NVIDIA-compatible endpoi
 
 ### Changes to `README.md`
 
-**Status**: NOT IMPLEMENTED
+**Status**: COMPLETED
 
 Add a new section titled "G4F Fallback Providers" after the existing OAuth Providers section:
 
@@ -91,13 +91,13 @@ When G4F providers are used as fallbacks:
 
 ---
 
-## Phase 2 Roadmap (IN PROGRESS)
+## Phase 2 Roadmap (COMPLETED)
 
 Phase 2 implements the actual G4F provider routing logic in the codebase.
 
 ### 2.1 Implement G4F Provider Class/Handler
 
-**Status**: NOT STARTED
+**Status**: COMPLETED
 
 **Affected Files**:
 - `src/rotator_library/providers/g4f_provider.py` (new file)
@@ -149,7 +149,7 @@ class G4FProvider(ProviderInterface):
 
 ### 2.2 Implement Priority Tier Logic in Request Routing
 
-**Status**: NOT STARTED
+**Status**: COMPLETED
 
 **Affected Files**:
 - `src/rotator_library/client.py` (update)
@@ -192,7 +192,7 @@ def get_provider_priority(provider: str) -> int:
 
 ### 2.3 Add Unit/Integration Tests for G4F Fallback Scenarios
 
-**Status**: NOT STARTED
+**Status**: COMPLETED
 
 **Affected Files**:
 - `tests/test_g4f_provider.py` (new file)
@@ -247,7 +247,7 @@ def test_priority_tier_parsing():
 
 ### 2.4 Update Provider Factory
 
-**Status**: NOT STARTED
+**Status**: COMPLETED
 
 **Affected Files**:
 - `src/rotator_library/provider_factory.py`

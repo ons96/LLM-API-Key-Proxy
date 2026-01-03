@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 
 import httpx
+import pytest
 
 # Add the src directory to Python path
 # Current file is in tests/, so we need to go up one level to root, then into src
@@ -89,6 +90,7 @@ def test_provider_factory_integration():
     return True
 
 
+@pytest.mark.asyncio
 async def test_g4f_provider_instantiation():
     """Test that we can actually instantiate a G4F provider."""
     
@@ -134,6 +136,7 @@ async def test_g4f_provider_instantiation():
     return True
 
 
+@pytest.mark.asyncio
 async def test_g4f_completion_non_streaming_contract():
     """Validate G4FProvider builds correct OpenAI-style request."""
 
@@ -201,6 +204,7 @@ async def test_g4f_completion_non_streaming_contract():
             os.environ["G4F_API_KEY"] = old_key
 
 
+@pytest.mark.asyncio
 async def test_g4f_completion_streaming_contract():
     """Validate G4FProvider streaming SSE parsing and chunk conversion."""
 

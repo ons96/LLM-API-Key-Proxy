@@ -30,8 +30,8 @@ Deploy a **stable, free-hosted LLM API Gateway** on Render.com that works reliab
 | Task | Status | File(s) |
 |------|--------|---------|
 | ✅ Groq Provider | DONE | `groq_provider.py` (litellm handles it) |
-| ⬜ Cerebras Provider | TODO | Create `cerebras_provider.py` |
-| ⬜ HuggingFace Provider | TODO | Create `huggingface_provider.py` |
+| ✅ Cerebras Provider | DONE | `cerebras_provider.py` |
+| ✅ HuggingFace Provider | DONE | `huggingface_provider.py` |
 | ⬜ Verify `/v1/models` | TODO | Test that models populate in chatbot dropdowns |
 | ⬜ Deploy to Render | TODO | Push to GitHub → Auto-deploy |
 
