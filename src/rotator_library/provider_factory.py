@@ -9,6 +9,8 @@ from .providers.qwen_auth_base import QwenAuthBase
 from .providers.iflow_auth_base import IFlowAuthBase
 from .providers.antigravity_auth_base import AntigravityAuthBase
 from .providers.g4f_provider import G4FProvider
+from .providers.agentrouter_provider import AgentRouterProvider
+from .providers.cerebras_provider import CerebrasProvider
 
 lib_logger = logging.getLogger("rotator_library")
 lib_logger.propagate = False
@@ -26,6 +28,8 @@ OAUTH_PROVIDER_MAP = {
 # Direct provider implementations (use API keys or environment config)
 DIRECT_PROVIDER_MAP = {
     "g4f": G4FProvider,
+    "agentrouter": AgentRouterProvider,
+    "cerebras": CerebrasProvider,
 }
 
 # Combined provider map for compatibility

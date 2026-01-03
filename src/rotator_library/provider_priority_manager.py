@@ -55,6 +55,7 @@ class ProviderPriorityManager:
         # Tier 2: Fast/affordable providers
         "groq": ProviderTier.FAST_AFFORDABLE,
         "openrouter": ProviderTier.FAST_AFFORDABLE,
+        "cerebras": ProviderTier.FAST_AFFORDABLE,  # Very fast inference, good free tier
         
         # Tier 3: Standard providers
         "gemini": ProviderTier.STANDARD,
@@ -62,6 +63,7 @@ class ProviderPriorityManager:
         "mistral": ProviderTier.STANDARD,
         "cohere": ProviderTier.STANDARD,
         "nvidia_nim": ProviderTier.STANDARD,
+        "agentrouter": ProviderTier.STANDARD,  # Third-party with credits
         
         # Tier 4: G4F fallback providers (primary fallback mechanism)
         "g4f": ProviderTier.FALLBACK,
@@ -72,6 +74,7 @@ class ProviderPriorityManager:
         "antigravity": ProviderTier.LOWEST,
         "chutes": ProviderTier.LOWEST,
     }
+
     
     TIER_NAMES = {
         ProviderTier.PREMIUM: "Premium",
