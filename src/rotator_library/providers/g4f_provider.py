@@ -2,6 +2,8 @@ import os
 import httpx
 import logging
 import json
+import asyncio
+import random
 from typing import List, Dict, Any, Optional, AsyncGenerator, Union
 
 import litellm
@@ -352,7 +354,7 @@ class G4FProvider(ProviderInterface):
                 proxy_model=proxy_model,
             )
 
-        return await self._handle_non_streaming_completion(
+        return await self._internal_retry_loop(
             client=client,
             api_url=api_url,
             headers=headers,
@@ -360,19 +362,51 @@ class G4FProvider(ProviderInterface):
             proxy_model=proxy_model,
         )
 
-    async def _handle_non_streaming_completion(
+    async def _internal_retry_loop(
         self,
         client: httpx.AsyncClient,
         api_url: str,
         headers: Dict[str, str],
         request_data: Dict[str, Any],
         proxy_model: str,
+        max_retries: int = 3,
     ) -> litellm.ModelResponse:
-        response = await client.post(api_url, headers=headers, json=request_data)
-        response.raise_for_status()
+        """Retry loop for non-streaming requests to handle flaky G4F backends."""
+        last_exception = None
 
-        response_data = response.json()
-        return self._convert_g4f_response(response_data, proxy_model=proxy_model)
+        for attempt in range(max_retries):
+            try:
+                response = await client.post(api_url, headers=headers, json=request_data)
+                response.raise_for_status()
+                response_data = response.json()
+                return self._convert_g4f_response(response_data, proxy_model=proxy_model)
+
+            except (httpx.HTTPStatusError, httpx.RequestError) as e:
+                last_exception = e
+                # Don't retry 400/401/404 as they are likely permanent
+                if isinstance(e, httpx.HTTPStatusError) and e.response.status_code in (
+                    400,
+                    401,
+                    404,
+                ):
+                    raise
+
+                if attempt < max_retries - 1:
+                    # Minimal backoff: 0.1s, 0.25s, 0.5s
+                    wait_time = min(0.1 * (2.5**attempt), 0.5)
+                    lib_logger.warning(
+                        f"G4F retry {attempt + 1}/{max_retries} for {proxy_model} after error: {e}. Waiting {wait_time:.2f}s"
+                    )
+                    await asyncio.sleep(wait_time)
+                continue
+            except Exception as e:
+                # Unexpected errors don't retry
+                raise e
+
+        # If we exhausted retries, raise the last exception
+        if last_exception:
+            raise last_exception
+        raise RuntimeError("G4F retry loop failed with no exception")
 
     async def _handle_streaming_completion(
         self,
@@ -381,41 +415,70 @@ class G4FProvider(ProviderInterface):
         headers: Dict[str, str],
         request_data: Dict[str, Any],
         proxy_model: str,
+        max_retries: int = 3,
     ) -> AsyncGenerator[litellm.ModelResponse, None]:
-        async with client.stream(
-            "POST",
-            api_url,
-            headers=headers,
-            json=request_data,
-        ) as response:
-            # Preload body if error, so response.text is available to error handling/logging
-            if response.status_code >= 400:
-                try:
-                    await response.aread()
-                except Exception:
-                    pass
+        """Retry loop for streaming requests."""
+        last_exception = None
 
-            response.raise_for_status()
+        for attempt in range(max_retries):
+            try:
+                async with client.stream(
+                    "POST",
+                    api_url,
+                    headers=headers,
+                    json=request_data,
+                ) as response:
+                    if response.status_code >= 400:
+                        try:
+                            await response.aread()
+                        except Exception:
+                            pass
+                        response.raise_for_status()
 
-            async for line in response.aiter_lines():
-                if not line:
-                    continue
+                    # Important: We only retry if CONNECTION fails or IMMEDIATE status error.
+                    # Once we start yielding chunks, we cannot retry as we've already sent data to client.
+                    # So we iterate inside the try block.
 
-                if line.startswith("data: "):
-                    line_data = line[6:]
-                    if line_data.strip() == "[DONE]":
-                        break
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
 
-                    try:
-                        chunk_data = json.loads(line_data)
-                        yield self._convert_g4f_chunk(
-                            chunk_data, proxy_model=proxy_model
-                        )
-                    except json.JSONDecodeError:
-                        lib_logger.warning(
-                            f"Failed to parse G4F streaming chunk: {line_data[:200]}"
-                        )
-                        continue
+                        if line.startswith("data: "):
+                            line_data = line[6:]
+                            if line_data.strip() == "[DONE]":
+                                break
+
+                            try:
+                                chunk_data = json.loads(line_data)
+                                yield self._convert_g4f_chunk(
+                                    chunk_data, proxy_model=proxy_model
+                                )
+                            except json.JSONDecodeError:
+                                continue
+                    return  # Success, exit loop
+
+            except (httpx.HTTPStatusError, httpx.RequestError) as e:
+                last_exception = e
+                # Don't retry permanent errors
+                if isinstance(e, httpx.HTTPStatusError) and e.response.status_code in (
+                    400,
+                    401,
+                    404,
+                ):
+                    raise
+
+                if attempt < max_retries - 1:
+                    wait_time = min(0.1 * (2.5**attempt), 0.5)
+                    lib_logger.warning(
+                        f"G4F stream retry {attempt + 1}/{max_retries} for {proxy_model}. Waiting {wait_time:.2f}s"
+                    )
+                    await asyncio.sleep(wait_time)
+                continue
+            except Exception as e:
+                raise e
+
+        if last_exception:
+            raise last_exception
 
     def _convert_g4f_response(
         self, response_data: Dict[str, Any], proxy_model: str
@@ -568,9 +631,12 @@ class G4FProvider(ProviderInterface):
             }
 
         if "quota" in combined or "exhausted" in combined:
+            # Downgrade "quota exhausted" to rate limit for G4F
+            # This prevents the "All credentials exhausted" (300s lockout) behavior.
+            # We want to keep trying (via internal retries or next request) because G4F rotates internally.
             return {
-                "retry_after": 300,
-                "reason": "QUOTA_EXHAUSTED",
+                "retry_after": 5,  # Short cooldown
+                "reason": "RATE_LIMITED",  # Treated as soft limit, not hard quota
                 "reset_timestamp": None,
                 "quota_reset_timestamp": None,
             }
