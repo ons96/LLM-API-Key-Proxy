@@ -36,6 +36,7 @@ Deploy a **stable, free-hosted LLM API Gateway** on Render.com that works reliab
 | ⬜ Deploy to Render | TODO | Push to GitHub → Auto-deploy |
 | ✅ .env.example Updated | DONE | Added HuggingFace section |
 | ✅ Test Suite Fixed | DONE | 29/30 tests passing (1 pre-existing)  |
+| ✅ README Updated | DONE | Added HuggingFace provider documentation |
 
 ### Cerebras Provider Implementation
 ```python
