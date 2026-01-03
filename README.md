@@ -131,15 +131,32 @@ Tier 3 (Last Resort): OpenAI, Anthropic, OpenRouter, Groq, Mistral, etc.
 This means you can confidently use the proxy knowing that if your primary provider is rate-limited, a free fallback is available automatically.
 
 ### Compatibility
-
-All g4f providers are fully compatible with:
-- ✅ OpenAI Python SDK
-- ✅ OpenAI TypeScript/JavaScript SDK
-- ✅ Kilo Code
-- ✅ Cline
-- ✅ Any OpenAI-compatible client (LiteLLM, etc.)
-- ✅ Streaming responses
-- ✅ Tool calling (where supported by g4f backend)
+ 
+ All g4f providers are fully compatible with:
+ - ✅ OpenAI Python SDK
+ - ✅ OpenAI TypeScript/JavaScript SDK
+ - ✅ Kilo Code
+ - ✅ Cline
+ - ✅ Any OpenAI-compatible client (LiteLLM, etc.)
+ - ✅ Streaming responses
+ - ✅ Tool calling (where supported by g4f backend)
+ 
+ ---
+ 
+ ## New Providers: AgentRouter & Cerebras
+ 
+ ### AgentRouter
+ OpenAI-compatible provider offering various models including DeepSeek V3.2 and GLM 4.6.
+ - **Priority Tier:** 3 (Standard)
+ - **API Base:** `https://agentrouter.org/v1`
+ - **Setup:** Add `AGENTROUTER_API_KEY_1` to `.env`
+ 
+ ### Cerebras
+ Extremely fast inference provider with a generous free tier (1M tokens/day).
+ - **Priority Tier:** 2 (Fast/Affordable)
+ - **API Base:** `https://api.cerebras.ai/v1`
+ - **Setup:** Add `CEREBRAS_API_KEY_1` to `.env`
+ - **Key Models:** `llama-3.1-8b`, `llama-3.3-70b`, `qwen-3-32b`, `qwen-3-235b`
 
 ### Setting G4F_API_KEY on Render
 
@@ -318,6 +335,8 @@ GEMINI_API_KEY_1="your-gemini-key"
 GEMINI_API_KEY_2="another-gemini-key"
 OPENAI_API_KEY_1="your-openai-key"
 ANTHROPIC_API_KEY_1="your-anthropic-key"
+AGENTROUTER_API_KEY_1="your-agentrouter-key"
+CEREBRAS_API_KEY_1="your-cerebras-key"
 ```
 
 > Copy `.env.example` to `.env` as a starting point.
