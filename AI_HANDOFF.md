@@ -1,417 +1,187 @@
 # AI Agent Handoff Guide
 
-This document provides a quick reference for any AI agent taking over development of the LLM-API-Key-Proxy project.
+**Last Updated**: 2026-01-03
+**Session Status**: Phase 1 Implementation IN PROGRESS
 
 ---
 
-## Quick Start for AI Agents
+## 🚨 IMMEDIATE CONTEXT FOR NEXT AI
 
-### Project Purpose and Current State
+### Current Goal
+Deploy a **stable, free-hosted LLM API Gateway** on Render.com that works reliably for:
+1. AI Agentic Coding Tools (Opencode, Cursor, etc.)
+2. AI Chatbots (SillyTavern, KoboldAI Lite, Agnaistic)
 
-**Purpose**: Universal OpenAI-compatible LLM proxy server that provides:
-- Single API endpoint for multiple LLM providers
-- Automatic key rotation and failover
-- Intelligent request routing with priority tiers
-- OAuth support for various providers
+### Why G4F is Problematic
+- **G4F scrapes** web-based LLM providers (ChatGPT, Claude, etc.).
+- **Render's IPs are datacenter IPs** → instantly blocked by Cloudflare ("Just a moment..." HTML).
+- **Result**: G4F returns HTML instead of JSON, crashing clients.
 
-**Current State**: Phase 1 of G4F fallback integration is **NOT STARTED**.
-- Configuration variables not added to `.env.example`
-- Documentation not added to `README.md`
-- Provider implementation not started
+### The Solution: Phased Approach
+1. **Phase 1 (CURRENT)**: Deploy with **API-Key Providers ONLY** (Groq, Cerebras, HuggingFace).
+   - These **never get blocked** on Render.
+2. **Phase 2 (LATER)**: Add G4F as a **low-priority fallback** (best-effort).
 
-**Branch**: `docs-g4f-phase1-verification-ai-handoff`
+---
 
-### How to Run the Proxy Locally
+## 📋 IMMEDIATE NEXT STEPS
 
+### Phase 1: Core Providers (API Keys)
+| Task | Status | File(s) |
+|------|--------|---------|
+| ✅ Groq Provider | DONE | `groq_provider.py` (litellm handles it) |
+| ⬜ Cerebras Provider | TODO | Create `cerebras_provider.py` |
+| ⬜ HuggingFace Provider | TODO | Create `huggingface_provider.py` |
+| ⬜ Verify `/v1/models` | TODO | Test that models populate in chatbot dropdowns |
+| ⬜ Deploy to Render | TODO | Push to GitHub → Auto-deploy |
+
+### Cerebras Provider Implementation
+```python
+# File: src/rotator_library/providers/cerebras_provider.py
+# URL: https://api.cerebras.ai/v1
+# Model: llama3.1-70b (extremely fast)
+# Auth: Bearer Token (CEREBRAS_API_KEY)
+```
+
+### HuggingFace Provider Implementation
+```python
+# File: src/rotator_library/providers/huggingface_provider.py
+# URL: https://api-inference.huggingface.co/models
+# Models: Qwen/Qwen2.5-72B-Instruct, meta-llama/Llama-3.3-70B-Instruct
+# Auth: Bearer Token (HUGGINGFACE_API_KEY)
+```
+
+---
+
+## 🔧 HOW TO CONTINUE
+
+### 1. Clone the Repo
 ```bash
-# Clone and setup
-git clone https://github.com/Mirrowel/LLM-API-Key-Proxy.git
+git clone https://github.com/ons96/LLM-API-Key-Proxy.git
 cd LLM-API-Key-Proxy
-python3 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Copy environment template
-cp .env.example .env
-# Edit .env with your API keys
-
-# Run with TUI (interactive)
-python src/proxy_app/main.py
-
-# Run directly with arguments
-python src/proxy_app/main.py --host 0.0.0.0 --port 8000
 ```
 
-### How to Test Changes
-
+### 2. Install Dependencies
 ```bash
-# Install test dependencies
-pip install pytest pytest-asyncio httpx
+pip install -r requirements.txt
+```
 
-# Run all tests
+### 3. Run Tests
+```bash
 pytest tests/ -v
+```
 
-# Run specific test file
-pytest tests/test_g4f_provider.py -v
+### 4. Implement Cerebras Provider
+Create `src/rotator_library/providers/cerebras_provider.py`:
+- Extend `ProviderInterface`
+- Implement `get_models()` and handle chat completions via litellm
+- Register in `src/rotator_library/providers/__init__.py`
 
-# Run with coverage
-pytest --cov=src/rotator_library tests/
+### 5. Implement HuggingFace Provider
+Create `src/rotator_library/providers/huggingface_provider.py`:
+- Same pattern as Cerebras
+- Note: HF uses different endpoint structure
 
-# Test proxy manually
-curl -X POST http://127.0.0.1:8000/v1/chat/completions \
+### 6. Test Locally
+```bash
+python src/proxy_app/main.py --port 8000
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Authorization: Bearer YOUR_PROXY_KEY" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_PROXY_API_KEY" \
-  -d '{
-    "model": "gemini/gemini-2.5-flash",
-    "messages": [{"role": "user", "content": "Hello!"}]
-  }'
+  -d '{"model": "cerebras/llama3.1-70b", "messages": [{"role": "user", "content": "Hi"}]}'
 ```
 
----
-
-## Key Codebase Locations
-
-### Provider Logic
-
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| **Main Client** | `src/rotator_library/client.py` | RotatingClient class - handles request routing, key rotation, failover |
-| **Credential Manager** | `src/rotator_library/credential_manager.py` | API key discovery and management |
-| **Provider Interface** | `src/rotator_library/providers/provider_interface.py` | Base class for all providers |
-| **Provider Factory** | `src/rotator_library/provider_factory.py` | Factory for creating provider instances |
-| **Error Handler** | `src/rotator_library/error_handler.py` | Error handling and cooldown logic |
-
-### Configuration Loading
-
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| Environment Config | `src/proxy_app/config.py` (if exists) or direct `os.getenv` calls | Loads `.env` variables |
-| Provider Config | `src/rotator_library/providers/__init__.py` | Provider registry |
-
-### Request Routing
-
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| Router | `src/rotator_library/client.py` | Routes requests to appropriate provider |
-| Request Sanitizer | `src/rotator_library/request_sanitizer.py` | Validates and normalizes requests |
-| Timeout Config | `src/rotator_library/timeout_config.py` | HTTP timeout settings |
-
-### Tests
-
-| Location | Purpose |
-|----------|---------|
-| `tests/` | All unit and integration tests |
-| `tests/test_priority_routing.py` | Tests for priority tier routing (needs creation) |
-| `tests/test_g4f_provider.py` | Tests for G4F provider (needs creation) |
-
----
-
-## For Next Phase Implementation
-
-### Phase 2 Items (Priority Order)
-
-1. **Add G4F configuration to `.env.example`**
-   - Add `G4F_API_KEY`, `G4F_MAIN_API_BASE`, etc.
-   - Add `PROVIDER_PRIORITY_*` variables
-   - Reference: `INTEGRATION_ROADMAP.md` Phase 1 section
-
-2. **Add G4F documentation to `README.md`**
-   - Create "G4F Fallback Providers" section
-   - Document setup, compatibility, monitoring
-   - Reference: `INTEGRATION_ROADMAP.md` for template
-
-3. **Create G4F Provider class**
-   - File: `src/rotator_library/providers/g4f_provider.py`
-   - Must extend `ProviderInterface`
-   - Implement `chat_completions()` and `embeddings()`
-
-4. **Implement priority tier routing**
-   - Modify `src/rotator_library/client.py`
-   - Add `get_provider_priority()` function
-   - Update request routing to respect tiers
-
-5. **Write unit tests**
-   - Create `tests/test_g4f_provider.py`
-   - Create `tests/test_priority_routing.py`
-   - Ensure all tests pass before committing
-
-### Critical Files to Modify
-
-| File | Change Type | Description |
-|------|-------------|-------------|
-| `.env.example` | Add | G4F provider variables |
-| `README.md` | Add | G4F documentation section |
-| `src/rotator_library/providers/g4f_provider.py` | Create | G4F provider implementation |
-| `src/rotator_library/providers/__init__.py` | Modify | Export G4FProvider |
-| `src/rotator_library/provider_factory.py` | Modify | Handle G4F provider creation |
-| `src/rotator_library/client.py` | Modify | Priority tier routing logic |
-| `tests/test_g4f_provider.py` | Create | Unit tests for G4F |
-| `tests/test_priority_routing.py` | Create | Tests for priority system |
-
-### Testing Requirements
-
-Before pushing changes, ensure:
-
+### 7. Commit and Push
 ```bash
-# Run full test suite
-pytest tests/ -v
-
-# Verify no linting errors
-flake8 src/rotator_library/ --max-line-length=120
-
-# Verify type hints (if mypy is configured)
-mypy src/rotator_library/
-
-# Check formatting
-black src/rotator_library/ --check
+git add .
+git commit -m "feat: Add Cerebras and HuggingFace providers for Phase 1"
+git push
 ```
-
-### Validation Steps
-
-1. Create feature branch from `main`
-2. Implement changes
-3. Write/update tests
-4. Run full test suite
-5. Verify documentation is complete
-6. Commit with conventional commit message
-7. Push and create PR
 
 ---
 
-## Important Context
+## 📂 KEY FILES
 
-### G4F Provider Priority Tier System
+| File | Purpose |
+|------|---------|
+| `src/rotator_library/client.py` | Core RotatingClient (request routing) |
+| `src/rotator_library/providers/` | All provider implementations |
+| `src/rotator_library/providers/g4f_provider.py` | G4F provider (Phase 2 - has WAF detection) |
+| `src/proxy_app/main.py` | FastAPI entry point |
+| `.env.example` | Environment variable template |
+| `tests/test_g4f_resilience.py` | G4F WAF detection tests |
 
-The priority tier system controls the order in which providers are tried:
+---
 
-- **Tier 1** (Highest): Premium providers (OpenAI, Anthropic)
-- **Tier 2**: Fast/affordable providers (Groq, OpenRouter)
-- **Tier 3**: Standard providers (Gemini, Mistral)
-- **Tier 4**: Fallback providers (G4F - free/limited)
-- **Tier 5+**: Additional fallback tiers
+## 🧪 RECENT CHANGES (This Session)
 
-**How it works**:
-1. Request comes in for `provider/model`
-2. Get priority tier of primary provider
-3. If primary fails (429, 5xx), try next provider in same tier
-4. If all providers in tier fail, move to next tier
-5. G4F providers are placed in lowest tier (default: 5)
+1. **G4F WAF Detection** (`g4f_provider.py`)
+   - Added `_is_waf_html()` to detect Cloudflare blocks
+   - Raises `litellm.APIConnectionError` instead of leaking HTML
+   - Tests: `tests/test_g4f_resilience.py` (3 tests, all pass)
 
-**Configuration**:
+2. **G4F Retry Logic** (`g4f_provider.py`)
+   - Internal retry loop with exponential backoff (0.1s → 0.25s → 0.5s)
+   - "Quota exhausted" treated as soft rate-limit, not hard lockout
+
+3. **Implementation Plan** (Artifacts)
+   - Phase 1: API-Key providers (Cerebras, HF, Groq)
+   - Phase 2: G4F as experimental fallback
+
+---
+
+## 🔗 RELEVANT DOCS
+
+- **Full Documentation**: `DOCUMENTATION.md`
+- **Deployment Guide**: `Deployment guide.md`
+- **Integration Roadmap**: `INTEGRATION_ROADMAP.md`
+- **Project Status**: `PROJECT_STATUS.md`
+- **LiteLLM Providers**: https://docs.litellm.ai/docs/providers
+
+---
+
+## 📞 USER PREFERENCES
+
+- **Package Manager**: Use `uv pip` over `pip`
+- **Git Workflow**: Commit frequently, push to `main` branch
+- **Testing**: Run `pytest -q` before committing
+- **Linting**: Run `ruff check .` before committing
+- **Goal**: 100% free hosting on Render, no paid APIs
+
+---
+
+## ⚙️ ENVIRONMENT VARIABLES (.env)
+
 ```env
-PROVIDER_PRIORITY_G4F=5      # G4F in tier 5 (fallback)
-PROVIDER_PRIORITY_GROQ=2     # Groq in tier 2
-PROVIDER_PRIORITY_OPENAI=1   # OpenAI in tier 1 (highest)
-```
+# Required
+PROXY_API_KEY="your-secret-proxy-key"
 
-### How the RotatingClient Works
+# Groq (working)
+GROQ_API_KEY_1="your-groq-key"
 
-The `RotatingClient` is the core component managing API key rotation:
+# Cerebras (Phase 1 - TODO)
+CEREBRAS_API_KEY_1="your-cerebras-key"
 
-```python
-# Key flow:
-1. Request comes in: client.acompletion(model="provider/model", messages=[...])
-2. Extract provider name from model identifier
-3. Get available credentials for provider from CredentialManager
-4. Select credential based on:
-   - Priority tier (if configured)
-   - Rotation mode (balanced/sequential)
-   - Current load (concurrent request limits)
-5. Execute request with timeout
-6. On error (429, 5xx):
-   - Apply cooldown to credential
-   - Rotate to next credential in tier
-   - Retry up to max_retries
-7. Return response or raise exception
-```
+# HuggingFace (Phase 1 - TODO)
+HUGGINGFACE_API_KEY_1="your-hf-key"
 
-**Key Classes**:
-- `RotatingClient`: Main async client
-- `CredentialManager`: Manages API key discovery and rotation
-- `CooldownManager`: Tracks rate limits and cooldowns
-- `UsageManager`: Tracks usage per credential
-
-### Multi-Provider Failover Mechanism
-
-```
-Request → Provider Selection → Credential Selection → Request Execution
-                                    ↓
-                              [Error: 429/5xx]
-                                    ↓
-                            Apply Cooldown
-                                    ↓
-                         Rotate to Next Credential
-                                    ↓
-                         Retry (up to max_retries)
-                                    ↓
-                       [Still Failing: All Credentials]
-                                    ↓
-                    Move to Next Priority Tier (if available)
-                                    ↓
-                       Try All Providers in Tier
-                                    ↓
-                    [All Tiers Exhausted]
-                                    ↓
-                    Raise ProviderExhaustedError
-```
-
-### OpenAI SDK Compatibility Requirements
-
-The proxy must produce responses compatible with OpenAI SDK:
-
-```python
-# Response format must match:
-{
-    "id": "chatcmpl-abc123",
-    "object": "chat.completion",
-    "created": 1677858242,
-    "model": "gpt-4",
-    "choices": [{
-        "index": 0,
-        "message": {
-            "role": "assistant",
-            "content": "Hello!"
-        },
-        "finish_reason": "stop"
-    }],
-    "usage": {
-        "prompt_tokens": 13,
-        "completion_tokens": 7,
-        "total_tokens": 20
-    }
-}
-```
-
-**Streaming format**:
-```python
-# Each chunk:
-{
-    "id": "chatcmpl-abc123",
-    "object": "chat.completion.chunk",
-    "created": 1677858242,
-    "model": "gpt-4",
-    "choices": [{
-        "index": 0,
-        "delta": {
-            "content": "Hello"
-        },
-        "finish_reason": null
-    }]
-}
+# G4F (Phase 2 - experimental)
+G4F_API_KEY="optional-g4f-key"
+PROVIDER_PRIORITY_G4F=5  # Lowest priority
 ```
 
 ---
 
-## Common Commands
+## 🏁 SUCCESS CRITERIA
 
-### Install Dependencies
-
-```bash
-# Basic installation
-pip install -r requirements.txt
-
-# With dev dependencies
-pip install -r requirements.txt -r requirements-dev.txt
-
-# Individual packages
-pip install fastapi uvicorn httpx litellm python-dotenv rich
-```
-
-### Run Tests
-
-```bash
-# All tests
-pytest tests/ -v
-
-# Specific test
-pytest tests/test_g4f_provider.py -v
-
-# With coverage report
-pytest --cov=src/rotator_library --cov-report=html tests/
-
-# Fast run (no coverage)
-pytest tests/ -q
-```
-
-### Start the Proxy
-
-```bash
-# Interactive TUI
-python src/proxy_app/main.py
-
-# Direct server start
-python src/proxy_app/main.py --host 127.0.0.1 --port 8000
-
-# With verbose logging
-python src/proxy_app/main.py --enable-request-logging
-
-# Custom environment file
-PROXY_ENV=.env.production python src/proxy_app/main.py
-```
-
-### Validate Changes
-
-```bash
-# Python syntax check
-python -m py_compile src/rotator_library/client.py
-
-# Linting
-flake8 src/rotator_library/ --max-line-length=120 --extend-ignore=E203
-
-# Type checking
-mypy src/rotator_library/ --ignore-missing-imports
-
-# Formatting check
-black src/rotator_library/ --check
-
-# Import sorting
-isort src/rotator_library/ --check-only
-```
-
-### Git Operations
-
-```bash
-# Create feature branch
-git checkout -b feat/g4f-provider
-
-# Stage changes
-git add src/rotator_library/providers/g4f_provider.py
-
-# Commit with conventional message
-git commit -m "feat(provider): Add G4F fallback provider implementation"
-
-# Push to origin
-git push -u origin feat/g4f-provider
-
-# Create PR (via GitHub CLI)
-gh pr create --title "feat: Add G4F fallback provider" --body "..."
-```
+Phase 1 is complete when:
+1. ✅ Groq models work via gateway
+2. ⬜ Cerebras models work via gateway
+3. ⬜ HuggingFace models work via gateway
+4. ⬜ `/v1/models` returns all available models
+5. ⬜ Deployed to Render and accessible via public URL
+6. ⬜ Tested with Opencode or SillyTavern
 
 ---
 
-## Additional Resources
-
-| Resource | Link |
-|----------|------|
-| Project README | `README.md` |
-| Integration Roadmap | `INTEGRATION_ROADMAP.md` |
-| Project Status | `PROJECT_STATUS.md` |
-| Full Documentation | `DOCUMENTATION.md` |
-| Deployment Guide | `Deployment guide.md` |
-| Library README | `src/rotator_library/README.md` |
-| LiteLLM Providers | https://docs.litellm.ai/docs/providers |
-| g4f GitHub | https://github.com/xtekky/g4f |
-
----
-
-## Summary of Verification Results
-
-| Check | Status | Notes |
-|-------|--------|-------|
-| G4F variables in `.env.example` | ❌ Not found | Need to add G4F_API_KEY, G4F_MAIN_API_BASE, etc. |
-| PROVIDER_PRIORITY_* variables | ❌ Not found | Need to add priority tier configuration |
-| G4F section in README.md | ❌ Not found | Need to add "G4F Fallback Providers" section |
-
-**Overall Phase 1 Status**: NOT STARTED
-
-The Phase 1 configuration and documentation changes must be completed before beginning Phase 2 implementation work.
+**Good luck, successor AI! You've got this. 🤖**
