@@ -614,7 +614,18 @@ async def lifespan(app: FastAPI):
     app.state.model_info_service = model_info_service
     logging.info("Model info service started (fetching pricing data in background).")
 
+    # Initialize and start provider status tracker
+    from proxy_app.status_api import initialize_status_tracker
+    status_tracker = initialize_status_tracker(app)
+    app.state.provider_status_tracker = status_tracker
+    logging.info("Provider status tracker initialized and started")
+
     yield
+
+    # Stop provider status tracker
+    if hasattr(app.state, "provider_status_tracker") and app.state.provider_status_tracker:
+        await app.state.provider_status_tracker.stop()
+        logging.info("Provider status tracker stopped")
 
     await client.background_refresher.stop()  # Stop the background task on shutdown
     if app.state.embedding_batcher:
@@ -643,6 +654,14 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
+
+# Import and mount status API router
+print("  → Mounting provider status API routes...")
+with _console.status("[dim]Mounting provider status API routes...", spinner="dots"):
+    from proxy_app.status_api import router as status_router
+    
+    # Mount status API routes
+    app.include_router(status_router)
 
 
 def get_rotating_client(request: Request) -> RotatingClient:
