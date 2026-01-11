@@ -165,6 +165,34 @@ Free inference API for open-source models (queue-based, may wait if busy).
 - **Setup:** Add `HUGGINGFACE_API_KEY_1` to `.env` (get free token at https://huggingface.co/settings/tokens)
 - **Key Models:** `Qwen/Qwen2.5-72B-Instruct`, `meta-llama/Llama-3.3-70B-Instruct`, `Qwen/Qwen2.5-Coder-32B-Instruct`
 
+### Puter.js (FREE 500+ Models)
+Free access to 500+ models via the Puter.js "User-Pays" model - no API keys needed.
+- **Priority Tier:** 2 (Secondary/Fallback)
+- **API Base:** `https://puter-free-chatbot.vercel.app/api`
+- **Setup:** No setup required! Just works out of the box.
+- **Key Models:** `gpt-5`, `gpt-4o`, `claude-sonnet-4.5`, `claude-opus-4.5`, `gemini-2.5-flash`, `gemini-2.5-pro`, `deepseek-v3`, `deepseek-r1`
+
+**Configuration (optional):**
+```env
+PUTER_API_BASE="https://puter-free-chatbot.vercel.app/api"
+PROVIDER_PRIORITY_PUTER=2
+```
+
+**Usage:**
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="your-proxy-api-key",
+    base_url="http://localhost:8000/v1"
+)
+
+response = client.chat.completions.create(
+    model="puter/gpt-4o",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+```
+
 ### Setting G4F_API_KEY on Render
 
 If deploying to Render:
