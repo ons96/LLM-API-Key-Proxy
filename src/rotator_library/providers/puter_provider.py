@@ -69,11 +69,12 @@ class PuterProvider(ProviderInterface):
         **kwargs,
     ) -> dict:
         try:
+            # Handle model format: only strip 'puter/' prefix if present
+            # We must preserve other prefixes like 'openai:openai/' or 'openrouter:'
+            # as the backend expects the full model ID from get_models()
             model_name = model
-            if "/" in model:
-                parts = model.split("/", 1)
-                if len(parts) > 1:
-                    model_name = parts[-1]
+            if model.lower().startswith("puter/"):
+                model_name = model[6:]
 
             payload = {
                 "message": messages[-1]["content"] if messages else "",

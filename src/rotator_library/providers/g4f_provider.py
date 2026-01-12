@@ -125,7 +125,11 @@ class G4FProvider(ProviderInterface):
 
     @staticmethod
     def _strip_provider_prefix(proxy_model: str) -> str:
-        return proxy_model.split("/", 1)[1] if proxy_model.startswith("g4f/") else proxy_model
+        return (
+            proxy_model.split("/", 1)[1]
+            if proxy_model.startswith("g4f/")
+            else proxy_model
+        )
 
     def _build_headers(self, credential_identifier: Optional[str]) -> Dict[str, str]:
         headers = {
@@ -208,7 +212,9 @@ class G4FProvider(ProviderInterface):
                 f"{self._normalize_base_url(base_url)}/models",
             ):
                 try:
-                    response = await client.get(models_url, headers=headers, timeout=10.0)
+                    response = await client.get(
+                        models_url, headers=headers, timeout=10.0
+                    )
                     response.raise_for_status()
 
                     models_data = response.json()
@@ -270,7 +276,9 @@ class G4FProvider(ProviderInterface):
                 if not any(kw in model_lower for kw in excluded_keywords):
                     chat_models.append(f"g4f/{model_name}")
 
-            lib_logger.info(f"Discovered {len(chat_models)} chat models from g4f library")
+            lib_logger.info(
+                f"Discovered {len(chat_models)} chat models from g4f library"
+            )
             return chat_models
 
         except ImportError as e:
@@ -300,7 +308,9 @@ class G4FProvider(ProviderInterface):
             "g4f/command-r-plus",
         ]
 
-        lib_logger.info(f"Using fallback static model list: {len(static_models)} models")
+        lib_logger.info(
+            f"Using fallback static model list: {len(static_models)} models"
+        )
         return static_models
 
     def has_custom_logic(self) -> bool:
@@ -375,19 +385,23 @@ class G4FProvider(ProviderInterface):
 
         for attempt in range(max_retries):
             try:
-                response = await client.post(api_url, headers=headers, json=request_data)
+                response = await client.post(
+                    api_url, headers=headers, json=request_data
+                )
 
                 # Check for HTML/WAF in response body (even if 200 OK)
                 if self._is_waf_html(response.text):
-                     raise litellm.APIConnectionError(
+                    raise litellm.exceptions.APIConnectionError(
                         f"G4F Provider Blocked (WAF/Cloudflare): {response.text[:200]}...",
                         None,
                         proxy_model,
                     )
-                
+
                 response.raise_for_status()
                 response_data = response.json()
-                return self._convert_g4f_response(response_data, proxy_model=proxy_model)
+                return self._convert_g4f_response(
+                    response_data, proxy_model=proxy_model
+                )
 
             except (httpx.HTTPStatusError, httpx.RequestError) as e:
                 last_exception = e
@@ -442,12 +456,12 @@ class G4FProvider(ProviderInterface):
                             content = await response.aread()
                             content_str = content.decode("utf-8", errors="ignore")
                             if self._is_waf_html(content_str):
-                                raise litellm.APIConnectionError(
+                                raise litellm.exceptions.APIConnectionError(
                                     f"G4F Provider Blocked (WAF/Cloudflare): {content_str[:200]}...",
                                     None,
                                     proxy_model,
                                 )
-                        except litellm.APIConnectionError:
+                        except litellm.exceptions.APIConnectionError:
                             raise
                         except Exception:
                             pass
@@ -463,7 +477,7 @@ class G4FProvider(ProviderInterface):
 
                         # Check if line is HTML (WAF leaking through 200 OK)
                         if self._is_waf_html(line):
-                             raise litellm.APIConnectionError(
+                            raise litellm.exceptions.APIConnectionError(
                                 f"G4F Provider Blocked (WAF/Cloudflare leaked 200): {line[:200]}...",
                                 None,
                                 proxy_model,
@@ -527,7 +541,9 @@ class G4FProvider(ProviderInterface):
                 )
                 choices.append(choice_obj)
 
-            usage_data = response_data.get("usage") if isinstance(response_data, dict) else None
+            usage_data = (
+                response_data.get("usage") if isinstance(response_data, dict) else None
+            )
             usage = None
             if isinstance(usage_data, dict) and usage_data:
                 usage = litellm.Usage(
@@ -631,7 +647,9 @@ class G4FProvider(ProviderInterface):
                 ],
             )
 
-    async def aembedding(self, client: httpx.AsyncClient, **kwargs) -> litellm.EmbeddingResponse:
+    async def aembedding(
+        self, client: httpx.AsyncClient, **kwargs
+    ) -> litellm.EmbeddingResponse:
         lib_logger.info("G4F embeddings not supported - returning empty response")
         return litellm.EmbeddingResponse(
             id="g4f-embeddings-unsupported",
@@ -681,8 +699,13 @@ class G4FProvider(ProviderInterface):
         text_lower = text.lower().strip()
         if text_lower.startswith("<!doctype html") or text_lower.startswith("<html"):
             return True
-        if "just a moment..." in text_lower or "attention required! | cloudflare" in text_lower:
+        if (
+            "just a moment..." in text_lower
+            or "attention required! | cloudflare" in text_lower
+        ):
             return True
-        if "cloudflare" in text_lower and ("captcha" in text_lower or "security" in text_lower):
+        if "cloudflare" in text_lower and (
+            "captcha" in text_lower or "security" in text_lower
+        ):
             return True
         return False
