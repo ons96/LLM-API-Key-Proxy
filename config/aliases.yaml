@@ -1,0 +1,165 @@
+aliases:
+  coding:
+    description: Aggregated Leaderboard Top Coding Models
+    strategy: chain_fallback
+    candidates:
+    - provider: anthropic
+      model: claude-opus-4-5-thinking
+    - provider: g4f
+      model: claude-opus-4-5-thinking
+    - provider: together
+      model: claude-opus-4-5-thinking
+    - provider: openai
+      model: gpt-5-codex-max
+    - provider: g4f
+      model: gpt-5-codex-max
+    - provider: anthropic
+      model: claude-sonnet-4-5-thinking
+    - provider: g4f
+      model: claude-sonnet-4-5-thinking
+    - provider: together
+      model: claude-sonnet-4-5-thinking
+    - provider: anthropic
+      model: claude-opus-4-5
+    - provider: g4f
+      model: claude-opus-4-5
+    - provider: together
+      model: claude-opus-4-5
+    - provider: anthropic
+      model: claude-sonnet-4-5
+    - provider: g4f
+      model: claude-sonnet-4-5
+    - provider: together
+      model: claude-sonnet-4-5
+    - provider: openai
+      model: gpt-5-codex
+    - provider: g4f
+      model: gpt-5-codex
+    - provider: gemini
+      model: gemini-2-5-pro
+    - provider: g4f
+      model: gemini-2-5-pro
+    - provider: google
+      model: gemini-2-5-pro
+    - provider: openai
+      model: o4-mini-high
+    - provider: g4f
+      model: o4-mini-high
+    - provider: gemini
+      model: gemini-2-5-flash-reasoning
+    - provider: g4f
+      model: gemini-2-5-flash-reasoning
+    - provider: google
+      model: gemini-2-5-flash-reasoning
+    - provider: anthropic
+      model: claude-3-7-sonnet-extended-thinking
+    - provider: g4f
+      model: claude-3-7-sonnet-extended-thinking
+    - provider: together
+      model: claude-3-7-sonnet-extended-thinking
+    - provider: anthropic
+      model: claude-3-7-sonnet-standard
+    - provider: g4f
+      model: claude-3-7-sonnet-standard
+    - provider: together
+      model: claude-3-7-sonnet-standard
+    - provider: anthropic
+      model: claude-3-5-sonnet-oct-24
+    - provider: g4f
+      model: claude-3-5-sonnet-oct-24
+    - provider: together
+      model: claude-3-5-sonnet-oct-24
+    - provider: anthropic
+      model: claude-3-5-haiku
+    - provider: g4f
+      model: claude-3-5-haiku
+    - provider: together
+      model: claude-3-5-haiku
+  smart:
+    description: Highest Agentic Coding Score
+    strategy: chain_fallback
+    candidates:
+    - provider: openai
+      model: gpt-5-codex-max
+    - provider: g4f
+      model: gpt-5-codex-max
+    - provider: anthropic
+      model: claude-sonnet-4-5-thinking
+    - provider: g4f
+      model: claude-sonnet-4-5-thinking
+    - provider: together
+      model: claude-sonnet-4-5-thinking
+    - provider: openai
+      model: gpt-5-codex
+    - provider: g4f
+      model: gpt-5-codex
+    - provider: anthropic
+      model: claude-opus-4-5-thinking
+    - provider: g4f
+      model: claude-opus-4-5-thinking
+    - provider: together
+      model: claude-opus-4-5-thinking
+    - provider: anthropic
+      model: claude-sonnet-4-5
+    - provider: g4f
+      model: claude-sonnet-4-5
+    - provider: together
+      model: claude-sonnet-4-5
+    - provider: anthropic
+      model: claude-opus-4-5
+    - provider: g4f
+      model: claude-opus-4-5
+    - provider: together
+      model: claude-opus-4-5
+    - provider: gemini
+      model: gemini-2-5-pro
+    - provider: g4f
+      model: gemini-2-5-pro
+    - provider: google
+      model: gemini-2-5-pro
+    - provider: openai
+      model: o4-mini-high
+  fast:
+    description: Highest TPS (Quality > 30)
+    strategy: chain_fallback
+    candidates:
+    - provider: gemini
+      model: gemini-2-5-flash-reasoning
+    - provider: g4f
+      model: gemini-2-5-flash-reasoning
+    - provider: google
+      model: gemini-2-5-flash-reasoning
+    - provider: gemini
+      model: gemini-2-5-pro
+    - provider: g4f
+      model: gemini-2-5-pro
+    - provider: google
+      model: gemini-2-5-pro
+    - provider: openai
+      model: o4-mini-high
+    - provider: g4f
+      model: o4-mini-high
+    - provider: openai
+      model: gpt-5-codex-max
+    - provider: g4f
+      model: gpt-5-codex-max
+    - provider: openai
+      model: gpt-5-codex
+    - provider: g4f
+      model: gpt-5-codex
+    - provider: anthropic
+      model: claude-3-7-sonnet-extended-thinking
+    - provider: g4f
+      model: claude-3-7-sonnet-extended-thinking
+    - provider: together
+      model: claude-3-7-sonnet-extended-thinking
+    - provider: anthropic
+      model: claude-sonnet-4-5-thinking
+    - provider: g4f
+      model: claude-sonnet-4-5-thinking
+    - provider: together
+      model: claude-sonnet-4-5-thinking
+    - provider: anthropic
+      model: claude-sonnet-4-5
+    - provider: g4f
+      model: claude-sonnet-4-5
