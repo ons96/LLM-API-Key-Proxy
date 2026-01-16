@@ -1,0 +1,93 @@
+providers:
+  - id: openrouter
+    name: "OpenRouter"
+    signup_url: "https://openrouter.ai"
+    free_tier: true
+    free_models:
+      - id: "google/gemini-2.0-flash-exp:free"
+        context: 1000000
+        rpm: 10
+        daily_limit: 50
+      - id: "deepseek/deepseek-r1:free"
+        context: 65536
+        rpm: 10
+        daily_limit: 50
+    capabilities: [chat, code, vision]
+    last_verified: "2025-01-15"
+
+  - id: google_ai_studio
+    name: "Google AI Studio"
+    signup_url: "https://aistudio.google.com"
+    free_tier: true
+    free_models:
+      - id: "gemini-1.5-pro"
+        context: 2000000
+        rpm: 2
+        daily_limit: 50
+      - id: "gemini-1.5-flash"
+        context: 1000000
+        rpm: 15
+        daily_limit: 1500
+    capabilities: [chat, code, vision]
+    last_verified: "2025-01-15"
+
+  - id: groq
+    name: "Groq"
+    signup_url: "https://console.groq.com"
+    free_tier: true
+    free_models:
+      - id: "llama-3.3-70b-versatile"
+        context: 131072
+        rpm: 30
+        daily_limit: 14400
+      - id: "llama-3.1-8b-instant"
+        context: 131072
+        rpm: 30
+        daily_limit: 14400
+    capabilities: [chat, code]
+    last_verified: "2025-01-15"
+
+  - id: cerebras
+    name: "Cerebras"
+    signup_url: "https://cloud.cerebras.ai"
+    free_tier: true
+    free_models:
+      - id: "llama-3.1-70b"
+        context: 8192
+        rpm: 30
+        daily_limit: 1000000 # Tokens?
+    capabilities: [chat, code]
+    last_verified: "2025-01-15"
+
+  - id: huggingface
+    name: "Hugging Face"
+    signup_url: "https://huggingface.co"
+    free_tier: true
+    free_models:
+      - id: "Qwen/Qwen2.5-72B-Instruct"
+        context: 32768
+        rpm: 10
+    capabilities: [chat, code]
+    last_verified: "2025-01-15"
+
+  - id: mistral
+    name: "Mistral AI"
+    signup_url: "https://console.mistral.ai"
+    free_tier: true
+    free_models:
+      - id: "mistral-large-latest"
+        context: 32000
+        rpm: 10 # Trial tier
+    capabilities: [chat, code]
+    last_verified: "2025-01-15"
+
+  - id: cohere
+    name: "Cohere"
+    signup_url: "https://dashboard.cohere.com"
+    free_tier: true
+    free_models:
+      - id: "command-r-plus"
+        context: 128000
+        rpm: 10 # Trial key limit
+    capabilities: [chat, code]
+    last_verified: "2025-01-15"

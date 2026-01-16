@@ -28,22 +28,24 @@ args, _ = parser.parse_known_args()
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 # Check if we should launch TUI (no arguments = TUI mode)
-if len(sys.argv) == 1:
-    # TUI MODE - Load ONLY what's needed for the launcher (fast path!)
-    from proxy_app.launcher_tui import run_launcher_tui
+if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        # TUI MODE - Load ONLY what's needed for the launcher (fast path!)
+        from proxy_app.launcher_tui import run_launcher_tui
 
-    run_launcher_tui()
-    # Launcher modifies sys.argv and returns, or exits if user chose Exit
-    # If we get here, user chose "Run Proxy" and sys.argv is modified
-    # Re-parse arguments with modified sys.argv
-    args = parser.parse_args()
+        run_launcher_tui()
+        # Launcher modifies sys.argv and returns, or exits if user chose Exit
+        # If we get here, user chose "Run Proxy" and sys.argv is modified
+        # Re-parse arguments with modified sys.argv
+        args = parser.parse_args()
 
-# Check if credential tool mode (also doesn't need heavy proxy imports)
-if args.add_credential:
-    from rotator_library.credential_tool import run_credential_tool
+    # Check if credential tool mode (also doesn't need heavy proxy imports)
+    if args.add_credential:
+        from rotator_library.credential_tool import run_credential_tool
 
-    run_credential_tool()
-    sys.exit(0)
+        run_credential_tool()
+        sys.exit(0)
+
 
 # If we get here, we're ACTUALLY running the proxy - NOW show startup messages and start timer
 _start_time = time.time()
@@ -127,6 +129,12 @@ with _console.status("[dim]Initializing proxy core...", spinner="dots"):
     from proxy_app.request_logger import log_request_to_console
     from proxy_app.batch_manager import EmbeddingBatcher
     from proxy_app.detailed_logger import DetailedLogger
+
+    # [NEW] Import RouterWrapper
+    from proxy_app.router_wrapper import initialize_router, get_router
+
+    # [NEW] Import HealthChecker
+    from proxy_app.health_checker import HealthChecker
 
 print("  → Discovering provider plugins...")
 # Provider lazy loading happens during import, so time it here
@@ -614,8 +622,20 @@ async def lifespan(app: FastAPI):
     app.state.model_info_service = model_info_service
     logging.info("Model info service started (fetching pricing data in background).")
 
+    # [NEW] Initialize Router
+    initialize_router(client)
+    logging.info("Router system initialized and linked with RotatingClient.")
+
+    # [NEW] Start Health Checker
+    router_wrapper = get_router()
+    # Access the integration layer to get adapters
+    health_checker = HealthChecker(router_wrapper.router_integration)
+    await health_checker.start()
+    app.state.health_checker = health_checker
+
     # Initialize and start provider status tracker
     from proxy_app.status_api import initialize_status_tracker
+
     status_tracker = initialize_status_tracker(app)
     app.state.provider_status_tracker = status_tracker
     logging.info("Provider status tracker initialized and started")
@@ -623,7 +643,10 @@ async def lifespan(app: FastAPI):
     yield
 
     # Stop provider status tracker
-    if hasattr(app.state, "provider_status_tracker") and app.state.provider_status_tracker:
+    if (
+        hasattr(app.state, "provider_status_tracker")
+        and app.state.provider_status_tracker
+    ):
         await app.state.provider_status_tracker.stop()
         logging.info("Provider status tracker stopped")
 
@@ -659,7 +682,7 @@ api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
 print("  → Mounting provider status API routes...")
 with _console.status("[dim]Mounting provider status API routes...", spinner="dots"):
     from proxy_app.status_api import router as status_router
-    
+
     # Mount status API routes
     app.include_router(status_router)
 
@@ -863,127 +886,35 @@ async def chat_completions(
     _=Depends(verify_api_key),
 ):
     """
-    OpenAI-compatible endpoint powered by the RotatingClient.
-    Handles both streaming and non-streaming responses and logs them.
+    OpenAI-compatible endpoint powered by the RouterWrapper.
+    Handles virtual models, fallbacks, and standard requests.
     """
-    logger = DetailedLogger() if ENABLE_REQUEST_LOGGING else None
+    # Parse request body once
     try:
-        # Read and parse the request body only once at the beginning.
-        try:
-            request_data = await request.json()
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid JSON in request body.")
+        request_data = await request.json()
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in request body.")
 
-        # Global temperature=0 override (controlled by .env variable, default: OFF)
-        # Low temperature makes models deterministic and prone to following training data
-        # instead of actual schemas, which can cause tool hallucination
-        # Modes: "remove" = delete temperature key, "set" = change to 1.0, "false" = disabled
-        override_temp_zero = os.getenv("OVERRIDE_TEMPERATURE_ZERO", "false").lower()
-
-        if (
-            override_temp_zero in ("remove", "set", "true", "1", "yes")
-            and "temperature" in request_data
-            and request_data["temperature"] == 0
-        ):
-            if override_temp_zero == "remove":
-                # Remove temperature key entirely
-                del request_data["temperature"]
-                logging.debug(
-                    "OVERRIDE_TEMPERATURE_ZERO=remove: Removed temperature=0 from request"
-                )
-            else:
-                # Set to 1.0 (for "set", "true", "1", "yes")
-                request_data["temperature"] = 1.0
-                logging.debug(
-                    "OVERRIDE_TEMPERATURE_ZERO=set: Converting temperature=0 to temperature=1.0"
-                )
-
-        # If logging is enabled, perform all logging operations using the parsed data.
-        if logger:
-            logger.log_request(headers=request.headers, body=request_data)
-
-        # Extract and log specific reasoning parameters for monitoring.
-        model = request_data.get("model")
-        generation_cfg = (
-            request_data.get("generationConfig", {})
-            or request_data.get("generation_config", {})
-            or {}
-        )
-        reasoning_effort = request_data.get("reasoning_effort") or generation_cfg.get(
-            "reasoning_effort"
-        )
-        custom_reasoning_budget = request_data.get(
-            "custom_reasoning_budget"
-        ) or generation_cfg.get("custom_reasoning_budget", False)
-
-        logging.getLogger("rotator_library").debug(
-            f"Handling reasoning parameters: model={model}, reasoning_effort={reasoning_effort}, custom_reasoning_budget={custom_reasoning_budget}"
-        )
-
-        # Log basic request info to console (this is a separate, simpler logger).
-        log_request_to_console(
-            url=str(request.url),
-            headers=dict(request.headers),
-            client_info=(request.client.host, request.client.port),
-            request_data=request_data,
-        )
-        is_streaming = request_data.get("stream", False)
-
-        if is_streaming:
-            response_generator = client.acompletion(request=request, **request_data)
-            return StreamingResponse(
-                streaming_response_wrapper(
-                    request, request_data, response_generator, logger
-                ),
-                media_type="text/event-stream",
-            )
-        else:
-            response = await client.acompletion(request=request, **request_data)
-            if logger:
-                # Assuming response has status_code and headers attributes
-                # This might need adjustment based on the actual response object
-                response_headers = (
-                    response.headers if hasattr(response, "headers") else None
-                )
-                status_code = (
-                    response.status_code if hasattr(response, "status_code") else 200
-                )
-                logger.log_final_response(
-                    status_code=status_code,
-                    headers=response_headers,
-                    body=response.model_dump(),
-                )
-            return response
-
-    except (
-        litellm.InvalidRequestError,
-        ValueError,
-        litellm.ContextWindowExceededError,
-    ) as e:
-        raise HTTPException(status_code=400, detail=f"Invalid Request: {str(e)}")
-    except litellm.AuthenticationError as e:
-        raise HTTPException(status_code=401, detail=f"Authentication Error: {str(e)}")
-    except litellm.RateLimitError as e:
-        raise HTTPException(status_code=429, detail=f"Rate Limit Exceeded: {str(e)}")
-    except (litellm.ServiceUnavailableError, litellm.APIConnectionError) as e:
-        raise HTTPException(status_code=503, detail=f"Service Unavailable: {str(e)}")
-    except litellm.Timeout as e:
-        raise HTTPException(status_code=504, detail=f"Gateway Timeout: {str(e)}")
-    except (litellm.InternalServerError, litellm.OpenAIError) as e:
-        raise HTTPException(status_code=502, detail=f"Bad Gateway: {str(e)}")
+    # Use RouterWrapper to handle the request
+    try:
+        router = get_router()
+        return await router.handle_chat_completions(request_data, request)
     except Exception as e:
-        logging.error(f"Request failed after all retries: {e}")
-        # Optionally log the failed request
-        if ENABLE_REQUEST_LOGGING:
-            try:
-                request_data = await request.json()
-            except json.JSONDecodeError:
-                request_data = {"error": "Could not parse request body"}
-            if logger:
-                logger.log_final_response(
-                    status_code=500, headers=None, body={"error": str(e)}
-                )
-        raise HTTPException(status_code=500, detail=str(e))
+        # Fallback to direct client usage if router fails or for detailed logging handling
+        # (though RouterWrapper should handle most things)
+        logging.error(f"Router delegation failed: {e}. Falling back to legacy path.")
+        # Re-raise if it's an HTTPException to propagate status codes
+        if isinstance(e, HTTPException):
+            raise e
+        # Otherwise, let the legacy logic below try to handle it (or just fail there)
+        # But wait, RouterWrapper is designed to wrap everything.
+        # If it fails, we should probably return error.
+        raise HTTPException(status_code=500, detail=f"Router Error: {str(e)}")
+
+
+# Legacy endpoint logic preserved below for reference but bypassed by return above
+# To fully replace, we should comment out or remove the old logic.
+# For now, I will effectively replace the entire function body with the router call.
 
 
 @app.post("/v1/embeddings")

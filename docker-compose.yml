@@ -1,0 +1,27 @@
+services:
+  llm-proxy:
+    build: .
+    container_name: llm-api-proxy
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount .env file for secrets
+      - ./.env:/app/.env
+      
+      # Mount config directory to allow editing routing logic without rebuilds
+      - ./config:/app/config
+      
+      # Persist OAuth credentials
+      - ./oauth_creds:/app/oauth_creds
+      
+      # Persist logs
+      - ./logs:/app/logs
+    environment:
+      - PROXY_API_KEY=${PROXY_API_KEY}
+      - LOG_LEVEL=info
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

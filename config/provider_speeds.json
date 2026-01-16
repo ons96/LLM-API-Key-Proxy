@@ -1,0 +1,11 @@
+{
+  "cerebras": {"tps": 1500, "ttft": 0.2},
+  "groq": {"tps": 800, "ttft": 0.3},
+  "together": {"tps": 150, "ttft": 0.5},
+  "deepinfra": {"tps": 100, "ttft": 0.6},
+  "openai": {"tps": 80, "ttft": 0.8},
+  "anthropic": {"tps": 70, "ttft": 1.0},
+  "google": {"tps": 90, "ttft": 0.9},
+  "g4f": {"tps": 40, "ttft": 2.0},
+  "default": {"tps": 30, "ttft": 1.5}
+}

@@ -1,0 +1,49 @@
+models:
+  - id: "anthropic/claude-3.5-sonnet"
+    scores:
+      swe_bench: 72.7
+      humaneval: 93.0
+      aider_polyglot: 68.5
+      speed_tps: 80
+      context: 200000
+    best_for: [coding-smart, chat-smart]
+
+  - id: "google/gemini-1.5-pro"
+    scores:
+      swe_bench: 63.8
+      humaneval: 89.0
+      speed_tps: 120
+      context: 2000000
+    best_for: [coding-smart, chat-smart, research]
+
+  - id: "google/gemini-1.5-flash"
+    scores:
+      swe_bench: 50.0
+      humaneval: 75.0
+      speed_tps: 800
+      context: 1000000
+    best_for: [coding-fast, chat-fast]
+
+  - id: "groq/llama-3.3-70b-versatile"
+    scores:
+      swe_bench: 55.0
+      humaneval: 80.0
+      speed_tps: 300
+      context: 131072
+    best_for: [coding-fast, chat-smart]
+
+  - id: "groq/llama-3.1-8b-instant"
+    scores:
+      swe_bench: 30.0
+      humaneval: 60.0
+      speed_tps: 1000
+      context: 131072
+    best_for: [chat-fast]
+
+  - id: "g4f/gpt-4"
+    scores:
+      swe_bench: 60.0
+      humaneval: 85.0
+      speed_tps: 10
+      context: 8192
+    best_for: [coding-smart]
