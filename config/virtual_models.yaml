@@ -1,246 +1,331 @@
 virtual_models:
   # =============================================================================
-  # ELITE CODING MODELS (Highest reasoning/coding capability)
+  # ELITE CODING (Best coding models → Best FREE fallbacks)
   # =============================================================================
-  # Uses top-ranked models from LiveBench Agentic Coding + LMArena WebDev
-  # Priority 1-3: Best coding models available
-  # Priority 4-5: Excellent fallbacks with different strengths
-  # Priority 6: Free-tier accessible model
+  # Chain: Best Paid > Free Tier > Fast Free > Reliable G4F
   coding-elite:
-    description: "Top-tier models for complex architecture, debugging, and refactoring"
+    description: "Top-tier coding with extensive free fallbacks"
     fallback_chain:
-      # Claude 4.5 Opus Thinking - #1 in LiveBench Agentic Coding (75.61%)
+      # Tier 1: Best Paid Models
       - provider: openrouter
         model: "anthropic/claude-opus-4-2025-02-19"
         priority: 1
-        conditions:
-          max_daily_requests: 5
-      # GPT-5.2 High - Excellent coding performance, available on Azure/OpenAI
+        conditions: { max_daily_requests: 5 }
       - provider: openai
         model: "gpt-5.2"
+        priority: 1
+        conditions: { max_daily_requests: 10 }
+      
+      # Tier 2: Best Free Tier Models
+      - provider: groq
+        model: "llama-3.3-70b-versatile"
         priority: 2
-        conditions:
-          max_daily_requests: 10
-      # Gemini 3 Pro Preview - Strong reasoning, large context (1M)
+        free_tier_only: true
       - provider: google
-        model: "gemini-3-pro"
+        model: "gemini-1.5-pro"
+        priority: 2
+        free_tier_only: true
+        conditions: { max_daily_requests: 50 }
+      
+      # Tier 3: Fast Free Models (Groq is FREE and FAST)
+      - provider: groq
+        model: "llama-3.1-70b-versatile"
         priority: 3
-        conditions:
-          max_daily_requests: 50
-      # DeepSeek V3.2 Thinking - Great reasoning, open weights
-      - provider: deepseek
-        model: "deepseek-chat"
-        priority: 4
-      # GLM-4.7 - Strong open model (Z.ai)
-      - provider: openrouter
-        model: "zhipuai/glm-4-7b-chat"
-        priority: 5
-      # Qwen3 235B - Large open model, great for reasoning
+        free_tier_only: true
+      - provider: groq
+        model: "llama-3.2-90b-vision-preview"
+        priority: 3
+        free_tier_only: true
+      
+      # Tier 4: Open Model Free Fallbacks (HuggingFace/Fireworks)
       - provider: fireworks
         model: "qwen3-235b-a22b"
-        priority: 6
+        priority: 4
+        free_tier_only: true
+      - provider: huggingface
+        model: "Qwen/Qwen2.5-72B-Instruct"
+        priority: 4
+        free_tier_only: true
+      
+      # Tier 5: Reliable G4F Only (No garbage)
+      - provider: g4f
+        model: "gpt-4"
+        priority: 5
+      - provider: g4f
+        model: "claude-3-5-sonnet"
+        priority: 5
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
-      auto_order: true
 
   # =============================================================================
-  # FAST CODING MODELS (Speed prioritized)
+  # FAST CODING (Speed prioritized → Free options only)
   # =============================================================================
-  # Uses Groq/Cerebras for extreme speed, falls back to Flash models
+  # Groq is FREE and hits 1000+ t/s. Best fast free chain.
   coding-fast:
-    description: "Fast models for simple scripts, autocomplete, quick fixes"
+    description: "Fastest free coding models (Groq is free + instant)"
     fallback_chain:
-      # Groq: Llama 3.1 70B - Extremely fast (~1000 t/s)
+      # Groq: Free + Fastest (~1000 t/s)
       - provider: groq
         model: "llama-3.1-70b-versatile"
         priority: 1
-      # Groq: Llama 3.2 90B - Newer, faster
+        free_tier_only: true
+      - provider: groq
+        model: "llama-3.3-70b-versatile"
+        priority: 1
+        free_tier_only: true
       - provider: groq
         model: "llama-3.2-90b-vision-preview"
         priority: 2
-      # Gemini 3 Flash - Fast + good reasoning
-      - provider: google
-        model: "gemini-3-flash"
+        free_tier_only: true
+      - provider: groq
+        model: "llama-3.1-8b-instant"
         priority: 3
-      # Kimi K2 Thinking Turbo - Very fast on Fireworks
+        free_tier_only: true
+      
+      # Cerebras: Even faster (~3000 t/s) but limited free
+      - provider: cerebras
+        model: "llama-3.1-70b"
+        priority: 2
+        free_tier_only: true
+      
+      # Fireworks: Fast open models
       - provider: fireworks
-        model: "kimi-k2-thinking-turbo"
+        model: "qwen3-30b-a3b"
         priority: 4
-      # GPT-5 Mini High - Fast from OpenAI
-      - provider: openai
-        model: "gpt-5-mini"
+        free_tier_only: true
+      
+      # G4F only if absolutely necessary
+      - provider: g4f
+        model: "gpt-3.5-turbo"
         priority: 5
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
 
   # =============================================================================
-  # WEBDEV SPECIALIST (LMArena WebDev leaderboard optimized)
+  # WEBDEV SPECIALIST (Best for frontend/backend tasks)
   # =============================================================================
   webdev-elite:
-    description: "Best models specifically for web development tasks"
+    description: "Best models for web development"
     fallback_chain:
-      # Claude Sonnet 4.5 Thinking - #1 in LMArena WebDev for Sonnet
+      # Paid Best
       - provider: openrouter
         model: "anthropic/claude-sonnet-4-2025-02-19"
         priority: 1
-      # Claude Opus 4.5 - Best overall
-      - provider: openrouter
-        model: "anthropic/claude-opus-4-2025-02-19"
-        priority: 2
-      # GPT-5.1 Medium - Great for webdev
       - provider: openai
         model: "gpt-5.1-medium"
-        priority: 3
-      # Gemini 3 Flash Thinking Minimal - Fast + capable
+        priority: 1
+      
+      # Free Tier
+      - provider: groq
+        model: "llama-3.3-70b-versatile"
+        priority: 2
+        free_tier_only: true
       - provider: google
-        model: "gemini-3-flash-thinking"
+        model: "gemini-1.5-flash"
+        priority: 2
+        free_tier_only: true
+      
+      # Fast Free
+      - provider: groq
+        model: "llama-3.1-70b-versatile"
+        priority: 3
+        free_tier_only: true
+      
+      # Open Models
+      - provider: fireworks
+        model: "glm-4-7b-chat"
         priority: 4
-      # DeepSeek V3.2 - Great for code
-      - provider: deepseek
-        model: "deepseek-chat"
+        free_tier_only: true
+      - provider: huggingface
+        model: "Qwen/Qwen2.5-72B-Instruct"
+        priority: 4
+        free_tier_only: true
+      
+      # G4F WebDev Reliable
+      - provider: g4f
+        model: "gpt-4"
         priority: 5
     settings:
       timeout_ms: 120000
-      retry_on_rate_limit: true
 
   # =============================================================================
-  # REASONING/REASONING (Complex problem solving)
+  # REASONING (Complex logic, math, science)
   # =============================================================================
   reasoning-elite:
-    description: "Models with excellent reasoning capabilities (Math, Science, Logic)"
+    description: "Models for complex reasoning tasks"
     fallback_chain:
-      # Claude Opus 4.5 Thinking - Best reasoning scores
+      # Paid
       - provider: openrouter
         model: "anthropic/claude-opus-4-2025-02-19"
         priority: 1
-      # GPT-5.2 High - Strong reasoning
       - provider: openai
         model: "gpt-5.2"
-        priority: 2
-      # Gemini 3 Pro - Large context for complex reasoning
-      - provider: google
-        model: "gemini-3-pro"
-        priority: 3
-      # DeepSeek V3.2 Thinking - Great for logic
+        priority: 1
+      
+      # Free Tier (DeepSeek has cheap API, Groq is free)
       - provider: deepseek
         model: "deepseek-reasoner"
-        priority: 4
-      # Qwen3 235B Thinking - Open model with reasoning focus
+        priority: 2
+      - provider: groq
+        model: "llama-3.3-70b-versatile"
+        priority: 2
+        free_tier_only: true
+      
+      # Open Reasoning Models
       - provider: fireworks
         model: "qwen3-235b-a22b-thinking"
-        priority: 5
+        priority: 3
+        free_tier_only: true
+      - provider: huggingface
+        model: "deepseek-ai/DeepSeek-R1"
+        priority: 3
+        free_tier_only: true
+      
+      # G4F Fallback
+      - provider: g4f
+        model: "claude-3-5-sonnet"
+        priority: 4
     settings:
       timeout_ms: 180000
-      retry_on_rate_limit: true
 
   # =============================================================================
-  # FAST CHAT (Speed prioritized for simple conversation)
+  # FAST CHAT (Instant responses → FREE)
   # =============================================================================
   chat-fast:
-    description: "Extremely fast models for simple chat and quick queries"
+    description: "Fastest free chat models (all free options)"
     fallback_chain:
-      # Groq: Llama 3.1 8B - Fastest option (~1000+ t/s)
+      # Groq: Free + Fast
       - provider: groq
         model: "llama-3.1-8b-instant"
         priority: 1
-      # Groq: Llama 3.2 1B - Tiny and instant
+        free_tier_only: true
       - provider: groq
         model: "llama-3.2-1b-preview"
+        priority: 1
+        free_tier_only: true
+      
+      # Cerebras: Fastest (~3000 t/s)
+      - provider: cerebras
+        model: "llama-3.1-8b"
         priority: 2
-      # Fireworks: Qwen 3 30B - Fast + capable
+        free_tier_only: true
+      
+      # Fireworks Fast
       - provider: fireworks
         model: "qwen3-30b-a3b"
         priority: 3
-      # Gemini 3 Flash - Google's fastest
+        free_tier_only: true
+      
+      # Google Free Tier
       - provider: google
-        model: "gemini-3-flash"
+        model: "gemini-1.5-flash"
         priority: 4
-      # GPT-5 Mini - Fast from OpenAI
-      - provider: openai
-        model: "gpt-5-mini"
+        free_tier_only: true
+      
+      # G4F only if dead
+      - provider: g4f
+        model: "gpt-3.5-turbo"
         priority: 5
     settings:
       timeout_ms: 15000
 
   # =============================================================================
-  # GENERAL PURPOSE (Balanced quality and speed)
+  # BALANCED CHAT (Quality + free options)
   # =============================================================================
   chat-balanced:
-    description: "Balanced models for general conversation"
+    description: "Balanced chat with free fallbacks"
     fallback_chain:
-      # Claude Sonnet 4.5 - Great balance
+      # Paid Quality
       - provider: openrouter
         model: "anthropic/claude-sonnet-4-2025-02-19"
         priority: 1
-      # GPT-5.1 Medium - Excellent balance
       - provider: openai
         model: "gpt-5.1-medium"
+        priority: 1
+      
+      # Free Tier
+      - provider: groq
+        model: "llama-3.3-70b-versatile"
         priority: 2
-      # Gemini 3 Pro - Large context
+        free_tier_only: true
       - provider: google
-        model: "gemini-3-pro"
-        priority: 3
-      # DeepSeek V3.2 - Great value
-      - provider: deepseek
-        model: "deepseek-chat"
-        priority: 4
-      # GLM-4.7 - Open model alternative
+        model: "gemini-1.5-pro"
+        priority: 2
+        free_tier_only: true
+      
+      # Open Models
       - provider: fireworks
-        model: "glm-4-7b-chat"
-        priority: 5
+        model: "qwen3-235b-a22b"
+        priority: 3
+        free_tier_only: true
+      - provider: huggingface
+        model: "meta-llama/Llama-3.3-70B-Instruct"
+        priority: 3
+        free_tier_only: true
+      
+      # G4F Fallback
+      - provider: g4f
+        model: "claude-3-haiku"
+        priority: 4
     settings:
       timeout_ms: 60000
 
 # =============================================================================
-# PROVIDER CONFIGURATIONS
+# PROVIDERS (Add your API keys)
 # =============================================================================
 providers:
-  # OpenRouter - Aggregator with many models
+  # OpenRouter - Has free tier + paid
   openrouter:
     base_url: "https://openrouter.ai/api/v1"
     api_key_env: "OPENROUTER_API_KEY"
-    rate_limits:
-      rpm: 50
-      daily: 1000
+    rate_limits: { rpm: 50, daily: 1000 }
 
-  # OpenAI - Direct access
+  # OpenAI - Paid only
   openai:
     base_url: "https://api.openai.com/v1"
     api_key_env: "OPENAI_API_KEY"
-    rate_limits:
-      rpm: 500
-      daily: 10000
+    rate_limits: { rpm: 500, daily: 10000 }
 
-  # Google Gemini
+  # Google - Has generous free tier
   google:
     base_url: "https://generativelanguage.googleapis.com/v1beta"
     api_key_env: "GEMINI_API_KEY"
-    rate_limits:
-      rpm: 60
-      daily: 1500
+    rate_limits: { rpm: 15, daily: 1500 }
 
-  # DeepSeek
+  # DeepSeek - Cheap API (~$0.32/1M tokens)
   deepseek:
     base_url: "https://api.deepseek.com/v1"
     api_key_env: "DEEPSEEK_API_KEY"
-    rate_limits:
-      rpm: 100
-      daily: 10000
+    rate_limits: { rpm: 100, daily: 10000 }
 
-  # Groq - Extremely fast inference
+  # Groq - FREE TIER (30 RPM, 14400/day) - Insane speed
   groq:
     base_url: "https://api.groq.com/openai/v1"
     api_key_env: "GROQ_API_KEY"
-    rate_limits:
-      rpm: 30
-      daily: 14400
+    rate_limits: { rpm: 30, daily: 14400 }
 
-  # Fireworks AI - Fast open models
+  # Fireworks - Has free tier options
   fireworks:
     base_url: "https://api.fireworks.ai/inference/v1"
     api_key_env: "FIREWORKS_API_KEY"
-    rate_limits:
-      rpm: 100
-      daily: 10000
+    rate_limits: { rpm: 100, daily: 10000 }
+
+  # HuggingFace - FREE Inference
+  huggingface:
+    base_url: "https://api-inference.huggingface.co/models"
+    api_key_env: "HUGGINGFACE_API_KEY"
+    rate_limits: { rpm: 30, daily: 1000 }
+
+  # Cerebras - FREE tier + FASTEST (3000+ t/s)
+  cerebras:
+    base_url: "https://api.cerebras.ai/v1"
+    api_key_env: "CEREBRAS_API_KEY"
+    rate_limits: { rpm: 50, daily: 5000 }
+
+  # G4F - Free but unreliable (use as last resort)
+  g4f:
+    base_url: "https://g4f.dev/v1"
+    api_key_env: "G4F_API_KEY"
+    rate_limits: { rpm: 10, daily: 100 }
