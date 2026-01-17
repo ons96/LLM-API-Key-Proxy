@@ -21,6 +21,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements file
 COPY requirements.txt .
 
+# Copy rotator_library before installing dependencies because requirements.txt refers to it
+COPY src/rotator_library/ ./src/rotator_library/
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
