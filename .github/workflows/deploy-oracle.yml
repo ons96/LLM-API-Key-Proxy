@@ -66,9 +66,9 @@ jobs:
             docker rm llm-proxy || true
             
             # Run new container
-            # Map port 8000 to 8000 (adjust if needed)
+            # Map port 3000 to 8000 (Host Port 3000 -> Container Port 8000)
             docker run -d \
               --name llm-proxy \
               --restart always \
-              -p 8000:8000 \
+              -p 3000:8000 \
               ghcr.io/${{ env.IMAGE_NAME }}:latest
