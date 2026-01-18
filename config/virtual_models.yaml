@@ -7,108 +7,21 @@ virtual_models:
   coding-elite:
     description: "Top-tier agentic coding models (LiveBench ranked) using purely free providers"
     fallback_chain:
-      # 1. Claude 4.5 Opus Thinking (High Effort) - #1 LiveBench
+      # 1. GPT-4o (G4F) - Reliable
       - provider: g4f
-        model: "claude-opus-4-5-thinking"
-        priority: 1
-      - provider: puter
-        model: "claude-opus-4-5-thinking"
+        model: "gpt-4o"
         priority: 1
       
-      # 2. GPT-5.1 Codex Max (High) - #2 LiveBench
+      # 2. GPT-4 (G4F) - Backup
       - provider: g4f
-        model: "gpt-5.1-codex-max"
-        priority: 2
-      - provider: puter
-        model: "gpt-5.1-codex-max"
+        model: "gpt-4"
         priority: 2
       
-      # 3. GPT-5.2 High - #3 LiveBench
+      # 3. Claude 3 Opus (G4F)
       - provider: g4f
-        model: "gpt-5.2-high"
+        model: "claude-3-opus"
         priority: 3
-      - provider: puter
-        model: "gpt-5.2-high"
-        priority: 3
-      
-      # 4. Gemini 3 Pro Preview - #4 LiveBench (Google AI Studio is reliable free tier)
-      - provider: google
-        model: "gemini-3-pro-preview"
-        priority: 4
-      - provider: zenmux
-        model: "gemini-3-pro"
-        priority: 4
-      - provider: g4f
-        model: "gemini-3-pro"
-        priority: 4
 
-      # 5. Gemini 3 Flash Preview High - #5 LiveBench
-      - provider: google
-        model: "gemini-3-flash-preview"
-        priority: 5
-      - provider: zenmux
-        model: "gemini-3-flash"
-        priority: 5
-
-      # 6. Claude Opus 4.1 - #6 LiveBench
-      - provider: g4f
-        model: "claude-opus-4-1"
-        priority: 6
-
-      # 7. Claude Sonnet 4.5 Thinking - #7 LiveBench
-      - provider: g4f
-        model: "claude-sonnet-4-5-thinking"
-        priority: 7
-      - provider: puter
-        model: "claude-sonnet-4-5-thinking"
-        priority: 7
-      
-      # 8. GPT-5.1 Codex - #8 LiveBench
-      - provider: g4f
-        model: "gpt-5.1-codex"
-        priority: 8
-      
-      # 9. DeepSeek V3.2 - Strong Open Model (Cheap/Free options)
-      - provider: iflow
-        model: "deepseek-v3.2"
-        priority: 9
-      - provider: deepseek
-        model: "deepseek-chat"
-        priority: 9
-        free_tier_only: true
-      
-      # 10. Devstral 2 2512 - Specialized Coding
-      - provider: mistral
-        model: "devstral-2-2512"
-        priority: 10
-        free_tier_only: true
-      - provider: nvidia
-        model: "devstral-2"
-        priority: 10
-      
-      # 11. GLM 4.7 - Strong Open Model
-      - provider: cerebras
-        model: "glm-4-7b"
-        priority: 11
-        free_tier_only: true
-      - provider: aihubmix
-        model: "glm-4.7"
-        priority: 11
-
-      # 12. Kimi K2 Thinking - Reasoning
-      - provider: nvidia
-        model: "kimi-k2-thinking"
-        priority: 12
-      
-      # 13. Grok Code Fast - Fast coding
-      - provider: opencode_zen
-        model: "grok-code-fast"
-        priority: 13
-        
-      # 14. MiniMax M2.1
-      - provider: aihubmix
-        model: "minimax-m2.1"
-        priority: 14
 
     settings:
       timeout_ms: 180000
@@ -254,6 +167,11 @@ providers:
     base_url: "https://routeway.ai/v1"
     api_key_env: "ROUTEWAY_API_KEY"
     rate_limits: { rpm: 20, daily: 200 }
+
+  modelscope:
+    base_url: "https://api-inference.modelscope.cn/v1"
+    api_key_env: "MODELSCOPE_API_KEY"
+    rate_limits: { rpm: 60 }
 
   # --- New Direct Providers ---
   nvidia:

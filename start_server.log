@@ -1,0 +1,127 @@
+📁 Loaded 3 .env file(s): your-env-file.env, simple-env-template.env, .env
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Starting proxy on 0.0.0.0:8000
+Proxy API Key: ✓ test_key_123
+GitHub: https://github.com/Mirrowel/LLM-API-Key-Proxy
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Loading server components...
+  → Loading FastAPI framework...
+  → Loading core dependencies...
+  → Loading LiteLLM library...
+  → Initializing proxy core...
+  → Discovering provider plugins...
+/home/owens/CodingProjects/LLM-API-Key-Proxy/src/proxy_app/main.py:182: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class EnrichedModelCard(BaseModel):
+[H[2J[3J✓ Server ready in 1.74s (23 providers discovered in 0.00s)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Starting proxy on 0.0.0.0:8000
+Proxy API Key: ✓ test_key_123
+GitHub: https://github.com/Mirrowel/LLM-API-Key-Proxy
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Server ready in 1.74s (23 providers discovered in 0.00s)
+  → Mounting provider status API routes...
+INFO:     Started server process [18733]
+INFO:     Waiting for application startup.
+[32mStarting automated OAuth credential discovery...[0m
+[32mOAuth credential discovery complete.[0m
+[32mProvider priority manager initialized with 16 providers[0m
+[32mPriority manager initialized: ProviderPriorityManager(tiers={Premium: 2, Fast/Affordable: 3, Standard: 6, Fallback: 1, Lowest Priority: 4})[0m
+[32mBackground token refresher started. Check interval: 600 seconds.[0m
+[32mRotatingClient initialized (EmbeddingBatcher disabled).[0m
+[32mModelRegistry started (refresh every 21600s)[0m
+[32mModel info service started (fetching pricing data in background).[0m
+[32mInitialized 1 search providers[0m
+[32mInitialized 5 virtual models[0m
+[32mLoaded 4 virtual models from /home/owens/CodingProjects/LLM-API-Key-Proxy/config/virtual_models.yaml[0m
+[32mLoaded 3 aliases from /home/owens/CodingProjects/LLM-API-Key-Proxy/config/aliases.yaml[0m
+[32mRouter initialized with FREE_ONLY_MODE=True[0m
+[32mInitialized gemini adapter[0m
+[32mInitialized g4f adapter (no API key required)[0m
+[32mRouter integration initialized with 2 providers[0m
+[32mRouterWrapper initialized with router integration[0m
+[32mGlobal router wrapper initialized[0m
+[32mRouter system initialized and linked with RotatingClient.[0m
+[32mHealth checker started (interval: 300s)[0m
+[32mDatabase initialized at provider_status.db[0m
+[32mProviderStatusTracker initialized with 8 providers[0m
+[32mProviders to monitor: g4f_main, gemini, g4f_gemini, g4f, g4f_groq, g4f_nvidia, google, g4f_grok[0m
+[32mStarting provider status tracker (interval: 5 minutes)[0m
+[32mProvider status tracker initialized and started[0m
+[32mProvider status tracker initialized and started[0m
+[32mInitialized G4F provider (custom main base configured=False)[0m
+[32mProviders initialized: 6 providers, 7 credentials[0m
+[32m  API: anthropic:1, g4f:1, gemini:2, google:1, groq:1, openai:1[0m
+[32mStarting health checks for 8 providers[0m
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+[33m✗ g4f_main: down - Cannot connect to host api.g4f.ai:443 ssl:default [Name or service not known][0m
+[33m✗ gemini: degraded - HTTP 401: {
+  "error": {
+    "code": 401,
+    "message": "Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+    "status": "UNAUTHENTICATED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        "reason": "ACCESS_TOKEN_TYPE_UNSUPPORTED",
+        "metadata": {
+          "method": "google.ai.generativelanguage.v1.ModelService.ListModels",
+          "service": "generativelanguage.googleapis.com"
+        }
+      }
+    ]
+  }
+}
+[0m
+[33m✗ g4f_gemini: down - Cannot connect to host api.g4f.ai:443 ssl:default [Name or service not known][0m
+[33m✗ g4f: down - Cannot connect to host api.g4f.com:443 ssl:default [No address associated with hostname][0m
+[33m✗ g4f_groq: down - Cannot connect to host api.g4f.ai:443 ssl:default [Name or service not known][0m
+[33m✗ g4f_nvidia: down - Cannot connect to host api.g4f.ai:443 ssl:default [Name or service not known][0m
+[33m✗ google: degraded - HTTP 401: {
+  "error": {
+    "code": 401,
+    "message": "Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+    "status": "UNAUTHENTICATED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        "reason": "ACCESS_TOKEN_TYPE_UNSUPPORTED",
+        "metadata": {
+          "service": "generativelanguage.googleapis.com",
+          "method": "google.ai.generativelanguage.v1.ModelService.ListModels"
+        }
+      }
+    ]
+  }
+}
+[0m
+[33m✗ g4f_grok: down - Cannot connect to host api.g4f.ai:443 ssl:default [Name or service not known][0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.NotFoundError: GeminiException - {
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+g4f is up-to-date (version 6.9.3).
+[32mOpenRouter: 339 models loaded[0m
+[32mModels.dev: 2233 models loaded[0m
+[32mModel requested via router: coding-elite[0m
+[32m[req_ca3ff6852dcc42cb] Incoming request for model: coding-elite[0m
+[32m[req_ca3ff6852dcc42cb] Executing g4f/gpt-4o[0m
+[31mG4F completion failed: 500: G4F error: No .har file found[0m
+[31m[req_ca3ff6852dcc42cb] Error g4f/gpt-4o: 500: G4F error: 500: G4F error: No .har file found (provider_error)[0m
+[33m[req_ca3ff6852dcc42cb] Candidate g4f/gpt-4o failed, trying next[0m
+[32m[req_ca3ff6852dcc42cb] Executing g4f/gpt-4[0m
+[32m[req_ca3ff6852dcc42cb] Success: g4f/gpt-4 (1591.2ms)[0m
+[32m[req_ca3ff6852dcc42cb] Request completed in 1591.9ms[0m
+INFO:     127.0.0.1:43660 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40574 - "GET /api/providers/best HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40576 - "GET /v1/router/metrics HTTP/1.1" 404 Not Found

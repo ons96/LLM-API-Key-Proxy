@@ -272,6 +272,7 @@ class TavilySearchProvider(SearchProvider):
 
 from .rate_limiter import RateLimitTracker
 from .model_ranker import ModelRanker
+from .provider_adapter import ProviderAdapterFactory
 
 
 class RouterCore:
@@ -336,18 +337,36 @@ class RouterCore:
             request_clean = {k: v for k, v in request.items() if not k.startswith("_")}
             request_clean["model"] = f"{candidate.provider}/{candidate.model}"
 
-            # Special handling for G4F
-            if candidate.provider == "g4f":
-                # Ensure g4f prefix is handled by litellm or adapter
-                # LiteLLM supports 'g4f/model' format directly usually
-                pass
-
             logger.info(
                 f"[{request_id}] Executing via {candidate.provider}/{candidate.model}"
             )
 
-            # Execute
-            response = await litellm.acompletion(**request_clean)
+            # Check if we have a custom adapter for this provider
+            supported_providers = ProviderAdapterFactory.list_supported_providers()
+            if candidate.provider in supported_providers:
+                # Get API key from environment
+                api_key = None
+                if candidate.provider == "groq":
+                    api_key = os.getenv("GROQ_API_KEY")
+                elif candidate.provider == "gemini":
+                    api_key = os.getenv("GEMINI_API_KEY")
+
+                # Create adapter
+                adapter = ProviderAdapterFactory.create_adapter(
+                    candidate.provider, api_key
+                )
+
+                # Execute via adapter
+                response = await adapter.chat_completions(request_clean)
+            else:
+                # Fallback to LiteLLM direct usage
+                # Special handling for G4F if not in adapter factory (but it is now)
+                if candidate.provider == "g4f":
+                    # This path shouldn't be reached if G4F is in factory
+                    pass
+
+                # Execute
+                response = await litellm.acompletion(**request_clean)
 
             # Record success
             self._update_metrics(
@@ -888,13 +907,33 @@ class RouterCore:
             # Update model reference
             request = request.copy()
             request["model"] = f"{candidate.provider}/{candidate.model}"
+            # Remove router-specific fields
+            request = {k: v for k, v in request.items() if not k.startswith("_")}
 
             logger.info(
                 f"[{request_id}] Executing {candidate.provider}/{candidate.model}"
             )
 
-            # Execute via LiteLLM
-            response = await litellm.acompletion(**request)
+            # Check if we have a custom adapter for this provider
+            supported_providers = ProviderAdapterFactory.list_supported_providers()
+            if candidate.provider in supported_providers:
+                # Get API key from environment
+                api_key = None
+                if candidate.provider == "groq":
+                    api_key = os.getenv("GROQ_API_KEY")
+                elif candidate.provider == "gemini":
+                    api_key = os.getenv("GEMINI_API_KEY")
+
+                # Create adapter
+                adapter = ProviderAdapterFactory.create_adapter(
+                    candidate.provider, api_key
+                )
+
+                # Execute via adapter
+                response = await adapter.chat_completions(request)
+            else:
+                # Execute via LiteLLM
+                response = await litellm.acompletion(**request)
 
             latency_ms = (time.time() - start_time) * 1000
             metrics.record_success()
