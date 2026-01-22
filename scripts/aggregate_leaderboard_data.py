@@ -660,47 +660,80 @@ def generate_aliases_yaml(models: List[Dict[str, Any]]):
     # Generate alias configs
     aliases_config = {
         "aliases": {
-            "coding": {
-                "description": "Aggregated Leaderboard Top Coding Models (Multi-Source)",
+            "coding-smart": {
+                "description": "Best Agentic Coding Performance (LiveBench)",
                 "strategy": "chain_fallback",
                 "candidates": [],
             },
-            "smart": {
-                "description": "Highest Agentic Coding Score (LiveBench + LM Arena)",
+            "coding-fast": {
+                "description": "Fastest Coding Response Times",
                 "strategy": "chain_fallback",
                 "candidates": [],
             },
-            "fast": {
-                "description": "Highest TPS (Quality > 40)",
+            "coding-balanced": {
+                "description": "Balanced Coding Quality and Speed",
+                "strategy": "chain_fallback",
+                "candidates": [],
+            },
+            "chat-smart": {
+                "description": "Best Conversational Performance",
+                "strategy": "chain_fallback",
+                "candidates": [],
+            },
+            "chat-fast": {
+                "description": "Fastest Chat Response Times",
                 "strategy": "chain_fallback",
                 "candidates": [],
             },
         }
     }
 
-    # Top coding models
-    for c in unique_candidates[:40]:
-        aliases_config["aliases"]["coding"]["candidates"].append(
-            {"provider": c["provider"], "model": c["model"]}
-        )
-
-    # Smart models (sorted by base quality)
-    smart_sorted = sorted(
+    # coding-smart: Priority on agentic_coding
+    coding_smart_candidates = sorted(
         unique_candidates, key=lambda x: x["base_score"], reverse=True
     )
-    for c in smart_sorted[:20]:
-        aliases_config["aliases"]["smart"]["candidates"].append(
+    for c in coding_smart_candidates[:30]:
+        aliases_config["aliases"]["coding-smart"]["candidates"].append(
             {"provider": c["provider"], "model": c["model"]}
         )
 
-    # Fast models (sorted by TPS, quality > 40)
-    fast_sorted = sorted(
+    # coding-fast: Priority on TPS (Quality > 40)
+    coding_fast_candidates = sorted(
         [c for c in unique_candidates if c["base_score"] > 40],
         key=lambda x: x["tps"],
         reverse=True,
     )
-    for c in fast_sorted[:20]:
-        aliases_config["aliases"]["fast"]["candidates"].append(
+    for c in coding_fast_candidates[:20]:
+        aliases_config["aliases"]["coding-fast"]["candidates"].append(
+            {"provider": c["provider"], "model": c["model"]}
+        )
+
+    # coding-balanced: Priority on effective_score (which uses both quality and TPS)
+    coding_balanced_candidates = sorted(
+        unique_candidates, key=lambda x: x["effective_score"], reverse=True
+    )
+    for c in coding_balanced_candidates[:25]:
+        aliases_config["aliases"]["coding-balanced"]["candidates"].append(
+            {"provider": c["provider"], "model": c["model"]}
+        )
+
+    # chat-smart: Priority on overall score
+    chat_smart_candidates = sorted(
+        unique_candidates, key=lambda x: x["base_score"], reverse=True
+    )
+    for c in chat_smart_candidates[:20]:
+        aliases_config["aliases"]["chat-smart"]["candidates"].append(
+            {"provider": c["provider"], "model": c["model"]}
+        )
+
+    # chat-fast: Fastest response for chat (Quality > 30)
+    chat_fast_candidates = sorted(
+        [c for c in unique_candidates if c["base_score"] > 30],
+        key=lambda x: x["tps"],
+        reverse=True,
+    )
+    for c in chat_fast_candidates[:20]:
+        aliases_config["aliases"]["chat-fast"]["candidates"].append(
             {"provider": c["provider"], "model": c["model"]}
         )
 
