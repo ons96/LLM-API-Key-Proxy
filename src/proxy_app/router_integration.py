@@ -33,6 +33,9 @@ class RouterIntegration:
         self.adapters: Dict[str, Any] = {}
         self._initialize_adapters()
         
+        # Start background tasks (reordering scheduler, etc.)
+        self.router.start_background_tasks()
+        
         logger.info(f"Router integration initialized with {len(self.adapters)} providers")
     
     def _initialize_adapters(self):

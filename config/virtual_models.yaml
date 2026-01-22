@@ -1,6 +1,6 @@
 virtual_models:
   # =============================================================================
-  # CODING ELITE (Top Agentic Coding Models via Free Providers)
+  # CODING ELITE / SMART (Top Agentic Coding Models)
   # =============================================================================
   # Strategy: Best Model -> All Free Providers (G4F/Puter/Others) -> Next Best Model
   # Source: LiveBench Agentic Coding
@@ -26,6 +26,30 @@ virtual_models:
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
+
+  coding-smart:
+    description: "Best coding performance models (SWE-bench/LiveBench)"
+    fallback_chain:
+      - provider: anthropic
+        model: "claude-3-5-sonnet-latest"
+      - provider: openai
+        model: "gpt-4o"
+      - provider: g4f
+        model: "gpt-4o"
+    settings:
+      timeout_ms: 120000
+
+  coding-balanced:
+    description: "Balanced coding models (Good quality + Moderate speed)"
+    fallback_chain:
+      - provider: groq
+        model: "llama-3.3-70b-versatile"
+      - provider: google
+        model: "gemini-1.5-pro"
+      - provider: anthropic
+        model: "claude-3-5-haiku"
+    settings:
+      timeout_ms: 60000
 
   # =============================================================================
   # CODING FAST (Highest TPS for Code Edits/Greps)

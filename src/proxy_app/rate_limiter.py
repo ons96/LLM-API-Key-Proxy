@@ -13,6 +13,7 @@ class RateLimitStatus:
 
     requests_this_minute: int = 0
     requests_today: int = 0
+    active_requests: int = 0
     last_reset_minute: float = field(default_factory=time.time)
     last_reset_day: float = field(default_factory=time.time)
     rate_limited_until: float = 0.0
@@ -62,6 +63,14 @@ class RateLimitTracker:
                 status.requests_today = 0
                 status.last_reset_day = now
 
+            # Check Concurrency
+            concurrency_limit = limits.get("concurrency")
+            if concurrency_limit and status.active_requests >= concurrency_limit:
+                logger.debug(
+                    f"Concurrency limit hit for {key}: {status.active_requests}/{concurrency_limit}"
+                )
+                return False
+
             # Check RPM
             rpm_limit = limits.get("rpm")
             if rpm_limit and status.requests_this_minute >= rpm_limit:
@@ -89,6 +98,14 @@ class RateLimitTracker:
 
             self._usage[key].requests_this_minute += 1
             self._usage[key].requests_today += 1
+            self._usage[key].active_requests += 1
+
+    async def release_request(self, provider: str, model: str):
+        """Record that a request has completed."""
+        key = self._get_key(provider, model)
+        async with self._lock:
+            if key in self._usage:
+                self._usage[key].active_requests = max(0, self._usage[key].active_requests - 1)
 
     async def record_rate_limit_hit(
         self, provider: str, model: str, retry_after: float = 60.0

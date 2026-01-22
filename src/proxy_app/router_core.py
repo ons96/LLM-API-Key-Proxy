@@ -16,6 +16,7 @@ from enum import Enum
 import yaml
 from pathlib import Path
 import os
+import sqlite3
 
 import litellm
 from fastapi import HTTPException
@@ -70,6 +71,11 @@ class ProviderMetrics:
     total_requests: int = 0
     total_errors: int = 0
     success_rate: float = 1.0
+    total_tokens: int = 0
+    total_ttft_ms: float = 0.0
+    ttft_count: int = 0
+    total_duration_ms: float = 0.0
+    error_counts: Dict[str, int] = field(default_factory=dict)
 
     def update_latency(self, latency_ms: float, alpha: float = 0.3):
         """Update EWMA latency."""
@@ -413,11 +419,49 @@ class RouterCore:
 
     def _initialize_components(self):
         """Initialize all router components."""
+        self._initialize_db()
         self._initialize_search_providers()
         self._initialize_virtual_models()
         self._load_new_virtual_models()  # NEW: Load from config/virtual_models.yaml
         self._load_aliases()  # NEW: Load aliases from config/aliases.yaml
         logger.info(f"Router initialized with FREE_ONLY_MODE={self.free_only_mode}")
+
+    def _initialize_db(self):
+        """Initialize SQLite database for performance tracking."""
+        try:
+            with sqlite3.connect("provider_status.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS provider_performance_stats (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    provider TEXT,
+                    model TEXT,
+                    ttft_ms REAL,
+                    total_latency_ms REAL,
+                    tokens_per_second REAL,
+                    success INTEGER,
+                    error_type TEXT,
+                    token_count INTEGER
+                )
+                """)
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to initialize metrics DB: {e}")
+
+    def _save_performance_metrics(self, provider: str, model: str, ttft_ms: float, total_latency_ms: float, tokens_per_second: float, success: bool, error_type: str = None, token_count: int = 0):
+        """Save performance metrics to SQLite."""
+        try:
+            with sqlite3.connect("provider_status.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                INSERT INTO provider_performance_stats 
+                (provider, model, ttft_ms, total_latency_ms, tokens_per_second, success, error_type, token_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (provider, model, ttft_ms, total_latency_ms, tokens_per_second, 1 if success else 0, error_type, token_count))
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to save performance metrics: {e}")
 
     def _load_new_virtual_models(self):
         """Load virtual models from config/virtual_models.yaml."""
@@ -936,11 +980,40 @@ class RouterCore:
                 response = await litellm.acompletion(**request)
 
             latency_ms = (time.time() - start_time) * 1000
+            
+            # Extract token count if available
+            token_count = 0
+            tps = 0.0
+            if isinstance(response, dict):
+                usage = response.get("usage", {})
+                if isinstance(usage, dict):
+                    token_count = usage.get("total_tokens", 0)
+            elif hasattr(response, "usage") and response.usage:
+                token_count = getattr(response.usage, "total_tokens", 0)
+            
+            if token_count > 0 and latency_ms > 0:
+                tps = token_count / (latency_ms / 1000.0)
+
             metrics.record_success()
             metrics.update_latency(latency_ms)
+            metrics.total_tokens += token_count
+            metrics.total_duration_ms += latency_ms
+
+            # Release rate limit concurrency slot
+            await self.rate_limiter.release_request(candidate.provider, candidate.model)
+
+            self._save_performance_metrics(
+                candidate.provider,
+                candidate.model,
+                ttft_ms=latency_ms,  # For non-stream, TTFT is total latency
+                total_latency_ms=latency_ms,
+                tokens_per_second=tps,
+                success=True,
+                token_count=token_count
+            )
 
             logger.info(
-                f"[{request_id}] Success: {candidate.provider}/{candidate.model} ({latency_ms:.1f}ms)"
+                f"[{request_id}] Success: {candidate.provider}/{candidate.model} ({latency_ms:.1f}ms, {tps:.1f} t/s)"
             )
 
             # Convert to dict if necessary
@@ -955,7 +1028,24 @@ class RouterCore:
             latency_ms = (time.time() - start_time) * 1000
             metrics.record_error()
 
+            # Release rate limit concurrency slot
+            await self.rate_limiter.release_request(candidate.provider, candidate.model)
+
             error_category, retry_after = await self._classify_error(e)
+
+            if error_category.value not in metrics.error_counts:
+                metrics.error_counts[error_category.value] = 0
+            metrics.error_counts[error_category.value] += 1
+
+            self._save_performance_metrics(
+                candidate.provider,
+                candidate.model,
+                ttft_ms=0,
+                total_latency_ms=latency_ms,
+                tokens_per_second=0,
+                success=False,
+                error_type=error_category.value
+            )
 
             if retry_after:
                 metrics.set_cooldown(retry_after)
@@ -989,7 +1079,16 @@ class RouterCore:
             )
 
             # Execute via LiteLLM
+            ttft_ms = 0
+            first_chunk = True
+            token_count = 0
             async for chunk in await litellm.acompletion(**request):
+                if first_chunk:
+                    ttft_ms = (time.time() - start_time) * 1000
+                    metrics.total_ttft_ms += ttft_ms
+                    metrics.ttft_count += 1
+                    first_chunk = False
+
                 # Convert chunk to dict if necessary
                 if hasattr(chunk, "dict"):
                     chunk_dict = chunk.dict()
@@ -1000,22 +1099,61 @@ class RouterCore:
 
                 if chunk_dict.get("choices"):
                     final_response = chunk_dict
+                    # Try to extract usage from chunk if present
+                    if chunk_dict.get("usage"):
+                        token_count = chunk_dict["usage"].get("total_tokens", 0)
 
                 yield chunk_dict
 
             latency_ms = (time.time() - start_time) * 1000
+            tps = 0.0
+            if token_count > 0 and (latency_ms - ttft_ms) > 0:
+                tps = token_count / ((latency_ms - ttft_ms) / 1000.0)
+
             metrics.record_success()
             metrics.update_latency(latency_ms)
+            metrics.total_tokens += token_count
+            metrics.total_duration_ms += latency_ms
+
+            # Release rate limit concurrency slot
+            await self.rate_limiter.release_request(candidate.provider, candidate.model)
+
+            self._save_performance_metrics(
+                candidate.provider,
+                candidate.model,
+                ttft_ms=ttft_ms,
+                total_latency_ms=latency_ms,
+                tokens_per_second=tps,
+                success=True,
+                token_count=token_count
+            )
 
             logger.info(
-                f"[{request_id}] Stream success: {candidate.provider}/{candidate.model} ({latency_ms:.1f}ms)"
+                f"[{request_id}] Stream success: {candidate.provider}/{candidate.model} (TTFT: {ttft_ms:.1f}ms, Total: {latency_ms:.1f}ms)"
             )
 
         except Exception as e:
             latency_ms = (time.time() - start_time) * 1000
             metrics.record_error()
 
+            # Release rate limit concurrency slot
+            await self.rate_limiter.release_request(candidate.provider, candidate.model)
+
             error_category, retry_after = await self._classify_error(e)
+
+            if error_category.value not in metrics.error_counts:
+                metrics.error_counts[error_category.value] = 0
+            metrics.error_counts[error_category.value] += 1
+
+            self._save_performance_metrics(
+                candidate.provider,
+                candidate.model,
+                ttft_ms=0,
+                total_latency_ms=latency_ms,
+                tokens_per_second=0,
+                success=False,
+                error_type=error_category.value
+            )
 
             if retry_after:
                 metrics.set_cooldown(retry_after)
@@ -1298,7 +1436,11 @@ class RouterCore:
                 "ewma_latency_ms": metrics.ewma_latency_ms,
                 "consecutive_failures": metrics.consecutive_failures,
                 "total_requests": metrics.total_requests,
+                "total_tokens": metrics.total_tokens,
+                "avg_tps": metrics.total_tokens / (metrics.total_duration_ms / 1000.0) if metrics.total_duration_ms > 0 else 0,
+                "avg_ttft_ms": metrics.total_ttft_ms / metrics.ttft_count if metrics.ttft_count > 0 else 0,
                 "cooldown_until": metrics.cooldown_until,
+                "error_counts": metrics.error_counts
             }
 
         # Search provider metrics
@@ -1313,3 +1455,74 @@ class RouterCore:
             }
 
         return status
+
+    def get_performance_metrics(self, provider: Optional[str] = None, model: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Retrieve performance metrics from SQLite."""
+        try:
+            with sqlite3.connect("provider_status.db") as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                query = "SELECT * FROM provider_performance_stats"
+                params = []
+                where_clauses = []
+                if provider:
+                    where_clauses.append("provider = ?")
+                    params.append(provider)
+                if model:
+                    where_clauses.append("model = ?")
+                    params.append(model)
+                
+                if where_clauses:
+                    query += " WHERE " + " AND ".join(where_clauses)
+                
+                query += " ORDER BY timestamp DESC LIMIT 1000"
+                cursor.execute(query, params)
+                return [dict(row) for row in cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Failed to retrieve performance metrics: {e}")
+            return []
+
+    async def recalculate_rankings(self):
+        """Recalculate virtual model fallback chains based on benchmark data and actual performance."""
+        logger.info("Recalculating model rankings...")
+        
+        # 1. Run the aggregation script
+        root_dir = Path(__file__).resolve().parent.parent.parent
+        script_path = root_dir / "scripts" / "aggregate_leaderboard_data.py"
+        
+        try:
+            import sys
+            process = await asyncio.create_subprocess_exec(
+                sys.executable, str(script_path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+            if process.returncode == 0:
+                logger.info("Leaderboard data aggregated successfully")
+            else:
+                logger.error(f"Failed to aggregate leaderboard data: {stderr.decode()}")
+        except Exception as e:
+            logger.error(f"Error running aggregation script: {e}")
+            
+        # 2. Re-load aliases and virtual models
+        self._load_aliases()
+        self._load_new_virtual_models()
+        
+        logger.info("Rankings recalculated and reloaded.")
+
+    def start_background_tasks(self):
+        """Start background tasks for the router."""
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._reordering_scheduler())
+        except RuntimeError:
+            # No running loop, will be started by the app
+            pass
+
+    async def _reordering_scheduler(self):
+        """Periodically trigger ranking recalculation."""
+        while True:
+            # Wait for 24 hours
+            await asyncio.sleep(24 * 3600)
+            await self.recalculate_rankings()

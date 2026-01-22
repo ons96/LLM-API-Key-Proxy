@@ -13,12 +13,19 @@ import io
 import logging
 
 from rotator_library.provider_status_tracker import ProviderStatusTracker
+from .router_wrapper import get_router
+from .router_core import RouterCore
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 # Create router for status API endpoints
 router = APIRouter(prefix="/api/providers", tags=["provider-status"])
+
+
+def get_router_core() -> RouterCore:
+    """Dependency to get the router core."""
+    return get_router().router_integration.router
 
 
 def get_status_tracker(request: Request) -> ProviderStatusTracker:
@@ -275,3 +282,34 @@ def initialize_status_tracker(app) -> ProviderStatusTracker:
     except Exception as e:
         logger.error(f"Failed to initialize provider status tracker: {e}")
         raise
+
+
+@router.get("/performance")
+async def get_performance_stats(
+    provider: str = None,
+    model: str = None,
+    router_core: RouterCore = Depends(get_router_core)
+):
+    """Get detailed performance stats for providers and models."""
+    return router_core.get_performance_metrics(provider, model)
+
+
+@router.get("/router-status")
+async def get_router_status(
+    router_core: RouterCore = Depends(get_router_core)
+):
+    """Get the current health and metrics from the router's perspective."""
+    return router_core.get_health_status()
+
+
+@router.post("/reorder")
+async def trigger_reordering(
+    router_core: RouterCore = Depends(get_router_core)
+):
+    """Manually trigger a recalculation of model rankings."""
+    try:
+        await router_core.recalculate_rankings()
+        return {"status": "success", "message": "Rankings recalculated"}
+    except Exception as e:
+        logger.error(f"Failed to trigger reordering: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
