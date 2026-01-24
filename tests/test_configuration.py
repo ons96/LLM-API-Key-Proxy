@@ -170,7 +170,7 @@ class TestReorderingEndpoint:
         
         # Verify ranked order is different from original
         # (exact order depends on ranking implementation)
-        assert ranked_order != original_order or True  # May or may not change depending on scores
+        assert ranked_order != original_order  # May or may not change depending on scores
 
 
 class TestRankingStrategies:
@@ -201,7 +201,7 @@ class TestRankingStrategies:
         llama_priority = next(c["priority"] for c in ranked if "llama" in c["model"])
         
         # Lower priority number = higher priority
-        assert claude_priority < llama_priority or True, \
+        assert claude_priority < llama_priority, \
             "Claude should rank higher for coding-smart (lower priority number)"
     
     

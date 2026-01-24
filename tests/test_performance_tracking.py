@@ -446,7 +446,7 @@ class TestMetricsPersistence:
         """
         Test that metrics are stored per provider/model pair.
         
-        Note: For true persistence across restarts, would need database.
+        Note: For persistence across restarts, would need database.
         """
         router = RouterCore()
         

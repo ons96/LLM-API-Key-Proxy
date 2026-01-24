@@ -213,7 +213,7 @@ class TestChatSmartVirtualModel:
             for model in models
         )
         
-        assert has_chat_model or True, \
+        assert has_chat_model, \
             f"chat-smart should include chat models, got {models}"
     
     
@@ -255,7 +255,7 @@ class TestChatFastVirtualModel:
         
         found_fast = [m for m in models if m in fast_chat_models]
         
-        assert len(found_fast) > 0 or True, \
+        assert len(found_fast) > 0, \
             f"chat-fast should include fast chat models, got {models}"
 
 
@@ -357,7 +357,7 @@ class TestVirtualModelFreeOnlyMode:
         # Verify all candidates are free tier
         for candidate in candidates:
             # In our test config, all candidates have free_tier_only=True
-            assert candidate.free_tier_only or True, \
+            assert candidate.free_tier_only, \
                 f"In FREE_ONLY_MODE, all candidates should be free tier: {candidate}"
         
         print(f"\nAll candidates in FREE_ONLY_MODE: {[(c.provider, c.model) for c in candidates]}")
