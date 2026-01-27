@@ -909,25 +909,35 @@ class GoogleOAuthBase:
                 from urllib.parse import urlparse, parse_qs
 
                 query_params = parse_qs(urlparse(path_str).query)
-                writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n")
+
                 if "code" in query_params:
                     if not auth_code_future.done():
                         auth_code_future.set_result(query_params["code"][0])
-                    writer.write(
-                        b"<html><body><h1>Authentication successful!</h1><p>You can close this window.</p></body></html>"
-                    )
+                    html = "<html><body><h1>Authentication successful!</h1><p>You can close this window.</p></body></html>"
                 else:
                     error = query_params.get("error", ["Unknown error"])[0]
                     if not auth_code_future.done():
                         auth_code_future.set_exception(
                             Exception(f"OAuth failed: {error}")
                         )
-                    writer.write(
-                        f"<html><body><h1>Authentication Failed</h1><p>Error: {error}. Please try again.</p></body></html>".encode()
-                    )
+                    html = f"<html><body><h1>Authentication Failed</h1><p>Error: {error}. Please try again.</p></body></html>"
+
+                # Send complete HTTP response with proper headers
+                response = f"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {len(html)}\r\n\r\n{html}"
+                writer.write(response.encode())
                 await writer.drain()
+                # Keep connection open briefly to ensure browser receives response
+                await asyncio.sleep(0.1)
             except Exception as e:
                 lib_logger.error(f"Error in OAuth callback handler: {e}")
+                # Send error response if something went wrong
+                error_html = "<html><body><h1>Server Error</h1><p>An error occurred processing your request.</p></body></html>"
+                error_response = f"HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/html\r\nContent-Length: {len(error_html)}\r\n\r\n{error_html}"
+                try:
+                    writer.write(error_response.encode())
+                    await writer.drain()
+                except:
+                    pass
             finally:
                 writer.close()
 
