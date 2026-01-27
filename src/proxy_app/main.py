@@ -1029,11 +1029,35 @@ async def list_models(
     """
     model_ids = await client.get_all_available_models(grouped=False)
 
+    # Get virtual models from router
+    virtual_models = []
+    try:
+        router = get_router()
+        if router and hasattr(router, "router_integration"):
+            router_core = router.router_integration.router
+            if router_core and hasattr(router_core, "virtual_models"):
+                logging.debug(f"Found {len(router_core.virtual_models)} virtual models")
+                for vm_name, vm_config in router_core.virtual_models.items():
+                    virtual_models.append(
+                        {
+                            "id": vm_name,
+                            "object": "model",
+                            "created": int(time.time()),
+                            "owned_by": "router",
+                            "description": vm_config.get("description", ""),
+                            "routing_type": "virtual",
+                        }
+                    )
+    except Exception as e:
+        logging.error(f"Could not load virtual models: {e}")
+
     if enriched and hasattr(request.app.state, "model_info_service"):
         model_info_service = request.app.state.model_info_service
         if model_info_service.is_ready:
             # Return enriched model data
             enriched_data = model_info_service.enrich_model_list(model_ids)
+            # Add virtual models
+            enriched_data.extend(virtual_models)
             return {"object": "list", "data": enriched_data}
 
     # Fallback to basic model cards
@@ -1046,6 +1070,8 @@ async def list_models(
         }
         for model_id in model_ids
     ]
+    # Add virtual models
+    model_cards.extend(virtual_models)
     return {"object": "list", "data": model_cards}
 
 
