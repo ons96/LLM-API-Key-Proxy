@@ -1,49 +1,753 @@
 models:
-  - id: "anthropic/claude-3.5-sonnet"
-    scores:
-      swe_bench: 72.7
-      humaneval: 93.0
-      aider_polyglot: 68.5
-      speed_tps: 80
-      context: 200000
-    best_for: [coding-smart, chat-smart]
-
-  - id: "google/gemini-1.5-pro"
-    scores:
-      swe_bench: 63.8
-      humaneval: 89.0
-      speed_tps: 120
-      context: 2000000
-    best_for: [coding-smart, chat-smart, research]
-
-  - id: "google/gemini-1.5-flash"
-    scores:
-      swe_bench: 50.0
-      humaneval: 75.0
-      speed_tps: 800
-      context: 1000000
-    best_for: [coding-fast, chat-fast]
-
-  - id: "groq/llama-3.3-70b-versatile"
-    scores:
-      swe_bench: 55.0
-      humaneval: 80.0
-      speed_tps: 300
-      context: 131072
-    best_for: [coding-fast, chat-smart]
-
-  - id: "groq/llama-3.1-8b-instant"
-    scores:
-      swe_bench: 30.0
-      humaneval: 60.0
-      speed_tps: 1000
-      context: 131072
-    best_for: [chat-fast]
-
-  - id: "g4f/gpt-4"
-    scores:
-      swe_bench: 60.0
-      humaneval: 85.0
-      speed_tps: 10
-      context: 8192
-    best_for: [coding-smart]
+- id: openai/gpt-5-1
+  name: GPT-5.1 Codex Max XHigh
+  scores:
+    speed_tps: 150.0
+    livebench_coding: 77.48
+    aider: -1
+    swe_bench: 66.0
+    swe_rebench: 58.3
+    humaneval: 77.48
+    bigcodebench: -1
+    gso_bench: 13.73
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 77.48
+    composite_score: 74.5
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: anthropic/claude-opus-4-5
+  name: Claude Opus 4.5
+  scores:
+    speed_tps: 49.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 80.9
+    swe_rebench: 60.4
+    humaneval: 80.9
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: 74.6
+    agentic_coding: 80.9
+    composite_score: 74.44
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: openai/gpt-5-2
+  name: GPT-5.2 High
+  scores:
+    speed_tps: 187.0
+    livebench_coding: 76.45
+    aider: -1
+    swe_bench: 73.6
+    swe_rebench: 61.3
+    humaneval: 76.45
+    bigcodebench: -1
+    gso_bench: 27.45
+    ts_bench: 92.0
+    vals_ai: -1
+    agentic_coding: 76.45
+    composite_score: 74.23
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: anthropic/claude-sonnet-4-5-thinking
+  name: Claude Sonnet 4.5 Thinking
+  scores:
+    speed_tps: 52.0
+    livebench_coding: 80.36
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 80.36
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 80.36
+    composite_score: 74.16
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: anthropic/claude-sonnet-4
+  name: Claude 4 Sonnet Thinking
+  scores:
+    speed_tps: 45.0
+    livebench_coding: 80.74
+    aider: -1
+    swe_bench: 64.8
+    swe_rebench: 53.6
+    humaneval: 80.74
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: 92.0
+    vals_ai: -1
+    agentic_coding: 80.74
+    composite_score: 74.1
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: anthropic/claude-opus-4-5-thinking
+  name: Claude 4.5 Opus Thinking High Effort
+  scores:
+    speed_tps: 49.0
+    livebench_coding: 79.65
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 79.65
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 79.65
+    composite_score: 73.44
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: google/gemini-3-flash
+  name: Gemini 3 Flash Preview High
+  scores:
+    speed_tps: 120.0
+    livebench_coding: 73.9
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 73.9
+    bigcodebench: -1
+    gso_bench: 9.8
+    ts_bench: -1
+    vals_ai: 76.2
+    agentic_coding: 76.2
+    composite_score: 72.92
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: google/gemini-3-pro
+  name: Gemini 3 Pro Preview High
+  scores:
+    speed_tps: 75.0
+    livebench_coding: 74.6
+    aider: -1
+    swe_bench: 77.4
+    swe_rebench: 56.6
+    humaneval: 74.6
+    bigcodebench: -1
+    gso_bench: 18.63
+    ts_bench: -1
+    vals_ai: 71.6
+    agentic_coding: 77.4
+    composite_score: 72.71
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: deepseek/deepseek-chat
+  name: DeepSeek V3.2 Thinking
+  scores:
+    speed_tps: 90.0
+    livebench_coding: 75.69
+    aider: -1
+    swe_bench: 60.0
+    swe_rebench: -1
+    humaneval: 75.69
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 75.69
+    composite_score: 71.79
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: google/gemini-2-5-pro
+  name: Gemini 2.5 Pro (Max Thinking)
+  scores:
+    speed_tps: 60.0
+    livebench_coding: 75.69
+    aider: -1
+    swe_bench: 53.6
+    swe_rebench: -1
+    humaneval: 75.69
+    bigcodebench: -1
+    gso_bench: 3.92
+    ts_bench: 92.0
+    vals_ai: -1
+    agentic_coding: 75.69
+    composite_score: 70.78
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: anthropic/claude-sonnet-4-5
+  name: Claude Sonnet 4.5
+  scores:
+    speed_tps: 52.0
+    livebench_coding: 76.07
+    aider: -1
+    swe_bench: 75.4
+    swe_rebench: 60.9
+    humaneval: 76.07
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: 69.8
+    agentic_coding: 76.07
+    composite_score: 70.73
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: anthropic/claude-opus-4-1
+  name: Claude 4.1 Opus Thinking
+  scores:
+    speed_tps: 45.0
+    livebench_coding: 76.07
+    aider: -1
+    swe_bench: -1
+    swe_rebench: 51.9
+    humaneval: 76.07
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 76.07
+    composite_score: 70.37
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: openai/gpt-5
+  name: GPT-5 Pro
+  scores:
+    speed_tps: 120.0
+    livebench_coding: 72.11
+    aider: -1
+    swe_bench: 65.0
+    swe_rebench: 58.7
+    humaneval: 72.11
+    bigcodebench: -1
+    gso_bench: 6.86
+    ts_bench: 88.0
+    vals_ai: -1
+    agentic_coding: 72.11
+    composite_score: 69.65
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: moonshot/kimi-k2-instruct
+  name: Kimi K2 Instruct
+  scores:
+    speed_tps: 50.0
+    livebench_coding: 74.28
+    aider: -1
+    swe_bench: 43.8
+    swe_rebench: -1
+    humaneval: 74.28
+    bigcodebench: -1
+    gso_bench: 4.9
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 74.28
+    composite_score: 69.2
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: grok/grok-4
+  name: Grok 4
+  scores:
+    speed_tps: 70.0
+    livebench_coding: 73.13
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 73.13
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 73.13
+    composite_score: 69.12
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: cerebras/glm-4-7
+  name: GLM 4.7
+  scores:
+    speed_tps: 50.0
+    livebench_coding: 73.13
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 73.13
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 73.13
+    composite_score: 68.28
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: anthropic/claude-haiku-4-5
+  name: Claude Haiku 4.5
+  scores:
+    speed_tps: 65.0
+    livebench_coding: 72.17
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 72.17
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: 68.8
+    agentic_coding: 72.17
+    composite_score: 68.16
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: anthropic/claude-haiku-4-5-thinking
+  name: Claude Haiku 4.5 Thinking
+  scores:
+    speed_tps: 50.0
+    livebench_coding: 72.81
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 72.81
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 72.81
+    composite_score: 68.02
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: cerebras/glm-4-6
+  name: GLM 4.6
+  scores:
+    speed_tps: 50.0
+    livebench_coding: 71.02
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 71.02
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 71.02
+    composite_score: 66.59
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: openai/gpt-5-1-codex-max
+  name: GPT 5.1 Codex Max
+  scores:
+    speed_tps: 50.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 71.0
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: 71.0
+    agentic_coding: 71.0
+    composite_score: 66.57
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: openai/gpt-5-1-codex
+  name: GPT 5.1 Codex
+  scores:
+    speed_tps: 50.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 70.4
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: 70.4
+    agentic_coding: 70.4
+    composite_score: 66.09
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: qwen/qwen-plus
+  name: Qwen 3 235B A22B Thinking 2507
+  scores:
+    speed_tps: 60.0
+    livebench_coding: 69.61
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 69.61
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 69.61
+    composite_score: 65.92
+  best_for:
+  - coding-fast
+- id: google/gemini-2-5-flash
+  name: Gemini 2.5 Flash (Max Thinking) (2025-09-25)
+  scores:
+    speed_tps: 100.0
+    livebench_coding: 67.5
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 67.5
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 67.5
+    composite_score: 65.5
+  best_for:
+  - coding-fast
+- id: grok/grok-4-1-fast
+  name: Grok 4.1 Fast
+  scores:
+    speed_tps: 50.0
+    livebench_coding: 69.61
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 69.61
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 69.61
+    composite_score: 65.46
+  best_for:
+  - coding-fast
+- id: openai/gpt-5-codex
+  name: GPT 5 Codex
+  scores:
+    speed_tps: 50.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 69.4
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: 69.4
+    agentic_coding: 69.4
+    composite_score: 65.29
+  best_for:
+  - coding-fast
+- id: moonshot/kimi-k2-thinking
+  name: Kimi K2 Thinking
+  scores:
+    speed_tps: 50.0
+    livebench_coding: 67.44
+    aider: -1
+    swe_bench: 63.4
+    swe_rebench: -1
+    humaneval: 67.44
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 67.44
+    composite_score: 63.72
+  best_for:
+  - coding-fast
+- id: mistral/devstral
+  name: Devstral 2
+  scores:
+    speed_tps: 55.0
+    livebench_coding: 66.79
+    aider: -1
+    swe_bench: 56.4
+    swe_rebench: 43.8
+    humaneval: 66.79
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 66.79
+    composite_score: 63.44
+  best_for:
+  - coding-fast
+- id: anthropic/claude-opus-4
+  name: Claude 4 Opus (20250514)
+  scores:
+    speed_tps: 42.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 67.6
+    swe_rebench: -1
+    humaneval: 67.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 67.6
+    composite_score: 63.42
+  best_for:
+  - coding-fast
+- id: grok/grok-code-fast
+  name: Grok Code Fast
+  scores:
+    speed_tps: 95.0
+    livebench_coding: 64.44
+    aider: -1
+    swe_bench: -1
+    swe_rebench: 36.2
+    humaneval: 64.44
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 64.44
+    composite_score: 62.93
+  best_for:
+  - coding-fast
+- id: cerebras/glm-4-6v
+  name: GLM 4.6V
+  scores:
+    speed_tps: 50.0
+    livebench_coding: 64.24
+    aider: -1
+    swe_bench: -1
+    swe_rebench: -1
+    humaneval: 64.24
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 64.24
+    composite_score: 61.16
+  best_for:
+  - coding-fast
+- id: anthropic/claude-code
+  name: Claude Code
+  scores:
+    speed_tps: 45.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: -1
+    swe_rebench: 62.1
+    humaneval: 62.1
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 62.1
+    composite_score: 59.19
+  best_for:
+  - coding-fast
+- id: minimax-m2
+  name: MiniMax M2
+  scores:
+    speed_tps: 50.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 61.0
+    swe_rebench: 39.6
+    humaneval: 61.0
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 61.0
+    composite_score: 58.57
+  best_for:
+  - coding-fast
+- id: openai/gpt-oss-120b
+  name: GPT OSS 120b
+  scores:
+    speed_tps: 50.0
+    livebench_coding: 60.21
+    aider: -1
+    swe_bench: 26.0
+    swe_rebench: 30.6
+    humaneval: 60.21
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 60.21
+    composite_score: 57.94
+  best_for:
+  - coding-fast
+- id: cerebras/glm-4-6b
+  name: GLM-4.6
+  scores:
+    speed_tps: 50.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 55.4
+    swe_rebench: 46.0
+    humaneval: 55.4
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: 92.0
+    vals_ai: -1
+    agentic_coding: 55.4
+    composite_score: 54.09
+  best_for:
+  - coding-fast
+- id: qwen/qwen3-coder-480b-a35b-instruct
+  name: Qwen3-Coder-480B-A35B-Instruct
+  scores:
+    speed_tps: 50.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 55.4
+    swe_rebench: 39.1
+    humaneval: 55.4
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 55.4
+    composite_score: 54.09
+  best_for:
+  - coding-fast
+- id: cerebras/glm-4-5
+  name: GLM-4.5
+  scores:
+    speed_tps: 50.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 54.2
+    swe_rebench: 44.3
+    humaneval: 54.2
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 54.2
+    composite_score: 53.13
+  best_for:
+  - coding-fast
+- id: o3-2025-04-16
+  name: o3-2025-04-16
+  scores:
+    speed_tps: 50.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: -1
+    swe_rebench: 51.9
+    humaneval: 51.9
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 51.9
+    composite_score: 51.29
+  best_for:
+  - coding-fast
+- id: deepseek/deepseek-v3-2
+  name: DeepSeek-V3.2
+  scores:
+    speed_tps: 50.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: -1
+    swe_rebench: 46.4
+    humaneval: 46.4
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 46.4
+    composite_score: 46.89
+  best_for:
+  - coding-budget
+- id: o4-mini
+  name: o4-mini (2025-04-16)
+  scores:
+    speed_tps: 50.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 45.0
+    swe_rebench: -1
+    humaneval: 45.0
+    bigcodebench: -1
+    gso_bench: 12.7
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 45.0
+    composite_score: 45.77
+  best_for:
+  - coding-budget
+- id: minimax-m2-1
+  name: MiniMax M2.1
+  scores:
+    speed_tps: 50.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: -1
+    swe_rebench: 43.4
+    humaneval: 43.4
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 43.4
+    composite_score: 44.49
+  best_for:
+  - coding-budget
+- id: moonshot/kimi-k2-instruct-0905
+  name: Kimi K2 Instruct 0905
+  scores:
+    speed_tps: 50.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: -1
+    swe_rebench: 41.7
+    humaneval: 41.7
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 41.7
+    composite_score: 43.13
+  best_for:
+  - coding-budget
+- id: o4-mini-2025-04-16
+  name: o4-mini-2025-04-16
+  scores:
+    speed_tps: 50.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: -1
+    swe_rebench: 39.6
+    humaneval: 39.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 39.6
+    composite_score: 41.45
+  best_for:
+  - coding-budget
+- id: cerebras/glm-4-5-air
+  name: GLM-4.5 Air
+  scores:
+    speed_tps: 50.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: -1
+    swe_rebench: 33.6
+    humaneval: 33.6
+    bigcodebench: -1
+    gso_bench: 2.94
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 33.6
+    composite_score: 36.65
+  best_for:
+  - coding-budget

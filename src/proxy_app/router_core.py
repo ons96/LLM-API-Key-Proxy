@@ -513,6 +513,10 @@ class RouterCore:
         self.virtual_models = self.config.get("router_models", {})
         logger.info(f"Initialized {len(self.virtual_models)} virtual models")
 
+    def get_virtual_model_names(self) -> List[str]:
+        """Get list of virtual model names."""
+        return list(self.virtual_models.keys())
+
     def _get_metrics(self, provider: str, model: str) -> ProviderMetrics:
         """Get or create metrics for provider/model pair."""
         key = (provider, model)

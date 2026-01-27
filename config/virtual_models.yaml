@@ -95,6 +95,9 @@ virtual_models:
       - provider: iflow
         model: "deepseek-reasoner"
         priority: 4
+      - provider: iflow
+        model: "deepseek-v3.2"
+        priority: 4
       - provider: deepseek
         model: "deepseek-reasoner"
         priority: 4
@@ -149,7 +152,7 @@ providers:
     rate_limits: { rpm: 20, daily: 500 }
 
   iflow:
-    base_url: "https://api.iflow.com/v1"
+    base_url: "https://apis.iflow.cn/v1"
     api_key_env: "IFLOW_API_KEY"
     rate_limits: { rpm: 60 }
 
