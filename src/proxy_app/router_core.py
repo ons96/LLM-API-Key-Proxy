@@ -102,7 +102,7 @@ class ProviderMetrics:
                 self.total_requests - self.total_errors
             ) / self.total_requests
 
-    def is_healthy(self, current_time: float = None) -> bool:
+    def is_healthy(self, current_time: Optional[float] = None) -> bool:
         """Check if provider is healthy (not in cooldown)."""
         if current_time is None:
             current_time = time.time()
@@ -270,6 +270,63 @@ class TavilySearchProvider(SearchProvider):
             raise
 
 
+class DuckDuckGoSearchProvider(SearchProvider):
+    """DuckDuckGo Instant Answer API provider (free, no API key required)."""
+
+    async def search(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
+        start_time = time.time()
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    "https://api.duckduckgo.com/",
+                    params={"q": query, "format": "json", "no_html": 1},
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                latency_ms = (time.time() - start_time) * 1000
+                self.metrics.update_latency(latency_ms)
+                self.metrics.record_success()
+
+                results = []
+
+                abstract = data.get("Abstract")
+                if abstract:
+                    results.append(
+                        {
+                            "title": data.get("Heading") or "Instant Answer",
+                            "url": data.get("AbstractURL")
+                            or data.get("AbstractSource"),
+                            "content": abstract,
+                            "description": data.get("AbstractText"),
+                            "source": "duckduckgo",
+                        }
+                    )
+
+                related_topics = data.get("RelatedTopics", [])
+                for topic in related_topics[: max_results - len(results)]:
+                    if isinstance(topic, dict):
+                        text = topic.get("Text")
+                        if text:
+                            url = topic.get("FirstURL") if "FirstURL" in topic else None
+                            results.append(
+                                {
+                                    "title": topic.get("FirstURL", text).split("/")[-1],
+                                    "url": url,
+                                    "content": text,
+                                    "description": text,
+                                    "source": "duckduckgo",
+                                }
+                            )
+
+                return results[:max_results]
+
+        except Exception as e:
+            self.metrics.record_error()
+            logger.error(f"DuckDuckGo search failed: {e}")
+            raise
+
+
 from .rate_limiter import RateLimitTracker
 from .model_ranker import ModelRanker
 from .provider_adapter import ProviderAdapterFactory
@@ -287,7 +344,7 @@ class RouterCore:
             self.provider_metrics
         )  # Alias for backward compatibility if needed
 
-        self.aliases: Dict[str, str] = {}
+        self.aliases: Dict[str, Any] = {}
         self.virtual_models: Dict[str, Dict[str, Any]] = {}
         self.search_providers: Dict[str, Any] = {}
 
@@ -297,6 +354,28 @@ class RouterCore:
         self._initialize_components()
 
     # ... existing code ...
+
+    def _update_metrics(
+        self,
+        provider: str,
+        model: str,
+        latency_ms: float,
+        success: bool,
+        error_type: Optional[ErrorCategory] = None,
+    ):
+        """Update metrics for a provider."""
+        metrics = self._get_metrics(provider, model)
+        if success:
+            metrics.record_success()
+            metrics.update_latency(latency_ms)
+        else:
+            metrics.record_error()
+            if error_type == ErrorCategory.RATE_LIMIT:
+                metrics.set_cooldown(
+                    self.config.get("routing", {}).get(
+                        "rate_limit_cooldown_seconds", 300
+                    )
+                )
 
     async def _check_conditions(
         self, candidate_cfg: Dict[str, Any], provider: str, model: str
@@ -366,7 +445,7 @@ class RouterCore:
                     pass
 
                 # Execute
-                response = await litellm.acompletion(**request_clean)
+                response = await litellm.acompletion(**request_clean, stream=False)
 
             # Record success
             self._update_metrics(
@@ -376,9 +455,9 @@ class RouterCore:
 
         except Exception as e:
             # Record failure
-            error_type = self._classify_error(e)
+            error_type = (await self._classify_error(e))[0]
 
-            if error_type == ErrorType.RATE_LIMIT:
+            if error_type == ErrorCategory.RATE_LIMIT:
                 await self.rate_limiter.record_rate_limit_hit(
                     candidate.provider, candidate.model
                 )
@@ -536,8 +615,9 @@ class RouterCore:
             for keyword in ["rate_limit", "too many requests", "429"]
         ):
             retry_after = None
-            if hasattr(error, "response") and error.response:
-                retry_after = error.response.headers.get("retry-after")
+            response = getattr(error, "response", None)
+            if response:
+                retry_after = response.headers.get("retry-after")
                 if retry_after:
                     try:
                         retry_after = int(retry_after)
@@ -622,37 +702,6 @@ class RouterCore:
             )
 
         return req
-
-    def _check_conditions(
-        self, candidate_cfg: Dict[str, Any], provider: str, model: str
-    ) -> bool:
-        """Check if candidate conditions are met (rate limits, etc)."""
-        conditions = candidate_cfg.get("conditions", {})
-        if not conditions:
-            return True
-
-        metrics = self._get_metrics(provider, model)
-
-        # Check max_daily_requests
-        max_daily = conditions.get("max_daily_requests")
-        if max_daily is not None:
-            # Note: This uses total_requests which resets on restart.
-            # For persistent daily limits, we'd need a DB or file storage.
-            if metrics.total_requests >= max_daily:
-                logger.debug(
-                    f"Candidate {provider}/{model} exceeded max daily requests ({metrics.total_requests}/{max_daily})"
-                )
-                return False
-
-        # Check max_rpm (approximate)
-        max_rpm = conditions.get("max_rpm")
-        if max_rpm is not None:
-            # We don't have exact RPM tracking in metrics yet, using a simple check or placeholder
-            # For now, we'll skip strict RPM check or implement a bucket if needed.
-            # But let's respect the config if it's there.
-            pass
-
-        return True
 
     def _get_candidates(
         self, model_id: str, requirements: CapabilityRequirements
@@ -900,100 +949,32 @@ class RouterCore:
             )
             yield result
 
-    async def _execute_single_candidate(
-        self, candidate: ProviderCandidate, request: Dict[str, Any], request_id: str
-    ) -> Dict[str, Any]:
-        """Execute a single candidate (non-streaming)."""
-        start_time = time.time()
-        metrics = self._get_metrics(candidate.provider, candidate.model)
-
-        try:
-            # Update model reference
-            request = request.copy()
-            request["model"] = f"{candidate.provider}/{candidate.model}"
-            # Remove router-specific fields
-            request = {k: v for k, v in request.items() if not k.startswith("_")}
-
-            logger.info(
-                f"[{request_id}] Executing {candidate.provider}/{candidate.model}"
-            )
-
-            # Check if we have a custom adapter for this provider
-            supported_providers = ProviderAdapterFactory.list_supported_providers()
-            if candidate.provider in supported_providers:
-                # Get API key from environment
-                api_key = None
-                if candidate.provider == "groq":
-                    api_key = os.getenv("GROQ_API_KEY")
-                elif candidate.provider == "gemini":
-                    api_key = os.getenv("GEMINI_API_KEY")
-
-                # Create adapter
-                adapter = ProviderAdapterFactory.create_adapter(
-                    candidate.provider, api_key
-                )
-
-                # Execute via adapter
-                response = await adapter.chat_completions(request)
-            else:
-                # Execute via LiteLLM
-                response = await litellm.acompletion(**request)
-
-            latency_ms = (time.time() - start_time) * 1000
-            metrics.record_success()
-            metrics.update_latency(latency_ms)
-
-            logger.info(
-                f"[{request_id}] Success: {candidate.provider}/{candidate.model} ({latency_ms:.1f}ms)"
-            )
-
-            # Convert to dict if necessary
-            if hasattr(response, "dict"):
-                return response.dict()
-            elif hasattr(response, "__dict__"):
-                return response.__dict__
-            else:
-                return response
-
-        except Exception as e:
-            latency_ms = (time.time() - start_time) * 1000
-            metrics.record_error()
-
-            error_category, retry_after = await self._classify_error(e)
-
-            if retry_after:
-                metrics.set_cooldown(retry_after)
-            elif error_category == ErrorCategory.RATE_LIMIT:
-                metrics.set_cooldown(
-                    self.config.get("routing", {}).get(
-                        "rate_limit_cooldown_seconds", 300
-                    )
-                )
-
-            logger.error(
-                f"[{request_id}] Error {candidate.provider}/{candidate.model}: {e} ({error_category.value})"
-            )
-            raise
-
     async def _execute_single_candidate_stream(
         self, candidate: ProviderCandidate, request: Dict[str, Any], request_id: str
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Execute a single candidate (streaming)."""
         start_time = time.time()
         metrics = self._get_metrics(candidate.provider, candidate.model)
-        final_response = None
+
+        # Record attempt
+        await self.rate_limiter.record_request(candidate.provider, candidate.model)
 
         try:
             # Update model reference
             request = request.copy()
             request["model"] = f"{candidate.provider}/{candidate.model}"
+            request_clean = {k: v for k, v in request.items() if not k.startswith("_")}
 
             logger.info(
                 f"[{request_id}] Streaming {candidate.provider}/{candidate.model}"
             )
 
             # Execute via LiteLLM
-            async for chunk in await litellm.acompletion(**request):
+            response = await litellm.acompletion(**request_clean, stream=True)
+
+            chunk_count = 0
+            async for chunk in response:
+                chunk_count += 1
                 # Convert chunk to dict if necessary
                 if hasattr(chunk, "dict"):
                     chunk_dict = chunk.dict()
@@ -1003,13 +984,21 @@ class RouterCore:
                     chunk_dict = chunk
 
                 if chunk_dict.get("choices"):
-                    final_response = chunk_dict
+                    pass  # We could track final response here if needed
+
+                # Check for error in chunk
+                if "error" in chunk_dict:
+                    raise Exception(
+                        f"Provider returned error in stream: {chunk_dict['error']}"
+                    )
 
                 yield chunk_dict
 
+            if chunk_count == 0:
+                raise Exception("Stream ended with no chunks")
+
             latency_ms = (time.time() - start_time) * 1000
-            metrics.record_success()
-            metrics.update_latency(latency_ms)
+            self._update_metrics(candidate.provider, candidate.model, latency_ms, True)
 
             logger.info(
                 f"[{request_id}] Stream success: {candidate.provider}/{candidate.model} ({latency_ms:.1f}ms)"
@@ -1017,9 +1006,10 @@ class RouterCore:
 
         except Exception as e:
             latency_ms = (time.time() - start_time) * 1000
-            metrics.record_error()
 
-            error_category, retry_after = await self._classify_error(e)
+            error_classification = await self._classify_error(e)
+            error_category = error_classification[0]
+            retry_after = error_classification[1]
 
             if retry_after:
                 metrics.set_cooldown(retry_after)
@@ -1030,10 +1020,79 @@ class RouterCore:
                     )
                 )
 
+            self._update_metrics(
+                candidate.provider,
+                candidate.model,
+                latency_ms,
+                False,
+                error_category,
+            )
+
             logger.error(
                 f"[{request_id}] Stream error {candidate.provider}/{candidate.model}: {e} ({error_category.value})"
             )
-            raise
+            raise e
+
+    async def _stream_with_fallback(
+        self,
+        candidates: List[ProviderCandidate],
+        request: Dict[str, Any],
+        request_id: str,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Execute streaming with fallback logic."""
+        last_error = None
+
+        for candidate in candidates:
+            try:
+                # Search injection logic
+                request_to_use = request
+                if candidate.search_enabled:
+                    search_query = request.get("messages", [{}])[-1].get("content", "")
+                    if isinstance(search_query, str) and len(search_query) > 0:
+                        search_results = await self._perform_search(search_query)
+                        if search_results:
+                            modified_request = request.copy()
+                            modified_messages = modified_request.get(
+                                "messages", []
+                            ).copy()
+                            last_message = modified_messages[-1].copy()
+                            search_content = self._format_search_results(search_results)
+                            if isinstance(last_message.get("content"), str):
+                                last_message["content"] += search_content
+                            elif isinstance(last_message.get("content"), list):
+                                last_message["content"].append(
+                                    {"type": "text", "text": search_content}
+                                )
+                            modified_messages[-1] = last_message
+                            modified_request["messages"] = modified_messages
+                            request_to_use = modified_request
+
+                async for chunk in self._execute_single_candidate_stream(
+                    candidate, request_to_use, request_id
+                ):
+                    yield chunk
+
+                return
+
+            except Exception as e:
+                last_error = e
+                error_classification = await self._classify_error(e)
+                error_category = error_classification[0]
+
+                if error_category in [
+                    ErrorCategory.INVALID_REQUEST,
+                    ErrorCategory.AUTH_ERROR,
+                ]:
+                    raise e
+
+                logger.warning(
+                    f"[{request_id}] Stream candidate {candidate.provider} failed, trying next..."
+                )
+                continue
+
+        if last_error:
+            raise last_error
+        raise HTTPException(status_code=503, detail="All stream providers failed")
 
     async def route_request(
         self, request: Dict[str, Any], request_id: str
@@ -1155,6 +1214,9 @@ class RouterCore:
             )
         )
 
+        if requirements.streaming:
+            return self._stream_with_fallback(available_candidates, request, request_id)
+
         # Try candidates in order
         last_error = None
         for i, candidate in enumerate(available_candidates):
@@ -1185,14 +1247,9 @@ class RouterCore:
                             request = modified_request
 
                 # Execute request
-                if requirements.streaming:
-                    return self._execute_single_candidate_stream(
-                        candidate, request, request_id
-                    )
-                else:
-                    return await self._execute_single_candidate(
-                        candidate, request, request_id
-                    )
+                return await self._execute_single_candidate(
+                    candidate, request, request_id
+                )
 
             except Exception as e:
                 last_error = e

@@ -19,21 +19,81 @@ providers:
     - gemini-1.5-flash
     - gemini-1.5-flash-8b
     - gemini-1.5-pro
+  cerebras:
+    enabled: true
+    env_var: CEREBRAS_API_KEY
+    free_tier_models:
+    - llama-3.3-70b
+    - llama-3.1-70b
+  openai:
+    enabled: true
+    env_var: OPENAI_API_KEY
+    free_tier_models:
+    - gpt-4o-mini
+    - gpt-3.5-turbo
+  nvidia:
+    enabled: true
+    env_var: NVIDIA_API_KEY
+    free_tier_models:
+    - nvidia/llama-3.3-70b-instruct
+    - nvidia/llama-3.1-405b-instruct
+    - nvidia/gemma-2-27b-it
+  mistral:
+    enabled: true
+    env_var: MISTRAL_API_KEY
+    free_tier_models:
+    - mistral-large-latest
+    - codestral-latest
+    - mistral-nemo
+  openrouter:
+    enabled: true
+    env_var: OPENROUTER_API_KEY
+    free_tier_models:
+    - meta-llama/llama-3.3-70b-instruct
+    - deepseek/deepseek-chat
+    - google/gemini-flash-1.5
+  github-models:
+    enabled: false
+    env_var: GITHUB_MODELS_API_KEY
+    free_tier_models:
+    - grok-3-vision-beta
+    - grok-3-mini
+    - deepseek-r1
+    - deepseek-v3
+    - phi-4
+    - llama-4-scout-17b
+    - meta-llama/Llama-3.3-70B-Instruct
+    - mistralai/Mistral-large-2411
+  cloudflare:
+    enabled: false
+    env_var: CLOUDFLARE_API_TOKEN
+    free_tier_models:
+    - "@cf/meta/llama-3.3-70b-instruct"
+    - "@cf/meta/llama-3.1-8b-instruct"
+    - "@cf/mistral/mistral-large-2407"
+    - "@cf/qwen/qwen2.5-72b-instruct"
+    - "@cf/openchat/openchat-7b"
+    - "@cf/tinyllama/tinyllama-1.1b-chat"
+    api_base: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/run/"
   brave_search:
     enabled: true
     env_var: BRAVE_API_KEY
     free_tier: true
   tavily:
-    enabled: false
+    enabled: true
     env_var: TAVILY_API_KEY
     free_tier: true
     paid_tier: true
+  duckduckgo:
+    enabled: true
+    free_tier: true
+    no_api_key_required: true
   exa:
     enabled: false
     env_var: EXA_API_KEY
     free_tier: false
     paid_tier: true
-router_models:
+  router_models:
   router/best-coding:
     description: Best for coding tasks
     candidates:
@@ -49,7 +109,7 @@ router_models:
       capabilities:
       - tools
       - function_calling
-      - vision
+      fallback_only: true
     - provider: g4f
       model: gpt-4
       priority: 3
@@ -68,6 +128,7 @@ router_models:
       capabilities:
       - reasoning
       - long_context
+      fallback_only: true
   router/best-research:
     description: Best for research with search capabilities
     candidates:
@@ -77,7 +138,6 @@ router_models:
       capabilities:
       - tools
       - long_context
-      - vision
       search_enabled: true
     - provider: groq
       model: llama-3.3-70b-versatile
@@ -85,6 +145,7 @@ router_models:
       capabilities:
       - tools
       search_enabled: true
+      fallback_only: true
   router/best-chat:
     description: Best for general chat
     candidates:
@@ -98,7 +159,7 @@ router_models:
       priority: 2
       capabilities:
       - fast
-      - vision
+      fallback_only: true
     - provider: g4f
       model: gpt-3.5-turbo
       priority: 3
@@ -120,264 +181,97 @@ router_models:
       role: expert-optimization
       fallback_only: true
   coding-smart:
-    description: Best models for complex coding tasks (Auto-synced)
+    description: Best models for complex coding tasks (Free tier)
     candidates:
-    - provider: openai
-      model: gpt-5-1
+    - provider: groq
+      model: llama-3.3-70b-versatile
       priority: 1
       capabilities:
       - tools
       - function_calling
-      - fast
-    - provider: anthropic
-      model: claude-opus-4-5
+      - reasoning
+    - provider: gemini
+      model: gemini-1.5-pro
       priority: 2
-      capabilities:
-      - tools
-      - function_calling
       fallback_only: true
-    - provider: openai
-      model: gpt-5-2
+    - provider: g4f
+      model: gpt-4
       priority: 3
-      capabilities:
-      - tools
-      - function_calling
-      - fast
-      fallback_only: true
-    - provider: anthropic
-      model: claude-sonnet-4-5-thinking
-      priority: 4
-      capabilities:
-      - tools
-      - function_calling
-      - reasoning
-      fallback_only: true
-    - provider: anthropic
-      model: claude-sonnet-4
-      priority: 5
-      capabilities:
-      - tools
-      - function_calling
-      fallback_only: true
-    - provider: anthropic
-      model: claude-opus-4-5-thinking
-      priority: 6
-      capabilities:
-      - tools
-      - function_calling
-      - reasoning
-      fallback_only: true
-    - provider: google
-      model: gemini-3-flash
-      priority: 7
-      capabilities:
-      - tools
-      - function_calling
-      - fast
-      fallback_only: true
-    - provider: google
-      model: gemini-3-pro
-      priority: 8
-      capabilities:
-      - tools
-      - function_calling
-      fallback_only: true
-    - provider: deepseek
-      model: deepseek-chat
-      priority: 9
-      capabilities:
-      - tools
-      - function_calling
-      fallback_only: true
-    - provider: google
-      model: gemini-2-5-pro
-      priority: 10
-      capabilities:
-      - tools
-      - function_calling
       fallback_only: true
   coding-fast:
-    description: Fastest models for quick coding tasks (Auto-synced)
+    description: Fastest models for quick coding tasks (Free tier)
     candidates:
-    - provider: openai
-      model: gpt-5-1
+    - provider: groq
+      model: llama-3.1-8b-instant
       priority: 1
       capabilities:
       - tools
       - function_calling
       - fast
-    - provider: openai
-      model: gpt-5-2
+    - provider: gemini
+      model: gemini-1.5-flash
       priority: 2
-      capabilities:
-      - tools
-      - function_calling
-      - fast
       fallback_only: true
-    - provider: google
-      model: gemini-3-flash
+    - provider: g4f
+      model: gpt-4
       priority: 3
-      capabilities:
-      - tools
-      - function_calling
-      - fast
-      fallback_only: true
-    - provider: deepseek
-      model: deepseek-chat
-      priority: 4
-      capabilities:
-      - tools
-      - function_calling
-      fallback_only: true
-    - provider: openai
-      model: gpt-5
-      priority: 5
-      capabilities:
-      - tools
-      - function_calling
-      - fast
-      fallback_only: true
-    - provider: google
-      model: gemini-2-5-flash
-      priority: 6
-      capabilities:
-      - tools
-      - function_calling
-      fallback_only: true
-    - provider: grok
-      model: grok-code-fast
-      priority: 7
-      capabilities:
-      - tools
-      - function_calling
       fallback_only: true
   chat-smart:
-    description: High intelligence chat models (Auto-synced)
+    description: High intelligence chat models (Free tier)
     candidates:
-    - provider: openai
-      model: gpt-5-1
+    - provider: groq
+      model: llama-3.3-70b-versatile
       priority: 1
       capabilities:
       - tools
       - function_calling
-      - fast
-    - provider: anthropic
-      model: claude-opus-4-5
+      - reasoning
+    - provider: gemini
+      model: gemini-1.5-pro
       priority: 2
-      capabilities:
-      - tools
-      - function_calling
       fallback_only: true
-    - provider: openai
-      model: gpt-5-2
+    - provider: g4f
+      model: gpt-4
       priority: 3
-      capabilities:
-      - tools
-      - function_calling
-      - fast
-      fallback_only: true
-    - provider: anthropic
-      model: claude-sonnet-4-5-thinking
-      priority: 4
-      capabilities:
-      - tools
-      - function_calling
-      - reasoning
-      fallback_only: true
-    - provider: anthropic
-      model: claude-sonnet-4
-      priority: 5
-      capabilities:
-      - tools
-      - function_calling
-      fallback_only: true
-    - provider: anthropic
-      model: claude-opus-4-5-thinking
-      priority: 6
-      capabilities:
-      - tools
-      - function_calling
-      - reasoning
-      fallback_only: true
-    - provider: google
-      model: gemini-3-flash
-      priority: 7
-      capabilities:
-      - tools
-      - function_calling
-      - fast
-      fallback_only: true
-    - provider: google
-      model: gemini-3-pro
-      priority: 8
-      capabilities:
-      - tools
-      - function_calling
-      fallback_only: true
-    - provider: deepseek
-      model: deepseek-chat
-      priority: 9
-      capabilities:
-      - tools
-      - function_calling
-      fallback_only: true
-    - provider: google
-      model: gemini-2-5-pro
-      priority: 10
-      capabilities:
-      - tools
-      - function_calling
       fallback_only: true
   chat-fast:
-    description: Low latency chat models (Auto-synced)
+    description: Low latency chat models (Free tier)
     candidates:
-    - provider: openai
-      model: gpt-5-1
+    - provider: groq
+      model: llama-3.1-8b-instant
       priority: 1
       capabilities:
-      - tools
-      - function_calling
       - fast
-    - provider: openai
-      model: gpt-5-2
+      - tools
+    - provider: gemini
+      model: gemini-1.5-flash
       priority: 2
-      capabilities:
-      - tools
-      - function_calling
-      - fast
       fallback_only: true
-    - provider: google
-      model: gemini-3-flash
+    - provider: g4f
+      model: gpt-3.5-turbo
       priority: 3
-      capabilities:
-      - tools
-      - function_calling
-      - fast
-      fallback_only: true
-    - provider: openai
-      model: gpt-5
-      priority: 4
-      capabilities:
-      - tools
-      - function_calling
-      - fast
       fallback_only: true
 search:
-  default_enabled: false
+  default_enabled: true
   max_additional_searches: 2
   providers:
-  - name: brave
+  - name: duckduckgo
     enabled: true
     priority: 1
     free_only: true
-  - name: tavily
-    enabled: false
+    no_api_key_required: true
+  - name: brave
+    enabled: true
     priority: 2
+    free_only: true
+  - name: tavily
+    enabled: true
+    priority: 3
     free_only: true
     paid_available: true
   - name: exa
     enabled: false
-    priority: 3
+    priority: 4
     free_only: false
     paid_only: true
 routing:
