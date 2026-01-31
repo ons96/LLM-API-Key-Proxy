@@ -1,0 +1,5 @@
+ID,Name,Composite Score,Agentic Coding,HumanEval,LiveBench,Aider,SWE-bench,SWE-bench Verified,SWE-rebench,GSO-bench,TS-bench,Vals.ai,Speed (TPS)
+google/gemini-3-pro,Gemini 3 Pro Preview (2025-11-18),75.15,74.2,74.2,-1,-1,74.2,74.2,-1,-1,-1,-1,75.0
+openai/gpt-5-2,GPT-5.2 (2025-12-11) (high reasoning),70.51,71.8,71.8,-1,-1,71.8,71.8,-1,-1,-1,-1,187.0
+anthropic/claude-opus-4-5,mini-SWE-agent + Claude 4.5 Opus medium (20251101),69.24,74.4,74.4,-1,-1,74.4,74.4,-1,-1,-1,-1,49.0
+anthropic/claude-sonnet-4-5,mini-SWE-agent + Claude 4.5 Sonnet (20250929),66.35,70.6,70.6,-1,-1,70.6,70.6,-1,-1,-1,-1,52.0

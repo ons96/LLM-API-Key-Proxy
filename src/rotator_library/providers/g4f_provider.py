@@ -40,11 +40,14 @@ class G4FProvider(ProviderInterface):
     # G4F is typically a fallback tier
     default_tier_priority = 5
 
-    _DEFAULT_PUBLIC_BASE = "https://g4f.dev"
+    _DEFAULT_PUBLIC_BASE = "https://g4f.space/v1"
 
     def __init__(self):
-        # API key (optional)
-        self.api_key: Optional[str] = os.getenv("G4F_API_KEY") or None
+        # API key (optional) - defaults to user provided key if env not set
+        self.api_key: Optional[str] = (
+            os.getenv("G4F_API_KEY")
+            or "g4f_u_mjrvbj_528d6fc90625c0e08b4eba9ae7d938292c81b3ba6ab2fdda_5eae4c2d"
+        )
 
         # Base URLs for different G4F-compatible endpoints
         self.main_api_base: Optional[str] = os.getenv("G4F_MAIN_API_BASE") or None

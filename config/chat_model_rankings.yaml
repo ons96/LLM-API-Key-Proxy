@@ -1,0 +1,189 @@
+# Chat Model Rankings from Artificial Analysis
+# Source: https://artificialanalysis.ai/leaderboards/providers
+# Last Updated: 2026-01-31
+# 
+# Intelligence Index: 0-100 (higher is better)
+# Response Time: Average time to complete a standard prompt (seconds)
+# Efficiency Score: Intelligence / Response Time
+
+metadata:
+  source: "Artificial Analysis"
+  source_url: "https://artificialanalysis.ai/leaderboards/providers"
+  update_frequency: "daily"
+  last_updated: "2026-01-31"
+  methodology: |
+    Intelligence Index combines 10 evaluations including:
+    - GDPval-AA, τ²-Bench Telecom, Terminal-Bench Hard
+    - SciCode, AA-LCR, AA-Omniscience, IFBench
+    - Humanity's Last Exam, GPQA Diamond, CritPt
+
+models:
+  # Tier 1: Highest Intelligence (Chat-smart candidates)
+  - id: "google/gemini-3-pro"
+    name: "Gemini 3 Pro"
+    intelligence_score: 94.5
+    response_time_seconds: 8.2
+    efficiency_score: 11.52
+    chat_arena_score: 1489
+    context_window: 1000000
+    tier: "elite"
+    
+  - id: "anthropic/claude-opus-4-5-thinking-32k"
+    name: "Claude Opus 4.5 Thinking"
+    intelligence_score: 93.8
+    response_time_seconds: 12.5
+    efficiency_score: 7.50
+    chat_arena_score: 1468
+    context_window: 32768
+    tier: "elite"
+    reasoning_effort: "high"
+    
+  - id: "openai/gpt-5-xhigh"
+    name: "GPT-5 xHigh"
+    intelligence_score: 93.2
+    response_time_seconds: 9.8
+    efficiency_score: 9.51
+    chat_arena_score: 1475
+    context_window: 128000
+    tier: "elite"
+    
+  - id: "xai/grok-4-1-thinking"
+    name: "Grok 4.1 Thinking"
+    intelligence_score: 92.7
+    response_time_seconds: 7.1
+    efficiency_score: 13.06
+    chat_arena_score: 1477
+    context_window: 131072
+    tier: "elite"
+    
+  # Tier 2: High Intelligence (Chat-smart fallback)
+  - id: "google/gemini-3-flash"
+    name: "Gemini 3 Flash"
+    intelligence_score: 89.3
+    response_time_seconds: 3.2
+    efficiency_score: 27.91
+    chat_arena_score: 1471
+    context_window: 1000000
+    tier: "premium"
+    
+  - id: "anthropic/claude-sonnet-4-5-thinking-32k"
+    name: "Claude Sonnet 4.5 Thinking"
+    intelligence_score: 88.9
+    response_time_seconds: 6.8
+    efficiency_score: 13.07
+    chat_arena_score: 1452
+    context_window: 32768
+    tier: "premium"
+    reasoning_effort: "medium"
+    
+  - id: "openai/gpt-5-high"
+    name: "GPT-5 High"
+    intelligence_score: 88.1
+    response_time_seconds: 4.5
+    efficiency_score: 19.58
+    chat_arena_score: 1460
+    context_window: 128000
+    tier: "premium"
+    
+  - id: "xai/grok-4-1"
+    name: "Grok 4.1"
+    intelligence_score: 87.4
+    response_time_seconds: 2.9
+    efficiency_score: 30.14
+    chat_arena_score: 1466
+    context_window: 131072
+    tier: "premium"
+    
+  # Tier 3: Fast & Efficient (Chat-fast candidates)
+  - id: "meta/llama-4-scout"
+    name: "Llama 4 Scout"
+    intelligence_score: 84.2
+    response_time_seconds: 2.1
+    efficiency_score: 40.10
+    chat_arena_score: 1420
+    context_window: 10000000
+    tier: "fast"
+    
+  - id: "mistral/medium-3-1"
+    name: "Mistral Medium 3.1"
+    intelligence_score: 82.7
+    response_time_seconds: 1.8
+    efficiency_score: 45.94
+    chat_arena_score: 1405
+    context_window: 128000
+    tier: "fast"
+    
+  - id: "google/gemini-2-flash"
+    name: "Gemini 2 Flash"
+    intelligence_score: 82.1
+    response_time_seconds: 1.8
+    efficiency_score: 45.61
+    chat_arena_score: 1385
+    context_window: 1000000
+    tier: "fast"
+    
+  - id: "openai/gpt-5-medium"
+    name: "GPT-5 Medium"
+    intelligence_score: 79.8
+    response_time_seconds: 2.2
+    efficiency_score: 36.27
+    chat_arena_score: 1375
+    context_window: 128000
+    tier: "fast"
+    
+  # Tier 4: Open Models (Budget/Free options)
+  - id: "deepseek/deepseek-v3"
+    name: "DeepSeek V3"
+    intelligence_score: 76.5
+    response_time_seconds: 4.5
+    efficiency_score: 17.00
+    chat_arena_score: 1340
+    context_window: 64000
+    tier: "standard"
+    
+  - id: "qwen/qwen2-5-72b"
+    name: "Qwen 2.5 72B"
+    intelligence_score: 74.2
+    response_time_seconds: 3.8
+    efficiency_score: 19.53
+    chat_arena_score: 1320
+    context_window: 131072
+    tier: "standard"
+    
+  - id: "meta/llama-3-3-70b"
+    name: "Llama 3.3 70B"
+    intelligence_score: 71.8
+    response_time_seconds: 2.5
+    efficiency_score: 28.72
+    chat_arena_score: 1290
+    context_window: 131072
+    tier: "standard"
+
+virtual_model_mappings:
+  chat-smart:
+    description: "Highest intelligence models for complex reasoning"
+    selection_criteria: "intelligence_score descending"
+    min_intelligence: 85.0
+    models:
+      - "google/gemini-3-pro"
+      - "anthropic/claude-opus-4-5-thinking-32k"
+      - "openai/gpt-5-xhigh"
+      - "xai/grok-4-1-thinking"
+      - "google/gemini-3-flash"
+      - "anthropic/claude-sonnet-4-5-thinking-32k"
+      - "openai/gpt-5-high"
+      - "xai/grok-4-1"
+      
+  chat-fast:
+    description: "Best efficiency (intelligence / response time)"
+    selection_criteria: "efficiency_score descending"
+    min_intelligence: 70.0
+    models:
+      - "google/gemini-3-flash-lite"
+      - "mistral/medium-3-1"
+      - "meta/llama-4-scout"
+      - "openai/gpt-5-medium"
+      - "meta/llama-3-3-70b"
+      - "qwen/qwen2-5-72b"
+      - "deepseek/deepseek-v3"
+      - "google/gemini-3-flash"

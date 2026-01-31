@@ -1,0 +1,67 @@
+# Scoring Configuration
+# Defines formulas and weights for dynamic provider/model ranking
+
+scoring:
+  virtual_models:
+    name: "Virtual Models (coding-elite, chat-smart, etc.)"
+    description: "Virtual models use Agentic(70%) + TPS(30%), Availability is yes/no filter"
+    weights:
+      agentic_score: 0.70
+      tps_score: 0.30
+      availability_score: 0.0
+    use_case: "For agentic coding and general chat - quality first, then speed"
+
+  specific_models:
+    name: "Specific Models (user-specified like gemini-3-pro)"
+    description: "Specific models use TPS(70%) + Agentic(30%), Availability is yes/no filter"
+    weights:
+      tps_score: 0.70
+      agentic_score: 0.30
+      availability_score: 0.0
+    use_case: "Fastest provider first for user-specified models"
+
+  roleplay:
+    name: "Roleplay Models (chat-rp)"
+    description: "Roleplay models prioritize response time (TPS) heavily"
+    weights:
+      tps_score: 0.80
+      agentic_score: 0.20
+      availability_score: 0.0
+    use_case: "For NSFW RP - max fallbacks with lowest latency priority"
+
+  availability:
+    description: "Availability is yes/no filter, not a scoring factor"
+    consecutive_failures_threshold: 5
+    failure_rate_threshold: 0.50
+    health_check_interval_seconds: 300
+
+  tps:
+    description: "Tokens per second normalization"
+    max_observed_tps: 3000
+    measurement_window_minutes: 60
+
+  agentic:
+    description: "Agentic coding scores from SWE-bench benchmarks"
+    source_file: config/model_rankings.yaml
+
+# Auto-skip conditions (score = 0, excluded from ranking)
+skip_conditions:
+  rate_limited:
+    name: "Rate Limited"
+    description: "Provider is currently rate limited (429 response)"
+    reset: "Based on provider reset window (usually 1 minute)"
+
+  usage_limit:
+    name: "Usage Limit Exceeded"
+    description: "Daily or monthly quota exhausted"
+    reset: "Daily at midnight UTC, monthly at month start"
+
+  unhealthy:
+    name: "Unhealthy Provider"
+    description: "Health check failed or consecutive failures > 5"
+    reset: "On successful API call or health check"
+
+  down:
+    name: "Provider Down"
+    description: "Provider API unreachable (5+ consecutive failures)"
+    reset: "On successful connection"

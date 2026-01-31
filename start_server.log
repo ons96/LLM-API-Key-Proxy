@@ -125,3 +125,66 @@ g4f is up-to-date (version 6.9.3).
 INFO:     127.0.0.1:43660 - "POST /v1/chat/completions HTTP/1.1" 200 OK
 INFO:     127.0.0.1:40574 - "GET /api/providers/best HTTP/1.1" 200 OK
 INFO:     127.0.0.1:40576 - "GET /v1/router/metrics HTTP/1.1" 404 Not Found
+[32mModel requested via router: coding-elite[0m
+[32m[req_600fd55293894d24] Incoming request for model: coding-elite[0m
+[32m[req_600fd55293894d24] Executing g4f/gpt-4[0m
+[32m[req_600fd55293894d24] Success: g4f/gpt-4 (1094.6ms)[0m
+[32m[req_600fd55293894d24] Request completed in 1095.0ms[0m
+INFO:     127.0.0.1:50928 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[32mStarting health checks for 8 providers[0m
+[33m✗ g4f_main: down - Cannot connect to host api.g4f.ai:443 ssl:default [Name or service not known][0m
+[33m✗ gemini: degraded - HTTP 401: {
+  "error": {
+    "code": 401,
+    "message": "Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+    "status": "UNAUTHENTICATED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        "reason": "ACCESS_TOKEN_TYPE_UNSUPPORTED",
+        "metadata": {
+          "method": "google.ai.generativelanguage.v1.ModelService.ListModels",
+          "service": "generativelanguage.googleapis.com"
+        }
+      }
+    ]
+  }
+}
+[0m
+[33m✗ g4f_gemini: down - Cannot connect to host api.g4f.ai:443 ssl:default [Name or service not known][0m
+[33m✗ g4f: down - Cannot connect to host api.g4f.com:443 ssl:default [Name or service not known][0m
+[33m✗ g4f_groq: down - Cannot connect to host api.g4f.ai:443 ssl:default [Name or service not known][0m
+[33m✗ g4f_nvidia: down - Cannot connect to host api.g4f.ai:443 ssl:default [Name or service not known][0m
+[33m✗ google: degraded - HTTP 401: {
+  "error": {
+    "code": 401,
+    "message": "Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
+    "status": "UNAUTHENTICATED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+        "reason": "ACCESS_TOKEN_TYPE_UNSUPPORTED",
+        "metadata": {
+          "method": "google.ai.generativelanguage.v1.ModelService.ListModels",
+          "service": "generativelanguage.googleapis.com"
+        }
+      }
+    ]
+  }
+}
+[0m
+[33m✗ g4f_grok: down - Cannot connect to host api.g4f.ai:443 ssl:default [Name or service not known][0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.NotFoundError: GeminiException - {
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m

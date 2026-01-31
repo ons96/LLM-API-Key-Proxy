@@ -3,6 +3,9 @@ import yaml
 import os
 import re
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("sync_leaderboard")
@@ -18,6 +21,7 @@ ALL_BENCHMARKS = [
     "livebench_coding",
     "aider",
     "swe_bench",
+    "swe_bench_verified",
     "swe_rebench",
     "humaneval",
     "bigcodebench",
@@ -25,6 +29,8 @@ ALL_BENCHMARKS = [
     "ts_bench",
     "vals_ai",
 ]
+
+FREE_PROVIDERS = ["groq", "cerebras", "google", "opencode", "g4f"]
 
 # Comprehensive mapping to LiteLLM provider/model format
 LITELLM_MAP = {
@@ -223,20 +229,67 @@ def get_litellm_id(name):
     return cleaned
 
 
+def get_provider_key_status():
+    providers = {
+        "anthropic": os.getenv("ANTHROPIC_API_KEY"),
+        "openai": os.getenv("OPENAI_API_KEY"),
+        "google": os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"),
+        "groq": os.getenv("GROQ_API_KEY"),
+        "deepseek": os.getenv("DEEPSEEK_API_KEY"),
+        "mistral": os.getenv("MISTRAL_API_KEY"),
+        "cerebras": os.getenv("CEREBRAS_API_KEY"),
+        "qwen": os.getenv("QWEN_API_KEY"),
+        "grok": os.getenv("GROK_API_KEY") or os.getenv("XAI_API_KEY"),
+        "moonshot": os.getenv("MOONSHOT_API_KEY") or os.getenv("KIMI_API_KEY"),
+        "opencode": "sk-free",
+    }
+
+    status = {}
+    for p, k in providers.items():
+        if k and k.strip() and not k.startswith("your_") and k != "None":
+            status[p] = True
+        else:
+            status[p] = False
+    return status
+
+
 def sync_rankings():
     logger.info("Loading local benchmark data...")
     live_entries = []
 
+    key_status = get_provider_key_status()
+
     if os.path.exists(LEADERBOARD_CSV):
         df_local = pd.read_csv(LEADERBOARD_CSV)
+        has_verified_col = "swe_bench_verified" in df_local.columns
+
         for _, row in df_local.iterrows():
-            live_entries.append(
-                {
-                    "model": row["Model"],
-                    "score": row["Score"],
-                    "benchmark": row["Header"],
-                }
-            )
+            model = row.get("Model") or row.get("model")
+            score = row.get("Quality_Score") or row.get("Score") or row.get("score")
+            benchmark = row.get("Source") or row.get("Header") or row.get("benchmark")
+
+            if model and score is not None:
+                bench_str = str(benchmark)
+                live_entries.append(
+                    {
+                        "model": model,
+                        "score": float(score),
+                        "benchmark": bench_str,
+                    }
+                )
+                verified_val = row.get("swe_bench_verified")
+                if (
+                    has_verified_col
+                    and verified_val is not None
+                    and float(verified_val) > 0
+                ):
+                    live_entries.append(
+                        {
+                            "model": model,
+                            "score": float(verified_val),
+                            "benchmark": "SWE-bench Verified",
+                        }
+                    )
     else:
         logger.warning(f"Local leaderboard not found at {LEADERBOARD_CSV}")
         return
@@ -246,19 +299,19 @@ def sync_rankings():
     model_stats = {}
 
     benchmark_map = {
-        "LiveBench Coding": "livebench_coding",
-        "Aider Score": "aider",
+        "LiveBench": "livebench_coding",
+        "Aider": "aider",
         "SWE-bench Bash": "swe_bench",
-        "SWE-bench Verified": "swe_bench",  # SWE-bench Verified is the gold standard - prioritize this
-        "SWE-rebench Resolved": "swe_rebench",
+        "swe-bench": "swe_bench",
+        "SWE-bench Verified": "swe_bench_verified",
+        "SWE-rebench": "swe_rebench",
         "HumanEval": "humaneval",
         "BigCodeBench": "bigcodebench",
-        "GSO Opt@1": "gso_bench",
-        "TS Bench Success Rate": "ts_bench",
-        "Vals SWE-bench": "vals_ai",
-        "Agentic Coding": "agentic_coding",
-        "Vals Terminal": "vals_ai_terminal",
-        "Vals LCB": "vals_ai_lcb",
+        "GSO": "gso_bench",
+        "TS Bench": "ts_bench",
+        "ts-bench": "ts_bench",
+        "Vals": "vals_ai",
+        "Agentic": "agentic_coding",
     }
 
     for entry in live_entries:
@@ -298,17 +351,16 @@ def sync_rankings():
         coding_benchmarks = [
             "livebench_coding",
             "aider",
+            "swe_bench_verified",
             "swe_bench",
             "swe_rebench",
             "humaneval",
             "bigcodebench",
             "gso_bench",
-            # "ts_bench",  # Removed - not a real agentic coding benchmark, inflates scores artificially
             "vals_ai",
         ]
 
         # For agentic coding score, prioritize the highest individual benchmark
-        # This ensures that models like Claude Opus 4.5 with 80.9% SWE-bench are ranked #1
         available_scores = [
             bench_scores[f]
             for f in coding_benchmarks
@@ -316,22 +368,27 @@ def sync_rankings():
         ]
 
         if available_scores:
-            # Use the highest score for agentic coding (most representative of true capability)
             agentic_score = max(available_scores)
         else:
             agentic_score = 0.0
 
-        # Calculate a combined quality/speed score for rankings
-        # Normalize TPS: 1 to 3000 (Cerebras max) -> 0.0 to 1.0 using log scale
         import math
 
         tps = stats["speed_tps"]
         normalized_tps = min(1.0, math.log(max(1.0, tps)) / math.log(3000))
 
-        # Combined Score = (Quality * 0.8) + (Speed * 0.2)
-        # This prioritizes intelligence but gives a boost to ultra-fast models
-        # Formula: Score = (Agentic_Coding * 0.8) + (Normalized_TPS * 20)
         composite_score = (agentic_score * 0.8) + (normalized_tps * 20.0)
+
+        provider = litellm_id.split("/")[0] if "/" in litellm_id else "unknown"
+
+        if provider in FREE_PROVIDERS:
+            composite_score += 5.0
+
+        if not key_status.get(provider, False):
+            composite_score -= 100.0
+            logger.info(
+                f"De-prioritizing {litellm_id} due to missing API key for {provider}"
+            )
 
         final_leaderboard[litellm_id] = {
             "agentic_coding": round(agentic_score, 2),
@@ -405,6 +462,7 @@ def sync_rankings():
                 "LiveBench": s.get("livebench_coding", 0),
                 "Aider": s.get("aider", 0),
                 "SWE-bench": s.get("swe_bench", 0),
+                "SWE-bench Verified": s.get("swe_bench_verified", 0),
                 "SWE-rebench": s.get("swe_rebench", 0),
                 "GSO-bench": s.get("gso_bench", 0),
                 "TS-bench": s.get("ts_bench", 0),

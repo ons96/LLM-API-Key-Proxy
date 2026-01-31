@@ -91,3 +91,112 @@ providers:
         rpm: 10 # Trial key limit
     capabilities: [chat, code]
     last_verified: "2025-01-15"
+
+  - id: github-models
+    name: "GitHub Models"
+    signup_url: "https://github.com/marketplace/models"
+    free_tier: true
+    note: "Free but rate-limited usage. Opt-in to paid required after quota."
+    free_models:
+      - id: "grok-3-vision-beta"
+        context: 131072
+        rpm: 5
+        daily_limit: 100
+      - id: "grok-3-mini"
+        context: 131072
+        rpm: 5
+        daily_limit: 100
+      - id: "deepseek-r1"
+        context: 65536
+        rpm: 5
+        daily_limit: 100
+      - id: "deepseek-v3"
+        context: 65536
+        rpm: 5
+        daily_limit: 100
+      - id: "phi-4"
+        context: 128000
+        rpm: 5
+        daily_limit: 100
+      - id: "llama-4-scout-17b"
+        context: 128000
+        rpm: 5
+        daily_limit: 100
+      - id: "meta-llama/Llama-3.3-70B-Instruct"
+        context: 131072
+        rpm: 5
+        daily_limit: 100
+      - id: "mistralai/Mistral-large-2411"
+        context: 128000
+        rpm: 5
+        daily_limit: 100
+    capabilities: [chat, code, vision]
+    last_verified: "2025-01-28"
+
+  - id: cloudflare
+    name: "Cloudflare Workers AI"
+    signup_url: "https://workers.cloudflare.com/workers-ai"
+    free_tier: true
+    note: "10,000 Neurons/day free. $0.011/1000 Neurons after that."
+    free_models:
+      - id: "@cf/meta/llama-3.3-70b-instruct"
+        context: 131072
+        rpm: 300
+        daily_limit: 10000
+      - id: "@cf/meta/llama-3.1-8b-instruct"
+        context: 131072
+        rpm: 300
+        daily_limit: 10000
+      - id: "@cf/mistral/mistral-large-2407"
+        context: 128000
+        rpm: 300
+        daily_limit: 10000
+      - id: "@cf/qwen/qwen2.5-72b-instruct"
+        context: 32768
+        rpm: 300
+        daily_limit: 10000
+      - id: "@cf/openchat/openchat-7b"
+        context: 8192
+        rpm: 300
+        daily_limit: 10000
+      - id: "@cf/tinyllama/tinyllama-1.1b-chat"
+        context: 2048
+        rpm: 300
+        daily_limit: 10000
+    capabilities: [chat, code, embeddings, image]
+    last_verified: "2025-01-28"
+
+  - id: opencode_zen
+    name: "OpenCode Zen"
+    signup_url: "https://opencode.ai/zen"
+    api_base: "https://opencode.ai/zen/v1"
+    free_tier: true
+    note: "Unlimited daily usage. Rate limits under heavy load. Free models for agentic coding."
+    free_models:
+      - id: "minimax/m2.1"
+        name: "MiniMax M2.1"
+        context: 32768
+        rpm: 30
+        note: "Free tier with rate limiting under load"
+      - id: "trinity/large-preview"
+        name: "Trinity Large Preview"
+        context: 32768
+        rpm: 30
+        note: "Free tier with rate limiting under load"
+      - id: "moonshot/kimi-k2.5"
+        name: "Kimi K2.5"
+        context: 65536
+        rpm: 30
+        note: "Free tier with rate limiting under load"
+      - id: "zhipu/glm-4.7"
+        name: "GLM 4.7"
+        context: 32768
+        rpm: 30
+        note: "Free tier with rate limiting under load"
+      - id: "bigcode/pickle"
+        name: "Big Pickle"
+        context: 8192
+        rpm: 30
+        note: "Free tier with rate limiting under load"
+    capabilities: [chat, code]
+    last_verified: "2025-01-31"

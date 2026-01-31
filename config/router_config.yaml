@@ -254,21 +254,27 @@ providers:
 search:
   default_enabled: true
   max_additional_searches: 2
+  intelligent_tiers: true
   providers:
-  - name: duckduckgo
+  - name: tavily
     enabled: true
     priority: 1
     free_only: true
-    no_api_key_required: true
+    paid_available: true
+    supports_tiers:
+    - basic
+    - advanced
+    - research_mini
+    - research_pro
   - name: brave
     enabled: true
     priority: 2
     free_only: true
-  - name: tavily
+  - name: duckduckgo
     enabled: true
     priority: 3
     free_only: true
-    paid_available: true
+    no_api_key_required: true
   - name: exa
     enabled: false
     priority: 4

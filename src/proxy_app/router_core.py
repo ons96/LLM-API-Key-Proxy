@@ -181,12 +181,37 @@ class SearchProvider:
 
 
 class BraveSearchProvider(SearchProvider):
-    """Brave Search API provider."""
+    """Brave Search API provider with multi-key support and credit tracking."""
+
+    def __init__(self, config: SearchProviderConfig, api_keys: List[str] = None):
+        super().__init__(config, api_keys[0] if api_keys else None)
+        self.api_keys = api_keys or []
+        self.current_key_index = 0
+
+    def get_available_key(self) -> Optional[str]:
+        """Get next available API key with credits."""
+        if not self.api_keys:
+            return None
+
+        from ..rotator_library.telemetry import get_telemetry_manager
+
+        telemetry = get_telemetry_manager()
+
+        for i in range(len(self.api_keys)):
+            idx = (self.current_key_index + i) % len(self.api_keys)
+            key = self.api_keys[idx]
+            if telemetry.check_search_credits_available(
+                "brave", key, required_credits=1
+            ):
+                self.current_key_index = idx
+                return key
+        return None
 
     async def search(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
-        """Execute Brave search."""
-        if not self.api_key:
-            raise ValueError("Brave API key not configured")
+        """Execute Brave search with credit tracking."""
+        api_key = self.get_available_key()
+        if not api_key:
+            raise ValueError("No Brave API key available with credits")
 
         start_time = time.time()
         try:
@@ -194,7 +219,7 @@ class BraveSearchProvider(SearchProvider):
                 response = await client.get(
                     "https://api.search.brave.com/res/v1/web/search",
                     params={"q": query, "count": max_results},
-                    headers={"X-Subscription-Token": self.api_key},
+                    headers={"X-Subscription-Token": api_key},
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -203,7 +228,13 @@ class BraveSearchProvider(SearchProvider):
                 self.metrics.update_latency(latency_ms)
                 self.metrics.record_success()
 
-                # Extract results
+                from ..rotator_library.telemetry import get_telemetry_manager
+
+                telemetry = get_telemetry_manager()
+                telemetry.record_search_usage(
+                    "brave", api_key, "web_search", 1, query, True
+                )
+
                 results = []
                 for result in data.get("web", {}).get("results", [])[:max_results]:
                     results.append(
@@ -219,17 +250,132 @@ class BraveSearchProvider(SearchProvider):
 
         except Exception as e:
             self.metrics.record_error()
+            from ..rotator_library.telemetry import get_telemetry_manager
+
+            telemetry = get_telemetry_manager()
+            telemetry.record_search_usage(
+                "brave", api_key, "web_search", 1, query, False, str(e)
+            )
+            if (
+                "insufficient credits" in str(e).lower()
+                or "quota exceeded" in str(e).lower()
+            ):
+                telemetry.mark_search_key_exhausted("brave", api_key)
             logger.error(f"Brave search failed: {e}")
             raise
 
 
 class TavilySearchProvider(SearchProvider):
-    """Tavily Search API provider."""
+    """Tavily Search API provider with multi-key support and tier selection."""
 
-    async def search(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
-        """Execute Tavily search."""
-        if not self.api_key:
-            raise ValueError("Tavily API key not configured")
+    def __init__(self, config: SearchProviderConfig, api_keys: List[str] = None):
+        super().__init__(config, api_keys[0] if api_keys else None)
+        self.api_keys = api_keys or []
+        self.current_key_index = 0
+
+    def get_available_key(self) -> Optional[str]:
+        """Get next available API key with credits."""
+        if not self.api_keys:
+            return None
+
+        from ..rotator_library.telemetry import get_telemetry_manager
+
+        telemetry = get_telemetry_manager()
+
+        for i in range(len(self.api_keys)):
+            idx = (self.current_key_index + i) % len(self.api_keys)
+            key = self.api_keys[idx]
+            if telemetry.check_search_credits_available(
+                "tavily", key, required_credits=1
+            ):
+                self.current_key_index = idx
+                return key
+
+        return None
+
+    async def search(
+        self, query: str, max_results: int = 5, search_type: str = "basic"
+    ) -> List[Dict[str, Any]]:
+        """Execute Tavily search with tier selection."""
+        api_key = self.get_available_key()
+        if not api_key:
+            raise ValueError("No Tavily API key available with credits")
+
+        credits_cost = {
+            "basic": 1,
+            "advanced": 2,
+            "research_mini": 4,
+            "research_pro": 15,
+        }.get(search_type, 1)
+
+        start_time = time.time()
+        try:
+            async with httpx.AsyncClient() as client:
+                endpoint = "https://api.tavily.com/search"
+                payload = {
+                    "api_key": api_key,
+                    "query": query,
+                    "max_results": max_results,
+                    "include_answer": True,
+                }
+
+                if search_type == "advanced":
+                    payload["search_depth"] = "advanced"
+                elif search_type in ["research_mini", "research_pro"]:
+                    endpoint = "https://api.tavily.com/research"
+                    depth = "basic" if search_type == "research_mini" else "pro"
+                    payload = {
+                        "api_key": api_key,
+                        "query": query,
+                        "max_results": max_results,
+                        "depth": depth,
+                    }
+
+                response = await client.post(endpoint, json=payload)
+                response.raise_for_status()
+                data = response.json()
+
+                latency_ms = (time.time() - start_time) * 1000
+                self.metrics.update_latency(latency_ms)
+                self.metrics.record_success()
+
+                from ..rotator_library.telemetry import get_telemetry_manager
+
+                telemetry = get_telemetry_manager()
+                telemetry.record_search_usage(
+                    "tavily", api_key, search_type, credits_cost, query, True
+                )
+
+                results = []
+                for result in data.get("results", [])[:max_results]:
+                    results.append(
+                        {
+                            "title": result.get("title"),
+                            "url": result.get("url"),
+                            "content": result.get("content"),
+                            "source": "tavily",
+                        }
+                    )
+
+                return results
+
+        except Exception as e:
+            self.metrics.record_error()
+            from ..rotator_library.telemetry import get_telemetry_manager
+
+            telemetry = get_telemetry_manager()
+            telemetry.record_search_usage(
+                "tavily", api_key, search_type, credits_cost, query, False, str(e)
+            )
+
+            if (
+                "insufficient credits" in str(e).lower()
+                or "quota exceeded" in str(e).lower()
+            ):
+                telemetry.mark_search_key_exhausted("tavily", api_key)
+
+            logger.error(f"Tavily search failed: {e}")
+            raise
 
         start_time = time.time()
         try:
@@ -576,14 +722,57 @@ class RouterCore:
                 "exa": "EXA_API_KEY",
             }
 
-            api_key = os.getenv(env_var_map.get(name, ""))
+            # Get API key(s) from environment
+            env_var = env_var_map.get(name, "")
+            api_keys = []
 
-            if name == "brave":
-                self.search_providers[name] = BraveSearchProvider(config, api_key)
-            elif name == "tavily":
-                self.search_providers[name] = TavilySearchProvider(config, api_key)
+            # Check for multiple API keys (TAVILY_API_KEY_1, TAVILY_API_KEY_2, etc.)
+            if env_var:
+                for i in range(1, 10):  # Check up to 9 keys
+                    key_env = f"{env_var}_{i}" if i > 1 else env_var
+                    key = os.getenv(key_env)
+                    if key:
+                        api_keys.append(key)
+
+            # Register keys with telemetry and initialize providers
+            if api_keys:
+                try:
+                    from rotator_library.telemetry import get_telemetry_manager
+
+                    telemetry = get_telemetry_manager()
+
+                    if name == "brave":
+                        for key in api_keys:
+                            telemetry.register_search_api_key(
+                                "brave", key, monthly_allowance=2000
+                            )
+                        self.search_providers[name] = BraveSearchProvider(
+                            config, api_keys
+                        )
+                    elif name == "tavily":
+                        for key in api_keys:
+                            telemetry.register_search_api_key(
+                                "tavily", key, monthly_allowance=1000
+                            )
+                        self.search_providers[name] = TavilySearchProvider(
+                            config, api_keys
+                        )
+                except ImportError:
+                    # Fallback if telemetry not available
+                    logger.warning("Telemetry not available, skipping credit tracking")
+                    if name == "brave":
+                        self.search_providers[name] = BraveSearchProvider(
+                            config, api_keys
+                        )
+                    elif name == "tavily":
+                        self.search_providers[name] = TavilySearchProvider(
+                            config, api_keys
+                        )
+            elif name == "duckduckgo":
+                # DuckDuckGo doesn't require API key
+                self.search_providers[name] = DuckDuckGoSearchProvider(config, None)
             else:
-                logger.warning(f"Unknown search provider: {name}")
+                logger.warning(f"No API keys found for search provider: {name}")
 
         logger.info(f"Initialized {len(self.search_providers)} search providers")
 
@@ -787,12 +976,98 @@ class RouterCore:
 
         return True
 
-    async def _perform_search(self, query: str) -> List[Dict[str, Any]]:
-        """Perform search using available providers."""
+    def _determine_search_tier(self, query: str, messages: List[Dict] = None) -> str:
+        """Determine appropriate search tier based on query complexity."""
+        query_lower = query.lower()
+
+        # Research tier indicators - deep investigation needed
+        research_indicators = [
+            "research",
+            "comprehensive analysis",
+            "detailed report",
+            "in-depth",
+            "systematic review",
+            "meta-analysis",
+            "literature review",
+            "white paper",
+            "case study",
+            "comparative study",
+            "benchmark",
+            "evaluation framework",
+        ]
+
+        # Advanced tier indicators - more than basic facts
+        advanced_indicators = [
+            "current events",
+            "latest news",
+            "recent developments",
+            "breaking",
+            "this week",
+            "this month",
+            "2024",
+            "2025",
+            "analysis",
+            "compare",
+            "pros and cons",
+            "advantages",
+            "disadvantages",
+            "market trends",
+            "industry outlook",
+            "competitive landscape",
+            "technical specifications",
+        ]
+
+        # Check if query is from coding context
+        coding_indicators = [
+            "code",
+            "programming",
+            "bug",
+            "error",
+            "function",
+            "api",
+            "library",
+            "framework",
+            "documentation",
+            "syntax",
+            "implementation",
+            "algorithm",
+        ]
+
+        is_coding = any(ind in query_lower for ind in coding_indicators)
+        needs_research = any(ind in query_lower for ind in research_indicators)
+        needs_advanced = any(ind in query_lower for ind in advanced_indicators)
+
+        # Check message history for context
+        if messages and len(messages) > 0:
+            for msg in messages[-3:]:  # Check last 3 messages for context
+                if isinstance(msg.get("content"), str):
+                    content = msg["content"].lower()
+                    if any(ind in content for ind in research_indicators):
+                        needs_research = True
+                    if any(ind in content for ind in coding_indicators):
+                        is_coding = True
+
+        # Determine tier
+        if needs_research:
+            # Coding queries usually don't need full research, use mini
+            return "research_mini" if is_coding else "research_pro"
+        elif needs_advanced:
+            return "advanced"
+        else:
+            return "basic"
+
+    async def _perform_search(
+        self, query: str, messages: List[Dict] = None
+    ) -> List[Dict[str, Any]]:
+        """Perform search using available providers with intelligent tier selection."""
         if not self._should_perform_search(CapabilityRequirements()):
             return []
 
-        # Sort providers by priority
+        # Determine search tier
+        search_tier = self._determine_search_tier(query, messages)
+        logger.info(f"Selected search tier: {search_tier} for query: {query[:50]}...")
+
+        # Get sorted providers by priority (now: tavily -> brave -> duckduckgo)
         available_providers = [
             p
             for p in self.search_providers.values()
@@ -801,15 +1076,47 @@ class RouterCore:
         available_providers.sort(key=lambda p: p.config.priority)
 
         for provider in available_providers:
-            try:
-                results = await provider.search(query, max_results=5)
-                logger.info(f"Search successful via {provider.config.name}")
-                return results
-            except Exception as e:
-                logger.warning(f"Search via {provider.config.name} failed: {e}")
-                provider.metrics.record_error()
-                provider.metrics.set_cooldown(60)  # 1 minute cooldown
+            provider_name = provider.config.name
 
+            try:
+                # Tavily supports tier selection
+                if provider_name == "tavily" and hasattr(provider, "search"):
+                    results = await provider.search(
+                        query, max_results=5, search_type=search_tier
+                    )
+                    logger.info(f"Search successful via Tavily ({search_tier})")
+                    return results
+
+                # Brave and DuckDuckGo only support basic search
+                elif provider_name in ["brave", "duckduckgo"]:
+                    # If we wanted research/advanced but only have basic providers left
+                    if (
+                        search_tier in ["research_pro", "research_mini"]
+                        and provider_name == "brave"
+                    ):
+                        logger.info(
+                            "Falling back to Brave web search (research tier not available)"
+                        )
+
+                    results = await provider.search(query, max_results=5)
+                    logger.info(f"Search successful via {provider_name}")
+                    return results
+
+            except Exception as e:
+                logger.warning(f"Search via {provider_name} failed: {e}")
+                provider.metrics.record_error()
+                provider.metrics.set_cooldown(60)
+
+                # If Tavily failed due to credits, try next provider immediately
+                if provider_name == "tavily" and (
+                    "credits" in str(e).lower() or "quota" in str(e).lower()
+                ):
+                    logger.info(
+                        "Tavily credits exhausted, falling back to next provider"
+                    )
+                    continue
+
+        logger.warning("All search providers failed or have no credits")
         return []
 
     def _format_search_results(self, results: List[Dict[str, Any]]) -> str:
