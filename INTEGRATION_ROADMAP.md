@@ -147,3 +147,142 @@
 00755| 8. Add provider model list refresh
 00756| 9. Create unit tests for new scoring
 00757| 10. Update documentation
+
+## New Requirements - Rate Limiting & Advanced Features (Jan 2026)
+
+### Rate Limit Tracking Per Model
+
+**Problem**: Free providers have strict rate limits. Using the same model multiple times in quick succession can cause rejections.
+
+**Solution**: Track recent usage per model/provider:
+- Track last_used_timestamp per model/provider
+- Track requests_per_minute count (rolling window)
+- Check rate limits before selecting fallback model
+- Skip models that would exceed rate limits
+
+**Implementation**:
+```python
+class RateLimitTracker:
+    - track_last_used(provider, model) -> timestamp
+    - track_requests_in_window(provider, model, window_minutes=1) -> count
+    - check_rate_limit_ok(provider, model) -> bool
+    - skip_if_recently_used(models_list, min_interval_seconds=30)
+```
+
+**Database Schema Addition**:
+```sql
+CREATE TABLE model_usage_tracking (
+    provider TEXT,
+    model TEXT,
+    last_used TIMESTAMP,
+    requests_last_minute INTEGER,
+    requests_last_5_minutes INTEGER,
+    PRIMARY KEY (provider, model)
+);
+```
+
+### Rate/Usage Limits in Scoring Formula
+
+**Enhanced Scoring with Rate Limits**:
+```
+Score = (AgenticScore × 0.70) + (TPS × 0.15) + (Availability × 0.05) + (RateLimitScore × 0.10)
+
+Where RateLimitScore = 
+- Unlimited/High limits: 100
+- Medium limits (100-1000 RPM): 70
+- Low limits (10-100 RPM): 40
+- Very low limits (<10 RPM): 10
+```
+
+**Priority Boost for High-Limit Models**:
+- OpenCode Zen free models: +20% score boost (unlimited usage)
+- Groq free tier: +15% score boost (high limits)
+- Cerebras: +15% score boost (high limits)
+- Low-limit providers: score penalty
+
+### Aggregate Chat Scores from Multiple Sources
+
+**Problem**: Current chat rankings only use Artificial Analysis. More sources = better accuracy.
+
+**Solution**: Aggregate scores from:
+1. Artificial Analysis (primary)
+2. Arena.ai (Chatbot Arena) - overall + creative writing leaderboards
+3. LiveBench - reasoning + language scores
+4. MMLU scores
+
+**Normalization Formula**:
+```
+AggregateIntelligence = 
+    (ArtificialAnalysis × 0.40) +
+    (Arena.ai × 0.30) +
+    (LiveBench × 0.20) +
+    (MMLU × 0.10)
+```
+
+**Implementation Tasks**:
+- [ ] Scraper for Arena.ai leaderboards
+- [ ] Scraper for LiveBench scores
+- [ ] Score normalization across different scales
+- [ ] Weighted aggregation formula
+- [ ] Update chat_model_rankings.yaml with aggregated scores
+
+### Individual Model Fallback Support
+
+**Problem**: User selects specific model (e.g., "claude-sonnet-4.5"), but one provider fails. No automatic fallback to other providers with same model.
+
+**Solution**: Create dynamic virtual models for every available model:
+- User requests: "claude-sonnet-4.5"
+- Gateway creates (or uses cached) virtual model for claude-sonnet-4.5
+- Fallback chain: All providers offering claude-sonnet-4.5, ranked by score
+- Auto-fallback if one provider fails
+
+**Implementation Approach**:
+```python
+class IndividualModelFallback:
+    def create_dynamic_virtual_model(self, model_id: str) -> VirtualModel:
+        # Find all providers offering this model
+        providers = self.find_providers_with_model(model_id)
+        # Rank by scoring formula
+        ranked = self.rank_providers(providers, model_id)
+        # Return virtual model with fallback chain
+        return VirtualModel(model_id, ranked)
+```
+
+**Complexity**: HIGH
+- Requires mapping model IDs across providers (different naming)
+- Requires caching virtual models to avoid recreation overhead
+- Requires updating when providers add/remove models
+
+**Status**: Future enhancement (not immediate priority)
+
+### Threshold Review: Is 65.0 Too High?
+
+**Current Thresholds**:
+- coding-elite: 70.0
+- coding-smart: 65.0
+
+**Models Above 65.0** (from model_rankings.yaml):
+- Anthropic Claude Opus 4.5: 74.4 ✓
+- OpenAI o3-pro: 74.1 ✓
+- Anthropic Claude Sonnet 4.5: 70.6 ✓
+- Google Gemini 2.5 Pro: 73.2 ✓
+- OpenAI GPT-4.5: 71.2 ✓
+- DeepSeek V3.5: 68.9 ✓
+- Alibaba Qwen 3 Max: 66.5 ✓
+- Moonshot AI Kimi K2: 65.8 ✓
+- Mistral Codestral 2: 65.3 ✓
+- XAI Grok 3.5: 65.1 ✓
+- OpenCode Zen MiniMax: ~65.0 (estimated)
+
+**Models Below 65.0** (excluded from coding-smart):
+- Llama 3.3 70B: 65.2 (borderline)
+- Cohere Command R7B: 60.8 ✗
+- Mistral Medium 3: 58.3 ✗
+- Qwen 2.5 72B: 56.9 ✗
+- GPT-4o: 56.7 ✗
+- Grok 2: 54.5 ✗
+- Gemini 1.5 Pro: 53.8 ✗
+- Llama 3.1 405B: 51.1 ✗
+
+**Conclusion**: 65.0 threshold excludes lower-performing models but keeps good ones. Could be lowered to 60.0 to include more variety if needed.
+
