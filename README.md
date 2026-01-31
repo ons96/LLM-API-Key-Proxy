@@ -140,6 +140,39 @@ To use this gateway in OpenCode (AI coding assistant):
 
 **OpenCode will see all virtual models in the model dropdown.**
 
+### Virtual Models Explained
+
+The gateway provides **intelligent virtual models** that automatically select the best available provider:
+
+**coding-elite** - Best agentic coding performance
+- Minimum 70.0 SWE-bench score required
+- Scoring: 80% agentic + 15% TPS + 5% availability
+- Fallback order: Claude Opus 4.5 → Gemini 3 Pro → GPT-5.2 → GPT-4o → ...
+
+**coding-smart** - Smart coding with balanced performance  
+- Minimum 65.0 SWE-bench score required
+- Same scoring formula as coding-elite
+- More fallback options than coding-elite
+
+**coding-fast** - Speed-focused coding
+- No minimum score (pure speed optimization)
+- Prioritizes TPS over coding performance
+- Best for quick edits and simple tasks
+
+**chat-smart** - Highest intelligence for reasoning
+- Based on Artificial Analysis rankings
+- Intelligence score priority (Chatbot Arena, MMLU, etc.)
+- Best for complex reasoning and analysis
+
+**chat-fast** - Efficient chat (intelligence ÷ response time)
+- Efficiency ratio: Intelligence / Response Time
+- Best models that are both smart AND fast
+- Gemini 2 Flash, Mistral Medium 3.1, Llama 4 Scout
+
+**chat-rp** - Roleplay optimized
+- UGI leaderboard models for NSFW RP
+- MN-Violet-Lotus, Violet-Twilight, etc.
+
 ### Production Deployment
 To run in background (persistent across sessions):
 ```bash
