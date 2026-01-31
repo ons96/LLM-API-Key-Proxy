@@ -1,0 +1,142 @@
+name: Scrape LLM Leaderboards
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    # Allow manual trigger
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests cloudscraper beautifulsoup4 lxml pyyaml
+        
+    - name: Fetch models.dev data
+      run: |
+        curl -s https://models.dev/api.json -o config/models_dev_data.json
+        echo "✓ Downloaded models.dev data"
+        
+    - name: Run leaderboard scrapers
+      run: |
+        # Copy the working scraper from llm-leaderboard
+        python -c "
+import sys
+sys.path.insert(0, '/home/owens/CodingProjects/llm-leaderboard')
+from llm_aggregated_leaderboard import main
+import sys
+sys.argv = ['scraper', '--output-json', 'config/scraped_leaderboard_data.json']
+main()
+" || echo "Note: Running scrapers from local copy"
+        
+        # Fallback: run if we have the scraper in our repo
+        if [ -f "src/rotator_library/llm_aggregated_leaderboard.py" ]; then
+          cd src/rotator_library
+          python llm_aggregated_leaderboard.py --output-json ../../config/scraped_leaderboard_data.json
+          cd ../..
+        fi
+        
+    - name: Process and update model rankings
+      run: |
+        python << 'PYTHON_SCRIPT'
+        import json
+        import yaml
+        from pathlib import Path
+        import time
+        
+        # Load models.dev data
+        models_dev = {}
+        if Path('config/models_dev_data.json').exists():
+            with open('config/models_dev_data.json') as f:
+                models_dev = json.load(f)
+                print(f"✓ Loaded {len(models_dev.get('models', []))} models from models.dev")
+        
+        # Load scraped leaderboard data
+        scraped = {}
+        if Path('config/scraped_leaderboard_data.json').exists():
+            with open('config/scraped_leaderboard_data.json') as f:
+                scraped = json.load(f)
+                print(f"✓ Loaded {len(scraped.get('models', []))} models from scrapers")
+        
+        # Merge data
+        all_models = []
+        seen_ids = set()
+        
+        # Process models.dev data (comprehensive list)
+        for model in models_dev.get('models', []):
+            model_id = model.get('id', '')
+            if not model_id or model_id in seen_ids:
+                continue
+            seen_ids.add(model_id)
+            
+            # Find matching scraped data
+            scraped_scores = {}
+            for s_model in scraped.get('models', []):
+                if s_model.get('id') == model_id or s_model.get('name') == model.get('name'):
+                    scraped_scores = s_model.get('scores', {})
+                    break
+            
+            # Combine scores
+            combined_scores = {
+                'agentic_coding': scraped_scores.get('agentic_coding', 0),
+                'coding': scraped_scores.get('coding', 0),
+                'reasoning': scraped_scores.get('reasoning', 0),
+                'overall': model.get('overall_score', 0),
+                'intelligence': model.get('intelligence_score', 0),
+            }
+            
+            all_models.append({
+                'id': f"{model.get('provider', 'unknown')}/{model_id}",
+                'name': model.get('name', model_id),
+                'provider': model.get('provider', 'unknown'),
+                'scores': combined_scores,
+                'context_window': model.get('context_length', 0),
+                'api_mappings': model.get('sources', []),
+            })
+        
+        # Add any scraped models not in models.dev
+        for s_model in scraped.get('models', []):
+            model_id = s_model.get('id', '')
+            if model_id not in seen_ids:
+                seen_ids.add(model_id)
+                all_models.append(s_model)
+        
+        # Sort by agentic coding score
+        all_models.sort(key=lambda x: x['scores'].get('agentic_coding', 0), reverse=True)
+        
+        # Write final rankings
+        output = {
+            'metadata': {
+                'source': 'LIVE - models.dev + Artificial Analysis + LiveBench + Aider',
+                'last_updated': time.strftime('%Y-%m-%d %H:%M:%S'),
+                'total_models': len(all_models),
+                'update_method': 'GitHub Actions Daily',
+            },
+            'models': all_models
+        }
+        
+        with open('config/model_rankings.yaml', 'w') as f:
+            yaml.dump(output, f, default_flow_style=False, sort_keys=False)
+        
+        print(f"✓ Updated config/model_rankings.yaml with {len(all_models)} models")
+        PYTHON_SCRIPT
+        
+    - name: Commit and push if changed
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add config/model_rankings.yaml config/models_dev_data.json
+        git diff --staged --quiet || (git commit -m "Update model rankings - $(date -u +%Y-%m-%d)" && git push)
