@@ -101,7 +101,7 @@ with _console.status("[dim]Loading FastAPI framework...", spinner="dots"):
     from contextlib import asynccontextmanager
     from fastapi import FastAPI, Request, HTTPException, Depends
     from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import StreamingResponse
+    from fastapi.responses import StreamingResponse, JSONResponse
     from fastapi.security import APIKeyHeader
 
 print("  → Loading core dependencies...")
@@ -878,6 +878,84 @@ async def streaming_response_wrapper(
                 body=full_response,
             )
 
+
+
+@app.post("/v1/responses")
+async def responses_endpoint(
+    request: Request,
+    client: RotatingClient = Depends(get_rotating_client),
+    _=Depends(verify_api_key),
+):
+    """
+    OpenAI Responses API compatibility layer.
+    Translates Requests API format to Chat Completions format.
+    """
+    try:
+        body = await request.json()
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    # 1. Translate Request
+    messages = []
+    if "instructions" in body:
+        messages.append({"role": "system", "content": body["instructions"]})
+    
+    if "input" in body and isinstance(body["input"], list):
+        for item in body["input"]:
+            if item.get("type") == "message":
+                content = item.get("content", "")
+                messages.append({
+                    "role": item.get("role", "user"),
+                    "content": content
+                })
+            else:
+                messages.append(item)
+    
+    chat_body = {
+        "model": body.get("model"),
+        "messages": messages,
+        "stream": body.get("stream", False),
+        "temperature": body.get("temperature"),
+        "max_tokens": body.get("max_tokens", 4096)
+    }
+    # Filter None values
+    chat_body = {k: v for k, v in chat_body.items() if v is not None}
+    
+    # 2. Call Router
+    router = get_router()
+    response = await router.handle_chat_completions(chat_body, request)
+    
+    # 3. Translate Response
+    if chat_body.get("stream"):
+        return response
+    
+    if isinstance(response, JSONResponse):
+        content_body = json.loads(response.body)
+        
+        output = []
+        if "choices" in content_body:
+            for choice in content_body["choices"]:
+                message = choice.get("message", {})
+                role = message.get("role", "assistant")
+                text_content = message.get("content", "")
+                
+                output.append({
+                    "type": "message",
+                    "role": role,
+                    "content": [{"type": "text", "text": text_content}]
+                })
+        
+        new_response = {
+            "id": content_body.get("id"),
+            "object": "response",
+            "created": content_body.get("created"),
+            "model": content_body.get("model"),
+            "output": output,
+            "usage": content_body.get("usage")
+        }
+        return JSONResponse(content=new_response)
+        
+    return response
 
 @app.post("/v1/chat/completions")
 async def chat_completions(

@@ -14,6 +14,9 @@ import logging
 
 from rotator_library.provider_status_tracker import ProviderStatusTracker
 
+# Module-level status tracker instance
+status_tracker = ProviderStatusTracker()
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
