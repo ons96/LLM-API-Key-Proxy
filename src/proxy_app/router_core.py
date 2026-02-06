@@ -892,7 +892,7 @@ class RouterCore:
 
         return req
 
-    def _get_candidates(
+    async def _get_candidates(
         self, model_id: str, requirements: CapabilityRequirements
     ) -> List[ProviderCandidate]:
         """Get candidate providers for the requested model."""
@@ -925,7 +925,7 @@ class RouterCore:
                     continue
 
                 # Check conditions (NEW)
-                if not self._check_conditions(
+                if not await self._check_conditions(
                     candidate_cfg, candidate_cfg["provider"], candidate_cfg["model"]
                 ):
                     continue
@@ -1146,12 +1146,11 @@ class RouterCore:
         )
 
         # Filter expert candidates
+        all_expert_candidates = await self._get_candidates(
+            request.get("model", ""), self._extract_requirements(request)
+        )
         expert_candidates = [
-            c
-            for c in self._get_candidates(
-                request.get("model", ""), self._extract_requirements(request)
-            )
-            if c.role and "expert" in c.role
+            c for c in all_expert_candidates if c.role and "expert" in c.role
         ]
 
         # Limit to max_experts
@@ -1230,12 +1229,13 @@ class RouterCore:
 
         # Execute aggregator
         provider_name, model_name = aggregator_model.split("/", 1)
+        aggregator_candidates = await self._get_candidates(
+            aggregator_model, self._extract_requirements(aggregator_request)
+        )
         aggregator_candidate = next(
             (
                 c
-                for c in self._get_candidates(
-                    aggregator_model, self._extract_requirements(aggregator_request)
-                )
+                for c in aggregator_candidates
                 if c.provider == provider_name and c.model == model_name
             ),
             None,
@@ -1467,7 +1467,7 @@ class RouterCore:
             return self.execute_moe(self.virtual_models[model_id], request, request_id)
 
         # Get candidates
-        candidates = self._get_candidates(model_id, requirements)
+        candidates = await self._get_candidates(model_id, requirements)
 
         if not candidates:
             raise HTTPException(
