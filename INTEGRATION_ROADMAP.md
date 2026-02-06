@@ -286,3 +286,77 @@ class IndividualModelFallback:
 
 **Conclusion**: 65.0 threshold excludes lower-performing models but keeps good ones. Could be lowered to 60.0 to include more variety if needed.
 
+
+#### Rate Limit Tracking Verification & Enhancement (Feb 2026)
+
+**Current State**: Gateway has rate limit tracking implemented in \`rate_limiter.py\` with \`RateLimitTracker\` class.
+
+**Existing Implementation**:
+- \`RateLimitTracker\` tracks per-provider/model usage:
+  - Requests per minute (RPM limits)
+  - Daily request counts
+  - \`rate_limited_until\` timestamp for cooldown periods
+  - \`can_use_provider()\` returns False when rate-limited
+- Router integration:
+  - \`_check_conditions()\` calls \`rate_limiter.can_use_provider()\` before adding candidates
+  - Line 543 in router_core.py: Checks if provider is rate-limited before attempting
+  - Skips providers that are in cooldown period
+- Rate limit hit handling:
+  - Line 607 in router_core.py: Records rate limit hits when detected
+  - Applies cooldown (default 300 seconds = 5 minutes)
+
+**Verification Needed**:
+1. Confirm rate-limited providers are skipped during candidate building
+2. Verify \`rate_limited_until\` is correctly checked against current time
+3. Test rate limit expiration - ensure provider becomes available after cooldown
+4. Verify no API calls are made to providers known to be rate-limited
+
+**Potential Enhancement - Cooldown Period Tracking**:
+**Problem**: Current \`rate_limited_until\` is a fixed timestamp. Gateway cannot distinguish between:
+- Temporary rate limit (e.g., 5-minute RPM window resets)
+- Permanent daily limit (resets at midnight UTC)
+- Usage quota exhaustion (credits depleted)
+
+**Solution**: Add cooldown period type tracking:
+\`\`\`python
+@dataclass
+class RateLimitStatus:
+    requests_this_minute: int = 0
+    requests_today: int = 0
+    last_reset_minute: float = field(default_factory=time.time)
+    last_reset_day: float = field(default_factory=time.time)
+    rate_limited_until: float = 0.0
+    limit_type: str = "rpm"  # NEW: Track limit type being hit
+    limit_window_end: Optional[float] = None  # NEW: When will this expire?
+
+def is_provider_available_now(self, provider: str, model: str) -> bool:
+    """
+    Check if provider can be used RIGHT NOW.
+    Returns False if:
+    - In rate limit cooldown period AND not expired
+    - Rate limited AND cooldown period hasn'\''t elapsed
+    - Usage quota exhausted (if tracked)
+    """
+    status = self._get_status(provider, model)
+    
+    # If not rate-limited, available immediately
+    if not status.rate_limited_until:
+        return True
+    
+    now = time.time()
+    
+    # If cooldown period has elapsed, available
+    if now >= status.rate_limited_until:
+        return True
+    
+    # If still within cooldown period, NOT available
+    return False
+\`\`\`
+
+**Benefits**:
+- Prevents all wasted API calls to rate-limited providers
+- Distinguishes between temporary RPM window vs daily quota
+- Allows immediate retry when cooldown expires
+- Clear logging of when providers become available again
+
+**Implementation Priority**: Verify current implementation works correctly before adding enhancements
