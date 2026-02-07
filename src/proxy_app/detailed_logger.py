@@ -30,7 +30,7 @@ class DetailedLogger:
     to prevent memory issues, especially with streaming responses.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initializes the logger for a single request, creating a unique directory to store all related log files.
         """
@@ -41,7 +41,7 @@ class DetailedLogger:
         self.streaming = False
         self._dir_available = safe_mkdir(self.log_dir, logging)
 
-    def _write_json(self, filename: str, data: Dict[str, Any]):
+    def _write_json(self, filename: str, data: Dict[str, Any]) -> None:
         """Helper to write data to a JSON file in the log directory."""
         if not self._dir_available:
             # Try to create directory again in case it was recreated
@@ -58,7 +58,7 @@ class DetailedLogger:
             ensure_ascii=False,
         )
 
-    def log_request(self, headers: Dict[str, Any], body: Dict[str, Any]):
+    def log_request(self, headers: Dict[str, Any], body: Dict[str, Any]) -> None:
         """Logs the initial request details."""
         self.streaming = body.get("stream", False)
         request_data = {
@@ -69,7 +69,7 @@ class DetailedLogger:
         }
         self._write_json("request.json", request_data)
 
-    def log_stream_chunk(self, chunk: Dict[str, Any]):
+    def log_stream_chunk(self, chunk: Dict[str, Any]) -> None:
         """Logs an individual chunk from a streaming response to a JSON Lines file."""
         if not self._dir_available:
             return
@@ -80,7 +80,7 @@ class DetailedLogger:
 
     def log_final_response(
         self, status_code: int, headers: Optional[Dict[str, Any]], body: Dict[str, Any]
-    ):
+    ) -> None:
         """Logs the complete final response, either from a non-streaming call or after reassembling a stream."""
         end_time = time.time()
         duration_ms = (end_time - self.start_time) * 1000
@@ -113,7 +113,7 @@ class DetailedLogger:
 
         return None
 
-    def _log_metadata(self, response_data: Dict[str, Any]):
+    def _log_metadata(self, response_data: Dict[str, Any]) -> None:
         """Logs a summary of the transaction for quick analysis."""
         usage = response_data.get("body", {}).get("usage") or {}
         model = response_data.get("body", {}).get("model", "N/A")

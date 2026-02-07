@@ -3,7 +3,8 @@ import sys
 import platform
 import subprocess
 
-def get_providers():
+
+def get_providers() -> List[str]:
     """
     Scans the 'src/rotator_library/providers' directory to find all provider modules.
     Returns a list of hidden import arguments for PyInstaller.
@@ -24,7 +25,8 @@ def get_providers():
             hidden_imports.append(f"--hidden-import={module_name}")
     return hidden_imports
 
-def main():
+
+def main() -> None:
     """
     Constructs and runs the PyInstaller command to build the executable.
     """
@@ -54,15 +56,21 @@ def main():
         "--exclude-module=notebook",
         "--exclude-module=PIL.ImageTk",
         # Optimization: Enable UPX compression (if available)
-        "--upx-dir=upx" if platform.system() != "Darwin" else "--noupx",  # macOS has issues with UPX
+        "--upx-dir=upx"
+        if platform.system() != "Darwin"
+        else "--noupx",  # macOS has issues with UPX
         # Optimization: Strip debug symbols (smaller binary)
-        "--strip" if platform.system() != "Windows" else "--console",  # Windows gets clean console
+        "--strip"
+        if platform.system() != "Windows"
+        else "--console",  # Windows gets clean console
     ]
 
     # Add hidden imports for providers
     provider_imports = get_providers()
     if not provider_imports:
-        print("Warning: No providers found. The build might not include any LLM providers.")
+        print(
+            "Warning: No providers found. The build might not include any LLM providers."
+        )
     command.extend(provider_imports)
 
     # Add the main script
@@ -79,6 +87,7 @@ def main():
         print(f"Build failed with error: {e}")
     except FileNotFoundError:
         print("Error: PyInstaller is not installed or not in the system's PATH.")
+
 
 if __name__ == "__main__":
     main()

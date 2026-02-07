@@ -12,7 +12,7 @@ class HealthChecker:
     Background service to periodically check provider health.
     """
 
-    def __init__(self, router_integration: Any, interval_seconds: int = 300):
+    def __init__(self, router_integration: Any, interval_seconds: int = 300) -> None:
         self.router_integration = router_integration
         self.interval_seconds = interval_seconds
         self.is_running = False
@@ -29,7 +29,7 @@ class HealthChecker:
         self.is_running = False
         logger.info("Health checker stopped")
 
-    async def _health_check_loop(self):
+    async def _health_check_loop(self) -> None:
         """Main loop for health checks."""
         while self.is_running:
             try:
@@ -39,12 +39,14 @@ class HealthChecker:
 
             await asyncio.sleep(self.interval_seconds)
 
-    async def _check_all_providers(self):
+    async def _check_all_providers(self) -> None:
         """Ping all configured providers in parallel."""
         # Get active adapters/providers from integration
         adapters = self.router_integration.adapters
 
-        async def check_single_provider(provider_name: str, adapter):
+        async def check_single_provider(
+            provider_name: str, adapter
+        ) -> tuple[str, Dict[str, Any]]:
             """Check a single provider and return status."""
             try:
                 # Use a lightweight model for ping if possible
