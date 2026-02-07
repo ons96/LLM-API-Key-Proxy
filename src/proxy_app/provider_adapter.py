@@ -624,6 +624,12 @@ class TogetherAdapter(BaseProviderAdapter):
         request_with_key = request.copy()
         request_with_key["api_key"] = self.api_key
 
+        model = request_with_key.get("model", "")
+        if model.startswith("together/"):
+            request_with_key["model"] = model.replace("together/", "together_ai/", 1)
+        elif not model.startswith("together_ai/"):
+            request_with_key["model"] = f"together_ai/{model}"
+
         if stream:
             return self._stream_completion(request_with_key)
         else:
