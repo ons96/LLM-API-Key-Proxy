@@ -476,23 +476,38 @@ class ProviderStatusTracker:
 
             start_time = time.time()
 
-            # Simple prompt to test generation
-            # Note: We run this in a thread executor because g4f might be sync or blocking
-            # Use typing.cast to avoid "AsyncResult" is not awaitable error
-            from typing import cast
+            # Try a few models in order of likelihood to work
+            test_models = ["gpt-4o", "gpt-4o-mini", "gpt-4", "gpt-3.5-turbo"]
+            response = None
+            last_error = ""
 
-            coro = g4f.ChatCompletion.create_async(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": "ping"}],
-            )
-            response = await cast(Any, coro)
+            for model in test_models:
+                try:
+                    # Note: We run this in a thread executor because g4f might be sync or blocking
+                    # Use typing.cast to avoid "AsyncResult" is not awaitable error
+                    from typing import cast
+
+                    coro = g4f.ChatCompletion.create_async(
+                        model=model,
+                        messages=[{"role": "user", "content": "ping"}],
+                    )
+                    response = await cast(Any, coro)
+                    if response:
+                        break
+                except Exception as e:
+                    last_error = str(e)
+                    continue
 
             response_time_ms = (time.time() - start_time) * 1000
 
             if response:
                 return "healthy", response_time_ms, ""
             else:
-                return "degraded", response_time_ms, "Empty response"
+                return (
+                    "degraded",
+                    response_time_ms,
+                    f"All models failed. Last error: {last_error}",
+                )
 
         except Exception as e:
             # If g4f library fails, it's down
