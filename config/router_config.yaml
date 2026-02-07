@@ -6,10 +6,29 @@ providers:
     enabled: true
     env_var: GROQ_API_KEY
     free_tier_models:
+    # Core models (existing)
     - llama-3.1-8b-instant
     - llama-3.3-70b-versatile
     - mixtral-8x7b-32768
     - gemma2-9b-it
+    # Llama 4 models (NEW - discovered from API)
+    - meta-llama/llama-4-maverick-17b-128e-instruct
+    - meta-llama/llama-4-scout-17b-16e-instruct
+    # Compound models (NEW)
+    - groq/compound
+    - groq/compound-mini
+    # Kimi models (NEW - large context window)
+    - moonshotai/kimi-k2-instruct
+    - moonshotai/kimi-k2-instruct-0905
+    # OpenAI OSS models (NEW - coding focused)
+    - openai/gpt-oss-120b
+    - openai/gpt-oss-20b
+    # Qwen models (NEW - excellent for coding)
+    - qwen/qwen3-32b
+    # Arabic models
+    - allam-2-7b
+    - canopylabs/orpheus-arabic-saudi
+    - canopylabs/orpheus-v1-english
   g4f:
     enabled: true
   gemini:
@@ -23,8 +42,15 @@ providers:
     enabled: true
     env_var: CEREBRAS_API_KEY
     free_tier_models:
+    # Llama models (existing)
     - llama-3.3-70b
-    - llama-3.1-70b
+    - llama3.1-8b
+    # Qwen models (NEW - EXCELLENT for coding!)
+    - qwen-3-235b-a22b-instruct-2507  # 235B parameter model - best for complex coding
+    - qwen-3-32b  # Fast and capable
+    # Other models (NEW)
+    - gpt-oss-120b  # Large open-source model
+    - zai-glm-4.7  # Chinese language model
   openai:
     enabled: true
     env_var: OPENAI_API_KEY
