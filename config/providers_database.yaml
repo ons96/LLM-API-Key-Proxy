@@ -24,7 +24,7 @@ providers:
         context: 2000000
         rpm: 2
         daily_limit: 50
-      - id: "gemini-1.5-flash"
+      - id: "gemini-2-5-flash"
         context: 1000000
         rpm: 15
         daily_limit: 1500

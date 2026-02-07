@@ -155,7 +155,7 @@ providers:
       capabilities:
       - fast
     - provider: gemini
-      model: gemini-1.5-flash
+      model: gemini-2-5-flash
       priority: 2
       capabilities:
       - fast
@@ -209,7 +209,7 @@ providers:
       - function_calling
       - fast
     - provider: gemini
-      model: gemini-1.5-flash
+      model: gemini-2-5-flash
       priority: 2
       fallback_only: true
     - provider: g4f
@@ -244,7 +244,7 @@ providers:
       - fast
       - tools
     - provider: gemini
-      model: gemini-1.5-flash
+      model: gemini-2-5-flash
       priority: 2
       fallback_only: true
     - provider: g4f
