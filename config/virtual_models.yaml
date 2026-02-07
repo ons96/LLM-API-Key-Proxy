@@ -1,12 +1,12 @@
 virtual_models:
   # =============================================================================
-  # CODING ELITE (Best Agentic Coding Models - Ranked by SWE-bench)
+  # CODING ELITE (Best Agentic Coding Models - SWE-bench Ranked)
   # =============================================================================
   coding-elite:
-    description: "Best agentic coding models - prioritizes highest SWE-bench scores (o4-mini, Gemini 2.5 Pro, GPT-5.1)"
+    description: "Highest verified agentic performance (o4-mini, Gemini 2.5 Pro, GPT-5.1)"
     fallback_chain:
-      # Tier 1: Highest Verified Agentic Performance
-      # OpenAI o4-mini (High Effort - 69.8 SWE-bench)
+      # Tier 1: S-Tier Agentic Coding
+      # OpenAI o4-mini (69.8 SWE-bench)
       - provider: openai
         model: "o4-mini"
         priority: 1
@@ -24,31 +24,44 @@ virtual_models:
         model: "gpt-5.1"
         priority: 3
 
-      # Claude Sonnet 4.5 Thinking (64.5 SWE-bench)
-      - provider: g4f
-        model: "claude-sonnet-4-5-thinking"
-        priority: 4
-
+      # Tier 2: A-Tier Agentic Coding
       # Gemini 2.5 Flash Reasoning (65.0 SWE-bench)
       - provider: gemini
         model: "gemini-2.5-flash-reasoning"
+        priority: 4
+
+      # Claude Sonnet 4.5 Thinking (64.5 SWE-bench)
+      - provider: g4f
+        model: "claude-sonnet-4-5-thinking"
         priority: 5
+
+      # DeepSeek V3.2 Reasoner (60.0 SWE-bench)
+      - provider: sambanova
+        model: "DeepSeek-V3.2"
+        priority: 6
+      - provider: nvidia
+        model: "deepseek-ai/deepseek-v3.2"
+        priority: 6
+      - provider: together
+        model: "deepseek-ai/DeepSeek-V3"
+        priority: 6
 
       # Claude Opus 4.5 (62.0 SWE-bench)
       - provider: g4f
         model: "claude-opus-4-5"
-        priority: 6
+        priority: 7
 
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
 
   # =============================================================================
-  # CODING FAST (ULTRA FAST - FOR QUICK EDITS)
+  # CODING FAST (Ultra High Speed - TPS Ranked)
   # =============================================================================
   coding-fast:
     description: "Highest TPS coding models - Ranked by Tokens per Second (Cerebras, Groq, SambaNova)"
     fallback_chain:
+      # Tier 1: 1000+ TPS Elite
       # Cerebras Llama 3.3 70B (2,483 TPS)
       - provider: cerebras
         model: "llama-3.3-70b"
@@ -64,17 +77,18 @@ virtual_models:
         model: "llama-3-8b-instant"
         priority: 3
 
-      # SambaNova Llama 3.1 8B (1,178 TPS)
-      - provider: sambanova
-        model: "llama-3.1-8b"
+      # Tier 2: High Speed Managed
+      # Gemini 2.5 Flash Reasoning (343 TPS)
+      - provider: gemini
+        model: "gemini-2.5-flash-reasoning"
         priority: 4
 
-      # Groq Llama 3.1 8B (835 TPS)
-      - provider: groq
-        model: "llama-3.1-8b-instant"
+      # OpenAI o4-mini (143 TPS)
+      - provider: openai
+        model: "o4-mini"
         priority: 5
 
-      # Gemini 2.0 Flash Lite (Ultra Low Latency)
+      # Gemini 2.0 Flash Lite
       - provider: gemini
         model: "gemini-2.0-flash-lite"
         priority: 6
@@ -84,82 +98,82 @@ virtual_models:
       retry_on_rate_limit: true
 
   # =============================================================================
-  # CHAT SMART (REASONING - BEST MODELS FROM LEADERBOARDS)
+  # CHAT SMART (High Intelligence - Ranked by Overall Leaderboard)
   # =============================================================================
   chat-smart:
-    description: "Best chat/reasoning models - ranked by Chatbot Arena and AI leaderboards"
+    description: "Best reasoning/chat models - prioritized by Overall Quality (GPT-5.1, Sonnet 4.5, Gemini 2.5 Pro)"
     fallback_chain:
-      # Tier 1: Flagship Models
-      # DeepSeek V3.2
-      - provider: nvidia
-        model: "deepseek-ai/deepseek-v3.2"
-        priority: 1
-      - provider: together
-        model: "deepseek-ai/DeepSeek-V3"
-        priority: 1
-
-      # Gemini 3 Pro
-      - provider: gemini
-        model: "gemini-3-pro-preview"
-        priority: 2
-      - provider: google
-        model: "gemini-3-pro-preview"
-        priority: 2
-
-      # GPT-5.1
+      # Tier 1: Top Ranked Overall
+      # GPT-5.1 Codex Max (78.0 Overall)
       - provider: openai
         model: "gpt-5.1"
-        priority: 3
+        priority: 1
 
-      # Tier 2: Free High Performance
-      # Together MoA-1 Turbo (Mixture of Agents)
-      - provider: together
-        model: "togethercomputer/MoA-1-Turbo"
-        priority: 4
+      # Claude Sonnet 4.5 Thinking (76.8 Overall)
+      - provider: anthropic
+        model: "claude-sonnet-4-5-thinking"
+        priority: 2
+      - provider: g4f
+        model: "claude-sonnet-4-5-thinking"
+        priority: 2
 
-      # Llama 3.3 70B (Groq)
-      - provider: groq
-        model: "llama-3.3-70b-versatile"
-        priority: 5
-
-      # Gemini 2.5 Pro
+      # Gemini 2.5 Pro (72.0 Overall)
       - provider: gemini
         model: "gemini-2.5-pro"
-        priority: 6
+        priority: 3
+      - provider: google
+        model: "gemini-2.5-pro"
+        priority: 3
+
+      # Tier 2: Strong Reasoning
+      # OpenAI o4-mini (70.0 Overall)
+      - provider: openai
+        model: "o4-mini"
+        priority: 4
+
+      # DeepSeek V3.2 (Strong Chat / Reasoning)
+      - provider: nvidia
+        model: "deepseek-ai/deepseek-v3.2"
+        priority: 5
+      - provider: together
+        model: "deepseek-ai/DeepSeek-V3"
+        priority: 5
 
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
 
   # =============================================================================
-  # CHAT FAST (LOWEST LATENCY)
+  # CHAT FAST (Lowest Latency - Performance Ranked)
   # =============================================================================
   chat-fast:
-    description: "Fastest chat models (Lowest Latency)"
+    description: "Fastest chat models - prioritized by Time to First Token (TTFT) and TPS"
     fallback_chain:
-      # Gemini 2.0 Flash Lite
-      - provider: gemini
-        model: "gemini-2.0-flash-lite"
+      # Tier 1: Instant Response
+      # Cerebras Llama 3.1 8B (~3000 TPS)
+      - provider: cerebras
+        model: "llama-3.1-8b"
         priority: 1
 
-      # Llama 3.1 8B Turbo
-      - provider: together
-        model: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
+      # Groq Llama 3 8B (~1349 TPS)
+      - provider: groq
+        model: "llama-3-8b-instant"
         priority: 2
 
-      # Groq Llama 3.1 8B
-      - provider: groq
-        model: "llama-3.1-8b-instant"
+      # Gemini 2.0 Flash Lite (Ultra Low Latency)
+      - provider: gemini
+        model: "gemini-2.0-flash-lite"
         priority: 3
 
-      # Gemini 2.5 Flash
+      # Tier 2: Managed Fast
+      # Gemini 2.5 Flash Reasoning (343 TPS)
       - provider: gemini
-        model: "gemini-2.5-flash"
+        model: "gemini-2.5-flash-reasoning"
         priority: 4
 
-      # Gemma 3 4B
-      - provider: gemini
-        model: "gemma-3-4b-it"
+      # OpenAI o4-mini (143 TPS)
+      - provider: openai
+        model: "o4-mini"
         priority: 5
 
     settings:
