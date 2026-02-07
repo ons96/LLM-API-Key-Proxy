@@ -2,22 +2,19 @@ virtual_models:
   # =============================================================================
   # CODING ELITE (Best Agentic Coding Models by Quality Score)
   # =============================================================================
-  # Ordered by SWE-bench / agentic coding score (best to worst)
-  # Then by provider speed within each tier
   coding-elite:
-    description: "Best agentic coding models - ordered by SWE-bench score (quality first), then provider speed"
+    description: "Best agentic coding models - including Llama 4, Gemini 3, and Qwen 3"
     fallback_chain:
-      # Tier 1: TOP TIER (>74.0 SWE-bench score)
-      # 1. Claude Opus 4.5 (74.4) - Best agentic coding, use multiple providers
-      - provider: g4f
-        model: "claude-opus-4-5"
+      # Tier 1: TOP TIER
+      # Llama 4 Maverick (Meta)
+      - provider: groq
+        model: "meta-llama/llama-4-maverick-17b-128e-instruct"
+        priority: 1
+      - provider: nvidia
+        model: "meta/llama-4-maverick-17b-128e-instruct"
         priority: 1
 
-      - provider: openrouter
-        model: "anthropic/claude-opus-4-5"
-        priority: 1
-
-      # 2. Gemini 3 Pro (74.2)
+      # Gemini 3 Pro (Google)
       - provider: gemini
         model: "gemini-3-pro-preview"
         priority: 2
@@ -25,64 +22,35 @@ virtual_models:
         model: "gemini-3-pro-preview"
         priority: 2
 
-      # Tier 2: HIGH TIER (70.0-73.9 SWE-bench score)
-      # 3. GPT-5.2 (71.8)
-      - provider: openai
-        model: "gpt-5-2"
+      # Qwen 3 Coder 480B (Open Weights)
+      - provider: nvidia
+        model: "qwen/qwen3-coder-480b-a35b-instruct"
+        priority: 3
+      - provider: together
+        model: "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8"
         priority: 3
 
-      # 4. Claude Sonnet 4.5 (70.6)
-      - provider: g4f
-        model: "claude-sonnet-4-5"
-        priority: 4
-
-      # Tier 2.5: TOP TIER FREE MODELS (Newly discovered, excellent for coding)
-      # 3.5 Qwen 3 235B (Cerebras - best free open model for coding)
+      # Tier 2: HIGH TIER
+      # Qwen 3 235B (Cerebras)
       - provider: cerebras
         model: "qwen-3-235b-a22b-instruct-2507"
-        priority: 3.5
-
-      # 4. Sonnet 4.5 (via OpenRouter/paid)
-      - provider: openrouter
-        model: "anthropic/claude-sonnet-4-5"
         priority: 4
 
-      # Tier 3: SOLID TIER (Your actual working providers with good quality)
-      # 5. GPT-4o (working on OpenAI)
-      - provider: openai
-        model: "gpt-4o"
+      # Claude Opus 4.5
+      - provider: g4f
+        model: "claude-opus-4-5"
         priority: 5
 
-      # 5.5 Qwen 3 32B (Groq - fast and capable)
-      - provider: groq
-        model: "qwen/qwen3-32b"
-        priority: 5.5
-
-      # 6. GPT-4 (G4F fallback)
-      - provider: g4f
-        model: "gpt-4"
+      # Tier 3: RELIABLE FALLBACKS
+      # GPT-5.2
+      - provider: openai
+        model: "gpt-5-2"
         priority: 6
 
-      # 7. Gemini 3 Pro (has excellent coding ability)
+      # Gemini 2.5 Pro
       - provider: gemini
-        model: "gemini-3-pro"
+        model: "gemini-2.5-pro"
         priority: 7
-
-      # Tier 4: FAST & RELIABLE (Your working free providers with decent quality)
-      # 8. Llama 3.3 70B (Groq - fastest free option)
-      - provider: groq
-        model: "llama-3.3-70b-versatile"
-        priority: 8
-
-      # 9. Llama 3.3 70B (Cerebras - ultra fast)
-      - provider: cerebras
-        model: "llama-3.3-70b"
-        priority: 9
-
-      # 10. Mistral Codestral
-      - provider: mistral
-        model: "codestral-latest"
-        priority: 10
 
     settings:
       timeout_ms: 180000
@@ -92,51 +60,37 @@ virtual_models:
   # CODING FAST (ULTRA FAST - FOR QUICK EDITS)
   # =============================================================================
   coding-fast:
-    description: "Highest TPS coding models - Cerebras fastest, then Groq, then others"
+    description: "Highest TPS coding models - Gemini 2.5, Llama 3.1, and Qwen 3"
     fallback_chain:
-      # 1. Cerebras: Llama 3.1 70B (~3000 t/s) - FASTEST
+      # Cerebras: Llama 3.1 70B
       - provider: cerebras
-        model: "llama-3.1-70b"
+        model: "llama-3.3-70b"
         priority: 1
 
-      # 2. Groq: Llama 3.3 70B (~1000 t/s)
+      # Groq: Llama 3.3 70B
       - provider: groq
         model: "llama-3.3-70b-versatile"
         priority: 2
 
-      # 3. Cerebras: Llama 3.1 8B (~3000 t/s)
-      - provider: cerebras
-        model: "llama-3.1-8b"
-        priority: 3
-
-      # 4. Groq: Llama 3.1 8B (~1000 t/s)
-      - provider: groq
-        model: "llama-3.1-8b-instant"
-        priority: 4
-
-      # 5. OpenAI: gpt-4o-mini
-      - provider: openai
-        model: "gpt-4o-mini"
-        priority: 5
-
-      # 6. Gemini: Flash
+      # Gemini: 2.5 Flash
       - provider: gemini
         model: "gemini-2.5-flash"
-        priority: 6
+        priority: 3
 
-      # 6.5 Gemma 3 27B (Google open model - very fast)
+      # Together: Llama 3.1 8B (High Speed)
+      - provider: together
+        model: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
+        priority: 4
+
+      # Google: Gemma 3 27B
       - provider: gemini
         model: "gemma-3-27b-it"
-        priority: 6.5
+        priority: 5
 
-      # Fallback
-      - provider: openrouter
-        model: "google/gemini-2.5-flash"
-        priority: 7
-
-      - provider: g4f
-        model: "gpt-4"
-        priority: 8
+      # Cerebras: Qwen 3 32B
+      - provider: cerebras
+        model: "qwen-3-32b"
+        priority: 6
 
     settings:
       timeout_ms: 30000
@@ -148,273 +102,161 @@ virtual_models:
   chat-smart:
     description: "Best chat/reasoning models - ranked by Chatbot Arena and AI leaderboards"
     fallback_chain:
-      # Tier 1: TOP RANKED CHAT/REASONING MODELS (2025 benchmarks)
-      # 1. Claude Opus 4.5 (Anthropic - #2 intelligence per Artificial Analysis)
-      - provider: anthropic
-        model: "claude-opus-4-5"
+      # Tier 1: Flagship Models
+      # DeepSeek V3.2
+      - provider: nvidia
+        model: "deepseek-ai/deepseek-v3.2"
+        priority: 1
+      - provider: together
+        model: "deepseek-ai/DeepSeek-V3"
         priority: 1
 
-      - provider: g4f
-        model: "claude-opus-4-5"
-        priority: 1
-
-      # 2. GPT-5.2 (OpenAI - highest reasoning performance)
-      - provider: openai
-        model: "gpt-5-2"
+      # Gemini 3 Pro
+      - provider: gemini
+        model: "gemini-3-pro-preview"
+        priority: 2
+      - provider: google
+        model: "gemini-3-pro-preview"
         priority: 2
 
-      # 3. Claude Opus 4.5 Thinking-32k (extended context)
-      - provider: g4f
-        model: "claude-opus-4.5-thinking-32k"
-        priority: 3
-
-      # 4. GPT-5.1 (OpenAI - new flagship)
+      # GPT-5.1
       - provider: openai
         model: "gpt-5.1"
+        priority: 3
+
+      # Tier 2: Free High Performance
+      # Together MoA-1 Turbo (Mixture of Agents)
+      - provider: together
+        model: "togethercomputer/MoA-1-Turbo"
         priority: 4
 
-      # 5. Claude Sonnet 4.5 (balance quality/speed)
-      - provider: anthropic
-        model: "claude-sonnet-4-5"
-        priority: 5
-
-      - provider: g4f
-        model: "claude-sonnet-4-5"
-        priority: 5
-
-      # 6. GPT-4o (strong general purpose)
-      - provider: openai
-        model: "gpt-4o"
-        priority: 6
-
-      - provider: g4f
-        model: "gpt-4o"
-        priority: 6
-
-      # Tier 2: HIGH PERFORMING FREE FAST OPTIONS
-      # 7. Groq Llama 3.3 70B (fast free option, good quality)
+      # Llama 3.3 70B (Groq)
       - provider: groq
         model: "llama-3.3-70b-versatile"
-        priority: 7
+        priority: 5
 
-      # 8. Cerebras Llama 3.3 70B (ultra fast)
-      - provider: cerebras
-        model: "llama-3.3-70b"
-        priority: 8
-
-      # 9. Claude Sonnet 4.5 Thinking (extended context)
-      - provider: g4f
-        model: "claude-sonnet-4.5-thinking-32k"
-        priority: 9
-
-      # 10. Gemini 3 Pro (still good, but superseded)
+      # Gemini 2.5 Pro
       - provider: gemini
-        model: "gemini-3-pro"
-        priority: 10
-
-      # 11. Gemini 2.5 Flash (fast chat, good reasoning)
-      - provider: gemini
-        model: "gemini-2-5-flash"
-        priority: 11
-
-      # Fallback
-      - provider: openai
-        model: "gpt-4o-mini"
-        priority: 12
-
-      - provider: g4f
-        model: "gpt-3.5-turbo"
-        priority: 13
+        model: "gemini-2.5-pro"
+        priority: 6
 
     settings:
       timeout_ms: 180000
+      retry_on_rate_limit: true
 
   # =============================================================================
   # CHAT FAST (LOWEST LATENCY)
   # =============================================================================
   chat-fast:
-    description: "Fastest chat models (Cerebras/Groq/Gemini Flash/OpenAI)"
+    description: "Fastest chat models (Lowest Latency)"
     fallback_chain:
-      # 1. Cerebras: Llama 3.1 8B (~3000 t/s)
-      - provider: cerebras
-        model: "llama-3.1-8b"
+      # Gemini 2.0 Flash Lite
+      - provider: gemini
+        model: "gemini-2.0-flash-lite"
         priority: 1
 
-      # 2. Groq: Llama 3.1 8B (~1000 t/s)
-      - provider: groq
-        model: "llama-3.1-8b-instant"
+      # Llama 3.1 8B Turbo
+      - provider: together
+        model: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
         priority: 2
 
-      # 3. Gemini Flash
-      - provider: gemini
-        model: "gemini-2-5-flash"
+      # Groq Llama 3.1 8B
+      - provider: groq
+        model: "llama-3.1-8b-instant"
         priority: 3
 
-      # 4. OpenAI gpt-3.5-turbo
-      - provider: openai
-        model: "gpt-3.5-turbo"
+      # Gemini 2.5 Flash
+      - provider: gemini
+        model: "gemini-2.5-flash"
         priority: 4
 
-      # 5. Mistral Nemo
-      - provider: mistral
-        model: "mistral-nemo"
+      # Gemma 3 4B
+      - provider: gemini
+        model: "gemma-3-4b-it"
         priority: 5
-
-      # Fallback
-      - provider: g4f
-        model: "gpt-3.5-turbo"
-        priority: 6
 
     settings:
       timeout_ms: 15000
+      retry_on_rate_limit: true
 
   # =============================================================================
-  # CHAT RP (Roleplay - UGI Leaderboard RP Models - Fast + Many Fallbacks)
+  # CHAT RP (Roleplay - UGI Leaderboard RP Models)
   # =============================================================================
   chat-rp:
-    description: "Best NSFW RP models from UGI leaderboard - prioritizes response time with maximum fallbacks"
+    description: "Best RP models from UGI leaderboard"
     fallback_chain:
-      # UGI TOP RANKED RP MODELS (via G4F providers)
-      # 1. MN-Violet-Lotus-12B (UGI top RP model, highly rated)
+      # UGI TOP RANKED RP MODELS
       - provider: g4f
         model: "mn-violet-lotus-12b"
         priority: 1
-
-      # 2. Violet_Twilight-v0.2 (Second best)
       - provider: g4f
         model: "violet-twilight-v0.2"
         priority: 2
-
-      # 3. Captain-Eris_Violet-V0.420
       - provider: g4f
         model: "captain-eris-violet-v0.420"
         priority: 3
-
-      # 4. MN-12B-Lyra-v4
       - provider: g4f
         model: "mn-12b-lyra-v4"
         priority: 4
 
-      # 5. MN-Chinofun-12B-4.1
-      - provider: g4f
-        model: "mn-chinofun-12b"
-        priority: 5
-
-      # 6. L3.1-RP-Hero-InBetween-8B
-      - provider: g4f
-        model: "l3.1-rp-hero-inbetween-8b"
-        priority: 6
-
-      # FASTER RP OPTIONS (for quick character responses)
-      # 7. Cerebras 8B (fastest)
+      # FASTER RP OPTIONS
       - provider: cerebras
         model: "llama-3.1-8b"
-        priority: 7
-
-      # 8. Groq 8B
+        priority: 5
       - provider: groq
         model: "llama-3.1-8b-instant"
-        priority: 8
-
-      # 9. GPT-4o-mini (fast general model for RP)
-      - provider: openai
-        model: "gpt-4o-mini"
-        priority: 9
-
-      # 10. L3.1-RP-Hero-Dirty_Harry-8B
-      - provider: g4f
-        model: "l3.1-rp-hero-dirty-harry-8b"
-        priority: 10
-
-      # MORE FALLBACKS
-      - provider: mistral
-        model: "mistral-nemo"
-        priority: 11
-
-      - provider: groq
-        model: "llama-3.3-70b-versatile"
-        priority: 12
-
-      - provider: g4f
-        model: "gpt-4o-mini"
-        priority: 13
+        priority: 6
 
     settings:
-      timeout_ms: 15000
+      timeout_ms: 30000
+      retry_on_rate_limit: true
 
 # =============================================================================
-# PROVIDERS (New Free Providers Added)
+# PROVIDERS (Registered APIs)
 # =============================================================================
 providers:
-  # --- New Aggregators ---
-  zenmux:
-    base_url: "https://api.zenmux.com/v1"
-    api_key_env: "ZENMUX_API_KEY"
-    rate_limits: { rpm: 20, daily: 500 }
-
-  iflow:
-    base_url: "https://apis.iflow.cn/v1"
-    api_key_env: "IFLOW_API_KEY"
-    rate_limits: { rpm: 60 }
-
-  opencode_zen:
-    base_url: "https://api.opencodezen.com/v1"
-    api_key_env: "OPENCODE_ZEN_API_KEY"
-    rate_limits: { rpm: 50 }
-
-  aihubmix:
-    base_url: "https://api.aihubmix.com/v1"
-    api_key_env: "AIHUBMIX_API_KEY"
-    rate_limits: { rpm: 50 }
-
-  routeway:
-    base_url: "https://routeway.ai/v1"
-    api_key_env: "ROUTEWAY_API_KEY"
-    rate_limits: { rpm: 20, daily: 200 }
-
-  modelscope:
-    base_url: "https://api-inference.modelscope.cn/v1"
-    api_key_env: "MODELSCOPE_API_KEY"
-    rate_limits: { rpm: 60 }
-
-  # --- New Direct Providers ---
   nvidia:
     base_url: "https://integrate.api.nvidia.com/v1"
     api_key_env: "NVIDIA_API_KEY"
     rate_limits: { rpm: 60 }
 
-  sambanova:
-    base_url: "https://api.sambanova.ai/v1"
-    api_key_env: "SAMBANOVA_API_KEY"
+  together:
+    base_url: "https://api.together.xyz/v1"
+    api_key_env: "TOGETHER_API_KEY"
     rate_limits: { rpm: 60 }
 
-  mistral:
-    base_url: "https://api.mistral.ai/v1"
-    api_key_env: "MISTRAL_API_KEY"
-    rate_limits: { rpm: 10 }
-
-  # --- Existing ---
-  google:
-    base_url: "https://generativelanguage.googleapis.com/v1beta"
-    api_key_env: "GEMINI_API_KEY"
-    rate_limits: { rpm: 15, daily: 1500 }
+  cerebras:
+    base_url: "https://api.cerebras.ai/v1"
+    api_key_env: "CEREBRAS_API_KEY"
+    rate_limits: { rpm: 50, daily: 5000 }
 
   groq:
     base_url: "https://api.groq.com/openai/v1"
     api_key_env: "GROQ_API_KEY"
     rate_limits: { rpm: 30, daily: 14400 }
 
-  cerebras:
-    base_url: "https://api.cerebras.ai/v1"
-    api_key_env: "CEREBRAS_API_KEY"
-    rate_limits: { rpm: 50, daily: 5000 }
-  
+  google:
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    api_key_env: "GEMINI_API_KEY"
+    rate_limits: { rpm: 15, daily: 1500 }
+
+  gemini:
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    api_key_env: "GEMINI_API_KEY"
+    rate_limits: { rpm: 15, daily: 1500 }
+
+  openai:
+    base_url: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+    rate_limits: { rpm: 3000 }
+
+  mistral:
+    base_url: "https://api.mistral.ai/v1"
+    api_key_env: "MISTRAL_API_KEY"
+    rate_limits: { rpm: 10 }
+
   g4f:
     base_url: "https://g4f.dev/v1"
     api_key_env: "G4F_API_KEY"
     rate_limits: { rpm: 10, daily: 100 }
 
-  puter:
-    base_url: "https://puter.com/api/v1" # Needs adapter logic
-    api_key_env: "PUTER_API_KEY"
-    rate_limits: { rpm: 20 }
