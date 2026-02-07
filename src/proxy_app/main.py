@@ -88,14 +88,6 @@ if proxy_api_key:
 else:
     key_display = "✗ Not Set (INSECURE - anyone can access!)"
 
-print("━" * 70)
-print(f"Starting proxy on {args.host}:{args.port}")
-print(f"Proxy API Key: {key_display}")
-print(f"GitHub: https://github.com/ons96/LLM-API-Key-Proxy")
-print("━" * 70)
-print("Loading server components...")
-
-
 # Phase 2: Load Rich for loading spinner (lightweight)
 from rich.console import Console
 
