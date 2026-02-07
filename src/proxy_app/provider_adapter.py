@@ -310,13 +310,6 @@ class GeminiAdapter(BaseProviderAdapter):
             ),
         }
 
-        # Keep 1.5 models for backward compatibility if they still work for some users
-        legacy_models = {
-            "gemini-1.5-flash": gemini_models["gemini-2.5-flash"],
-            "gemini-1.5-pro": gemini_models["gemini-2.5-pro"],
-        }
-        gemini_models.update(legacy_models)
-
         self.models.update(gemini_models)
 
     async def list_models(self) -> List[str]:
@@ -567,6 +560,120 @@ class G4FAdapter(BaseProviderAdapter):
         return HTTPException(status_code=status_code, detail=f"G4F error: {str(error)}")
 
 
+class TogetherAdapter(BaseProviderAdapter):
+    """Adapter for Together AI provider."""
+
+    def _initialize_models(self):
+        """Initialize Together AI model capabilities."""
+        together_models = {
+            "togethercomputer/MoA-1": ModelCapabilities(
+                provider="together",
+                model="togethercomputer/MoA-1",
+                supports_tools=True,
+                supports_streaming=True,
+                max_context_tokens=32768,
+                free_tier_available=True,
+                tags=["moe", "general"],
+            ),
+            "togethercomputer/MoA-1-Turbo": ModelCapabilities(
+                provider="together",
+                model="togethercomputer/MoA-1-Turbo",
+                supports_tools=True,
+                supports_streaming=True,
+                max_context_tokens=32768,
+                free_tier_available=True,
+                tags=["moe", "fast", "general"],
+            ),
+            "meta-llama/Llama-3.3-70B-Instruct-Turbo": ModelCapabilities(
+                provider="together",
+                model="meta-llama/Llama-3.3-70B-Instruct-Turbo",
+                supports_tools=True,
+                supports_function_calling=True,
+                supports_streaming=True,
+                max_context_tokens=131072,
+                free_tier_available=False,  # Paid model
+                tags=["large", "reasoning"],
+            ),
+            "deepseek-ai/DeepSeek-V3": ModelCapabilities(
+                provider="together",
+                model="deepseek-ai/DeepSeek-V3",
+                supports_tools=True,
+                supports_streaming=True,
+                max_context_tokens=163840,
+                free_tier_available=False,
+                tags=["flagship", "coding"],
+            ),
+        }
+
+        self.models.update(together_models)
+
+    async def list_models(self) -> List[str]:
+        """List available Together AI models."""
+        return list(self.models.keys())
+
+    async def chat_completions(
+        self,
+        request: Dict[str, Any],
+        stream: bool = False,
+        client: Optional[httpx.AsyncClient] = None,
+    ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
+        """Execute chat completion via Together AI."""
+        if not self.api_key:
+            raise ValueError("Together AI API key not configured")
+
+        request_with_key = request.copy()
+        request_with_key["api_key"] = self.api_key
+
+        if stream:
+            return self._stream_completion(request_with_key)
+        else:
+            return await self._non_stream_completion(request_with_key)
+
+    async def _non_stream_completion(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Non-streaming completion."""
+        try:
+            response = await litellm.acompletion(**request)
+            return self._convert_response(response)
+        except Exception as e:
+            logger.error(f"Together completion failed: {e}")
+            raise self._convert_error(e)
+
+    async def _stream_completion(
+        self, request: Dict[str, Any]
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Streaming completion."""
+        try:
+            # Use typing.cast to avoid "AsyncResult" is not awaitable error
+            from typing import cast
+
+            coro = litellm.acompletion(**request)
+            async for chunk in await cast(Any, coro):
+                yield self._convert_chunk(chunk)
+        except Exception as e:
+            logger.error(f"Together streaming failed: {e}")
+            raise self._convert_error(e)
+
+    def _convert_response(self, response: Any) -> Dict[str, Any]:
+        """Convert LiteLLM response to standard format."""
+        if hasattr(response, "dict"):
+            return response.dict()
+        elif hasattr(response, "__dict__"):
+            return response.__dict__
+        return response
+
+    def _convert_chunk(self, chunk: Any) -> Dict[str, Any]:
+        """Convert LiteLLM streaming chunk to standard format."""
+        if hasattr(chunk, "dict"):
+            return chunk.dict()
+        elif hasattr(chunk, "__dict__"):
+            return chunk.__dict__
+        return chunk
+
+    def _convert_error(self, error: Exception) -> HTTPException:
+        """Convert provider error to HTTPException."""
+        return HTTPException(status_code=500, detail=str(error))
+
+
 class ProviderAdapterFactory:
     """Factory for creating provider adapters."""
 
@@ -575,7 +682,12 @@ class ProviderAdapterFactory:
         provider_name: str, api_key: Optional[str] = None
     ) -> BaseProviderAdapter:
         """Create provider adapter instance."""
-        adapters = {"groq": GroqAdapter, "gemini": GeminiAdapter, "g4f": G4FAdapter}
+        adapters = {
+            "groq": GroqAdapter,
+            "gemini": GeminiAdapter,
+            "g4f": G4FAdapter,
+            "together": TogetherAdapter,
+        }
 
         adapter_class = adapters.get(provider_name.lower())
         if not adapter_class:
@@ -586,4 +698,4 @@ class ProviderAdapterFactory:
     @staticmethod
     def list_supported_providers() -> List[str]:
         """List all supported providers."""
-        return ["groq", "gemini", "g4f"]
+        return ["groq", "gemini", "g4f", "together"]
