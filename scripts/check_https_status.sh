@@ -36,7 +36,7 @@ fi
 # 2. Check zrok
 echo -e "\n${YELLOW}--- zrok Check ---${NC}"
 ZROK_STATUS=$(zrok status 2>&1)
-if [[ "$ZROK_STATUS" == *"enable the zrok"* ]]; then
+if [[ "$ZROK_STATUS" == *"zrok enable"* ]]; then
     echo -e "${RED}zrok is NOT enabled.${NC}"
     echo "Run 'zrok enable <token>' to use zrok."
 else
