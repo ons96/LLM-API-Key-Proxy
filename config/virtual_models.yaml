@@ -18,14 +18,11 @@ virtual_models:
         priority: 1
 
       # 2. Gemini 3 Pro (74.2)
+      - provider: gemini
+        model: "gemini-3-pro-preview"
+        priority: 2
       - provider: google
-        model: "gemini-3-pro"
-        priority: 2
-      - provider: zenmux
-        model: "gemini-3-pro"
-        priority: 2
-      - provider: iflow
-        model: "gemini-3-pro"
+        model: "gemini-3-pro-preview"
         priority: 2
 
       # Tier 2: HIGH TIER (70.0-73.9 SWE-bench score)
@@ -124,12 +121,17 @@ virtual_models:
 
       # 6. Gemini: Flash
       - provider: gemini
-        model: "gemini-2-5-flash"
+        model: "gemini-2.5-flash"
         priority: 6
+
+      # 6.5 Gemma 3 27B (Google open model - very fast)
+      - provider: gemini
+        model: "gemma-3-27b-it"
+        priority: 6.5
 
       # Fallback
       - provider: openrouter
-        model: "google/gemini-flash-1.5"
+        model: "google/gemini-2.5-flash"
         priority: 7
 
       - provider: g4f

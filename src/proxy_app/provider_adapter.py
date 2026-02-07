@@ -254,50 +254,68 @@ class GeminiAdapter(BaseProviderAdapter):
     """Adapter for Gemini provider."""
 
     def _initialize_models(self):
-        """Initialize Gemini model capabilities."""
+        """Initialize Gemini model capabilities (Updated for 2026)."""
         gemini_models = {
-            "gemini-1.5-flash": ModelCapabilities(
+            "gemini-2.5-flash": ModelCapabilities(
                 provider="gemini",
-                model="gemini-1.5-flash",
+                model="gemini-2.5-flash",
                 supports_tools=True,
                 supports_function_calling=True,
                 supports_vision=True,
                 supports_structured_output=True,
                 supports_streaming=True,
                 max_context_tokens=1048576,  # 1M tokens
-                max_output_tokens=8192,
+                max_output_tokens=65536,
                 free_tier_available=True,
                 rate_limit_requests_per_minute=15,
                 tags=["fast", "vision", "long_context", "general"],
             ),
-            "gemini-1.5-flash-8b": ModelCapabilities(
+            "gemini-2.5-pro": ModelCapabilities(
                 provider="gemini",
-                model="gemini-1.5-flash-8b",
-                supports_tools=True,
-                supports_vision=True,
-                supports_structured_output=True,
-                supports_streaming=True,
-                max_context_tokens=1048576,
-                max_output_tokens=8192,
-                free_tier_available=True,
-                rate_limit_requests_per_minute=15,
-                tags=["fast", "vision", "long_context", "general"],
-            ),
-            "gemini-1.5-pro": ModelCapabilities(
-                provider="gemini",
-                model="gemini-1.5-pro",
+                model="gemini-2.5-pro",
                 supports_tools=True,
                 supports_function_calling=True,
                 supports_vision=True,
                 supports_structured_output=True,
                 supports_streaming=True,
-                max_context_tokens=2097152,  # 2M tokens for specific use cases
-                max_output_tokens=8192,
-                free_tier_available=True,  # Has free tier with rate limits
-                rate_limit_requests_per_minute=2,  # Lower rate limit for Pro
+                max_context_tokens=1048576,  # 1M tokens
+                max_output_tokens=65536,
+                free_tier_available=True,
+                rate_limit_requests_per_minute=2,
                 tags=["reasoning", "vision", "long_context", "coding", "research"],
             ),
+            "gemini-3-pro-preview": ModelCapabilities(
+                provider="gemini",
+                model="gemini-3-pro-preview",
+                supports_tools=True,
+                supports_function_calling=True,
+                supports_vision=True,
+                supports_streaming=True,
+                max_context_tokens=1048576,
+                max_output_tokens=65536,
+                free_tier_available=True,
+                rate_limit_requests_per_minute=2,
+                tags=["ultra_brain", "vision", "coding"],
+            ),
+            "gemma-3-27b-it": ModelCapabilities(
+                provider="gemini",
+                model="gemma-3-27b-it",
+                supports_tools=True,
+                supports_streaming=True,
+                max_context_tokens=131072,
+                max_output_tokens=8192,
+                free_tier_available=True,
+                rate_limit_requests_per_minute=15,
+                tags=["open_model", "fast", "coding"],
+            ),
         }
+
+        # Keep 1.5 models for backward compatibility if they still work for some users
+        legacy_models = {
+            "gemini-1.5-flash": gemini_models["gemini-2.5-flash"],
+            "gemini-1.5-pro": gemini_models["gemini-2.5-pro"],
+        }
+        gemini_models.update(legacy_models)
 
         self.models.update(gemini_models)
 
