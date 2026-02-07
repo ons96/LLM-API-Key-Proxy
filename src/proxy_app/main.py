@@ -112,7 +112,6 @@ with _console.status("[dim]Loading FastAPI framework...", spinner="dots"):
 
 print("  → Loading core dependencies...")
 with _console.status("[dim]Loading core dependencies...", spinner="dots"):
-    from dotenv import load_dotenv
     import colorlog
     import json
     from typing import AsyncGenerator, Any, List, Optional, Union
@@ -591,11 +590,6 @@ async def lifespan(app: FastAPI):
         max_concurrent_requests_per_key=max_concurrent_requests_per_key,
     )
 
-    # Log loaded credentials summary (compact, always visible for deployment verification)
-    # _api_summary = ', '.join([f"{p}:{len(c)}" for p, c in api_keys.items()]) if api_keys else "none"
-    # _oauth_summary = ', '.join([f"{p}:{len(c)}" for p, c in oauth_credentials.items()]) if oauth_credentials else "none"
-    # _total_summary = ', '.join([f"{p}:{len(c)}" for p, c in client.all_credentials.items()])
-    # print(f"🔑 Credentials loaded: {_total_summary} (API: {_api_summary} | OAuth: {_oauth_summary})")
     client.background_refresher.start()  # Start the background task
     app.state.rotating_client = client
 
