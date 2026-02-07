@@ -89,9 +89,16 @@ class HealthChecker:
 
         # Update status for all providers
         for result in results:
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 logger.error(f"Health check task failed: {result}")
                 continue
+
+            if not isinstance(result, tuple):
+                logger.error(
+                    f"Health check task returned unexpected type: {type(result)}"
+                )
+                continue
+
             provider_name, status = result
             self.provider_status[provider_name] = status
 

@@ -106,7 +106,7 @@ print("  → Loading core dependencies...")
 with _console.status("[dim]Loading core dependencies...", spinner="dots"):
     import colorlog
     import json
-    from typing import AsyncGenerator, Any, List, Optional, Union
+    from typing import AsyncGenerator, Any, List, Optional, Union, Dict
     from pydantic import BaseModel, Field
 
     # --- Early Log Level Configuration ---
@@ -776,7 +776,7 @@ async def streaming_response_wrapper(
     finally:
         if response_chunks:
             # --- Aggregation Logic ---
-            final_message = {"role": "assistant"}
+            final_message: Dict[str, Any] = {"role": "assistant"}
             aggregated_tool_calls = {}
             usage_data = None
             finish_reason = None
@@ -1407,7 +1407,10 @@ if __name__ == "__main__":
     # Check if user explicitly wants to add credentials
     if args.add_credential:
         # Import and call ensure_env_defaults to create .env and PROXY_API_KEY if needed
-        from rotator_library.credential_tool import ensure_env_defaults
+        from rotator_library.credential_tool import (
+            ensure_env_defaults,
+            run_credential_tool,
+        )
 
         ensure_env_defaults()
         # Reload environment variables after ensure_env_defaults creates/updates .env
@@ -1426,7 +1429,10 @@ if __name__ == "__main__":
             show_onboarding_message()
 
             # Launch credential tool automatically
-            from rotator_library.credential_tool import ensure_env_defaults
+            from rotator_library.credential_tool import (
+                ensure_env_defaults,
+                run_credential_tool,
+            )
 
             ensure_env_defaults()
             load_dotenv(ENV_FILE, override=True)

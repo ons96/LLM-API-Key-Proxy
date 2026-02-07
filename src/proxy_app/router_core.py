@@ -549,7 +549,7 @@ class RouterCore:
 
     async def _execute_single_candidate(
         self, candidate: ProviderCandidate, request: Dict[str, Any], request_id: str
-    ) -> Dict[str, Any]:
+    ) -> Any:
         """Execute request against a single candidate."""
         # Record request attempt
         await self.rate_limiter.record_request(candidate.provider, candidate.model)
