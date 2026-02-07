@@ -355,7 +355,9 @@ class ProviderStatusTracker:
 
             start_time = time.time()
             async with session.get(
-                f"{api_base}/models", headers=headers, timeout=10
+                f"{api_base}/models",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 response_time_ms = (time.time() - start_time) * 1000
 
@@ -384,7 +386,9 @@ class ProviderStatusTracker:
 
             start_time = time.time()
             async with session.get(
-                "https://api.groq.com/openai/v1/models", headers=headers, timeout=10
+                "https://api.groq.com/openai/v1/models",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 response_time_ms = (time.time() - start_time) * 1000
 
@@ -413,7 +417,9 @@ class ProviderStatusTracker:
 
             start_time = time.time()
             async with session.get(
-                "https://openrouter.ai/api/v1/models", headers=headers, timeout=10
+                "https://openrouter.ai/api/v1/models",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 response_time_ms = (time.time() - start_time) * 1000
 
@@ -442,7 +448,9 @@ class ProviderStatusTracker:
 
             start_time = time.time()
             async with session.get(
-                "https://api.together.xyz/v1/models", headers=headers, timeout=10
+                "https://api.together.xyz/v1/models",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 response_time_ms = (time.time() - start_time) * 1000
 
@@ -496,7 +504,7 @@ class ProviderStatusTracker:
             async with session.get(
                 "https://generativelanguage.googleapis.com/v1/models",
                 params={"key": project_id},
-                timeout=10,
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 response_time_ms = (time.time() - start_time) * 1000
 
@@ -525,7 +533,9 @@ class ProviderStatusTracker:
 
             start_time = time.time()
             async with session.get(
-                "https://api.nvidia.com/v1/models", headers=headers, timeout=10
+                "https://integrate.api.nvidia.com/v1/models",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 response_time_ms = (time.time() - start_time) * 1000
 
@@ -554,7 +564,9 @@ class ProviderStatusTracker:
 
             start_time = time.time()
             async with session.get(
-                "https://api.mistral.ai/v1/models", headers=headers, timeout=10
+                "https://api.mistral.ai/v1/models",
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 response_time_ms = (time.time() - start_time) * 1000
 
@@ -585,7 +597,7 @@ class ProviderStatusTracker:
             async with session.get(
                 "https://api-inference.huggingface.co/models",
                 headers=headers,
-                timeout=10,
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 response_time_ms = (time.time() - start_time) * 1000
 
@@ -609,14 +621,14 @@ class ProviderStatusTracker:
 
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}",
+                "x-goog-api-key": api_key,
             }
 
             start_time = time.time()
             async with session.get(
                 "https://generativelanguage.googleapis.com/v1/models",
                 headers=headers,
-                timeout=10,
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 response_time_ms = (time.time() - start_time) * 1000
 
@@ -640,14 +652,14 @@ class ProviderStatusTracker:
 
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}",
+                "x-goog-api-key": api_key,
             }
 
             start_time = time.time()
             async with session.get(
                 "https://generativelanguage.googleapis.com/v1/models",
                 headers=headers,
-                timeout=10,
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 response_time_ms = (time.time() - start_time) * 1000
 
