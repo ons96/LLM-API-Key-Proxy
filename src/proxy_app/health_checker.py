@@ -40,28 +40,26 @@ class HealthChecker:
             await asyncio.sleep(self.interval_seconds)
 
     async def _check_all_providers(self):
-        """Ping all configured providers."""
+        """Ping all configured providers in parallel."""
         # Get active adapters/providers from integration
         adapters = self.router_integration.adapters
 
-        for provider_name, adapter in adapters.items():
+        async def check_single_provider(provider_name: str, adapter):
+            """Check a single provider and return status."""
             try:
                 # Use a lightweight model for ping if possible
-                # We need to know a valid model for the provider.
-                # The adapter has a list of models.
                 models = await adapter.list_models()
                 if not models:
-                    continue
+                    return provider_name, {"status": "skipped", "reason": "no_models"}
 
-                # Pick the first one or a known cheap one
+                # Pick the first one
                 test_model = models[0]
-                model_id = f"{provider_name}/{test_model}"
 
                 start_time = time.time()
                 success = await self._ping_provider(provider_name, test_model)
                 latency = (time.time() - start_time) * 1000
 
-                self.provider_status[provider_name] = {
+                status = {
                     "status": "healthy" if success else "unhealthy",
                     "avg_latency_ms": latency if success else None,
                     "last_check": time.time(),
@@ -71,13 +69,29 @@ class HealthChecker:
                 if not success:
                     logger.warning(f"Health check failed for {provider_name}")
 
+                return provider_name, status
+
             except Exception as e:
                 logger.warning(f"Health check error for {provider_name}: {e}")
-                self.provider_status[provider_name] = {
+                return provider_name, {
                     "status": "error",
                     "error": str(e),
                     "last_check": time.time(),
                 }
+
+        # Run all health checks in parallel
+        tasks = [
+            check_single_provider(name, adapter) for name, adapter in adapters.items()
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Update status for all providers
+        for result in results:
+            if isinstance(result, Exception):
+                logger.error(f"Health check task failed: {result}")
+                continue
+            provider_name, status = result
+            self.provider_status[provider_name] = status
 
     async def _ping_provider(self, provider: str, model: str) -> bool:
         """Send a minimal request to the provider."""
