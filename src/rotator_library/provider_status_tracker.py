@@ -298,9 +298,13 @@ class ProviderStatusTracker:
         error_message = ""
 
         try:
-            if provider_name.startswith("g4f_"):
-                # Handle G4F endpoints
-                endpoint = provider_name.replace("g4f_", "")
+            if provider_name == "g4f" or provider_name.startswith("g4f_"):
+                # Handle G4F (local library or specific endpoint)
+                endpoint = (
+                    provider_name.replace("g4f_", "")
+                    if "_" in provider_name
+                    else "main"
+                )
                 return await self._health_check_g4f_endpoint(endpoint, session)
             elif provider_name == "groq":
                 return await self._health_check_groq(session)
@@ -474,10 +478,14 @@ class ProviderStatusTracker:
 
             # Simple prompt to test generation
             # Note: We run this in a thread executor because g4f might be sync or blocking
-            response = await g4f.ChatCompletion.create_async(
+            # Use typing.cast to avoid "AsyncResult" is not awaitable error
+            from typing import cast
+
+            coro = g4f.ChatCompletion.create_async(
                 model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": "ping"}],
             )
+            response = await cast(Any, coro)
 
             response_time_ms = (time.time() - start_time) * 1000
 

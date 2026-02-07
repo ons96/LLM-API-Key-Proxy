@@ -1283,7 +1283,8 @@ class RouterCore:
             )
 
             # Execute via LiteLLM
-            response = await litellm.acompletion(**request_clean, stream=True)
+            # Cast to Any to avoid LSP issues with Union[ModelResponse, CustomStreamWrapper]
+            response: Any = await litellm.acompletion(**request_clean, stream=True)
 
             chunk_count = 0
             async for chunk in response:
