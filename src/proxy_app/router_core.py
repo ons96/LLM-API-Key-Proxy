@@ -1397,6 +1397,13 @@ class RouterCore:
                 )
                 continue
 
+        # All stream candidates failed - apply 5s timeout before final error
+        logger.warning(
+            f"[{request_id}] All stream providers exhausted. "
+            "Waiting 5s before final error (timeout for cleanup)..."
+        )
+        await asyncio.sleep(5)
+
         if last_error:
             raise last_error
         raise HTTPException(status_code=503, detail="All stream providers failed")
@@ -1574,7 +1581,14 @@ class RouterCore:
                 )
                 continue
 
-        # All candidates failed
+        # All candidates failed - apply 5s timeout before final error
+        # This gives a grace period for any background cleanup/retry
+        logger.warning(
+            f"[{request_id}] All provider candidates exhausted. "
+            "Waiting 5s before final error (timeout for cleanup)..."
+        )
+        await asyncio.sleep(5)
+
         if last_error:
             raise last_error
         else:

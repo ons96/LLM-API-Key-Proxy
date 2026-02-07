@@ -41,6 +41,7 @@ from .background_refresher import BackgroundRefresher
 from .model_definitions import ModelDefinitions
 from .utils.paths import get_default_root, get_logs_dir, get_oauth_dir, get_data_file
 from .provider_priority_manager import ProviderPriorityManager
+from .telemetry import TelemetryManager
 
 
 class StreamedAPIError(Exception):
@@ -286,6 +287,9 @@ class RotatingClient:
         self.whitelist_models = whitelist_models or {}
         self.enable_request_logging = enable_request_logging
         self.model_definitions = ModelDefinitions()
+
+        # Initialize telemetry manager for metrics tracking
+        self.telemetry = TelemetryManager()
 
         # Initialize provider priority manager for tier-based fallback routing
         self.priority_manager = ProviderPriorityManager(os.environ)
