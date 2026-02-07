@@ -675,6 +675,10 @@ _cors_origins_env = os.getenv("CORS_ORIGINS", "")
 if _cors_origins_env == "*":
     allow_origins = ["*"]
     allow_credentials = False  # Must be False when origins is "*"
+    logging.warning(
+        "⚠️  SECURITY WARNING: CORS is set to allow all origins (*). "
+        "This is insecure for production! Consider setting specific origins."
+    )
 elif _cors_origins_env:
     allow_origins = [
         origin.strip() for origin in _cors_origins_env.split(",") if origin.strip()
