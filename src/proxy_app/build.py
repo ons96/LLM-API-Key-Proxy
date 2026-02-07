@@ -2,6 +2,7 @@ import os
 import sys
 import platform
 import subprocess
+from typing import List
 
 
 def get_providers() -> List[str]:

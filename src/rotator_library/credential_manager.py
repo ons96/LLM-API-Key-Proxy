@@ -44,7 +44,7 @@ class CredentialManager:
 
     def __init__(
         self,
-        env_vars: Dict[str, str],
+        env_vars: Mapping[str, str],
         oauth_dir: Optional[Union[Path, str]] = None,
     ):
         """

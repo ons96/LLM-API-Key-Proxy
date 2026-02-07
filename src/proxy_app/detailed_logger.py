@@ -39,20 +39,20 @@ class DetailedLogger:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.log_dir = _get_detailed_logs_dir() / f"{timestamp}_{self.request_id}"
         self.streaming = False
-        self._dir_available = safe_mkdir(self.log_dir, logging)
+        self._dir_available = safe_mkdir(self.log_dir, logger)
 
     def _write_json(self, filename: str, data: Dict[str, Any]) -> None:
         """Helper to write data to a JSON file in the log directory."""
         if not self._dir_available:
             # Try to create directory again in case it was recreated
-            self._dir_available = safe_mkdir(self.log_dir, logging)
+            self._dir_available = safe_mkdir(self.log_dir, logger)
             if not self._dir_available:
                 return
 
         safe_write_json(
             self.log_dir / filename,
             data,
-            logging,
+            logger,
             atomic=False,
             indent=4,
             ensure_ascii=False,
@@ -76,7 +76,7 @@ class DetailedLogger:
 
         log_entry = {"timestamp_utc": datetime.utcnow().isoformat(), "chunk": chunk}
         content = json.dumps(log_entry, ensure_ascii=False) + "\n"
-        safe_log_write(self.log_dir / "streaming_chunks.jsonl", content, logging)
+        safe_log_write(self.log_dir / "streaming_chunks.jsonl", content, logger)
 
     def log_final_response(
         self, status_code: int, headers: Optional[Dict[str, Any]], body: Dict[str, Any]

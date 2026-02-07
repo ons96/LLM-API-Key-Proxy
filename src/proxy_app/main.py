@@ -505,6 +505,7 @@ async def lifespan(app: FastAPI):
                 logging.error(f"Credential processing raised exception: {result}")
                 continue
 
+            assert isinstance(result, tuple), f"Expected tuple, got {type(result)}"
             provider, path, email, error = result
 
             # Skip if there was an error
@@ -598,7 +599,10 @@ async def lifespan(app: FastAPI):
         logging.warning("=" * 70)
 
     os.environ["LITELLM_LOG"] = "ERROR"
-    litellm.set_verbose = False
+    try:
+        litellm.set_verbose = False
+    except AttributeError:
+        pass
     litellm.drop_params = True
     if USE_EMBEDDING_BATCHER:
         batcher = EmbeddingBatcher(client=client)

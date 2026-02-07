@@ -183,7 +183,9 @@ class SearchProvider:
 class BraveSearchProvider(SearchProvider):
     """Brave Search API provider with multi-key support and credit tracking."""
 
-    def __init__(self, config: SearchProviderConfig, api_keys: List[str] = None):
+    def __init__(
+        self, config: SearchProviderConfig, api_keys: Optional[List[str]] = None
+    ):
         super().__init__(config, api_keys[0] if api_keys else None)
         self.api_keys = api_keys or []
         self.current_key_index = 0
@@ -268,7 +270,9 @@ class BraveSearchProvider(SearchProvider):
 class TavilySearchProvider(SearchProvider):
     """Tavily Search API provider with multi-key support and tier selection."""
 
-    def __init__(self, config: SearchProviderConfig, api_keys: List[str] = None):
+    def __init__(
+        self, config: SearchProviderConfig, api_keys: Optional[List[str]] = None
+    ):
         super().__init__(config, api_keys[0] if api_keys else None)
         self.api_keys = api_keys or []
         self.current_key_index = 0
@@ -976,7 +980,9 @@ class RouterCore:
 
         return True
 
-    def _determine_search_tier(self, query: str, messages: List[Dict] = None) -> str:
+    def _determine_search_tier(
+        self, query: str, messages: Optional[List[Dict]] = None
+    ) -> str:
         """Determine appropriate search tier based on query complexity."""
         query_lower = query.lower()
 
@@ -1057,7 +1063,7 @@ class RouterCore:
             return "basic"
 
     async def _perform_search(
-        self, query: str, messages: List[Dict] = None
+        self, query: str, messages: Optional[List[Dict]] = None
     ) -> List[Dict[str, Any]]:
         """Perform search using available providers with intelligent tier selection."""
         if not self._should_perform_search(CapabilityRequirements()):
