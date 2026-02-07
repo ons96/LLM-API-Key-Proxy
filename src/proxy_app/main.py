@@ -505,7 +505,10 @@ async def lifespan(app: FastAPI):
                 logging.error(f"Credential processing raised exception: {result}")
                 continue
 
-            assert isinstance(result, tuple), f"Expected tuple, got {type(result)}"
+            if not isinstance(result, tuple):
+                logging.error(f"Expected tuple from result, got {type(result)}")
+                continue
+
             provider, path, email, error = result
 
             # Skip if there was an error

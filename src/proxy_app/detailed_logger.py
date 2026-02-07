@@ -13,6 +13,8 @@ from rotator_library.utils.resilient_io import (
 )
 from rotator_library.utils.paths import get_logs_dir
 
+logger = logging.getLogger(__name__)
+
 
 def _get_detailed_logs_dir() -> Path:
     """Get the detailed logs directory, creating it if needed."""

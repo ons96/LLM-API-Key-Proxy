@@ -54,10 +54,20 @@ virtual_models:
         model: "gpt-4"
         priority: 6
 
+      # 6.5 Qwen 3 235B (Cerebras - best free open model for coding)
+      - provider: cerebras
+        model: "qwen-3-235b-a22b-instruct-2507"
+        priority: 6.5
+
       # 7. Gemini 3 Pro (has excellent coding ability)
       - provider: gemini
         model: "gemini-3-pro"
         priority: 7
+
+      # 7.5 Qwen 3 32B (Groq - fast and capable)
+      - provider: groq
+        model: "qwen/qwen3-32b"
+        priority: 7.5
 
       # Tier 4: FAST & RELIABLE (Your working free providers with decent quality)
       # 8. Llama 3.3 70B (Groq - fastest free option)
