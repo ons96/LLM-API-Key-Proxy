@@ -11,18 +11,43 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from pathlib import Path
 import logging
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
 
 class TelemetryManager:
-    """Manages telemetry collection and storage for API calls."""
+    """Manages telemetry collection and storage for API calls with connection pooling."""
 
     def __init__(self, db_path: str = "/tmp/llm_proxy_telemetry.db"):
         """Initialize telemetry manager with SQLite database."""
         self.db_path = db_path
+        self._connection_pool = []
+        self._max_connections = 5
         self._init_db()
         logger.info(f"TelemetryManager initialized: {db_path}")
+
+    def _get_connection(self):
+        """Get a connection from the pool or create a new one."""
+        if self._connection_pool:
+            return self._connection_pool.pop()
+        return sqlite3.connect(self.db_path)
+
+    def _return_connection(self, conn):
+        """Return a connection to the pool."""
+        if len(self._connection_pool) < self._max_connections:
+            self._connection_pool.append(conn)
+        else:
+            conn.close()
+
+    @contextmanager
+    def _pooled_connection(self):
+        """Context manager for pooled connections."""
+        conn = self._get_connection()
+        try:
+            yield conn
+        finally:
+            self._return_connection(conn)
 
     def _init_db(self):
         """Initialize database schema if not exists."""
@@ -168,35 +193,32 @@ class TelemetryManager:
         output_tokens: Optional[int] = None,
         cost_estimate_usd: Optional[float] = None,
     ):
-        """Record a single API call with metrics."""
+        """Record a single API call with metrics using pooled connection."""
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                INSERT INTO api_calls (
-                    provider, model, success, error_reason,
-                    response_time_ms, time_to_first_token_ms, tokens_per_second,
-                    input_tokens, output_tokens, cost_estimate_usd
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    provider,
-                    model,
-                    success,
-                    error_reason,
-                    response_time_ms,
-                    time_to_first_token_ms,
-                    tokens_per_second,
-                    input_tokens,
-                    output_tokens,
-                    cost_estimate_usd,
-                ),
-            )
-
-            conn.commit()
-            conn.close()
+            with self._pooled_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO api_calls (
+                        provider, model, success, error_reason,
+                        response_time_ms, time_to_first_token_ms, tokens_per_second,
+                        input_tokens, output_tokens, cost_estimate_usd
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        provider,
+                        model,
+                        success,
+                        error_reason,
+                        response_time_ms,
+                        time_to_first_token_ms,
+                        tokens_per_second,
+                        input_tokens,
+                        output_tokens,
+                        cost_estimate_usd,
+                    ),
+                )
+                conn.commit()
 
         except Exception as e:
             logger.error(f"Failed to record telemetry: {e}")
