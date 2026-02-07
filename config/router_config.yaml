@@ -16,9 +16,9 @@ providers:
     enabled: true
     env_var: GEMINI_API_KEY
     free_tier_models:
-    - gemini-1.5-flash
-    - gemini-1.5-flash-8b
-    - gemini-1.5-pro
+    - gemini-2-5-flash
+    - gemini-2-5-flash-8b
+    - gemini-3-pro
   cerebras:
     enabled: true
     env_var: CEREBRAS_API_KEY
@@ -104,7 +104,7 @@ providers:
       - tools
       - function_calling
     - provider: gemini
-      model: gemini-1.5-pro
+      model: gemini-3-pro
       priority: 2
       capabilities:
       - tools
@@ -123,7 +123,7 @@ providers:
       capabilities:
       - reasoning
     - provider: gemini
-      model: gemini-1.5-pro
+      model: gemini-3-pro
       priority: 2
       capabilities:
       - reasoning
@@ -133,7 +133,7 @@ providers:
     description: Best for research with search capabilities
     candidates:
     - provider: gemini
-      model: gemini-1.5-pro
+      model: gemini-3-pro
       priority: 1
       capabilities:
       - tools
@@ -174,7 +174,7 @@ providers:
       model: llama-3.3-70b-versatile
       role: expert-architect
     - provider: gemini
-      model: gemini-1.5-pro
+      model: gemini-3-pro
       role: expert-secure-coding
     - provider: groq
       model: mixtral-8x7b-32768

@@ -21,11 +21,9 @@ virtual_models:
       - provider: google
         model: "gemini-3-pro"
         priority: 2
-
       - provider: zenmux
         model: "gemini-3-pro"
         priority: 2
-
       - provider: iflow
         model: "gemini-3-pro"
         priority: 2
@@ -56,9 +54,9 @@ virtual_models:
         model: "gpt-4"
         priority: 6
 
-      # 7. Gemini 1.5 Pro (has good coding ability)
+      # 7. Gemini 3 Pro (has excellent coding ability)
       - provider: gemini
-        model: "gemini-1.5-pro"
+        model: "gemini-3-pro"
         priority: 7
 
       # Tier 4: FAST & RELIABLE (Your working free providers with decent quality)
@@ -114,7 +112,7 @@ virtual_models:
 
       # 6. Gemini: Flash
       - provider: gemini
-        model: "gemini-1.5-flash"
+        model: "gemini-2-5-flash"
         priority: 6
 
       # Fallback
@@ -195,14 +193,14 @@ virtual_models:
         model: "claude-sonnet-4.5-thinking-32k"
         priority: 9
 
-      # 10. Gemini 1.5 Pro (still good, but superseded)
+      # 10. Gemini 3 Pro (still good, but superseded)
       - provider: gemini
-        model: "gemini-1.5-pro"
+        model: "gemini-3-pro"
         priority: 10
 
-      # 11. Gemini 3 Flash (fast chat, good reasoning)
+      # 11. Gemini 2.5 Flash (fast chat, good reasoning)
       - provider: gemini
-        model: "gemini-1.5-flash"
+        model: "gemini-2-5-flash"
         priority: 11
 
       # Fallback
@@ -235,7 +233,7 @@ virtual_models:
 
       # 3. Gemini Flash
       - provider: gemini
-        model: "gemini-1.5-flash"
+        model: "gemini-2-5-flash"
         priority: 3
 
       # 4. OpenAI gpt-3.5-turbo
