@@ -276,6 +276,8 @@ class RotatingClient:
             sequential_fallback_multipliers=sequential_fallback_multipliers,
         )
         self._model_list_cache = {}
+        self._model_list_cache_timestamp = {}
+        self._model_list_cache_ttl = 300  # 5 minutes TTL
         self.http_client = httpx.AsyncClient()
         self.all_providers = AllProviders()
         self.cooldown_manager = CooldownManager()
@@ -284,7 +286,7 @@ class RotatingClient:
         self.whitelist_models = whitelist_models or {}
         self.enable_request_logging = enable_request_logging
         self.model_definitions = ModelDefinitions()
-        
+
         # Initialize provider priority manager for tier-based fallback routing
         self.priority_manager = ProviderPriorityManager(os.environ)
         lib_logger.info(f"Priority manager initialized: {self.priority_manager}")
@@ -879,32 +881,45 @@ class RotatingClient:
         model = kwargs.get("model", "")
         original_provider = model.split("/")[0] if "/" in model else ""
         available_providers = list(self.all_credentials.keys())
-        
-        chain = self.priority_manager.get_fallback_chain(original_provider, available_providers)
-        if not chain: 
-             chain = [original_provider]
+
+        chain = self.priority_manager.get_fallback_chain(
+            original_provider, available_providers
+        )
+        if not chain:
+            chain = [original_provider]
 
         last_exception = None
-        
+
         for provider in chain:
             try:
                 current_kwargs = kwargs.copy()
                 if provider != original_provider:
                     base_model = model.split("/")[-1] if "/" in model else model
                     current_kwargs["model"] = f"{provider}/{base_model}"
-                    lib_logger.info(f"Fallback: Switching from '{original_provider}' to '{provider}' (Model: {current_kwargs['model']})")
+                    lib_logger.info(
+                        f"Fallback: Switching from '{original_provider}' to '{provider}' (Model: {current_kwargs['model']})"
+                    )
 
                 return await self._execute_provider_attempt(
-                    api_call,
-                    request,
-                    pre_request_callback,
-                    **current_kwargs
+                    api_call, request, pre_request_callback, **current_kwargs
                 )
             except Exception as e:
                 last_exception = e
                 # Fallback on network/server/auth errors (exhausted keys)
-                if isinstance(e, (litellm.APIConnectionError, litellm.Timeout, litellm.RateLimitError, litellm.ServiceUnavailableError, litellm.InternalServerError, litellm.AuthenticationError)):
-                    lib_logger.warning(f"Provider '{provider}' failed completely. Attempting next provider. Error: {e}")
+                if isinstance(
+                    e,
+                    (
+                        litellm.APIConnectionError,
+                        litellm.Timeout,
+                        litellm.RateLimitError,
+                        litellm.ServiceUnavailableError,
+                        litellm.InternalServerError,
+                        litellm.AuthenticationError,
+                    ),
+                ):
+                    lib_logger.warning(
+                        f"Provider '{provider}' failed completely. Attempting next provider. Error: {e}"
+                    )
                     continue
                 raise e
 
@@ -1656,7 +1671,9 @@ class RotatingClient:
         original_provider = model.split("/")[0] if "/" in model else ""
         available_providers = list(self.all_credentials.keys())
 
-        chain = self.priority_manager.get_fallback_chain(original_provider, available_providers)
+        chain = self.priority_manager.get_fallback_chain(
+            original_provider, available_providers
+        )
         if not chain:
             chain = [original_provider]
 
@@ -1668,7 +1685,9 @@ class RotatingClient:
                 if provider != original_provider:
                     base_model = model.split("/")[-1] if "/" in model else model
                     current_kwargs["model"] = f"{provider}/{base_model}"
-                    lib_logger.info(f"Fallback: Switching from '{original_provider}' to '{provider}' (Model: {current_kwargs['model']})")
+                    lib_logger.info(
+                        f"Fallback: Switching from '{original_provider}' to '{provider}' (Model: {current_kwargs['model']})"
+                    )
 
                 # The generator needs to be iterated to catch setup errors
                 # But if we return the generator, the loop exits.
@@ -1676,16 +1695,30 @@ class RotatingClient:
                 # _streaming_provider_attempt is an async generator.
                 # If we use `async for` here, we are consuming it.
                 # We should yield from it.
-                async for chunk in self._streaming_provider_attempt(request, pre_request_callback, **current_kwargs):
+                async for chunk in self._streaming_provider_attempt(
+                    request, pre_request_callback, **current_kwargs
+                ):
                     yield chunk
                 return
             except Exception as e:
                 last_exception = e
-                if isinstance(e, (litellm.APIConnectionError, litellm.Timeout, litellm.RateLimitError, litellm.ServiceUnavailableError, litellm.InternalServerError, litellm.AuthenticationError)):
-                     lib_logger.warning(f"Provider '{provider}' failed completely. Attempting next provider. Error: {e}")
-                     continue
+                if isinstance(
+                    e,
+                    (
+                        litellm.APIConnectionError,
+                        litellm.Timeout,
+                        litellm.RateLimitError,
+                        litellm.ServiceUnavailableError,
+                        litellm.InternalServerError,
+                        litellm.AuthenticationError,
+                    ),
+                ):
+                    lib_logger.warning(
+                        f"Provider '{provider}' failed completely. Attempting next provider. Error: {e}"
+                    )
+                    continue
                 raise e
-        
+
         if last_exception:
             raise last_exception
         raise Exception("All providers failed.")
@@ -2578,9 +2611,14 @@ class RotatingClient:
     async def get_available_models(self, provider: str) -> List[str]:
         """Returns a list of available models for a specific provider, with caching."""
         lib_logger.info(f"Getting available models for provider: {provider}")
+        # Check cache with TTL
         if provider in self._model_list_cache:
-            lib_logger.debug(f"Returning cached models for provider: {provider}")
-            return self._model_list_cache[provider]
+            cache_time = self._model_list_cache_timestamp.get(provider, 0)
+            if time.time() - cache_time < self._model_list_cache_ttl:
+                lib_logger.debug(f"Returning cached models for provider: {provider}")
+                return self._model_list_cache[provider]
+            else:
+                lib_logger.debug(f"Cache expired for provider: {provider}")
 
         credentials_for_provider = self.all_credentials.get(provider)
         if not credentials_for_provider:
@@ -2630,6 +2668,7 @@ class RotatingClient:
                         )
 
                     self._model_list_cache[provider] = final_models
+                    self._model_list_cache_timestamp[provider] = time.time()
                     return final_models
                 except Exception as e:
                     classified_error = classify_error(e, provider=provider)

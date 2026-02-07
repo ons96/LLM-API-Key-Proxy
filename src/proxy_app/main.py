@@ -78,14 +78,20 @@ if _env_files_found:
 # Get proxy API key for display
 proxy_api_key = os.getenv("PROXY_API_KEY")
 if proxy_api_key:
-    key_display = f"✓ {proxy_api_key}"
+    # Mask the API key for security - only show first/last 4 chars
+    masked_key = (
+        f"{proxy_api_key[:4]}...{proxy_api_key[-4:]}"
+        if len(proxy_api_key) > 8
+        else "****"
+    )
+    key_display = f"✓ {masked_key}"
 else:
     key_display = "✗ Not Set (INSECURE - anyone can access!)"
 
 print("━" * 70)
 print(f"Starting proxy on {args.host}:{args.port}")
 print(f"Proxy API Key: {key_display}")
-print(f"GitHub: https://github.com/Mirrowel/LLM-API-Key-Proxy")
+print(f"GitHub: https://github.com/ons96/LLM-API-Key-Proxy")
 print("━" * 70)
 print("Loading server components...")
 
@@ -238,7 +244,7 @@ _os_module.system("cls" if _os_module.name == "nt" else "clear")
 print("━" * 70)
 print(f"Starting proxy on {args.host}:{args.port}")
 print(f"Proxy API Key: {key_display}")
-print(f"GitHub: https://github.com/Mirrowel/LLM-API-Key-Proxy")
+print(f"GitHub: https://github.com/ons96/LLM-API-Key-Proxy")
 print("━" * 70)
 print(
     f"✓ Server ready in {_elapsed:.2f}s ({_plugin_count} providers discovered in {_provider_time:.2f}s)"
