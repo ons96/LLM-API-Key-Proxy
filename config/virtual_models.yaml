@@ -1,56 +1,43 @@
 virtual_models:
   # =============================================================================
-  # CODING ELITE (Best Agentic Coding Models by Quality Score)
+  # CODING ELITE (Best Agentic Coding Models - Ranked by SWE-bench)
   # =============================================================================
   coding-elite:
-    description: "Best agentic coding models - including Llama 4, Gemini 3, and Qwen 3"
+    description: "Best agentic coding models - prioritizes highest SWE-bench scores (o4-mini, Gemini 2.5 Pro, GPT-5.1)"
     fallback_chain:
-      # Tier 1: TOP TIER
-      # Llama 4 Maverick (Meta)
-      - provider: groq
-        model: "meta-llama/llama-4-maverick-17b-128e-instruct"
-        priority: 1
-      - provider: nvidia
-        model: "meta/llama-4-maverick-17b-128e-instruct"
-        priority: 1
-
-      # Gemini 3 Pro (Google)
-      - provider: gemini
-        model: "gemini-3-pro-preview"
-        priority: 2
-      - provider: google
-        model: "gemini-3-pro-preview"
-        priority: 2
-
-      # Qwen 3 Coder 480B (Open Weights)
-      - provider: nvidia
-        model: "qwen/qwen3-coder-480b-a35b-instruct"
-        priority: 3
-      - provider: together
-        model: "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8"
-        priority: 3
-
-      # Tier 2: HIGH TIER
-      # Qwen 3 235B (Cerebras)
-      - provider: cerebras
-        model: "qwen-3-235b-a22b-instruct-2507"
-        priority: 4
-
-      # Claude Opus 4.5
-      - provider: g4f
-        model: "claude-opus-4-5"
-        priority: 5
-
-      # Tier 3: RELIABLE FALLBACKS
-      # GPT-5.2
+      # Tier 1: Highest Verified Agentic Performance
+      # OpenAI o4-mini (High Effort - 69.8 SWE-bench)
       - provider: openai
-        model: "gpt-5-2"
-        priority: 6
+        model: "o4-mini"
+        priority: 1
 
-      # Gemini 2.5 Pro
+      # Gemini 2.5 Pro (68.9 SWE-bench)
       - provider: gemini
         model: "gemini-2.5-pro"
-        priority: 7
+        priority: 2
+      - provider: google
+        model: "gemini-2.5-pro"
+        priority: 2
+
+      # GPT-5.1 Codex Max (68.0 SWE-bench)
+      - provider: openai
+        model: "gpt-5.1"
+        priority: 3
+
+      # Claude Sonnet 4.5 Thinking (64.5 SWE-bench)
+      - provider: g4f
+        model: "claude-sonnet-4-5-thinking"
+        priority: 4
+
+      # Gemini 2.5 Flash Reasoning (65.0 SWE-bench)
+      - provider: gemini
+        model: "gemini-2.5-flash-reasoning"
+        priority: 5
+
+      # Claude Opus 4.5 (62.0 SWE-bench)
+      - provider: g4f
+        model: "claude-opus-4-5"
+        priority: 6
 
     settings:
       timeout_ms: 180000
@@ -60,36 +47,36 @@ virtual_models:
   # CODING FAST (ULTRA FAST - FOR QUICK EDITS)
   # =============================================================================
   coding-fast:
-    description: "Highest TPS coding models - Gemini 2.5, Llama 3.1, and Qwen 3"
+    description: "Highest TPS coding models - Ranked by Tokens per Second (Cerebras, Groq, SambaNova)"
     fallback_chain:
-      # Cerebras: Llama 3.1 70B
+      # Cerebras Llama 3.3 70B (2,483 TPS)
       - provider: cerebras
         model: "llama-3.3-70b"
         priority: 1
 
-      # Groq: Llama 3.3 70B
-      - provider: groq
-        model: "llama-3.3-70b-versatile"
+      # SambaNova Llama 3.2 3B (1,601 TPS)
+      - provider: sambanova
+        model: "llama-3.2-3b"
         priority: 2
 
-      # Gemini: 2.5 Flash
-      - provider: gemini
-        model: "gemini-2.5-flash"
+      # Groq Llama 3 8B (1,349 TPS)
+      - provider: groq
+        model: "llama-3-8b-instant"
         priority: 3
 
-      # Together: Llama 3.1 8B (High Speed)
-      - provider: together
-        model: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
+      # SambaNova Llama 3.1 8B (1,178 TPS)
+      - provider: sambanova
+        model: "llama-3.1-8b"
         priority: 4
 
-      # Google: Gemma 3 27B
-      - provider: gemini
-        model: "gemma-3-27b-it"
+      # Groq Llama 3.1 8B (835 TPS)
+      - provider: groq
+        model: "llama-3.1-8b-instant"
         priority: 5
 
-      # Cerebras: Qwen 3 32B
-      - provider: cerebras
-        model: "qwen-3-32b"
+      # Gemini 2.0 Flash Lite (Ultra Low Latency)
+      - provider: gemini
+        model: "gemini-2.0-flash-lite"
         priority: 6
 
     settings:
