@@ -4,6 +4,7 @@ import shutil
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Union
+from collections.abc import Mapping
 
 from .utils.paths import get_oauth_dir
 
