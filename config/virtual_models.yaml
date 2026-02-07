@@ -77,21 +77,31 @@ virtual_models:
         model: "llama-3-8b-instant"
         priority: 3
 
-      # Tier 2: High Speed Managed
+      # SambaNova Llama 3.1 8B (1,178 TPS)
+      - provider: sambanova
+        model: "llama-3.1-8b"
+        priority: 4
+
+      # Groq Llama 3.1 8B (835 TPS)
+      - provider: groq
+        model: "llama-3.1-8b-instant"
+        priority: 5
+
+      # Tier 2: Managed High Speed
       # Gemini 2.5 Flash Reasoning (343 TPS)
       - provider: gemini
         model: "gemini-2.5-flash-reasoning"
-        priority: 4
+        priority: 6
 
       # OpenAI o4-mini (143 TPS)
       - provider: openai
         model: "o4-mini"
-        priority: 5
+        priority: 7
 
       # Gemini 2.0 Flash Lite
       - provider: gemini
         model: "gemini-2.0-flash-lite"
-        priority: 6
+        priority: 8
 
     settings:
       timeout_ms: 30000

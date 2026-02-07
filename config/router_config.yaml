@@ -83,7 +83,7 @@ providers:
     - deepseek/deepseek-chat
     - google/gemini-flash-1.5
   sambanova:
-    enabled: true
+    enabled: false
     env_var: SAMBANOVA_API_KEY
     free_tier_models:
     - DeepSeek-V3.2
