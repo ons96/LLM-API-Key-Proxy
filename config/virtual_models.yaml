@@ -1,202 +1,80 @@
 virtual_models:
-  # =============================================================================
-  # CODING ELITE (Best Agentic Coding Models - SWE-bench Ranked)
-  # =============================================================================
   coding-elite:
-    description: "Highest verified agentic performance (o4-mini, Gemini 2.5 Pro, GPT-5.1)"
+    description: "Highest verified agentic performance (Llama 3.3 70B, Gemini 1.5 Pro, GPT-4o)"
     fallback_chain:
-      # Tier 1: S-Tier Agentic Coding
-      # OpenAI o4-mini (69.8 SWE-bench)
-      - provider: openai
-        model: "o4-mini"
+      - provider: groq
+        model: "llama-3.3-70b-versatile"
         priority: 1
-
-      # Gemini 2.5 Pro (68.9 SWE-bench)
       - provider: gemini
-        model: "gemini-2.5-pro"
+        model: "gemini-1.5-pro"
         priority: 2
-      - provider: google
-        model: "gemini-2.5-pro"
-        priority: 2
-
-      # GPT-5.1 Codex Max (68.0 SWE-bench)
       - provider: openai
-        model: "gpt-5.1"
+        model: "gpt-4o"
         priority: 3
-
-      # Tier 2: A-Tier Agentic Coding
-      # Gemini 2.5 Flash Reasoning (65.0 SWE-bench)
-      - provider: gemini
-        model: "gemini-2.5-flash-reasoning"
-        priority: 4
-
-      # Claude Sonnet 4.5 Thinking (64.5 SWE-bench)
-      - provider: g4f
-        model: "claude-sonnet-4-5-thinking"
-        priority: 5
-
-      # DeepSeek V3.2 Reasoner (60.0 SWE-bench)
-      - provider: sambanova
-        model: "DeepSeek-V3.2"
-        priority: 6
-      - provider: nvidia
-        model: "deepseek-ai/deepseek-v3.2"
-        priority: 6
       - provider: together
         model: "deepseek-ai/DeepSeek-V3"
-        priority: 6
-
-      # Claude Opus 4.5 (62.0 SWE-bench)
+        priority: 4
       - provider: g4f
-        model: "claude-opus-4-5"
-        priority: 7
-
+        model: "claude-3-5-sonnet"
+        priority: 5
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
 
-  # =============================================================================
-  # CODING FAST (Ultra High Speed - TPS Ranked)
-  # =============================================================================
   coding-fast:
-    description: "Highest TPS coding models - Ranked by Tokens per Second (Cerebras, Groq, SambaNova)"
+    description: "Highest TPS coding models"
     fallback_chain:
-      # Tier 1: 1000+ TPS Elite
-      # Cerebras Llama 3.3 70B (2,483 TPS)
       - provider: cerebras
         model: "llama-3.3-70b"
         priority: 1
-
-      # SambaNova Llama 3.2 3B (1,601 TPS)
-      - provider: sambanova
-        model: "llama-3.2-3b"
-        priority: 2
-
-      # Groq Llama 3 8B (1,349 TPS)
-      - provider: groq
-        model: "llama-3-8b-instant"
-        priority: 3
-
-      # SambaNova Llama 3.1 8B (1,178 TPS)
-      - provider: sambanova
-        model: "llama-3.1-8b"
-        priority: 4
-
-      # Groq Llama 3.1 8B (835 TPS)
       - provider: groq
         model: "llama-3.1-8b-instant"
-        priority: 5
-
-      # Tier 2: Managed High Speed
-      # Gemini 2.5 Flash Reasoning (343 TPS)
+        priority: 2
       - provider: gemini
-        model: "gemini-2.5-flash-reasoning"
-        priority: 6
-
-      # OpenAI o4-mini (143 TPS)
+        model: "gemini-1.5-flash"
+        priority: 3
       - provider: openai
-        model: "o4-mini"
-        priority: 7
-
-      # Gemini 2.0 Flash Lite
-      - provider: gemini
-        model: "gemini-2.0-flash-lite"
-        priority: 8
-
+        model: "gpt-4o-mini"
+        priority: 4
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
 
-  # =============================================================================
-  # CHAT SMART (High Intelligence - Ranked by Overall Leaderboard)
-  # =============================================================================
   chat-smart:
-    description: "Best reasoning/chat models - prioritized by Overall Quality (GPT-5.1, Sonnet 4.5, Gemini 2.5 Pro)"
+    description: "Best reasoning/chat models"
     fallback_chain:
-      # Tier 1: Top Ranked Overall
-      # GPT-5.1 Codex Max (78.0 Overall)
-      - provider: openai
-        model: "gpt-5.1"
+      - provider: groq
+        model: "llama-3.3-70b-versatile"
         priority: 1
-
-      # Claude Sonnet 4.5 Thinking (76.8 Overall)
-      - provider: anthropic
-        model: "claude-sonnet-4-5-thinking"
-        priority: 2
-      - provider: g4f
-        model: "claude-sonnet-4-5-thinking"
-        priority: 2
-
-      # Gemini 2.5 Pro (72.0 Overall)
       - provider: gemini
-        model: "gemini-2.5-pro"
-        priority: 3
-      - provider: google
-        model: "gemini-2.5-pro"
-        priority: 3
-
-      # Tier 2: Strong Reasoning
-      # OpenAI o4-mini (70.0 Overall)
+        model: "gemini-1.5-pro"
+        priority: 2
       - provider: openai
-        model: "o4-mini"
-        priority: 4
-
-      # DeepSeek V3.2 (Strong Chat / Reasoning)
-      - provider: nvidia
-        model: "deepseek-ai/deepseek-v3.2"
-        priority: 5
-      - provider: together
-        model: "deepseek-ai/DeepSeek-V3"
-        priority: 5
-
+        model: "gpt-4o"
+        priority: 3
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
 
-  # =============================================================================
-  # CHAT FAST (Lowest Latency - Performance Ranked)
-  # =============================================================================
   chat-fast:
-    description: "Fastest chat models - prioritized by Time to First Token (TTFT) and TPS"
+    description: "Fastest chat models"
     fallback_chain:
-      # Tier 1: Instant Response
-      # Cerebras Llama 3.1 8B (~3000 TPS)
-      - provider: cerebras
-        model: "llama-3.1-8b"
-        priority: 1
-
-      # Groq Llama 3 8B (~1349 TPS)
       - provider: groq
-        model: "llama-3-8b-instant"
+        model: "llama-3.1-8b-instant"
+        priority: 1
+      - provider: gemini
+        model: "gemini-1.5-flash"
         priority: 2
-
-      # Gemini 2.0 Flash Lite (Ultra Low Latency)
-      - provider: gemini
-        model: "gemini-2.0-flash-lite"
+      - provider: g4f
+        model: "gpt-3.5-turbo"
         priority: 3
-
-      # Tier 2: Managed Fast
-      # Gemini 2.5 Flash Reasoning (343 TPS)
-      - provider: gemini
-        model: "gemini-2.5-flash-reasoning"
-        priority: 4
-
-      # OpenAI o4-mini (143 TPS)
-      - provider: openai
-        model: "o4-mini"
-        priority: 5
-
     settings:
       timeout_ms: 15000
       retry_on_rate_limit: true
 
-  # =============================================================================
-  # CHAT RP (Roleplay - UGI Leaderboard RP Models)
-  # =============================================================================
   chat-rp:
-    description: "Best RP models from UGI leaderboard"
+    description: "Best RP models"
     fallback_chain:
-      # UGI TOP RANKED RP MODELS
       - provider: g4f
         model: "mn-violet-lotus-12b"
         priority: 1
@@ -206,68 +84,49 @@ virtual_models:
       - provider: g4f
         model: "captain-eris-violet-v0.420"
         priority: 3
-      - provider: g4f
-        model: "mn-12b-lyra-v4"
-        priority: 4
-
-      # FASTER RP OPTIONS
       - provider: cerebras
         model: "llama-3.1-8b"
-        priority: 5
-      - provider: groq
-        model: "llama-3.1-8b-instant"
-        priority: 6
-
+        priority: 4
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
 
-# =============================================================================
-# PROVIDERS (Registered APIs)
-# =============================================================================
 providers:
   nvidia:
     base_url: "https://integrate.api.nvidia.com/v1"
     api_key_env: "NVIDIA_API_KEY"
     rate_limits: { rpm: 60 }
-
   together:
     base_url: "https://api.together.xyz/v1"
     api_key_env: "TOGETHER_API_KEY"
     rate_limits: { rpm: 60 }
-
   cerebras:
     base_url: "https://api.cerebras.ai/v1"
     api_key_env: "CEREBRAS_API_KEY"
     rate_limits: { rpm: 50, daily: 5000 }
-
   groq:
     base_url: "https://api.groq.com/openai/v1"
     api_key_env: "GROQ_API_KEY"
     rate_limits: { rpm: 30, daily: 14400 }
-
   google:
     base_url: "https://generativelanguage.googleapis.com/v1beta"
     api_key_env: "GEMINI_API_KEY"
     rate_limits: { rpm: 15, daily: 1500 }
-
   gemini:
     base_url: "https://generativelanguage.googleapis.com/v1beta"
     api_key_env: "GEMINI_API_KEY"
     rate_limits: { rpm: 15, daily: 1500 }
-
   openai:
     base_url: "https://api.openai.com/v1"
     api_key_env: "OPENAI_API_KEY"
     rate_limits: { rpm: 3000 }
-
   mistral:
     base_url: "https://api.mistral.ai/v1"
     api_key_env: "MISTRAL_API_KEY"
     rate_limits: { rpm: 10 }
-
   g4f:
     base_url: "https://g4f.dev/v1"
     api_key_env: "G4F_API_KEY"
     rate_limits: { rpm: 10, daily: 100 }
+
 
