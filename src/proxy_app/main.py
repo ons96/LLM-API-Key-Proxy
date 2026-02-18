@@ -711,10 +711,10 @@ else:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allow_origins,
+    allow_origins=["*"] if _cors_origins_env == "*" else allow_origins,
     allow_credentials=allow_credentials,
-    allow_methods=["GET", "POST", "OPTIONS"],  # Restrict to needed methods
-    allow_headers=["Authorization", "Content-Type"],  # Restrict to needed headers
+    allow_methods=["*"],  # Allow all methods for better compatibility
+    allow_headers=["*"],  # Allow all headers for better compatibility
 )
 api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
 
