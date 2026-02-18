@@ -45,6 +45,11 @@ class RouterIntegration:
             "groq": "GROQ_API_KEY",
             "gemini": "GEMINI_API_KEY",
             "together": "TOGETHER_API_KEY",
+            "cerebras": "CEREBRAS_API_KEY",
+            "openrouter": "OPENROUTER_API_KEY",
+            "nvidia": "NVIDIA_API_KEY",
+            "mistral": "MISTRAL_API_KEY",
+            "agentrouter": "AGENTROUTER_API_KEY",
             "g4f": None,  # g4f doesn't need API key
         }
 

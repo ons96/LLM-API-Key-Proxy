@@ -1,4 +1,5 @@
 import time
+import inspect
 
 # Phase 1: Minimal imports for arg parsing and TUI
 import asyncio
@@ -994,7 +995,28 @@ async def chat_completions(
     # Use RouterWrapper to handle the request
     try:
         router = get_router()
-        return await router.handle_chat_completions(request_data, request)
+        response = await router.handle_chat_completions(request_data, request)
+
+        # Handle streaming response
+        if inspect.isasyncgen(response):
+
+            async def sse_generator():
+                try:
+                    async for chunk in response:
+                        if isinstance(chunk, dict):
+                            yield f"data: {json.dumps(chunk)}\n\n"
+                        else:
+                            yield f"data: {chunk}\n\n"
+                    yield "data: [DONE]\n\n"
+                except Exception as e:
+                    logging.error(f"Streaming error: {e}")
+                    error_msg = {"error": {"message": str(e), "type": "stream_error"}}
+                    yield f"data: {json.dumps(error_msg)}\n\n"
+                    yield "data: [DONE]\n\n"
+
+            return StreamingResponse(sse_generator(), media_type="text/event-stream")
+
+        return response
     except Exception as e:
         # Fallback to direct client usage if router fails or for detailed logging handling
         # (though RouterWrapper should handle most things)

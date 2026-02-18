@@ -680,6 +680,71 @@ class TogetherAdapter(BaseProviderAdapter):
         return HTTPException(status_code=500, detail=str(error))
 
 
+class LiteLLMAdapter(BaseProviderAdapter):
+    """Generic adapter using LiteLLM for standard providers."""
+
+    def _initialize_models(self):
+        """Initialize models (empty for generic)."""
+        pass
+
+    async def list_models(self) -> List[str]:
+        """List models (empty for generic)."""
+        return []
+
+    async def chat_completions(
+        self,
+        request: Dict[str, Any],
+        stream: bool = False,
+        client: Optional[httpx.AsyncClient] = None,
+    ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
+        """Execute completion via LiteLLM."""
+        if self.api_key:
+            request["api_key"] = self.api_key
+
+        if stream:
+            return self._stream_completion(request)
+        else:
+            return await self._non_stream_completion(request)
+
+    async def _non_stream_completion(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Non-streaming completion."""
+        try:
+            response = await litellm.acompletion(**request)
+            return self._convert_response(response)
+        except Exception as e:
+            logger.error(f"LiteLLM completion failed for {self.provider_name}: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def _stream_completion(
+        self, request: Dict[str, Any]
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Streaming completion."""
+        try:
+            # Handle LiteLLM streaming properly
+            response = await litellm.acompletion(**request, stream=True)
+            async for chunk in response:
+                yield self._convert_chunk(chunk)
+        except Exception as e:
+            logger.error(f"LiteLLM streaming failed for {self.provider_name}: {e}")
+            yield {"error": str(e)}
+
+    def _convert_response(self, response: Any) -> Dict[str, Any]:
+        """Convert response to dict."""
+        if hasattr(response, "dict"):
+            return response.dict()
+        if hasattr(response, "__dict__"):
+            return response.__dict__
+        return response
+
+    def _convert_chunk(self, chunk: Any) -> Dict[str, Any]:
+        """Convert chunk to dict."""
+        if hasattr(chunk, "dict"):
+            return chunk.dict()
+        if hasattr(chunk, "__dict__"):
+            return chunk.__dict__
+        return chunk
+
+
 class ProviderAdapterFactory:
     """Factory for creating provider adapters."""
 
@@ -695,13 +760,21 @@ class ProviderAdapterFactory:
             "together": TogetherAdapter,
         }
 
-        adapter_class = adapters.get(provider_name.lower())
-        if not adapter_class:
-            raise ValueError(f"Unknown provider: {provider_name}")
-
+        adapter_class = adapters.get(provider_name.lower(), LiteLLMAdapter)
         return adapter_class(provider_name, api_key)
 
     @staticmethod
     def list_supported_providers() -> List[str]:
         """List all supported providers."""
-        return ["groq", "gemini", "g4f", "together"]
+        return [
+            "groq",
+            "gemini",
+            "g4f",
+            "together",
+            "cerebras",
+            "openrouter",
+            "nvidia",
+            "mistral",
+            "agentrouter",
+            "openai",
+        ]

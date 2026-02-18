@@ -2,6 +2,12 @@ free_only_mode: true
 proxy_api_keys:
 - ${PROXY_API_KEY}
 providers:
+  agentrouter:
+    enabled: true
+    env_var: AGENTROUTER_API_KEY
+  cerebras:
+    enabled: true
+    env_var: CEREBRAS_API_KEY
   groq:
     enabled: true
     env_var: GROQ_API_KEY
@@ -42,19 +48,6 @@ providers:
     - gemma-3-27b-it
     - gemini-1.5-flash
     - gemini-1.5-pro
-  cerebras:
-    enabled: true
-    env_var: CEREBRAS_API_KEY
-    free_tier_models:
-    # Llama models (existing)
-    - llama-3.3-70b
-    - llama3.1-8b
-    # Qwen models (NEW - EXCELLENT for coding!)
-    - qwen-3-235b-a22b-instruct-2507  # 235B parameter model - best for complex coding
-    - qwen-3-32b  # Fast and capable
-    # Other models (NEW)
-    - gpt-oss-120b  # Large open-source model
-    - zai-glm-4.7  # Chinese language model
   openai:
     enabled: true
     env_var: OPENAI_API_KEY
@@ -139,12 +132,6 @@ providers:
     free_tier: true
     no_api_key_required: true
   exa:
-    enabled: false
-    env_var: EXA_API_KEY
-    free_tier: false
-    paid_tier: true
-  router_models:
-  router/best-coding:
     description: Best for coding tasks
     candidates:
     - provider: groq
