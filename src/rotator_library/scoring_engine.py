@@ -30,21 +30,52 @@ class ModelScore:
 class DynamicScoringEngine:
     """Calculates dynamic scores for virtual model fallback ordering.
 
-    Coding Models: Agentic(70%) + TPS(15%) + Availability(5%) + Hallucination(10%)
-    Chat Models: Intelligence(60%) + TPS(15%) + Availability(10%) + Hallucination(15%)
+    Models are ordered purely by performance benchmarks + TPS + hallucination.
+    Rate limits and availability are NOT used for ordering — rate-limited
+    providers are skipped at runtime instead.
     """
 
+    CATEGORY_WEIGHTS = {
+        "coding-elite": {
+            "agentic": 0.75,
+            "tps": 0.15,
+            "hallucination_penalty": 0.10,
+        },
+        "coding-smart": {
+            "agentic": 0.65,
+            "tps": 0.20,
+            "hallucination_penalty": 0.15,
+        },
+        "coding-fast": {
+            "agentic": 0.30,
+            "tps": 0.55,
+            "hallucination_penalty": 0.15,
+        },
+        "chat-elite": {
+            "intelligence": 0.80,
+            "hallucination_penalty": 0.20,
+        },
+        "chat-smart": {
+            "intelligence": 0.50,
+            "tps": 0.30,
+            "hallucination_penalty": 0.20,
+        },
+        "chat-fast": {
+            "tps": 0.60,
+            "intelligence": 0.20,
+            "hallucination_penalty": 0.20,
+        },
+    }
+
     CODING_WEIGHTS = {
-        "agentic": 0.70,
+        "agentic": 0.75,
         "tps": 0.15,
-        "availability": 0.05,
         "hallucination_penalty": 0.10,
     }
 
     CHAT_WEIGHTS = {
         "intelligence": 0.60,
-        "tps": 0.15,
-        "availability": 0.10,
+        "tps": 0.25,
         "hallucination_penalty": 0.15,
     }
 
@@ -52,6 +83,7 @@ class DynamicScoringEngine:
         "coding-elite": 75.0,
         "coding-smart": 65.0,
         "coding-fast": 40.0,
+        "chat-elite": 0.0,
         "chat-smart": 0.0,
         "chat-fast": 0.0,
     }
@@ -233,13 +265,17 @@ class DynamicScoringEngine:
         if web_search_capable:
             hallucination_penalty *= 0.5
 
-        weights = self.CODING_WEIGHTS
-        total_score = (
-            (agentic_score * weights["agentic"])
-            + (tps_normalized * weights["tps"])
-            + (availability * 100 * weights["availability"])
-            - (hallucination_penalty * weights["hallucination_penalty"])
-        )
+        weights = self.CATEGORY_WEIGHTS.get(virtual_model_type, self.CODING_WEIGHTS)
+
+        total_score = 0.0
+        if "agentic" in weights:
+            total_score += agentic_score * weights["agentic"]
+        if "intelligence" in weights:
+            total_score += agentic_score * weights["intelligence"]
+        if "tps" in weights:
+            total_score += tps_normalized * weights["tps"]
+        if "hallucination_penalty" in weights:
+            total_score -= hallucination_penalty * weights["hallucination_penalty"]
 
         threshold = self.THRESHOLDS.get(virtual_model_type, 0.0)
         meets_threshold = agentic_score >= threshold

@@ -381,17 +381,56 @@ class TavilySearchProvider(SearchProvider):
             logger.error(f"Tavily search failed: {e}")
             raise
 
+
+class ExaSearchProvider(SearchProvider):
+    def __init__(
+        self, config: SearchProviderConfig, api_keys: Optional[List[str]] = None
+    ):
+        super().__init__(config, api_keys[0] if api_keys else None)
+        self.api_keys = api_keys or []
+        self.current_key_index = 0
+
+    def get_available_key(self) -> Optional[str]:
+        if not self.api_keys:
+            return None
+
+        from ..rotator_library.telemetry import get_telemetry_manager
+
+        telemetry = get_telemetry_manager()
+
+        for i in range(len(self.api_keys)):
+            idx = (self.current_key_index + i) % len(self.api_keys)
+            key = self.api_keys[idx]
+            if telemetry.check_search_credits_available("exa", key, required_credits=1):
+                self.current_key_index = idx
+                return key
+
+        return None
+
+    async def search(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
+        api_key = self.get_available_key()
+        if not api_key:
+            raise ValueError("No Exa API key available with credits")
+
         start_time = time.time()
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    "https://api.tavily.com/search",
+                    "https://api.exa.ai/search",
                     json={
-                        "api_key": self.api_key,
                         "query": query,
-                        "max_results": max_results,
-                        "include_answer": True,
+                        "num_results": max_results,
+                        "type": "auto",
+                        "contents": {
+                            "text": {"max_characters": 1000},
+                            "highlights": True,
+                        },
                     },
+                    headers={
+                        "x-api-key": api_key,
+                        "Content-Type": "application/json",
+                    },
+                    timeout=30.0,
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -400,15 +439,22 @@ class TavilySearchProvider(SearchProvider):
                 self.metrics.update_latency(latency_ms)
                 self.metrics.record_success()
 
-                # Extract results
+                from ..rotator_library.telemetry import get_telemetry_manager
+
+                telemetry = get_telemetry_manager()
+                telemetry.record_search_usage("exa", api_key, "search", 1, query, True)
+
                 results = []
                 for result in data.get("results", [])[:max_results]:
                     results.append(
                         {
                             "title": result.get("title"),
                             "url": result.get("url"),
-                            "content": result.get("content"),
-                            "source": "tavily",
+                            "content": result.get("text", ""),
+                            "description": result.get("highlights", [""])[0]
+                            if result.get("highlights")
+                            else "",
+                            "source": "exa",
                         }
                     )
 
@@ -416,7 +462,94 @@ class TavilySearchProvider(SearchProvider):
 
         except Exception as e:
             self.metrics.record_error()
-            logger.error(f"Tavily search failed: {e}")
+            from ..rotator_library.telemetry import get_telemetry_manager
+
+            telemetry = get_telemetry_manager()
+            telemetry.record_search_usage(
+                "exa", api_key, "search", 1, query, False, str(e)
+            )
+            if (
+                "insufficient credits" in str(e).lower()
+                or "quota exceeded" in str(e).lower()
+            ):
+                telemetry.mark_search_key_exhausted("exa", api_key)
+            logger.error(f"Exa search failed: {e}")
+            raise
+
+
+class JinaSearchProvider(SearchProvider):
+    def __init__(
+        self, config: SearchProviderConfig, api_keys: Optional[List[str]] = None
+    ):
+        super().__init__(config, api_keys[0] if api_keys else None)
+        self.api_keys = api_keys or []
+
+    async def search(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        if self.api_keys:
+            headers["Authorization"] = f"Bearer {self.api_keys[0]}"
+
+        start_time = time.time()
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://s.jina.ai/",
+                    json={"q": query},
+                    headers=headers,
+                    timeout=30.0,
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                latency_ms = (time.time() - start_time) * 1000
+                self.metrics.update_latency(latency_ms)
+                self.metrics.record_success()
+
+                results = []
+                items = data if isinstance(data, list) else data.get("data", [])
+                for result in items[:max_results]:
+                    results.append(
+                        {
+                            "title": result.get("title", ""),
+                            "url": result.get("url", ""),
+                            "content": result.get(
+                                "content", result.get("description", "")
+                            ),
+                            "source": "jina",
+                        }
+                    )
+
+                return results
+
+        except Exception as e:
+            self.metrics.record_error()
+            logger.error(f"Jina search failed: {e}")
+            raise
+
+    async def read_url(self, url: str) -> Dict[str, Any]:
+        headers = {"Accept": "application/json"}
+        if self.api_keys:
+            headers["Authorization"] = f"Bearer {self.api_keys[0]}"
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f"https://r.jina.ai/{url}",
+                    headers=headers,
+                    timeout=30.0,
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                return {
+                    "title": data.get("title", ""),
+                    "url": url,
+                    "content": data.get("content", ""),
+                    "source": "jina_reader",
+                }
+
+        except Exception as e:
+            logger.error(f"Jina read failed: {e}")
             raise
 
 
@@ -724,6 +857,7 @@ class RouterCore:
                 "brave": "BRAVE_API_KEY",
                 "tavily": "TAVILY_API_KEY",
                 "exa": "EXA_API_KEY",
+                "jina": "JINA_API_KEY",
             }
 
             # Get API key(s) from environment
@@ -761,6 +895,22 @@ class RouterCore:
                         self.search_providers[name] = TavilySearchProvider(
                             config, api_keys
                         )
+                    elif name == "exa":
+                        for key in api_keys:
+                            telemetry.register_search_api_key(
+                                "exa", key, monthly_allowance=1000
+                            )
+                        self.search_providers[name] = ExaSearchProvider(
+                            config, api_keys
+                        )
+                    elif name == "jina":
+                        for key in api_keys:
+                            telemetry.register_search_api_key(
+                                "jina", key, monthly_allowance=1000000
+                            )
+                        self.search_providers[name] = JinaSearchProvider(
+                            config, api_keys
+                        )
                 except ImportError:
                     # Fallback if telemetry not available
                     logger.warning("Telemetry not available, skipping credit tracking")
@@ -772,9 +922,20 @@ class RouterCore:
                         self.search_providers[name] = TavilySearchProvider(
                             config, api_keys
                         )
+                    elif name == "exa":
+                        self.search_providers[name] = ExaSearchProvider(
+                            config, api_keys
+                        )
+                    elif name == "jina":
+                        self.search_providers[name] = JinaSearchProvider(
+                            config, api_keys
+                        )
             elif name == "duckduckgo":
                 # DuckDuckGo doesn't require API key
                 self.search_providers[name] = DuckDuckGoSearchProvider(config, None)
+            elif name == "jina":
+                # Jina works without API key (20 RPM), better with key (500 RPM)
+                self.search_providers[name] = JinaSearchProvider(config, [])
             else:
                 logger.warning(f"No API keys found for search provider: {name}")
 

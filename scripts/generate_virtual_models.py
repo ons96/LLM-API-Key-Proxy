@@ -43,21 +43,28 @@ WEIGHTS = {
         "humaneval": 0.10,
         "hallucination_penalty": 0.15,
     },
-    "chat-smart": {
-        "intelligence": 0.40,
+    "chat-elite": {
+        "intelligence": 0.55,
         "mmlu": 0.20,
-        "arena_elo": 0.20,
+        "arena_elo": 0.15,
+        "hallucination_penalty": 0.10,
+    },
+    "chat-smart": {
+        "intelligence": 0.35,
+        "mmlu": 0.15,
+        "arena_elo": 0.15,
+        "tps": 0.15,
         "hallucination_penalty": 0.20,
     },
     "chat-fast": {
-        "efficiency": 0.60,
-        "tps": 0.25,
-        "hallucination_penalty": 0.15,
+        "tps": 0.60,
+        "intelligence": 0.20,
+        "hallucination_penalty": 0.20,
     },
     "chat-rp": {
-        "ugi": 0.50,
-        "writing": 0.30,
-        "intelligence": 0.20,
+        "tps": 0.50,
+        "ugi": 0.25,
+        "writing": 0.25,
     },
 }
 
@@ -242,9 +249,22 @@ def generate_fallback_chain(
     model_type: str,
     min_score: float = 0.3,
     max_models: int = 15,
+    min_intelligence: float = 0.0,
+    min_ugi: float = 0.0,
+    min_ugi_entertainment: float = 0.0,
+    max_hallucination: float = 100.0,
 ) -> List[Dict]:
     scored = []
     for m in models:
+        if min_intelligence > 0 and m.get("intelligence", 0) < min_intelligence:
+            continue
+        if min_ugi > 0 and m.get("ugi", 0) < min_ugi:
+            continue
+        if min_ugi_entertainment > 0 and m.get("writing", 0) < min_ugi_entertainment:
+            continue
+        if m.get("hallucination_rate", 0) > max_hallucination:
+            continue
+
         score = calculate_score(m, weights)
         if score >= min_score:
             provider = get_provider_for_model(m.get("id", ""), model_type)
@@ -325,21 +345,37 @@ def generate_virtual_models_yaml() -> Dict:
 
     print("\nGenerating chat-smart...")
     chain = generate_fallback_chain(
-        chat_models, WEIGHTS["chat-smart"], "chat", min_score=0.5
+        chat_models, WEIGHTS["chat-smart"], "chat", min_score=0.4
     )
     virtual_models["chat-smart"] = {
-        "description": "Best reasoning/chat models (Intelligence + Arena Elo)",
+        "description": "Best intelligence-to-speed ratio (smart AND reasonably fast)",
         "fallback_chain": chain,
-        "settings": {"timeout_ms": 180000, "retry_on_rate_limit": True},
+        "settings": {"timeout_ms": 120000, "retry_on_rate_limit": True},
+    }
+    print(f"  Generated {len(chain)} models")
+
+    print("\nGenerating chat-elite...")
+    chain = generate_fallback_chain(
+        chat_models, WEIGHTS["chat-elite"], "chat", min_score=0.5
+    )
+    virtual_models["chat-elite"] = {
+        "description": "Most intelligent models regardless of speed (pure intelligence ranking)",
+        "fallback_chain": chain,
+        "settings": {"timeout_ms": 300000, "retry_on_rate_limit": True},
     }
     print(f"  Generated {len(chain)} models")
 
     print("\nGenerating chat-fast...")
     chain = generate_fallback_chain(
-        chat_models, WEIGHTS["chat-fast"], "chat", min_score=0.4
+        chat_models,
+        WEIGHTS["chat-fast"],
+        "chat",
+        min_score=0.3,
+        min_intelligence=30.0,
+        max_hallucination=25.0,
     )
     virtual_models["chat-fast"] = {
-        "description": "Fastest chat models (Efficiency priority)",
+        "description": "Fastest models that aren't stupid (TPS priority, min intelligence threshold)",
         "fallback_chain": chain,
         "settings": {"timeout_ms": 15000, "retry_on_rate_limit": True},
     }
@@ -348,7 +384,13 @@ def generate_virtual_models_yaml() -> Dict:
     print("\nGenerating chat-rp...")
     if ugi_models:
         chain = generate_fallback_chain(
-            ugi_models, WEIGHTS["chat-rp"], "rp", min_score=0.25, max_models=20
+            ugi_models,
+            WEIGHTS["chat-rp"],
+            "rp",
+            min_score=0.15,
+            max_models=20,
+            min_ugi=25.0,
+            min_ugi_entertainment=15.0,
         )
     else:
         chain = [
@@ -364,9 +406,9 @@ def generate_virtual_models_yaml() -> Dict:
             {"provider": "cerebras", "model": "llama-3.1-8b", "priority": 6},
         ]
     virtual_models["chat-rp"] = {
-        "description": "Best uncensored RP models (UGI + Writing quality)",
+        "description": "Uncensored RP models (min UGI threshold, then sorted by TPS for fast responses)",
         "fallback_chain": chain,
-        "settings": {"timeout_ms": 60000, "retry_on_rate_limit": True},
+        "settings": {"timeout_ms": 30000, "retry_on_rate_limit": True},
     }
     print(f"  Generated {len(chain)} models")
 

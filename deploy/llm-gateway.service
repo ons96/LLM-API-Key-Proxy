@@ -1,0 +1,17 @@
+[Unit]
+Description=LLM API Gateway Proxy
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/LLM-API-Key-Proxy
+EnvironmentFile=/home/ubuntu/LLM-API-Key-Proxy/.env
+ExecStart=/home/ubuntu/LLM-API-Key-Proxy/venv/bin/python src/proxy_app/main.py --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/home/ubuntu/llm_proxy.log
+StandardError=append:/home/ubuntu/llm_proxy.log
+
+[Install]
+WantedBy=multi-user.target

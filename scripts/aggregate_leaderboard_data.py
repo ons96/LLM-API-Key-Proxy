@@ -46,7 +46,7 @@ ALIASES_FILE = Path(__file__).resolve().parent.parent / "config" / "aliases.yaml
 # Data source URLs
 LIVEBENCH_API_URL = "https://livebench.ai/api/leaderboard"
 LIVEBENCH_DATA_URL = "https://livebench.ai/data/leaderboard.json"
-LMARENA_URL = "https://lmarena.ai"
+LMARENA_URL = "https://arena.ai"
 
 # Known models that might be missing from scraped data
 # These will be added with their known scores from LiveBench/LM Arena
@@ -306,20 +306,21 @@ def parse_livebench_api(data: Any) -> List[Dict[str, Any]]:
 
 
 async def fetch_lmarena_data(session: aiohttp.ClientSession) -> List[Dict[str, Any]]:
-    """Fetch model rankings from LM Arena."""
-    logger.info("Fetching LM Arena data...")
+    """Fetch model rankings from Arena.ai (formerly LM Arena)."""
+    logger.info("Fetching Arena.ai data...")
     models = []
+    code_url = f"{LMARENA_URL}/leaderboard/code"
 
     try:
         async with session.get(
-            LMARENA_URL, timeout=aiohttp.ClientTimeout(total=60)
+            code_url, timeout=aiohttp.ClientTimeout(total=60)
         ) as response:
             if response.status == 200:
                 html = await response.text()
                 models = parse_lmarena_html(html)
-                logger.info(f"  ✓ Loaded {len(models)} models from LM Arena")
+                logger.info(f"  ✓ Loaded {len(models)} models from Arena.ai")
     except Exception as e:
-        logger.warning(f"  ✗ Failed to fetch LM Arena: {e}")
+        logger.warning(f"  ✗ Failed to fetch Arena.ai: {e}")
 
     return models
 
@@ -395,20 +396,26 @@ def extract_tps(item: Dict[str, Any]) -> float:
 
 
 def normalize_slug(name: str) -> str:
-    """Normalize model name to slug format."""
-    clean_name = re.sub(r"[^\w\s\-\.]", "", name)
-    slug = (
-        clean_name.lower()
-        .replace(" ", "-")
-        .replace(".", "-")
-        .replace("(", "")
-        .replace(")", "")
-        .replace("_", "-")
-    )
+    """Normalize model name to slug format.
+
+    Aligned with normalize_model_name in llm_aggregated_leaderboard.py:
+    - Converts dots, underscores, spaces → hyphens
+    - Removes parenthetical suffixes
+    - Strips non-alphanumeric except hyphens
+    - Collapses multiple hyphens
+    """
+    if not name:
+        return ""
+    clean_name = name.lower().strip()
+    # Remove parenthetical suffixes like "(high)", "(free)"
+    clean_name = re.sub(r"\([^)]*\)", "", clean_name)
+    clean_name = re.sub(r"[._\s]+", "-", clean_name)
+    # Remove non-alphanumeric except hyphens
+    clean_name = re.sub(r"[^a-z0-9\-]", "", clean_name)
     # Clean up multiple dashes
-    slug = re.sub(r"-+", "-", slug)
-    slug = slug.strip("-")
-    return slug
+    clean_name = re.sub(r"-+", "-", clean_name)
+    clean_name = clean_name.strip("-")
+    return clean_name
 
 
 # ============================================================================

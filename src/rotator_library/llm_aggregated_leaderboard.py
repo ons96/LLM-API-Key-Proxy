@@ -100,7 +100,14 @@ def safe_float_convert(text):
 
 
 def scrape_livebench_leaderboard():
-    """Scrapes LiveBench."""
+    """Scrapes LiveBench.
+
+    Extracts multiple scores per model:
+    - 'agentic coding average' column → LiveBench Agentic Coding
+    - 'coding average' column → LiveBench Coding
+    - 'global average' column → LiveBench Global
+    - 'reasoning average' column → LiveBench Reasoning
+    """
     url = "https://livebench.ai/#/"
     data = []
     try:
@@ -118,17 +125,29 @@ def scrape_livebench_leaderboard():
             return []
         headers = [th.get_text(strip=True).lower() for th in thead.find_all("th")]
 
-        # Find indices
+        # Find indices for model name and all relevant score columns
         try:
             model_idx = next(i for i, h in enumerate(headers) if "model" in h)
-            score_idx = next(
-                i
-                for i, h in enumerate(headers)
-                if "global average" in h or "average" in h
-            )
-            coding_idx = next((i for i, h in enumerate(headers) if "coding" in h), None)
         except StopIteration:
-            print("Could not map LiveBench headers")
+            print("Could not find model column in LiveBench headers")
+            return []
+
+        # Map column names to our score categories
+        score_columns = {}
+        for i, h in enumerate(headers):
+            if "agentic" in h and "coding" in h:
+                score_columns["agentic_coding"] = i
+            elif "coding" in h and "agentic" not in h:
+                score_columns["coding"] = i
+            elif "global" in h and "average" in h:
+                score_columns["global"] = i
+            elif "reasoning" in h and "average" in h:
+                score_columns["reasoning"] = i
+            elif h in ("average", "overall"):
+                score_columns.setdefault("global", i)
+
+        if not score_columns:
+            print(f"Could not find score columns in LiveBench headers: {headers}")
             return []
 
         tbody = table.find("tbody")
@@ -136,29 +155,34 @@ def scrape_livebench_leaderboard():
 
         for row in rows:
             cols = row.find_all("td")
-            if len(cols) <= max(model_idx, score_idx):
+            if len(cols) <= model_idx:
                 continue
 
             model = cols[model_idx].get_text(strip=True)
-            # Prioritize coding score if available, else global
-            score_val = (
-                cols[coding_idx].get_text(strip=True)
-                if coding_idx
-                else cols[score_idx].get_text(strip=True)
-            )
-            score = safe_float_convert(score_val)
+            if not model:
+                continue
 
-            if model and score:
-                data.append(
-                    (
-                        model,
-                        score,
-                        "LiveBench Coding" if coding_idx else "LiveBench Global",
-                        "livebench",
-                    )
-                )
+            # Extract each available score as a separate entry
+            for score_type, col_idx in score_columns.items():
+                if col_idx < len(cols):
+                    score = safe_float_convert(cols[col_idx].get_text(strip=True))
+                    if score is not None and score > 0:
+                        label_map = {
+                            "agentic_coding": "LiveBench Agentic Coding",
+                            "coding": "LiveBench Coding",
+                            "global": "LiveBench Global",
+                            "reasoning": "LiveBench Reasoning",
+                        }
+                        data.append(
+                            (
+                                model,
+                                score,
+                                label_map.get(score_type, f"LiveBench {score_type}"),
+                                "livebench",
+                            )
+                        )
 
-        print(f"Scraped {len(data)} from LiveBench")
+        print(f"Scraped {len(data)} entries from LiveBench")
         return data
     except Exception as e:
         print(f"LiveBench scrape error: {e}")
@@ -211,7 +235,14 @@ def scrape_aider_leaderboard():
 
 
 def scrape_artificial_analysis():
-    """Scrapes Artificial Analysis (Models Page)."""
+    """Scrapes Artificial Analysis (Models Page).
+
+    Extracts:
+    - Intelligence/coding score
+    - TPS (output speed)
+    - Agentic coding index (average of GDPval-AA and τ²-Bench Telecom
+      columns, handling cases where a model has only one of the two)
+    """
     url = "https://artificialanalysis.ai/leaderboards/models"
     data = []
     try:
@@ -248,6 +279,24 @@ def scrape_artificial_analysis():
                 None,
             )
 
+            # Look for agentic coding index components
+            gdpval_idx = next(
+                (i for i, h in enumerate(headers) if "gdpval" in h or "gdp" in h),
+                None,
+            )
+            tau2_idx = next(
+                (
+                    i
+                    for i, h in enumerate(headers)
+                    if "τ²" in h or "tau2" in h or "t2-bench" in h or "telecom" in h
+                ),
+                None,
+            )
+            # Also look for a direct "agentic" column
+            agentic_idx = next(
+                (i for i, h in enumerate(headers) if "agentic" in h), None
+            )
+
             idx_to_use = coding_idx if coding_idx is not None else score_idx
             if idx_to_use == -1:
                 return []
@@ -268,10 +317,47 @@ def scrape_artificial_analysis():
             if tps_idx and len(cols) > tps_idx:
                 tps = safe_float_convert(cols[tps_idx].get_text(strip=True)) or 0
 
+            # Calculate agentic coding index from GDPval-AA and τ²-Bench Telecom
+            agentic_score = None
+            if agentic_idx and len(cols) > agentic_idx:
+                agentic_score = safe_float_convert(
+                    cols[agentic_idx].get_text(strip=True)
+                )
+
+            if agentic_score is None and (gdpval_idx or tau2_idx):
+                gdpval = None
+                tau2 = None
+                if gdpval_idx and len(cols) > gdpval_idx:
+                    gdpval = safe_float_convert(cols[gdpval_idx].get_text(strip=True))
+                if tau2_idx and len(cols) > tau2_idx:
+                    tau2 = safe_float_convert(cols[tau2_idx].get_text(strip=True))
+
+                # Average of available scores (handle models missing one)
+                components = [s for s in [gdpval, tau2] if s is not None]
+                if components:
+                    agentic_score = sum(components) / len(components)
+
             if model and score:
-                # Store TPS in context if available
-                context = f"TPS:{tps}" if tps else ""
+                # Store TPS and agentic score in context if available
+                context_parts = []
+                if tps:
+                    context_parts.append(f"TPS:{tps}")
+                if agentic_score is not None:
+                    context_parts.append(f"AGENTIC:{agentic_score:.1f}")
+                context = " ".join(context_parts)
                 data.append((model, score, "AA Coding", "artificial_analysis", context))
+
+                # Also emit agentic coding as a separate entry if found
+                if agentic_score is not None:
+                    data.append(
+                        (
+                            model,
+                            agentic_score,
+                            "AA Agentic Coding Index",
+                            "artificial_analysis",
+                            context,
+                        )
+                    )
 
         print(f"Scraped {len(data)} from Artificial Analysis")
         return data
@@ -555,10 +641,11 @@ def scrape_vals_benchmarks():
 
 def scrape_lm_arena():
     """
-    Scrapes LM Arena (Web Development category).
-    URL: https://lmarena.ai/leaderboard/webdev
+    Scrapes LM Arena (Code category).
+    URL: https://arena.ai/leaderboard/code
+    (Formerly: https://lmarena.ai/leaderboard/webdev)
     """
-    url = "https://lmarena.ai/leaderboard/webdev"
+    url = "https://arena.ai/leaderboard/code"
     data = []
 
     try:
@@ -620,31 +707,115 @@ def scrape_lm_arena():
 
 
 def normalize_model_name(name):
-    """Normalize model name for matching."""
+    """Normalize model name for matching.
+
+    Handles naming variants like:
+    - claude-opus-4-6 vs claude-4.6-opus
+    - gpt-5.2 vs gpt-5-2
+    - Gemini 2.5 Pro vs gemini-2-5-pro
+    """
     if not name:
         return ""
-    # Remove version numbers, dates, and special characters
-    name = name.lower()
-    name = re.sub(r"[^a-z0-9]", "", name)
+    name = name.lower().strip()
+    # Normalize separators: dots, underscores, spaces → hyphens
+    name = re.sub(r"[._\s]+", "-", name)
+    # Remove parenthetical suffixes like "(high)", "(low)", "(free)"
+    name = re.sub(r"\([^)]*\)", "", name)
+    # Remove non-alphanumeric except hyphens
+    name = re.sub(r"[^a-z0-9\-]", "", name)
+    # Collapse multiple hyphens
+    name = re.sub(r"-+", "-", name).strip("-")
     return name
 
 
-def match_models(target_names, source_names, threshold=85):
-    """Match model names across sources using fuzzy matching."""
+def _extract_model_tokens(name):
+    """Extract canonical tokens from a normalized model name for order-insensitive matching.
+
+    Splits on hyphens, groups version-number tokens together, and sorts
+    alphabetic tokens so that 'claude-opus-4-6' and 'claude-4-6-opus'
+    produce the same canonical set.
+    """
+    parts = name.split("-")
+    alpha_tokens = sorted(p for p in parts if not p.isdigit())
+    # Preserve numeric tokens in order (version numbers)
+    num_tokens = [p for p in parts if p.isdigit()]
+    return alpha_tokens, num_tokens
+
+
+# Variant suffixes that distinguish fundamentally different model configurations
+_VARIANT_SUFFIXES = {
+    "thinking",
+    "reasoning",
+    "extended",
+    "mini",
+    "nano",
+    "micro",
+    "max",
+}
+
+
+def _has_variant_mismatch(name_a, name_b):
+    """Check if two model names differ by a variant suffix.
+
+    Returns True if one has a variant suffix the other lacks,
+    which means they should NOT be matched together.
+    E.g., 'claude-opus-4-5' vs 'claude-opus-4-5-thinking' → True (mismatch)
+    """
+    parts_a = set(name_a.split("-"))
+    parts_b = set(name_b.split("-"))
+    for suffix in _VARIANT_SUFFIXES:
+        if (suffix in parts_a) != (suffix in parts_b):
+            return True
+    return False
+
+
+def match_models(target_names, source_names, threshold=80):
+    """Match model names across sources using fuzzy matching.
+
+    Uses token_sort_ratio to handle reordered name components
+    (e.g., claude-opus-4-6 vs claude-4.6-opus).
+    Falls back to exact canonical-token matching before fuzzy.
+
+    Reasoning/thinking variants are treated as distinct models
+    and will NOT be matched to their non-reasoning counterpart.
+    """
     mapping = {}
     normalized_source = {normalize_model_name(name): name for name in source_names}
     source_keys = list(normalized_source.keys())
 
+    # Build canonical token index for exact structural matches
+    canonical_index = {}
+    for norm_name in source_keys:
+        alpha, nums = _extract_model_tokens(norm_name)
+        key = (tuple(alpha), tuple(nums))
+        canonical_index.setdefault(key, []).append(norm_name)
+
     for target in target_names:
         norm_target = normalize_model_name(target)
+
+        # 1. Exact normalized match
         if norm_target in normalized_source:
             mapping[target] = normalized_source[norm_target]
             continue
 
-        result = process.extractOne(norm_target, source_keys, scorer=fuzz.ratio)
+        # 2. Canonical token match (order-insensitive)
+        t_alpha, t_nums = _extract_model_tokens(norm_target)
+        t_key = (tuple(t_alpha), tuple(t_nums))
+        if t_key in canonical_index:
+            mapping[target] = normalized_source[canonical_index[t_key][0]]
+            continue
+
+        # 3. Fuzzy match with token_sort_ratio (handles reordering)
+        result = process.extractOne(
+            norm_target, source_keys, scorer=fuzz.token_sort_ratio
+        )
 
         if result and result[1] >= threshold:
-            mapping[target] = normalized_source[result[0]]
+            # Guard: reject match if variant suffix mismatch
+            if _has_variant_mismatch(norm_target, result[0]):
+                mapping[target] = None
+            else:
+                mapping[target] = normalized_source[result[0]]
         else:
             mapping[target] = None
 
@@ -652,7 +823,13 @@ def match_models(target_names, source_names, threshold=85):
 
 
 def calculate_aggregate_scores(df):
-    """Calculate aggregate and composite scores."""
+    """Calculate aggregate and composite scores.
+
+    Handles missing data properly:
+    - NaN scores are excluded from weighted averages (not treated as 0)
+    - Models with no valid scores are dropped
+    - Normalization uses only valid (non-NaN) values
+    """
     print("\nCalculating aggregate scores...")
 
     model_groups = df.groupby("Model")
@@ -676,6 +853,10 @@ def calculate_aggregate_scores(df):
         verified = m_data[m_data["Header"] == "SWE-bench Verified"]["Score"]
         others = m_data[m_data["Header"] != "SWE-bench Verified"]["Score"]
 
+        # Drop NaN values before computing means
+        verified = verified.dropna()
+        others = others.dropna()
+
         if not verified.empty:
             v_val = verified.mean()
             if not others.empty:
@@ -686,6 +867,13 @@ def calculate_aggregate_scores(df):
 
     agg_df["Quality_Score"] = agg_df.apply(get_weighted_score, axis=1)
 
+    # Drop models with no valid scores
+    agg_df = agg_df.dropna(subset=["Quality_Score"])
+
+    if agg_df.empty:
+        print("Warning: No models with valid quality scores")
+        return agg_df.reset_index()
+
     # 2. Extract TPS if available in Context
     def extract_tps(context):
         matches = re.findall(r"TPS:(\d+\.?\d*)", context)
@@ -695,8 +883,9 @@ def calculate_aggregate_scores(df):
 
     agg_df["TPS"] = agg_df["Context"].apply(extract_tps)
 
-    # 3. Normalize Quality Score (0-1)
-    q_min, q_max = agg_df["Quality_Score"].min(), agg_df["Quality_Score"].max()
+    # 3. Normalize Quality Score (0-1), using only valid values
+    valid_quality = agg_df["Quality_Score"].dropna()
+    q_min, q_max = valid_quality.min(), valid_quality.max()
     if q_max > q_min:
         agg_df["Quality_Normalized"] = (agg_df["Quality_Score"] - q_min) / (
             q_max - q_min

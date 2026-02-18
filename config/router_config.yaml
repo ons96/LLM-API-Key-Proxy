@@ -139,10 +139,14 @@ providers:
     free_tier: true
     no_api_key_required: true
   exa:
-    enabled: false
+    enabled: true
     env_var: EXA_API_KEY
-    free_tier: false
-    paid_tier: true
+    free_tier: true
+  jina:
+    enabled: true
+    env_var: JINA_API_KEY
+    free_tier: true
+    no_api_key_required: true
   router_models:
   router/best-coding:
     description: Best for coding tasks
@@ -326,10 +330,14 @@ search:
     free_only: true
     no_api_key_required: true
   - name: exa
-    enabled: false
+    enabled: true
     priority: 4
-    free_only: false
-    paid_only: true
+    free_only: true
+  - name: jina
+    enabled: true
+    priority: 5
+    free_only: true
+    no_api_key_required: true
 routing:
   default_cooldown_seconds: 60
   rate_limit_cooldown_seconds: 300

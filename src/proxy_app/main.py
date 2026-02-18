@@ -588,6 +588,7 @@ async def lifespan(app: FastAPI):
 
     client.background_refresher.start()  # Start the background task
     app.state.rotating_client = client
+    app.state._start_time = time.time()
 
     # Warn if no provider credentials are configured
     if not client.all_credentials:
@@ -638,6 +639,26 @@ async def lifespan(app: FastAPI):
     status_tracker = initialize_status_tracker(app)
     app.state.provider_status_tracker = status_tracker
     logging.info("Provider status tracker initialized and started")
+
+    # Run models.dev auto-discovery in background (non-blocking)
+    async def _run_models_dev_discovery():
+        try:
+            from rotator_library.models_dev_discovery import run_discovery
+
+            discoveries, changes = await run_discovery(
+                update_config=False, save_cache=True
+            )
+            total_new = sum(len(d["new_models"]) for d in discoveries)
+            if total_new > 0:
+                logging.info(
+                    f"models.dev discovery: found {total_new} new free models "
+                    f"across {len(discoveries)} providers. "
+                    f"Run 'python scripts/discover_free_models.py' for details."
+                )
+        except Exception as e:
+            logging.warning(f"models.dev discovery failed (non-critical): {e}")
+
+    asyncio.create_task(_run_models_dev_discovery())
 
     yield
 
@@ -1107,6 +1128,19 @@ async def embeddings(
 @app.get("/")
 def read_root():
     return {"Status": "API Key Proxy is running"}
+
+
+@app.get("/health")
+async def health_check(request: Request):
+    client = request.app.state.rotating_client
+    providers_up = bool(client.all_credentials)
+    return {
+        "status": "healthy" if providers_up else "degraded",
+        "providers_configured": providers_up,
+        "uptime_seconds": int(time.time() - request.app.state._start_time)
+        if hasattr(request.app.state, "_start_time")
+        else None,
+    }
 
 
 @app.get("/v1/models")

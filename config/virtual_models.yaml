@@ -116,7 +116,7 @@ virtual_models:
       timeout_ms: 30000
       retry_on_rate_limit: true
   chat-smart:
-    description: Best reasoning/chat models (Intelligence + Arena Elo)
+    description: Best intelligence-to-speed ratio (smart AND reasonably fast)
     fallback_chain:
     - provider: gemini
       model: gemini-3-pro
@@ -164,10 +164,52 @@ virtual_models:
       model: llama-3-3-70b
       priority: 15
     settings:
-      timeout_ms: 180000
+      timeout_ms: 120000
+      retry_on_rate_limit: true
+  chat-elite:
+    description: Most intelligent models regardless of speed (pure intelligence ranking)
+    fallback_chain:
+    - provider: g4f
+      model: claude-opus-4-5-thinking-32k
+      priority: 1
+    - provider: g4f
+      model: gpt-5-xhigh
+      priority: 2
+    - provider: gemini
+      model: gemini-3-pro
+      priority: 3
+    - provider: g4f
+      model: grok-4-1-thinking
+      priority: 4
+    - provider: g4f
+      model: claude-sonnet-4-5-thinking-32k
+      priority: 5
+    - provider: g4f
+      model: gpt-5-high
+      priority: 6
+    - provider: g4f
+      model: grok-4-1
+      priority: 7
+    - provider: gemini
+      model: gemini-3-flash
+      priority: 8
+    - provider: g4f
+      model: gpt-5-medium
+      priority: 9
+    - provider: together
+      model: deepseek-v3
+      priority: 10
+    - provider: together
+      model: qwen2-5-72b
+      priority: 11
+    - provider: groq
+      model: llama-4-scout
+      priority: 12
+    settings:
+      timeout_ms: 300000
       retry_on_rate_limit: true
   chat-fast:
-    description: Fastest chat models (Efficiency priority)
+    description: Fastest models that aren't stupid (TPS priority, min intelligence threshold)
     fallback_chain:
     - provider: together
       model: medium-3-1
@@ -206,7 +248,7 @@ virtual_models:
       timeout_ms: 15000
       retry_on_rate_limit: true
   chat-rp:
-    description: Best uncensored RP models (UGI + Writing quality)
+    description: Uncensored RP models (min UGI threshold, sorted by TPS for fast responses)
     fallback_chain:
     - provider: g4f
       model: mn-violet-lotus-12b
@@ -227,7 +269,7 @@ virtual_models:
       model: llama-3.1-8b
       priority: 6
     settings:
-      timeout_ms: 60000
+      timeout_ms: 30000
       retry_on_rate_limit: true
 providers:
   nvidia:
