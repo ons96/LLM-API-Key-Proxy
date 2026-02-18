@@ -31,25 +31,15 @@ def normalize_model_name(name: str) -> str:
 def scrape_ugi_leaderboard(
     min_ugi: float = 20.0, min_writing: float = 0.0
 ) -> List[Dict]:
-    """
-    Scrape UGI leaderboard for uncensored model rankings.
-
-    Returns list of dicts with:
-        - model: normalized model name
-        - full_name: original author/model name
-        - ugi_score: uncensored score (higher = more uncensored)
-        - writing: writing quality score
-        - willingness: W/10 score
-        - natint: natural intelligence score
-        - params: active parameters (in billions)
-        - nsfw_score: NSFW capability score
-    """
     try:
         logger.info(f"Fetching UGI leaderboard from {UGI_CSV_URL}")
-        response = requests.get(UGI_CSV_URL, timeout=60)
+        response = requests.get(UGI_CSV_URL, timeout=60, allow_redirects=True)
         response.raise_for_status()
 
         content = response.text
+        if content.startswith("\ufeff"):
+            content = content[1:]
+
         reader = csv.DictReader(StringIO(content))
 
         models = []
@@ -86,7 +76,7 @@ def scrape_ugi_leaderboard(
                     }
                 )
 
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError):
                 continue
 
         models.sort(key=lambda x: x["ugi_score"], reverse=True)
