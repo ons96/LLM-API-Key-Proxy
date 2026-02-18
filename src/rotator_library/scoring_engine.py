@@ -16,14 +16,13 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ModelScore:
-    """Represents a calculated score for a model/provider combination."""
-
     provider: str
     model: str
     agentic_score: float
     tps: float
     availability: float
     hallucination_rate: float
+    web_search_capable: bool
     total_score: float
     meets_threshold: bool
 
@@ -115,7 +114,6 @@ class DynamicScoringEngine:
         return None
 
     def get_hallucination_rate(self, provider: str, model: str) -> float:
-        """Get hallucination rate for a model (lower is better)."""
         if time.time() - self._last_refresh > 3600:
             self.load_model_rankings()
 
@@ -136,6 +134,28 @@ class DynamicScoringEngine:
             return scores.get("hallucination_rate", 10.0)
 
         return 10.0
+
+    def get_web_search_capable(self, provider: str, model: str) -> bool:
+        if time.time() - self._last_refresh > 3600:
+            self.load_model_rankings()
+
+        key = f"{provider}/{model}"
+        model_data = self._rankings_cache.get(key)
+
+        if not model_data:
+            for k, v in self._rankings_cache.items():
+                if (
+                    k.endswith(f"/{model}")
+                    or v.get("name", "").lower() == model.lower()
+                ):
+                    model_data = v
+                    break
+
+        if model_data:
+            capabilities = model_data.get("capabilities", {})
+            return capabilities.get("web_search_capable", False)
+
+        return False
 
     def get_tps_estimate(self, provider: str, model: str) -> float:
         """Get TPS from telemetry or return default estimate."""
@@ -205,9 +225,13 @@ class DynamicScoringEngine:
         tps = self.get_tps_estimate(provider, model)
         availability = self.get_availability(provider, model)
         hallucination_rate = self.get_hallucination_rate(provider, model)
+        web_search_capable = self.get_web_search_capable(provider, model)
 
         tps_normalized = min(tps / 20.0, 100.0)
         hallucination_penalty = min(hallucination_rate / 20.0, 100.0)
+
+        if web_search_capable:
+            hallucination_penalty *= 0.5
 
         weights = self.CODING_WEIGHTS
         total_score = (
@@ -227,6 +251,7 @@ class DynamicScoringEngine:
             tps=tps,
             availability=availability,
             hallucination_rate=hallucination_rate,
+            web_search_capable=web_search_capable,
             total_score=total_score,
             meets_threshold=meets_threshold,
         )

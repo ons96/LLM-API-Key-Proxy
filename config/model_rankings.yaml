@@ -2,6 +2,7 @@
 # SWE-bench Verified scores from: llm-stats.com, swebench.com, marc0.dev
 # Hallucination rates from: Vectara HHEM leaderboard (lower is better)
 # TPS from: Artificial Analysis, provider documentation
+# Web search: Models with web_search_capable=true can ground responses in search results
 # 
 # IMPORTANT: Models marked with verified: false have UNVERIFIED SWE-bench scores.
 # Llama models are NOT on the official SWE-bench Verified leaderboard.
@@ -19,6 +20,10 @@ models:
     agentic_coding: 80.9
     hallucination_rate: 3.2
     composite_score: 81.5
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+    streaming: true
   best_for:
   - coding-elite
   - coding-smart
@@ -34,6 +39,10 @@ models:
     agentic_coding: 80.0
     hallucination_rate: 5.6
     composite_score: 82.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+    streaming: true
   best_for:
   - coding-elite
   - coding-smart
@@ -50,6 +59,10 @@ models:
     agentic_coding: 78.0
     hallucination_rate: 3.3
     composite_score: 79.5
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+    streaming: true
   best_for:
   - coding-elite
   - coding-smart
@@ -66,6 +79,10 @@ models:
     agentic_coding: 77.8
     hallucination_rate: 4.5
     composite_score: 78.5
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+    streaming: true
   best_for:
   - coding-elite
   - coding-smart
@@ -84,6 +101,10 @@ models:
     agentic_coding: 77.2
     hallucination_rate: 3.8
     composite_score: 77.8
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+    streaming: true
   best_for:
   - coding-elite
   - coding-smart
@@ -99,6 +120,10 @@ models:
     agentic_coding: 76.8
     hallucination_rate: 4.2
     composite_score: 77.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+    streaming: true
   best_for:
   - coding-smart
 
@@ -113,6 +138,10 @@ models:
     agentic_coding: 76.2
     hallucination_rate: 3.5
     composite_score: 76.8
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+    streaming: true
   best_for:
   - coding-elite
   - coding-smart
@@ -129,6 +158,10 @@ models:
     agentic_coding: 74.9
     hallucination_rate: 6.2
     composite_score: 76.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+    streaming: true
   best_for:
   - coding-smart
   - coding-fast
@@ -144,6 +177,10 @@ models:
     agentic_coding: 73.5
     hallucination_rate: 5.8
     composite_score: 74.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+    streaming: true
   best_for:
   - coding-smart
 
@@ -158,6 +195,10 @@ models:
     agentic_coding: 73.3
     hallucination_rate: 4.0
     composite_score: 73.8
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+    streaming: true
   best_for:
   - coding-smart
   - coding-fast
@@ -173,6 +214,10 @@ models:
     agentic_coding: 68.0
     hallucination_rate: 6.5
     composite_score: 70.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+    streaming: true
   best_for:
   - coding-smart
   - coding-fast
@@ -189,6 +234,10 @@ models:
     agentic_coding: 55.0
     hallucination_rate: 7.2
     composite_score: 58.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+    streaming: true
   best_for:
   - coding-fast
 

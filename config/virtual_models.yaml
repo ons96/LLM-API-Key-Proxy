@@ -1,5 +1,5 @@
 metadata:
-  generated_at: '2026-02-17T22:43:39.209471'
+  generated_at: '2026-02-18T17:30:00.000000'
   sources:
   - model_rankings.yaml
   - chat_model_rankings.yaml
@@ -44,6 +44,8 @@ virtual_models:
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
+      web_search_enabled: false
+      web_search_preferred: false
   coding-smart:
     description: High-quality coding with balanced performance (SWE-bench >= 65%)
     fallback_chain:
