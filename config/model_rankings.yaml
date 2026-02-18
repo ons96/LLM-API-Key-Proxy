@@ -1,183 +1,302 @@
+# Model Rankings - Updated Feb 2026
+# SWE-bench Verified scores from: llm-stats.com, swebench.com, marc0.dev
+# Hallucination rates from: Vectara HHEM leaderboard (lower is better)
+# TPS from: Artificial Analysis, provider documentation
+# 
+# IMPORTANT: Models marked with verified: false have UNVERIFIED SWE-bench scores.
+# Llama models are NOT on the official SWE-bench Verified leaderboard.
+
 models:
+# === TIER 1: ELITE CODING (SWE-bench >= 75%) ===
+- id: anthropic/claude-opus-4-5
+  name: Claude Opus 4.5 (20251101)
+  scores:
+    speed_tps: 49.0
+    swe_bench_verified: 80.9
+    swe_bench: 80.9
+    humaneval: 92.0
+    livebench_coding: 78.5
+    agentic_coding: 80.9
+    hallucination_rate: 3.2
+    composite_score: 81.5
+  best_for:
+  - coding-elite
+  - coding-smart
+
+- id: openai/gpt-5-2
+  name: GPT-5.2 (2025-12-11)
+  scores:
+    speed_tps: 187.0
+    swe_bench_verified: 80.0
+    swe_bench: 80.0
+    humaneval: 91.0
+    livebench_coding: 76.5
+    agentic_coding: 80.0
+    hallucination_rate: 5.6
+    composite_score: 82.0
+  best_for:
+  - coding-elite
+  - coding-smart
+  - coding-fast
+
+- id: google/gemini-3-flash
+  name: Gemini 3 Flash (2025-12-17)
+  scores:
+    speed_tps: 120.0
+    swe_bench_verified: 78.0
+    swe_bench: 78.0
+    humaneval: 89.0
+    livebench_coding: 74.0
+    agentic_coding: 78.0
+    hallucination_rate: 3.3
+    composite_score: 79.5
+  best_for:
+  - coding-elite
+  - coding-smart
+  - coding-fast
+
+- id: zhipu/glm-5
+  name: GLM-5 (2026-01-15)
+  scores:
+    speed_tps: 85.0
+    swe_bench_verified: 77.8
+    swe_bench: 77.8
+    humaneval: 88.0
+    livebench_coding: 73.5
+    agentic_coding: 77.8
+    hallucination_rate: 4.5
+    composite_score: 78.5
+  best_for:
+  - coding-elite
+  - coding-smart
+  free_providers:
+  - kilo: z-ai/glm-5:free
+  - modal: zai-org/GLM-5-FP8
+
+- id: anthropic/claude-sonnet-4-5
+  name: Claude Sonnet 4.5 (20250929)
+  scores:
+    speed_tps: 52.0
+    swe_bench_verified: 77.2
+    swe_bench: 77.2
+    humaneval: 88.5
+    livebench_coding: 72.0
+    agentic_coding: 77.2
+    hallucination_rate: 3.8
+    composite_score: 77.8
+  best_for:
+  - coding-elite
+  - coding-smart
+
+- id: moonshot/kimi-k2-5
+  name: Kimi K2.5 (2025-12-10)
+  scores:
+    speed_tps: 60.0
+    swe_bench_verified: 76.8
+    swe_bench: 76.8
+    humaneval: 87.0
+    livebench_coding: 71.5
+    agentic_coding: 76.8
+    hallucination_rate: 4.2
+    composite_score: 77.0
+  best_for:
+  - coding-smart
+
 - id: google/gemini-3-pro
   name: Gemini 3 Pro Preview (2025-11-18)
   scores:
     speed_tps: 75.0
-    livebench_coding: -1
-    aider: -1
-    swe_bench: 74.2
-    swe_bench_verified: 74.2
-    swe_rebench: -1
-    humaneval: 74.2
-    bigcodebench: -1
-    gso_bench: -1
-    ts_bench: -1
-    vals_ai: -1
-    agentic_coding: 74.2
-    composite_score: 75.15
+    swe_bench_verified: 76.2
+    swe_bench: 76.2
+    humaneval: 87.5
+    livebench_coding: 72.5
+    agentic_coding: 76.2
+    hallucination_rate: 3.5
+    composite_score: 76.8
   best_for:
-  - coding-smart
   - coding-elite
-- id: openai/gpt-5-2
-  name: GPT-5.2 (2025-12-11) (high reasoning)
+  - coding-smart
+
+# === TIER 2: SMART CODING (SWE-bench 65-75%) ===
+- id: openai/gpt-5-1
+  name: GPT-5.1 (2025-11-13)
   scores:
-    speed_tps: 187.0
-    livebench_coding: -1
-    aider: -1
-    swe_bench: 71.8
-    swe_bench_verified: 71.8
-    swe_rebench: -1
-    humaneval: 71.8
-    bigcodebench: -1
-    gso_bench: -1
-    ts_bench: -1
-    vals_ai: -1
-    agentic_coding: 71.8
-    composite_score: 70.51
+    speed_tps: 150.0
+    swe_bench_verified: 74.9
+    swe_bench: 74.9
+    humaneval: 86.0
+    livebench_coding: 70.0
+    agentic_coding: 74.9
+    hallucination_rate: 6.2
+    composite_score: 76.0
   best_for:
   - coding-smart
-  - coding-elite
-- id: anthropic/claude-opus-4-5
-  name: mini-SWE-agent + Claude 4.5 Opus medium (20251101)
+  - coding-fast
+
+- id: xai/grok-4
+  name: Grok 4 (2025-11-20)
   scores:
-    speed_tps: 49.0
-    livebench_coding: -1
-    aider: -1
-    swe_bench: 74.4
-    swe_bench_verified: 74.4
-    swe_rebench: -1
-    humaneval: 74.4
-    bigcodebench: -1
-    gso_bench: -1
-    ts_bench: -1
-    vals_ai: -1
-    agentic_coding: 74.4
-    composite_score: 69.24
+    speed_tps: 70.0
+    swe_bench_verified: 73.5
+    swe_bench: 73.5
+    humaneval: 85.0
+    livebench_coding: 69.0
+    agentic_coding: 73.5
+    hallucination_rate: 5.8
+    composite_score: 74.0
   best_for:
   - coding-smart
-  - coding-elite
-- id: anthropic/claude-sonnet-4-5
-  name: mini-SWE-agent + Claude 4.5 Sonnet (20250929)
+
+- id: anthropic/claude-haiku-4-5
+  name: Claude Haiku 4.5 (20251022)
   scores:
-    speed_tps: 52.0
-    livebench_coding: -1
-    aider: -1
-    swe_bench: 70.6
-    swe_bench_verified: 70.6
-    swe_rebench: -1
-    humaneval: 70.6
-    bigcodebench: -1
-    gso_bench: -1
-    ts_bench: -1
-    vals_ai: -1
-    agentic_coding: 70.6
-    composite_score: 66.35
+    speed_tps: 65.0
+    swe_bench_verified: 73.3
+    swe_bench: 73.3
+    humaneval: 84.0
+    livebench_coding: 68.0
+    agentic_coding: 73.3
+    hallucination_rate: 4.0
+    composite_score: 73.8
   best_for:
   - coding-smart
-  - coding-elite
+  - coding-fast
+
 - id: deepseek/deepseek-v3
-  name: DeepSeek V3
+  name: DeepSeek V3 (2025-12-20)
   scores:
     speed_tps: 85.0
-    swe_bench: 68.0
     swe_bench_verified: 68.0
+    swe_bench: 68.0
     humaneval: 85.0
+    livebench_coding: 65.0
     agentic_coding: 68.0
+    hallucination_rate: 6.5
     composite_score: 70.0
   best_for:
   - coding-smart
-  - coding-elite
   - coding-fast
-- id: meta/llama-3.3-70b
-  name: Llama 3.3 70B
-  scores:
-    speed_tps: 120.0
-    swe_bench: 52.0
-    humaneval: 78.0
-    agentic_coding: 52.0
-    composite_score: 60.0
-  best_for:
-  - coding-fast
-  - coding-smart
-- id: meta/llama-3.1-8b
-  name: Llama 3.1 8B
-  scores:
-    speed_tps: 250.0
-    swe_bench: 38.0
-    humaneval: 62.0
-    agentic_coding: 38.0
-    composite_score: 45.0
-  best_for:
-  - coding-fast
-- id: qwen/qwen-2.5-72b
-  name: Qwen 2.5 72B
+
+# === TIER 3: FAST CODING (SWE-bench 50-65%) ===
+- id: qwen/qwen-2-5-72b
+  name: Qwen 2.5 72B (2024-11)
   scores:
     speed_tps: 95.0
+    swe_bench_verified: 55.0
     swe_bench: 55.0
     humaneval: 80.0
+    livebench_coding: 52.0
     agentic_coding: 55.0
-    composite_score: 62.0
-  best_for:
-  - coding-smart
-  - coding-fast
-- id: mistral/codestral-latest
-  name: Codestral
-  scores:
-    speed_tps: 150.0
-    swe_bench: 48.0
-    humaneval: 82.0
-    agentic_coding: 48.0
-    composite_score: 55.0
-  best_for:
-  - coding-fast
-- id: google/gemini-2-flash
-  name: Gemini 2 Flash
-  scores:
-    speed_tps: 280.0
-    swe_bench: 45.0
-    humaneval: 75.0
-    agentic_coding: 45.0
-    composite_score: 52.0
-  best_for:
-  - coding-fast
-- id: groq/llama-3.3-70b-versatile
-  name: Llama 3.3 70B Versatile (Groq)
-  scores:
-    speed_tps: 180.0
-    swe_bench: 52.0
-    humaneval: 78.0
-    agentic_coding: 52.0
+    hallucination_rate: 7.2
     composite_score: 58.0
   best_for:
   - coding-fast
-  - coding-smart
-- id: cerebras/llama-3.1-70b
-  name: Llama 3.1 70B (Cerebras)
+
+- id: mistral/codestral-latest
+  name: Codestral (2024-05)
   scores:
-    speed_tps: 450.0
+    speed_tps: 150.0
+    swe_bench_verified: 48.0
     swe_bench: 48.0
-    humaneval: 75.0
+    humaneval: 82.0
+    livebench_coding: 45.0
     agentic_coding: 48.0
+    hallucination_rate: 8.0
     composite_score: 52.0
   best_for:
   - coding-fast
-- id: cerebras/llama-3.1-8b
-  name: Llama 3.1 8B (Cerebras)
+
+- id: google/gemini-2-flash
+  name: Gemini 2 Flash (2024-05)
   scores:
-    speed_tps: 500.0
-    swe_bench: 35.0
-    humaneval: 60.0
-    agentic_coding: 35.0
-    composite_score: 40.0
+    speed_tps: 280.0
+    swe_bench_verified: 45.0
+    swe_bench: 45.0
+    humaneval: 75.0
+    livebench_coding: 42.0
+    agentic_coding: 45.0
+    hallucination_rate: 6.8
+    composite_score: 50.0
   best_for:
   - coding-fast
+
 - id: openai/gpt-4o-mini
-  name: GPT-4o Mini
+  name: GPT-4o Mini (2024-07)
   scores:
     speed_tps: 200.0
+    swe_bench_verified: 42.0
     swe_bench: 42.0
     humaneval: 72.0
+    livebench_coding: 40.0
     agentic_coding: 42.0
-    composite_score: 48.0
+    hallucination_rate: 12.9
+    composite_score: 46.0
   best_for:
   - coding-fast
+
+# === TIER 4: UNVERIFIED / CHAT-ONLY ===
+# WARNING: Llama models have UNVERIFIED SWE-bench scores
+# They are NOT on the official SWE-bench Verified leaderboard
+# Scores below are ESTIMATES - DO NOT USE FOR AGENTIC CODING
+
+- id: meta/llama-3-3-70b
+  name: Llama 3.3 70B (UNVERIFIED - CHAT ONLY)
+  scores:
+    speed_tps: 180.0
+    swe_bench_verified: -1
+    swe_bench: 35.0
+    humaneval: 78.0
+    livebench_coding: 32.0
+    agentic_coding: 35.0
+    hallucination_rate: 4.1
+    composite_score: 40.0
+    verified: false
+  best_for:
+  - chat-fast
+  notes: "SWE-bench score UNVERIFIED. Not on official leaderboard. NOT for agentic coding."
+
+- id: meta/llama-3-1-8b
+  name: Llama 3.1 8B (UNVERIFIED - CHAT ONLY)
+  scores:
+    speed_tps: 250.0
+    swe_bench_verified: -1
+    swe_bench: 25.0
+    humaneval: 62.0
+    livebench_coding: 22.0
+    agentic_coding: 25.0
+    hallucination_rate: 5.5
+    composite_score: 30.0
+    verified: false
+  best_for:
+  - chat-fast
+  notes: "Very fast but poor coding. Use only for simple chat."
+
+- id: groq/llama-3-3-70b-versatile
+  name: Llama 3.3 70B Versatile (Groq - CHAT ONLY)
+  scores:
+    speed_tps: 180.0
+    swe_bench_verified: -1
+    swe_bench: 35.0
+    humaneval: 78.0
+    agentic_coding: 35.0
+    hallucination_rate: 4.1
+    composite_score: 40.0
+    verified: false
+  best_for:
+  - chat-fast
+  notes: "Fast inference but unverified coding ability. NOT for agentic coding."
+
+- id: cerebras/llama-3-1-8b
+  name: Llama 3.1 8B (Cerebras - CHAT ONLY)
+  scores:
+    speed_tps: 500.0
+    swe_bench_verified: -1
+    swe_bench: 25.0
+    humaneval: 60.0
+    agentic_coding: 25.0
+    hallucination_rate: 5.5
+    composite_score: 30.0
+    verified: false
+  best_for:
+  - chat-fast
+  notes: "Ultra fast (500 TPS) but poor coding. Use only for simple chat."

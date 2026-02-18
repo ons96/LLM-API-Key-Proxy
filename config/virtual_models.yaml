@@ -6,89 +6,80 @@ metadata:
   - UGI Leaderboard
 virtual_models:
   coding-elite:
-    description: Best agentic coding models (SWE-bench + LiveCodeBench weighted)
+    description: Best agentic coding models (SWE-bench Verified >= 75%)
     fallback_chain:
     - provider: g4f
       model: gpt-5-2
       priority: 1
-    - provider: together
-      model: deepseek-v3
-      priority: 2
-    - provider: gemini
-      model: gemini-3-pro
-      priority: 3
     - provider: g4f
       model: claude-opus-4-5
+      priority: 2
+    - provider: gemini
+      model: gemini-3-flash
+      priority: 3
+    - provider: kilo
+      model: glm-5:free
       priority: 4
-    - provider: groq
-      model: llama-3.3-70b-versatile
+    - provider: gemini
+      model: gemini-3-pro
       priority: 5
     - provider: g4f
       model: claude-sonnet-4-5
       priority: 6
-    - provider: groq
-      model: llama-3.1-70b
+    - provider: together
+      model: deepseek-v3
       priority: 7
     - provider: together
-      model: codestral-latest
+      model: qwen-2-5-72b
       priority: 8
+    - provider: together
+      model: codestral-latest
+      priority: 9
     - provider: gemini
       model: gemini-2-flash
-      priority: 9
-    - provider: together
-      model: qwen-2.5-72b
       priority: 10
-    - provider: groq
-      model: llama-3.3-70b
-      priority: 11
     - provider: g4f
       model: gpt-4o-mini
-      priority: 12
+      priority: 11
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
   coding-smart:
-    description: High-quality coding with balanced performance
+    description: High-quality coding with balanced performance (SWE-bench >= 65%)
     fallback_chain:
     - provider: g4f
       model: gpt-5-2
       priority: 1
-    - provider: together
-      model: deepseek-v3
+    - provider: kilo
+      model: glm-5:free
       priority: 2
     - provider: gemini
-      model: gemini-3-pro
+      model: gemini-3-flash
       priority: 3
-    - provider: groq
-      model: llama-3.3-70b-versatile
+    - provider: together
+      model: deepseek-v3
       priority: 4
-    - provider: groq
-      model: llama-3.1-70b
+    - provider: gemini
+      model: gemini-3-pro
       priority: 5
     - provider: g4f
       model: claude-opus-4-5
       priority: 6
-    - provider: gemini
-      model: gemini-2-flash
-      priority: 7
-    - provider: together
-      model: codestral-latest
-      priority: 8
     - provider: g4f
       model: claude-sonnet-4-5
+      priority: 7
+    - provider: together
+      model: qwen-2-5-72b
+      priority: 8
+    - provider: gemini
+      model: gemini-2-flash
       priority: 9
+    - provider: together
+      model: codestral-latest
+      priority: 10
     - provider: g4f
       model: gpt-4o-mini
-      priority: 10
-    - provider: groq
-      model: llama-3.3-70b
       priority: 11
-    - provider: together
-      model: qwen-2.5-72b
-      priority: 12
-    - provider: groq
-      model: llama-3.1-8b
-      priority: 13
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
@@ -98,42 +89,27 @@ virtual_models:
     - provider: g4f
       model: gpt-5-2
       priority: 1
-    - provider: groq
-      model: llama-3.1-70b
-      priority: 2
     - provider: gemini
       model: gemini-2-flash
+      priority: 2
+    - provider: together
+      model: codestral-latest
       priority: 3
     - provider: g4f
       model: gpt-4o-mini
       priority: 4
-    - provider: groq
-      model: llama-3.1-8b
-      priority: 5
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 6
-    - provider: together
-      model: codestral-latest
-      priority: 7
-    - provider: groq
-      model: llama-3.3-70b
-      priority: 8
     - provider: together
       model: deepseek-v3
-      priority: 9
+      priority: 5
     - provider: together
       model: qwen-2.5-72b
-      priority: 10
+      priority: 6
     - provider: gemini
       model: gemini-3-pro
-      priority: 11
-    - provider: g4f
-      model: claude-opus-4-5
-      priority: 12
+      priority: 7
     - provider: g4f
       model: claude-sonnet-4-5
-      priority: 13
+      priority: 8
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
@@ -302,3 +278,11 @@ providers:
     rate_limits:
       rpm: 10
       daily: 100
+  kilo:
+    base_url: https://gateway.kilo.ai/v1
+    api_key_env: KILO_API_KEY
+    rate_limits:
+      rpm: 200
+      hourly: 200
+    free_tier: true
+    description: Free GLM-5 access (z-ai/glm-5:free)
