@@ -92,7 +92,7 @@ def safe_float_convert(text):
     try:
         text = str(text).strip().replace("%", "").replace(",", "").replace("$", "")
         return float(re.sub(r"[^\d.eE+-]", "", text))
-    except:
+    except (ValueError, TypeError):
         return None
 
 

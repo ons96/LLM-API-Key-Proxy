@@ -1,0 +1,304 @@
+metadata:
+  generated_at: '2026-02-17T22:43:39.209471'
+  sources:
+  - model_rankings.yaml
+  - chat_model_rankings.yaml
+  - UGI Leaderboard
+virtual_models:
+  coding-elite:
+    description: Best agentic coding models (SWE-bench + LiveCodeBench weighted)
+    fallback_chain:
+    - provider: g4f
+      model: gpt-5-2
+      priority: 1
+    - provider: together
+      model: deepseek-v3
+      priority: 2
+    - provider: gemini
+      model: gemini-3-pro
+      priority: 3
+    - provider: g4f
+      model: claude-opus-4-5
+      priority: 4
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 5
+    - provider: g4f
+      model: claude-sonnet-4-5
+      priority: 6
+    - provider: groq
+      model: llama-3.1-70b
+      priority: 7
+    - provider: together
+      model: codestral-latest
+      priority: 8
+    - provider: gemini
+      model: gemini-2-flash
+      priority: 9
+    - provider: together
+      model: qwen-2.5-72b
+      priority: 10
+    - provider: groq
+      model: llama-3.3-70b
+      priority: 11
+    - provider: g4f
+      model: gpt-4o-mini
+      priority: 12
+    settings:
+      timeout_ms: 180000
+      retry_on_rate_limit: true
+  coding-smart:
+    description: High-quality coding with balanced performance
+    fallback_chain:
+    - provider: g4f
+      model: gpt-5-2
+      priority: 1
+    - provider: together
+      model: deepseek-v3
+      priority: 2
+    - provider: gemini
+      model: gemini-3-pro
+      priority: 3
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 4
+    - provider: groq
+      model: llama-3.1-70b
+      priority: 5
+    - provider: g4f
+      model: claude-opus-4-5
+      priority: 6
+    - provider: gemini
+      model: gemini-2-flash
+      priority: 7
+    - provider: together
+      model: codestral-latest
+      priority: 8
+    - provider: g4f
+      model: claude-sonnet-4-5
+      priority: 9
+    - provider: g4f
+      model: gpt-4o-mini
+      priority: 10
+    - provider: groq
+      model: llama-3.3-70b
+      priority: 11
+    - provider: together
+      model: qwen-2.5-72b
+      priority: 12
+    - provider: groq
+      model: llama-3.1-8b
+      priority: 13
+    settings:
+      timeout_ms: 120000
+      retry_on_rate_limit: true
+  coding-fast:
+    description: Fastest coding models (TPS priority with quality floor)
+    fallback_chain:
+    - provider: g4f
+      model: gpt-5-2
+      priority: 1
+    - provider: groq
+      model: llama-3.1-70b
+      priority: 2
+    - provider: gemini
+      model: gemini-2-flash
+      priority: 3
+    - provider: g4f
+      model: gpt-4o-mini
+      priority: 4
+    - provider: groq
+      model: llama-3.1-8b
+      priority: 5
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 6
+    - provider: together
+      model: codestral-latest
+      priority: 7
+    - provider: groq
+      model: llama-3.3-70b
+      priority: 8
+    - provider: together
+      model: deepseek-v3
+      priority: 9
+    - provider: together
+      model: qwen-2.5-72b
+      priority: 10
+    - provider: gemini
+      model: gemini-3-pro
+      priority: 11
+    - provider: g4f
+      model: claude-opus-4-5
+      priority: 12
+    - provider: g4f
+      model: claude-sonnet-4-5
+      priority: 13
+    settings:
+      timeout_ms: 30000
+      retry_on_rate_limit: true
+  chat-smart:
+    description: Best reasoning/chat models (Intelligence + Arena Elo)
+    fallback_chain:
+    - provider: gemini
+      model: gemini-3-pro
+      priority: 1
+    - provider: g4f
+      model: claude-opus-4-5-thinking-32k
+      priority: 2
+    - provider: g4f
+      model: gpt-5-xhigh
+      priority: 3
+    - provider: g4f
+      model: grok-4-1-thinking
+      priority: 4
+    - provider: gemini
+      model: gemini-3-flash
+      priority: 5
+    - provider: g4f
+      model: claude-sonnet-4-5-thinking-32k
+      priority: 6
+    - provider: g4f
+      model: gpt-5-high
+      priority: 7
+    - provider: g4f
+      model: grok-4-1
+      priority: 8
+    - provider: groq
+      model: llama-4-scout
+      priority: 9
+    - provider: together
+      model: medium-3-1
+      priority: 10
+    - provider: gemini
+      model: gemini-2-flash
+      priority: 11
+    - provider: g4f
+      model: gpt-5-medium
+      priority: 12
+    - provider: together
+      model: deepseek-v3
+      priority: 13
+    - provider: together
+      model: qwen2-5-72b
+      priority: 14
+    - provider: groq
+      model: llama-3-3-70b
+      priority: 15
+    settings:
+      timeout_ms: 180000
+      retry_on_rate_limit: true
+  chat-fast:
+    description: Fastest chat models (Efficiency priority)
+    fallback_chain:
+    - provider: together
+      model: medium-3-1
+      priority: 1
+    - provider: gemini
+      model: gemini-2-flash
+      priority: 2
+    - provider: groq
+      model: llama-4-scout
+      priority: 3
+    - provider: g4f
+      model: gpt-5-medium
+      priority: 4
+    - provider: g4f
+      model: grok-4-1
+      priority: 5
+    - provider: groq
+      model: llama-3-3-70b
+      priority: 6
+    - provider: gemini
+      model: gemini-3-flash
+      priority: 7
+    - provider: g4f
+      model: gpt-5-high
+      priority: 8
+    - provider: together
+      model: qwen2-5-72b
+      priority: 9
+    - provider: together
+      model: deepseek-v3
+      priority: 10
+    - provider: g4f
+      model: claude-sonnet-4-5-thinking-32k
+      priority: 11
+    settings:
+      timeout_ms: 15000
+      retry_on_rate_limit: true
+  chat-rp:
+    description: Best uncensored RP models (UGI + Writing quality)
+    fallback_chain:
+    - provider: g4f
+      model: mn-violet-lotus-12b
+      priority: 1
+    - provider: g4f
+      model: cydonia-24b-v4.1
+      priority: 2
+    - provider: g4f
+      model: anubis-70b-v1.1
+      priority: 3
+    - provider: g4f
+      model: broken-tutu-24b-unslop-v2.0
+      priority: 4
+    - provider: g4f
+      model: pantheon-rp-1.8-24b-small-3.1
+      priority: 5
+    - provider: cerebras
+      model: llama-3.1-8b
+      priority: 6
+    settings:
+      timeout_ms: 60000
+      retry_on_rate_limit: true
+providers:
+  nvidia:
+    base_url: https://integrate.api.nvidia.com/v1
+    api_key_env: NVIDIA_API_KEY
+    rate_limits:
+      rpm: 60
+  together:
+    base_url: https://api.together.xyz/v1
+    api_key_env: TOGETHER_API_KEY
+    rate_limits:
+      rpm: 60
+  cerebras:
+    base_url: https://api.cerebras.ai/v1
+    api_key_env: CEREBRAS_API_KEY
+    rate_limits:
+      rpm: 50
+      daily: 5000
+  groq:
+    base_url: https://api.groq.com/openai/v1
+    api_key_env: GROQ_API_KEY
+    rate_limits:
+      rpm: 30
+      daily: 14400
+  google:
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key_env: GEMINI_API_KEY
+    rate_limits:
+      rpm: 15
+      daily: 1500
+  gemini:
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key_env: GEMINI_API_KEY
+    rate_limits:
+      rpm: 15
+      daily: 1500
+  openai:
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    rate_limits:
+      rpm: 3000
+  mistral:
+    base_url: https://api.mistral.ai/v1
+    api_key_env: MISTRAL_API_KEY
+    rate_limits:
+      rpm: 10
+  g4f:
+    base_url: https://g4f.dev/v1
+    api_key_env: G4F_API_KEY
+    rate_limits:
+      rpm: 10
+      daily: 100

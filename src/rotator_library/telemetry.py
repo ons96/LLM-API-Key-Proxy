@@ -421,7 +421,7 @@ class TelemetryManager:
                             0, int((reset_dt - datetime.now()).total_seconds() * 1000)
                         )
                         return True, retry_after
-                    except:
+                    except (ValueError, TypeError):
                         pass
                 return True, 60000
 

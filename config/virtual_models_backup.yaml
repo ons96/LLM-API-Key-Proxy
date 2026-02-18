@@ -1,0 +1,132 @@
+virtual_models:
+  coding-elite:
+    description: "Highest verified agentic performance (Llama 3.3 70B, Gemini 1.5 Pro, GPT-4o)"
+    fallback_chain:
+      - provider: groq
+        model: "llama-3.3-70b-versatile"
+        priority: 1
+      - provider: gemini
+        model: "gemini-1.5-pro"
+        priority: 2
+      - provider: openai
+        model: "gpt-4o"
+        priority: 3
+      - provider: together
+        model: "deepseek-ai/DeepSeek-V3"
+        priority: 4
+      - provider: g4f
+        model: "claude-3-5-sonnet"
+        priority: 5
+    settings:
+      timeout_ms: 180000
+      retry_on_rate_limit: true
+
+  coding-fast:
+    description: "Highest TPS coding models"
+    fallback_chain:
+      - provider: cerebras
+        model: "llama-3.3-70b"
+        priority: 1
+      - provider: groq
+        model: "llama-3.1-8b-instant"
+        priority: 2
+      - provider: gemini
+        model: "gemini-1.5-flash"
+        priority: 3
+      - provider: openai
+        model: "gpt-4o-mini"
+        priority: 4
+    settings:
+      timeout_ms: 30000
+      retry_on_rate_limit: true
+
+  chat-smart:
+    description: "Best reasoning/chat models"
+    fallback_chain:
+      - provider: groq
+        model: "llama-3.3-70b-versatile"
+        priority: 1
+      - provider: gemini
+        model: "gemini-1.5-pro"
+        priority: 2
+      - provider: openai
+        model: "gpt-4o"
+        priority: 3
+    settings:
+      timeout_ms: 180000
+      retry_on_rate_limit: true
+
+  chat-fast:
+    description: "Fastest chat models"
+    fallback_chain:
+      - provider: groq
+        model: "llama-3.1-8b-instant"
+        priority: 1
+      - provider: gemini
+        model: "gemini-1.5-flash"
+        priority: 2
+      - provider: g4f
+        model: "gpt-3.5-turbo"
+        priority: 3
+    settings:
+      timeout_ms: 15000
+      retry_on_rate_limit: true
+
+  chat-rp:
+    description: "Best RP models"
+    fallback_chain:
+      - provider: g4f
+        model: "mn-violet-lotus-12b"
+        priority: 1
+      - provider: g4f
+        model: "violet-twilight-v0.2"
+        priority: 2
+      - provider: g4f
+        model: "captain-eris-violet-v0.420"
+        priority: 3
+      - provider: cerebras
+        model: "llama-3.1-8b"
+        priority: 4
+    settings:
+      timeout_ms: 30000
+      retry_on_rate_limit: true
+
+providers:
+  nvidia:
+    base_url: "https://integrate.api.nvidia.com/v1"
+    api_key_env: "NVIDIA_API_KEY"
+    rate_limits: { rpm: 60 }
+  together:
+    base_url: "https://api.together.xyz/v1"
+    api_key_env: "TOGETHER_API_KEY"
+    rate_limits: { rpm: 60 }
+  cerebras:
+    base_url: "https://api.cerebras.ai/v1"
+    api_key_env: "CEREBRAS_API_KEY"
+    rate_limits: { rpm: 50, daily: 5000 }
+  groq:
+    base_url: "https://api.groq.com/openai/v1"
+    api_key_env: "GROQ_API_KEY"
+    rate_limits: { rpm: 30, daily: 14400 }
+  google:
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    api_key_env: "GEMINI_API_KEY"
+    rate_limits: { rpm: 15, daily: 1500 }
+  gemini:
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    api_key_env: "GEMINI_API_KEY"
+    rate_limits: { rpm: 15, daily: 1500 }
+  openai:
+    base_url: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+    rate_limits: { rpm: 3000 }
+  mistral:
+    base_url: "https://api.mistral.ai/v1"
+    api_key_env: "MISTRAL_API_KEY"
+    rate_limits: { rpm: 10 }
+  g4f:
+    base_url: "https://g4f.dev/v1"
+    api_key_env: "G4F_API_KEY"
+    rate_limits: { rpm: 10, daily: 100 }
+
+
