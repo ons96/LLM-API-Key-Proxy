@@ -75,3 +75,109 @@ models:
   best_for:
   - coding-smart
   - coding-elite
+- id: deepseek/deepseek-v3
+  name: DeepSeek V3
+  scores:
+    speed_tps: 85.0
+    swe_bench: 68.0
+    swe_bench_verified: 68.0
+    humaneval: 85.0
+    agentic_coding: 68.0
+    composite_score: 70.0
+  best_for:
+  - coding-smart
+  - coding-elite
+  - coding-fast
+- id: meta/llama-3.3-70b
+  name: Llama 3.3 70B
+  scores:
+    speed_tps: 120.0
+    swe_bench: 52.0
+    humaneval: 78.0
+    agentic_coding: 52.0
+    composite_score: 60.0
+  best_for:
+  - coding-fast
+  - coding-smart
+- id: meta/llama-3.1-8b
+  name: Llama 3.1 8B
+  scores:
+    speed_tps: 250.0
+    swe_bench: 38.0
+    humaneval: 62.0
+    agentic_coding: 38.0
+    composite_score: 45.0
+  best_for:
+  - coding-fast
+- id: qwen/qwen-2.5-72b
+  name: Qwen 2.5 72B
+  scores:
+    speed_tps: 95.0
+    swe_bench: 55.0
+    humaneval: 80.0
+    agentic_coding: 55.0
+    composite_score: 62.0
+  best_for:
+  - coding-smart
+  - coding-fast
+- id: mistral/codestral-latest
+  name: Codestral
+  scores:
+    speed_tps: 150.0
+    swe_bench: 48.0
+    humaneval: 82.0
+    agentic_coding: 48.0
+    composite_score: 55.0
+  best_for:
+  - coding-fast
+- id: google/gemini-2-flash
+  name: Gemini 2 Flash
+  scores:
+    speed_tps: 280.0
+    swe_bench: 45.0
+    humaneval: 75.0
+    agentic_coding: 45.0
+    composite_score: 52.0
+  best_for:
+  - coding-fast
+- id: groq/llama-3.3-70b-versatile
+  name: Llama 3.3 70B Versatile (Groq)
+  scores:
+    speed_tps: 180.0
+    swe_bench: 52.0
+    humaneval: 78.0
+    agentic_coding: 52.0
+    composite_score: 58.0
+  best_for:
+  - coding-fast
+  - coding-smart
+- id: cerebras/llama-3.1-70b
+  name: Llama 3.1 70B (Cerebras)
+  scores:
+    speed_tps: 450.0
+    swe_bench: 48.0
+    humaneval: 75.0
+    agentic_coding: 48.0
+    composite_score: 52.0
+  best_for:
+  - coding-fast
+- id: cerebras/llama-3.1-8b
+  name: Llama 3.1 8B (Cerebras)
+  scores:
+    speed_tps: 500.0
+    swe_bench: 35.0
+    humaneval: 60.0
+    agentic_coding: 35.0
+    composite_score: 40.0
+  best_for:
+  - coding-fast
+- id: openai/gpt-4o-mini
+  name: GPT-4o Mini
+  scores:
+    speed_tps: 200.0
+    swe_bench: 42.0
+    humaneval: 72.0
+    agentic_coding: 42.0
+    composite_score: 48.0
+  best_for:
+  - coding-fast
