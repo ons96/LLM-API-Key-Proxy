@@ -688,33 +688,16 @@ async def lifespan(app: FastAPI):
 # --- FastAPI App Setup ---
 app = FastAPI(lifespan=lifespan)
 
-# Configure CORS - secure by default, configurable via environment
-# CORS_ORIGINS: comma-separated list of allowed origins (default: empty list for security)
-# To allow all origins (INSECURE), set CORS_ORIGINS=*
-_cors_origins_env = os.getenv("CORS_ORIGINS", "")
-if _cors_origins_env == "*":
-    allow_origins = ["*"]
-    allow_credentials = False  # Must be False when origins is "*"
-    logging.warning(
-        "⚠️  SECURITY WARNING: CORS is set to allow all origins (*). "
-        "This is insecure for production! Consider setting specific origins."
-    )
-elif _cors_origins_env:
-    allow_origins = [
-        origin.strip() for origin in _cors_origins_env.split(",") if origin.strip()
-    ]
-    allow_credentials = True
-else:
-    # Default: no CORS - most secure option
-    allow_origins = []
-    allow_credentials = False
+# Configure CORS - open for wide compatibility
+allow_origins = ["*"]
+allow_credentials = True
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if _cors_origins_env == "*" else allow_origins,
+    allow_origins=allow_origins,
     allow_credentials=allow_credentials,
-    allow_methods=["*"],  # Allow all methods for better compatibility
-    allow_headers=["*"],  # Allow all headers for better compatibility
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
 
