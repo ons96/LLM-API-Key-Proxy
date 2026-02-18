@@ -23,31 +23,36 @@ CONFIG_DIR = PROJECT_ROOT / "config"
 
 WEIGHTS = {
     "coding-elite": {
-        "swe_bench": 0.40,
-        "livecodebench": 0.30,
-        "humaneval": 0.20,
+        "swe_bench": 0.35,
+        "livecodebench": 0.25,
+        "humaneval": 0.15,
         "tps": 0.10,
+        "hallucination_penalty": 0.15,
     },
     "coding-smart": {
-        "swe_bench": 0.30,
-        "livecodebench": 0.25,
-        "humaneval": 0.20,
+        "swe_bench": 0.25,
+        "livecodebench": 0.20,
+        "humaneval": 0.15,
         "tps": 0.15,
         "agentic": 0.10,
+        "hallucination_penalty": 0.15,
     },
     "coding-fast": {
-        "tps": 0.60,
-        "swe_bench": 0.25,
-        "humaneval": 0.15,
+        "tps": 0.55,
+        "swe_bench": 0.20,
+        "humaneval": 0.10,
+        "hallucination_penalty": 0.15,
     },
     "chat-smart": {
-        "intelligence": 0.50,
-        "mmlu": 0.25,
-        "arena_elo": 0.25,
+        "intelligence": 0.40,
+        "mmlu": 0.20,
+        "arena_elo": 0.20,
+        "hallucination_penalty": 0.20,
     },
     "chat-fast": {
-        "efficiency": 0.70,
-        "tps": 0.30,
+        "efficiency": 0.60,
+        "tps": 0.25,
+        "hallucination_penalty": 0.15,
     },
     "chat-rp": {
         "ugi": 0.50,
@@ -64,13 +69,15 @@ FREE_PROVIDERS = [
     "g4f",
     "nvidia",
     "github-models",
+    "kilo",
+    "modal",
 ]
 RP_PROVIDERS = ["g4f", "together", "deepinfra"]
 
 PROVIDER_PRIORITY = {
-    "speed": ["cerebras", "groq", "gemini", "together", "g4f"],
-    "coding": ["groq", "cerebras", "gemini", "together", "openrouter", "g4f"],
-    "chat": ["groq", "gemini", "cerebras", "together", "g4f"],
+    "speed": ["cerebras", "groq", "kilo", "gemini", "together", "g4f"],
+    "coding": ["kilo", "groq", "cerebras", "gemini", "together", "openrouter", "g4f"],
+    "chat": ["groq", "gemini", "cerebras", "together", "kilo", "g4f"],
     "rp": ["g4f", "together", "deepinfra"],
 }
 
@@ -117,6 +124,13 @@ def fetch_models_dev_free() -> List[Dict]:
 def calculate_score(model: Dict, weights: Dict) -> float:
     total = 0.0
     for metric, weight in weights.items():
+        if metric == "hallucination_penalty":
+            hallucination_rate = model.get("hallucination_rate", 10.0)
+            if hallucination_rate > 0:
+                normalized_penalty = min(hallucination_rate / 20.0, 1.0)
+                total -= normalized_penalty * weight
+            continue
+
         value = model.get(metric, 0)
         if isinstance(value, (int, float)) and value > 0:
             if metric in ["tps", "arena_elo"]:
@@ -134,19 +148,23 @@ def load_coding_models() -> List[Dict]:
     models = []
     for m in rankings.get("models", []):
         scores = m.get("scores", {})
-        models.append(
-            {
-                "id": m.get("id", ""),
-                "name": m.get("name", ""),
-                "swe_bench": scores.get(
-                    "swe_bench", scores.get("swe_bench_verified", 0)
-                ),
-                "livecodebench": scores.get("livebench_coding", 0),
-                "humaneval": scores.get("humaneval", 0),
-                "tps": scores.get("speed_tps", 50),
-                "agentic": scores.get("agentic_coding", 0),
-            }
-        )
+        model_entry = {
+            "id": m.get("id", ""),
+            "name": m.get("name", ""),
+            "swe_bench": scores.get("swe_bench", scores.get("swe_bench_verified", 0)),
+            "livecodebench": scores.get("livebench_coding", 0),
+            "humaneval": scores.get("humaneval", 0),
+            "tps": scores.get("speed_tps", 50),
+            "agentic": scores.get("agentic_coding", 0),
+            "hallucination_rate": scores.get("hallucination_rate", 10.0),
+            "verified": scores.get("verified", True),
+        }
+
+        if not model_entry["verified"]:
+            model_entry["swe_bench"] *= 0.5
+            model_entry["agentic"] *= 0.5
+
+        models.append(model_entry)
     return models
 
 
@@ -163,6 +181,7 @@ def load_chat_models() -> List[Dict]:
                 "arena_elo": m.get("chat_arena_score", 0) / 15,
                 "tps": 1000 / max(m.get("response_time_seconds", 5), 0.5),
                 "efficiency": m.get("efficiency_score", 0),
+                "hallucination_rate": m.get("hallucination_rate", 10.0),
             }
         )
     return models
