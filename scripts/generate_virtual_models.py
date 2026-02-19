@@ -23,19 +23,19 @@ CONFIG_DIR = PROJECT_ROOT / "config"
 
 WEIGHTS = {
     "coding-elite": {
-        "swe_bench": 0.35,
+        "swe_bench": 0.40,
+        "livecodebench": 0.30,
+        "humaneval": 0.15,
+        "tps": 0.05,
+        "hallucination_penalty": 0.10,
+    },
+    "coding-smart": {
+        "swe_bench": 0.30,
         "livecodebench": 0.25,
         "humaneval": 0.15,
         "tps": 0.10,
-        "hallucination_penalty": 0.15,
-    },
-    "coding-smart": {
-        "swe_bench": 0.25,
-        "livecodebench": 0.20,
-        "humaneval": 0.15,
-        "tps": 0.15,
         "agentic": 0.10,
-        "hallucination_penalty": 0.15,
+        "hallucination_penalty": 0.10,
     },
     "coding-fast": {
         "tps": 0.55,
@@ -141,7 +141,9 @@ def calculate_score(model: Dict, weights: Dict) -> float:
         value = model.get(metric, 0)
         if isinstance(value, (int, float)) and value > 0:
             if metric in ["tps", "arena_elo"]:
-                normalized = min(value / 200, 1.0)
+                # Removed the hard cap of 200 to allow ultra-fast providers to shine
+                # Using a 1000 TPS baseline for normalization
+                normalized = min(value / 1000, 1.0)
             elif metric == "efficiency":
                 normalized = min(value / 50, 1.0)
             else:
@@ -158,6 +160,7 @@ def load_coding_models() -> List[Dict]:
         model_entry = {
             "id": m.get("id", ""),
             "name": m.get("name", ""),
+            "reasoning_effort": m.get("reasoning_effort", "None"),
             "swe_bench": scores.get("swe_bench", scores.get("swe_bench_verified", 0)),
             "livecodebench": scores.get("livebench_coding", 0),
             "humaneval": scores.get("humaneval", 0),
@@ -221,6 +224,12 @@ def get_provider_for_model(model_id: str, model_type: str) -> str:
     if model_id.startswith("g4f/"):
         return "g4f"
 
+    # If ID already has a provider (e.g. nvidia/deepseek-v3.2), use it
+    if "/" in model_id:
+        parts = model_id.split("/")
+        if parts[0] in FREE_PROVIDERS:
+            return parts[0]
+
     model_lower = model_id.lower()
 
     if "gemini" in model_lower:
@@ -248,7 +257,7 @@ def generate_fallback_chain(
     weights: Dict,
     model_type: str,
     min_score: float = 0.3,
-    max_models: int = 15,
+    max_models: int = 30,
     min_intelligence: float = 0.0,
     min_ugi: float = 0.0,
     min_ugi_entertainment: float = 0.0,
@@ -274,6 +283,7 @@ def generate_fallback_chain(
                     "model": m.get("id", m.get("name", "")).split("/")[-1],
                     "score": score,
                     "original_id": m.get("id", ""),
+                    "reasoning_effort": m.get("reasoning_effort", "None"),
                 }
             )
 
@@ -290,6 +300,7 @@ def generate_fallback_chain(
                     "provider": m["provider"],
                     "model": m["model"],
                     "priority": len(chain) + 1,
+                    "reasoning_effort": m.get("reasoning_effort", "None"),
                 }
             )
         if len(chain) >= max_models:
@@ -312,7 +323,7 @@ def generate_virtual_models_yaml() -> Dict:
 
     print("\nGenerating coding-elite...")
     chain = generate_fallback_chain(
-        coding_models, WEIGHTS["coding-elite"], "coding", min_score=0.4
+        coding_models, WEIGHTS["coding-elite"], "coding", min_score=0.5
     )
     virtual_models["coding-elite"] = {
         "description": "Best agentic coding models (SWE-bench + LiveCodeBench weighted)",

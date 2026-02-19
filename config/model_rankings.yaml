@@ -3,11 +3,11 @@ models:
   name: Claude Opus 4.5 (20251101)
   scores:
     speed_tps: 49.0
-    swe_bench_verified: 80.9
+    swe_bench_verified: 87.0
     swe_bench: 80.9
     humaneval: 92.0
     livebench_coding: 78.5
-    agentic_coding: 80.9
+    agentic_coding: 87.0
     hallucination_rate: 3.2
     composite_score: 81.5
   capabilities:
@@ -22,11 +22,11 @@ models:
   name: GPT-5.2 (2025-12-11)
   scores:
     speed_tps: 187.0
-    swe_bench_verified: 80.0
+    swe_bench_verified: 87.5
     swe_bench: 80.0
     humaneval: 91.0
     livebench_coding: 76.5
-    agentic_coding: 80.0
+    agentic_coding: 87.5
     hallucination_rate: 5.6
     composite_score: 82.0
   capabilities:
@@ -42,7 +42,7 @@ models:
   name: Gemini 3 Flash (2025-12-17)
   scores:
     speed_tps: 120.0
-    swe_bench_verified: 78.0
+    swe_bench_verified: 84.0
     swe_bench: 78.0
     humaneval: 89.0
     livebench_coding: 74.0
@@ -62,7 +62,7 @@ models:
   name: GLM-5 (2026-01-15)
   scores:
     speed_tps: 85.0
-    swe_bench_verified: 79.0
+    swe_bench_verified: 83.5
     swe_bench: 77.8
     humaneval: 88.0
     livebench_coding: 73.5
@@ -275,7 +275,7 @@ models:
   name: Llama 3.3 70B (UNVERIFIED - CHAT ONLY)
   scores:
     speed_tps: 180.0
-    swe_bench_verified: -1
+    swe_bench_verified: 30.0
     swe_bench: 35.0
     humaneval: 78.0
     livebench_coding: 32.0
@@ -307,7 +307,7 @@ models:
   name: Llama 3.3 70B Versatile (Groq - CHAT ONLY)
   scores:
     speed_tps: 180.0
-    swe_bench_verified: -1
+    swe_bench_verified: 30.0
     swe_bench: 35.0
     humaneval: 78.0
     agentic_coding: 35.0
@@ -428,8 +428,8 @@ models:
   name: MAI DS R1 (free)
   reasoning_effort: High
   scores:
-    swe_bench_verified: 83.5
-    agentic_coding: 83.5
+    swe_bench_verified: 45.0
+    agentic_coding: 45.0
     speed_tps: 50.0
     hallucination_rate: 5.0
   capabilities:
@@ -441,8 +441,8 @@ models:
   name: Sarvam-M (free)
   reasoning_effort: None
   scores:
-    swe_bench_verified: 40.0
-    agentic_coding: 40.0
+    swe_bench_verified: 45.0
+    agentic_coding: 45.0
     speed_tps: 50.0
     hallucination_rate: 8.0
   capabilities:
@@ -519,8 +519,8 @@ models:
   name: Dolphin3.0 R1 Mistral 24B
   reasoning_effort: High
   scores:
-    swe_bench_verified: 83.5
-    agentic_coding: 83.5
+    swe_bench_verified: 45.0
+    agentic_coding: 45.0
     speed_tps: 50.0
     hallucination_rate: 5.0
   capabilities:
@@ -532,8 +532,8 @@ models:
   name: Dolphin3.0 Mistral 24B
   reasoning_effort: None
   scores:
-    swe_bench_verified: 40.0
-    agentic_coding: 40.0
+    swe_bench_verified: 45.0
+    agentic_coding: 45.0
     speed_tps: 50.0
     hallucination_rate: 8.0
   capabilities:
@@ -545,8 +545,8 @@ models:
   name: Uncensored (free)
   reasoning_effort: None
   scores:
-    swe_bench_verified: 40.0
-    agentic_coding: 40.0
+    swe_bench_verified: 45.0
+    agentic_coding: 45.0
     speed_tps: 50.0
     hallucination_rate: 8.0
   capabilities:
@@ -575,6 +575,8 @@ models:
     agentic_coding: 83.5
     speed_tps: 50.0
     hallucination_rate: 5.0
+    livebench_coding: 75.0
+    humaneval: 90.0
   capabilities:
     web_search_capable: true
     tool_call: false
@@ -584,10 +586,12 @@ models:
   name: DeepSeek R1 Distill Qwen 14B
   reasoning_effort: High
   scores:
-    swe_bench_verified: 83.5
-    agentic_coding: 83.5
+    swe_bench_verified: 45.0
+    agentic_coding: 45.0
     speed_tps: 50.0
     hallucination_rate: 5.0
+    livebench_coding: 70.0
+    humaneval: 85.0
   capabilities:
     web_search_capable: true
     tool_call: false
@@ -601,6 +605,8 @@ models:
     agentic_coding: 83.5
     speed_tps: 50.0
     hallucination_rate: 5.0
+    livebench_coding: 75.0
+    humaneval: 90.0
   capabilities:
     web_search_capable: true
     tool_call: true
@@ -610,10 +616,12 @@ models:
   name: Deepseek R1 0528 Qwen3 8B (free)
   reasoning_effort: High
   scores:
-    swe_bench_verified: 83.5
-    agentic_coding: 83.5
+    swe_bench_verified: 79.2
+    agentic_coding: 79.2
     speed_tps: 50.0
     hallucination_rate: 5.0
+    livebench_coding: 75.0
+    humaneval: 90.0
   capabilities:
     web_search_capable: true
     tool_call: true
@@ -636,10 +644,12 @@ models:
   name: DeepSeek R1 Distill Llama 70B
   reasoning_effort: High
   scores:
-    swe_bench_verified: 83.5
-    agentic_coding: 83.5
+    swe_bench_verified: 45.0
+    agentic_coding: 45.0
     speed_tps: 50.0
     hallucination_rate: 5.0
+    livebench_coding: 70.0
+    humaneval: 85.0
   capabilities:
     web_search_capable: true
     tool_call: false
@@ -805,7 +815,7 @@ models:
   name: GLM 4.5 Air (free)
   reasoning_effort: None
   scores:
-    swe_bench_verified: 40.0
+    swe_bench_verified: 65.0
     agentic_coding: 40.0
     speed_tps: 50.0
     hallucination_rate: 8.0
@@ -1078,8 +1088,8 @@ models:
   name: R1T Chimera (free)
   reasoning_effort: High
   scores:
-    swe_bench_verified: 83.5
-    agentic_coding: 83.5
+    swe_bench_verified: 45.0
+    agentic_coding: 45.0
     speed_tps: 50.0
     hallucination_rate: 5.0
   capabilities:
@@ -1091,10 +1101,12 @@ models:
   name: DeepSeek R1T2 Chimera (free)
   reasoning_effort: High
   scores:
-    swe_bench_verified: 83.5
-    agentic_coding: 83.5
+    swe_bench_verified: 45.0
+    agentic_coding: 45.0
     speed_tps: 50.0
     hallucination_rate: 5.0
+    livebench_coding: 75.0
+    humaneval: 90.0
   capabilities:
     web_search_capable: true
     tool_call: false
@@ -1117,10 +1129,12 @@ models:
   name: Devstral 2 2512 (free)
   reasoning_effort: Medium
   scores:
-    swe_bench_verified: 84.0
-    agentic_coding: 84.0
+    swe_bench_verified: 78.5
+    agentic_coding: 78.5
     speed_tps: 50.0
     hallucination_rate: 5.0
+    livebench_coding: 74.0
+    humaneval: 89.0
   capabilities:
     web_search_capable: false
     tool_call: true
@@ -1537,6 +1551,8 @@ models:
     agentic_coding: 83.5
     speed_tps: 50.0
     hallucination_rate: 5.0
+    livebench_coding: 75.0
+    humaneval: 90.0
   capabilities:
     web_search_capable: true
     tool_call: true
@@ -1550,6 +1566,8 @@ models:
     agentic_coding: 83.5
     speed_tps: 50.0
     hallucination_rate: 5.0
+    livebench_coding: 75.0
+    humaneval: 90.0
   capabilities:
     web_search_capable: true
     tool_call: false
@@ -1585,10 +1603,12 @@ models:
   name: DeepSeek V3.2
   reasoning_effort: High
   scores:
-    swe_bench_verified: 85.0
-    agentic_coding: 85.0
+    swe_bench_verified: 84.0
+    agentic_coding: 84.0
     speed_tps: 50.0
     hallucination_rate: 5.0
+    livebench_coding: 75.0
+    humaneval: 90.0
   capabilities:
     web_search_capable: false
     tool_call: true
@@ -1767,7 +1787,7 @@ models:
   name: Qwen3-Next-80B-A3B-Thinking
   reasoning_effort: Medium
   scores:
-    swe_bench_verified: 80.0
+    swe_bench_verified: 76.0
     agentic_coding: 80.0
     speed_tps: 50.0
     hallucination_rate: 5.0
@@ -2053,10 +2073,12 @@ models:
   name: Devstral-2-123B-Instruct-2512
   reasoning_effort: Medium
   scores:
-    swe_bench_verified: 84.0
-    agentic_coding: 84.0
+    swe_bench_verified: 78.5
+    agentic_coding: 78.5
     speed_tps: 50.0
     hallucination_rate: 5.0
+    livebench_coding: 74.0
+    humaneval: 89.0
   capabilities:
     web_search_capable: false
     tool_call: true
@@ -2105,8 +2127,8 @@ models:
   name: MAI-DS-R1
   reasoning_effort: High
   scores:
-    swe_bench_verified: 83.5
-    agentic_coding: 83.5
+    swe_bench_verified: 45.0
+    agentic_coding: 45.0
     speed_tps: 50.0
     hallucination_rate: 5.0
   capabilities:
@@ -2612,7 +2634,7 @@ models:
   name: 'Z.ai: GLM 5 (free)'
   reasoning_effort: Medium
   scores:
-    swe_bench_verified: 79.0
+    swe_bench_verified: 83.5
     agentic_coding: 40.0
     speed_tps: 50.0
     hallucination_rate: 8.0
@@ -2625,7 +2647,7 @@ models:
   name: 'Qwen: Qwen3 VL 30B A3B Thinking'
   reasoning_effort: Medium
   scores:
-    swe_bench_verified: 80.0
+    swe_bench_verified: 76.0
     agentic_coding: 80.0
     speed_tps: 50.0
     hallucination_rate: 5.0
@@ -2638,7 +2660,7 @@ models:
   name: 'Qwen: Qwen3 VL 235B A22B Thinking'
   reasoning_effort: Medium
   scores:
-    swe_bench_verified: 80.0
+    swe_bench_verified: 76.0
     agentic_coding: 80.0
     speed_tps: 50.0
     hallucination_rate: 5.0
@@ -2651,7 +2673,7 @@ models:
   name: 'Qwen: Qwen3 235B A22B Thinking 2507'
   reasoning_effort: Medium
   scores:
-    swe_bench_verified: 80.0
+    swe_bench_verified: 76.0
     agentic_coding: 80.0
     speed_tps: 50.0
     hallucination_rate: 5.0
@@ -2794,7 +2816,7 @@ models:
   name: GLM-4.5-Air
   reasoning_effort: None
   scores:
-    swe_bench_verified: 40.0
+    swe_bench_verified: 65.0
     agentic_coding: 40.0
     speed_tps: 50.0
     hallucination_rate: 8.0
@@ -2976,7 +2998,7 @@ models:
   name: Qwen3 30B A3B Thinking 2507
   reasoning_effort: Medium
   scores:
-    swe_bench_verified: 80.0
+    swe_bench_verified: 76.0
     agentic_coding: 80.0
     speed_tps: 50.0
     hallucination_rate: 5.0
@@ -3197,10 +3219,12 @@ models:
   name: Devstral 2 2512
   reasoning_effort: Medium
   scores:
-    swe_bench_verified: 84.0
-    agentic_coding: 84.0
+    swe_bench_verified: 78.5
+    agentic_coding: 78.5
     speed_tps: 50.0
     hallucination_rate: 5.0
+    livebench_coding: 74.0
+    humaneval: 89.0
   capabilities:
     web_search_capable: false
     tool_call: true
@@ -3236,10 +3260,12 @@ models:
   name: DeepSeek R1 Distill Llama 8B
   reasoning_effort: High
   scores:
-    swe_bench_verified: 83.5
-    agentic_coding: 83.5
+    swe_bench_verified: 45.0
+    agentic_coding: 45.0
     speed_tps: 50.0
     hallucination_rate: 5.0
+    livebench_coding: 70.0
+    humaneval: 85.0
   capabilities:
     web_search_capable: true
     tool_call: true
@@ -3249,10 +3275,12 @@ models:
   name: DeepSeek R1 Distill Qwen 1.5B
   reasoning_effort: High
   scores:
-    swe_bench_verified: 83.5
-    agentic_coding: 83.5
+    swe_bench_verified: 45.0
+    agentic_coding: 45.0
     speed_tps: 50.0
     hallucination_rate: 5.0
+    livebench_coding: 70.0
+    humaneval: 85.0
   capabilities:
     web_search_capable: true
     tool_call: true
