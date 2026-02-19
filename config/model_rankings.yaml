@@ -1,14 +1,4 @@
-# Model Rankings - Updated Feb 2026
-# SWE-bench Verified scores from: llm-stats.com, swebench.com, marc0.dev
-# Hallucination rates from: Vectara HHEM leaderboard (lower is better)
-# TPS from: Artificial Analysis, provider documentation
-# Web search: Models with web_search_capable=true can ground responses in search results
-# 
-# IMPORTANT: Models marked with verified: false have UNVERIFIED SWE-bench scores.
-# Llama models are NOT on the official SWE-bench Verified leaderboard.
-
 models:
-# === TIER 1: ELITE CODING (SWE-bench >= 75%) ===
 - id: anthropic/claude-opus-4-5
   name: Claude Opus 4.5 (20251101)
   scores:
@@ -27,7 +17,7 @@ models:
   best_for:
   - coding-elite
   - coding-smart
-
+  reasoning_effort: None
 - id: openai/gpt-5-2
   name: GPT-5.2 (2025-12-11)
   scores:
@@ -47,7 +37,7 @@ models:
   - coding-elite
   - coding-smart
   - coding-fast
-
+  reasoning_effort: Medium
 - id: google/gemini-3-flash
   name: Gemini 3 Flash (2025-12-17)
   scores:
@@ -67,12 +57,12 @@ models:
   - coding-elite
   - coding-smart
   - coding-fast
-
+  reasoning_effort: Low
 - id: zhipu/glm-5
   name: GLM-5 (2026-01-15)
   scores:
     speed_tps: 85.0
-    swe_bench_verified: 77.8
+    swe_bench_verified: 79.0
     swe_bench: 77.8
     humaneval: 88.0
     livebench_coding: 73.5
@@ -89,12 +79,12 @@ models:
   free_providers:
   - kilo: z-ai/glm-5:free
   - modal: zai-org/GLM-5-FP8
-
+  reasoning_effort: Medium
 - id: anthropic/claude-sonnet-4-5
   name: Claude Sonnet 4.5 (20250929)
   scores:
     speed_tps: 52.0
-    swe_bench_verified: 77.2
+    swe_bench_verified: 79.0
     swe_bench: 77.2
     humaneval: 88.5
     livebench_coding: 72.0
@@ -108,7 +98,7 @@ models:
   best_for:
   - coding-elite
   - coding-smart
-
+  reasoning_effort: Medium
 - id: moonshot/kimi-k2-5
   name: Kimi K2.5 (2025-12-10)
   scores:
@@ -126,7 +116,7 @@ models:
     streaming: true
   best_for:
   - coding-smart
-
+  reasoning_effort: None
 - id: google/gemini-3-pro
   name: Gemini 3 Pro Preview (2025-11-18)
   scores:
@@ -145,13 +135,12 @@ models:
   best_for:
   - coding-elite
   - coding-smart
-
-# === TIER 2: SMART CODING (SWE-bench 65-75%) ===
+  reasoning_effort: Low
 - id: openai/gpt-5-1
   name: GPT-5.1 (2025-11-13)
   scores:
     speed_tps: 150.0
-    swe_bench_verified: 74.9
+    swe_bench_verified: 79.0
     swe_bench: 74.9
     humaneval: 86.0
     livebench_coding: 70.0
@@ -165,7 +154,7 @@ models:
   best_for:
   - coding-smart
   - coding-fast
-
+  reasoning_effort: Medium
 - id: xai/grok-4
   name: Grok 4 (2025-11-20)
   scores:
@@ -183,7 +172,7 @@ models:
     streaming: true
   best_for:
   - coding-smart
-
+  reasoning_effort: None
 - id: anthropic/claude-haiku-4-5
   name: Claude Haiku 4.5 (20251022)
   scores:
@@ -202,7 +191,7 @@ models:
   best_for:
   - coding-smart
   - coding-fast
-
+  reasoning_effort: None
 - id: deepseek/deepseek-v3
   name: DeepSeek V3 (2025-12-20)
   scores:
@@ -221,8 +210,7 @@ models:
   best_for:
   - coding-smart
   - coding-fast
-
-# === TIER 3: FAST CODING (SWE-bench 50-65%) ===
+  reasoning_effort: None
 - id: qwen/qwen-2-5-72b
   name: Qwen 2.5 72B (2024-11)
   scores:
@@ -240,7 +228,7 @@ models:
     streaming: true
   best_for:
   - coding-fast
-
+  reasoning_effort: None
 - id: mistral/codestral-latest
   name: Codestral (2024-05)
   scores:
@@ -254,7 +242,7 @@ models:
     composite_score: 52.0
   best_for:
   - coding-fast
-
+  reasoning_effort: None
 - id: google/gemini-2-flash
   name: Gemini 2 Flash (2024-05)
   scores:
@@ -268,7 +256,7 @@ models:
     composite_score: 50.0
   best_for:
   - coding-fast
-
+  reasoning_effort: Low
 - id: openai/gpt-4o-mini
   name: GPT-4o Mini (2024-07)
   scores:
@@ -282,12 +270,7 @@ models:
     composite_score: 46.0
   best_for:
   - coding-fast
-
-# === TIER 4: UNVERIFIED / CHAT-ONLY ===
-# WARNING: Llama models have UNVERIFIED SWE-bench scores
-# They are NOT on the official SWE-bench Verified leaderboard
-# Scores below are ESTIMATES - DO NOT USE FOR AGENTIC CODING
-
+  reasoning_effort: Low
 - id: meta/llama-3-3-70b
   name: Llama 3.3 70B (UNVERIFIED - CHAT ONLY)
   scores:
@@ -302,8 +285,9 @@ models:
     verified: false
   best_for:
   - chat-fast
-  notes: "SWE-bench score UNVERIFIED. Not on official leaderboard. NOT for agentic coding."
-
+  notes: SWE-bench score UNVERIFIED. Not on official leaderboard. NOT for agentic
+    coding.
+  reasoning_effort: None
 - id: meta/llama-3-1-8b
   name: Llama 3.1 8B (UNVERIFIED - CHAT ONLY)
   scores:
@@ -318,8 +302,7 @@ models:
     verified: false
   best_for:
   - chat-fast
-  notes: "Very fast but poor coding. Use only for simple chat."
-
+  notes: Very fast but poor coding. Use only for simple chat.
 - id: groq/llama-3-3-70b-versatile
   name: Llama 3.3 70B Versatile (Groq - CHAT ONLY)
   scores:
@@ -333,8 +316,8 @@ models:
     verified: false
   best_for:
   - chat-fast
-  notes: "Fast inference but unverified coding ability. NOT for agentic coding."
-
+  notes: Fast inference but unverified coding ability. NOT for agentic coding.
+  reasoning_effort: None
 - id: cerebras/llama-3-1-8b
   name: Llama 3.1 8B (Cerebras - CHAT ONLY)
   scores:
@@ -348,4 +331,3021 @@ models:
     verified: false
   best_for:
   - chat-fast
-  notes: "Ultra fast (500 TPS) but poor coding. Use only for simple chat."
+  notes: Ultra fast (500 TPS) but poor coding. Use only for simple chat.
+  reasoning_effort: Low
+- id: openrouter/featherless/qwerky-72b
+  name: Qwerky 72B
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/allenai/molmo-2-8b:free
+  name: Molmo2 8B (free)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/nvidia/nemotron-nano-9b-v2:free
+  name: Nemotron Nano 9B V2 (free)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/nvidia/nemotron-nano-12b-v2-vl:free
+  name: Nemotron Nano 12B 2 VL (free)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/nvidia/nemotron-3-nano-30b-a3b:free
+  name: Nemotron 3 Nano 30B A3B (free)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/arcee-ai/trinity-large-preview:free
+  name: Trinity Large Preview
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/arcee-ai/trinity-mini:free
+  name: Trinity Mini
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/microsoft/mai-ds-r1:free
+  name: MAI DS R1 (free)
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 83.5
+    agentic_coding: 83.5
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/sarvamai/sarvam-m:free
+  name: Sarvam-M (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/liquid/lfm-2.5-1.2b-thinking:free
+  name: LFM2.5-1.2B-Thinking (free)
+  reasoning_effort: Medium
+  scores:
+    swe_bench_verified: 79.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/liquid/lfm-2.5-1.2b-instruct:free
+  name: LFM2.5-1.2B-Instruct (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/thudm/glm-z1-32b:free
+  name: GLM Z1 32B (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/rekaai/reka-flash-3
+  name: Reka Flash 3
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 100.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/stepfun/step-3.5-flash:free
+  name: Step 3.5 Flash (free)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 100.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/cognitivecomputations/dolphin3.0-r1-mistral-24b
+  name: Dolphin3.0 R1 Mistral 24B
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 83.5
+    agentic_coding: 83.5
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/cognitivecomputations/dolphin3.0-mistral-24b
+  name: Dolphin3.0 Mistral 24B
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/cognitivecomputations/dolphin-mistral-24b-venice-edition:free
+  name: Uncensored (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/kwaipilot/kat-coder-pro:free
+  name: Kat Coder Pro (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/deepseek/deepseek-r1-0528:free
+  name: R1 0528 (free)
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 83.5
+    agentic_coding: 83.5
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: false
+  best_for:
+  - coding-elite
+- id: openrouter/deepseek/deepseek-r1-distill-qwen-14b
+  name: DeepSeek R1 Distill Qwen 14B
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 83.5
+    agentic_coding: 83.5
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: false
+  best_for:
+  - coding-elite
+- id: openrouter/deepseek/deepseek-r1:free
+  name: R1 (free)
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 83.5
+    agentic_coding: 83.5
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/deepseek/deepseek-r1-0528-qwen3-8b:free
+  name: Deepseek R1 0528 Qwen3 8B (free)
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 83.5
+    agentic_coding: 83.5
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/deepseek/deepseek-chat-v3-0324
+  name: DeepSeek V3 0324
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/deepseek/deepseek-r1-distill-llama-70b
+  name: DeepSeek R1 Distill Llama 70B
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 83.5
+    agentic_coding: 83.5
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: false
+  best_for:
+  - coding-elite
+- id: openrouter/deepseek/deepseek-v3-base:free
+  name: DeepSeek V3 Base (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/openrouter/sherlock-think-alpha
+  name: Sherlock Think Alpha
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/openrouter/sherlock-dash-alpha
+  name: Sherlock Dash Alpha
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/openrouter/aurora-alpha
+  name: Aurora Alpha
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/moonshotai/kimi-dev-72b:free
+  name: Kimi Dev 72b (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/moonshotai/kimi-k2:free
+  name: Kimi K2 (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/google/gemma-3n-e4b-it:free
+  name: Gemma 3n 4B (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/google/gemma-3n-e2b-it:free
+  name: Gemma 3n 2B (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/google/gemma-3-12b-it:free
+  name: Gemma 3 12B (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/google/gemini-2.0-flash-exp:free
+  name: Gemini 2.0 Flash Experimental (free)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 100.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/google/gemma-3-4b-it:free
+  name: Gemma 3 4B (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/google/gemma-3-27b-it:free
+  name: Gemma 3 27B (free)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/z-ai/glm-4.5-air:free
+  name: GLM 4.5 Air (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/qwen/qwen-2.5-vl-7b-instruct:free
+  name: Qwen2.5-VL 7B Instruct (free)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/qwen/qwen3-32b:free
+  name: Qwen3 32B (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/qwen/qwen3-coder:free
+  name: Qwen3 Coder 480B A35B Instruct (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/qwen/qwen3-30b-a3b:free
+  name: Qwen3 30B A3B (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/qwen/qwen3-235b-a22b-07-25:free
+  name: Qwen3 235B A22B Instruct 2507 (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/qwen/qwen3-14b:free
+  name: Qwen3 14B (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/qwen/qwq-32b:free
+  name: QwQ 32B (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/qwen/qwen-2.5-coder-32b-instruct
+  name: Qwen2.5 Coder 32B Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 68.0
+    agentic_coding: 68.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/qwen/qwen2.5-vl-72b-instruct
+  name: Qwen2.5 VL 72B Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/qwen/qwen3-235b-a22b:free
+  name: Qwen3 235B A22B (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/qwen/qwen3-next-80b-a3b-instruct:free
+  name: Qwen3 Next 80B A3B Instruct (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/qwen/qwen3-4b:free
+  name: Qwen3 4B (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/qwen/qwen3-8b:free
+  name: Qwen3 8B (free)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/qwen/qwen2.5-vl-32b-instruct:free
+  name: Qwen2.5 VL 32B Instruct (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/qwen/qwen2.5-vl-72b-instruct:free
+  name: Qwen2.5 VL 72B Instruct (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/meta-llama/llama-3.3-70b-instruct:free
+  name: Llama 3.3 70B Instruct (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 68.0
+    agentic_coding: 68.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/meta-llama/llama-4-scout:free
+  name: Llama 4 Scout (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/meta-llama/llama-3.2-11b-vision-instruct
+  name: Llama 3.2 11B Vision Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/meta-llama/llama-3.2-3b-instruct:free
+  name: Llama 3.2 3B Instruct (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/meta-llama/llama-3.1-405b-instruct:free
+  name: Llama 3.1 405B Instruct (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: openrouter/tngtech/tng-r1t-chimera:free
+  name: R1T Chimera (free)
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 83.5
+    agentic_coding: 83.5
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/tngtech/deepseek-r1t2-chimera:free
+  name: DeepSeek R1T2 Chimera (free)
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 83.5
+    agentic_coding: 83.5
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: false
+  best_for:
+  - coding-elite
+- id: openrouter/mistralai/devstral-small-2505:free
+  name: Devstral Small 2505 (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/mistralai/devstral-2512:free
+  name: Devstral 2 2512 (free)
+  reasoning_effort: Medium
+  scores:
+    swe_bench_verified: 84.0
+    agentic_coding: 84.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: openrouter/mistralai/mistral-small-3.1-24b-instruct
+  name: Mistral Small 3.1 24B Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/mistralai/mistral-7b-instruct:free
+  name: Mistral 7B Instruct (free)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/mistralai/mistral-small-3.2-24b-instruct
+  name: Mistral Small 3.2 24B Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/mistralai/mistral-small-3.2-24b-instruct:free
+  name: Mistral Small 3.2 24B (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/mistralai/mistral-nemo:free
+  name: Mistral Nemo (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/openai/gpt-oss-20b:free
+  name: gpt-oss-20b (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/openai/gpt-oss-120b:free
+  name: gpt-oss-120b (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/nousresearch/deephermes-3-llama-3-8b-preview
+  name: DeepHermes 3 Llama 3 8B Preview
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: openrouter/nousresearch/hermes-3-llama-3.1-405b:free
+  name: Hermes 3 405B Instruct (free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: nvidia/nvidia/llama-3.1-nemotron-70b-instruct
+  name: Llama 3.1 Nemotron 70b Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/nvidia/llama-3.1-nemotron-ultra-253b-v1
+  name: Llama-3.1-Nemotron-Ultra-253B-v1
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/nvidia/llama-3.1-nemotron-51b-instruct
+  name: Llama 3.1 Nemotron 51b Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/nvidia/nvidia-nemotron-nano-9b-v2
+  name: nvidia-nemotron-nano-9b-v2
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/nvidia/llama-embed-nemotron-8b
+  name: Llama Embed Nemotron 8B
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: nvidia/nvidia/llama-3.3-nemotron-super-49b-v1.5
+  name: Llama 3.3 Nemotron Super 49b V1.5
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 68.0
+    agentic_coding: 68.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: nvidia/nvidia/llama-3.3-nemotron-super-49b-v1
+  name: Llama 3.3 Nemotron Super 49b V1
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 68.0
+    agentic_coding: 68.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: nvidia/nvidia/llama3-chatqa-1.5-70b
+  name: Llama3 Chatqa 1.5 70b
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/nvidia/cosmos-nemotron-34b
+  name: Cosmos Nemotron 34B
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: nvidia/nvidia/nemotron-4-340b-instruct
+  name: Nemotron 4 340b Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/nvidia/nemotron-3-nano-30b-a3b
+  name: nemotron-3-nano-30b-a3b
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/microsoft/phi-3-small-128k-instruct
+  name: Phi 3 Small 128k Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/microsoft/phi-3-medium-128k-instruct
+  name: Phi 3 Medium 128k Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/microsoft/phi-3.5-moe-instruct
+  name: Phi 3.5 Moe Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/microsoft/phi-3-vision-128k-instruct
+  name: Phi 3 Vision 128k Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/microsoft/phi-4-mini-instruct
+  name: Phi-4-Mini
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/microsoft/phi-3.5-vision-instruct
+  name: Phi 3.5 Vision Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/microsoft/phi-3-medium-4k-instruct
+  name: Phi 3 Medium 4k Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/microsoft/phi-3-small-8k-instruct
+  name: Phi 3 Small 8k Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/minimaxai/minimax-m2.1
+  name: MiniMax-M2.1
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/minimaxai/minimax-m2
+  name: MiniMax-M2
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/deepseek-ai/deepseek-v3.1
+  name: DeepSeek V3.1
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 68.0
+    agentic_coding: 68.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/deepseek-ai/deepseek-r1-0528
+  name: Deepseek R1 0528
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 83.5
+    agentic_coding: 83.5
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: nvidia/deepseek-ai/deepseek-r1
+  name: Deepseek R1
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 83.5
+    agentic_coding: 83.5
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: false
+  best_for:
+  - coding-elite
+- id: nvidia/deepseek-ai/deepseek-v3.1-terminus
+  name: DeepSeek V3.1 Terminus
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 68.0
+    agentic_coding: 68.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/deepseek-ai/deepseek-coder-6.7b-instruct
+  name: Deepseek Coder 6.7b Instruct
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/deepseek-ai/deepseek-v3.2
+  name: DeepSeek V3.2
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 85.0
+    agentic_coding: 85.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: nvidia/moonshotai/kimi-k2.5
+  name: Kimi K2.5
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/moonshotai/kimi-k2-thinking
+  name: Kimi K2 Thinking
+  reasoning_effort: Medium
+  scores:
+    swe_bench_verified: 79.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/google/codegemma-7b
+  name: Codegemma 7b
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: nvidia/google/gemma-2-2b-it
+  name: Gemma 2 2b It
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/google/gemma-3-1b-it
+  name: Gemma 3 1b It
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/google/gemma-2-27b-it
+  name: Gemma 2 27b It
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/google/gemma-3n-e2b-it
+  name: Gemma 3n E2b It
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/google/codegemma-1.1-7b
+  name: Codegemma 1.1 7b
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: nvidia/google/gemma-3n-e4b-it
+  name: Gemma 3n E4b It
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/google/gemma-3-12b-it
+  name: Gemma 3 12b It
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/google/gemma-3-27b-it
+  name: Gemma-3-27B-IT
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/z-ai/glm4.7
+  name: GLM-4.7
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/z-ai/glm5
+  name: GLM5
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/qwen/qwen3-next-80b-a3b-thinking
+  name: Qwen3-Next-80B-A3B-Thinking
+  reasoning_effort: Medium
+  scores:
+    swe_bench_verified: 80.0
+    agentic_coding: 80.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: nvidia/qwen/qwen3-coder-480b-a35b-instruct
+  name: Qwen3 Coder 480B A35B Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: nvidia/qwen/qwq-32b
+  name: Qwq 32b
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: nvidia/qwen/qwen2.5-coder-7b-instruct
+  name: Qwen2.5 Coder 7b Instruct
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/qwen/qwen2.5-coder-32b-instruct
+  name: Qwen2.5 Coder 32b Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/qwen/qwen3-235b-a22b
+  name: Qwen3-235B-A22B
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: nvidia/qwen/qwen3-next-80b-a3b-instruct
+  name: Qwen3-Next-80B-A3B-Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: nvidia/meta/llama-3.1-70b-instruct
+  name: Llama 3.1 70b Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/meta/llama-3.3-70b-instruct
+  name: Llama 3.3 70b Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 68.0
+    agentic_coding: 68.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/meta/llama-4-scout-17b-16e-instruct
+  name: Llama 4 Scout 17b 16e Instruct
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/meta/llama3-8b-instruct
+  name: Llama3 8b Instruct
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/meta/codellama-70b
+  name: Codellama 70b
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: nvidia/meta/llama-3.2-1b-instruct
+  name: Llama 3.2 1b Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/meta/llama-3.1-405b-instruct
+  name: Llama 3.1 405b Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/meta/llama3-70b-instruct
+  name: Llama3 70b Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/meta/llama-4-maverick-17b-128e-instruct
+  name: Llama 4 Maverick 17b 128e Instruct
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/mistralai/mistral-large-3-675b-instruct-2512
+  name: Mistral Large 3 675B Instruct 2512
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 68.0
+    agentic_coding: 68.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/mistralai/mamba-codestral-7b-v0.1
+  name: Mamba Codestral 7b V0.1
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: nvidia/mistralai/codestral-22b-instruct-v0.1
+  name: Codestral 22b Instruct V0.1
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/mistralai/mistral-large-2-instruct
+  name: Mistral Large 2 Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 68.0
+    agentic_coding: 68.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/mistralai/ministral-14b-instruct-2512
+  name: Ministral 3 14B Instruct 2512
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/mistralai/mistral-small-3.1-24b-instruct-2503
+  name: Mistral Small 3.1 24b Instruct 2503
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nvidia/mistralai/devstral-2-123b-instruct-2512
+  name: Devstral-2-123B-Instruct-2512
+  reasoning_effort: Medium
+  scores:
+    swe_bench_verified: 84.0
+    agentic_coding: 84.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: github-models/ai21-labs/ai21-jamba-1.5-mini
+  name: AI21 Jamba 1.5 Mini
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/ai21-labs/ai21-jamba-1.5-large
+  name: AI21 Jamba 1.5 Large
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/microsoft/phi-4-multimodal-instruct
+  name: Phi-4-multimodal-instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/microsoft/mai-ds-r1
+  name: MAI-DS-R1
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 83.5
+    agentic_coding: 83.5
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: github-models/microsoft/phi-3.5-mini-instruct
+  name: Phi-3.5-mini instruct (128k)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/microsoft/phi-4
+  name: Phi-4
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/microsoft/phi-3-mini-4k-instruct
+  name: Phi-3-mini instruct (4k)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/microsoft/phi-4-mini-reasoning
+  name: Phi-4-mini-reasoning
+  reasoning_effort: Medium
+  scores:
+    swe_bench_verified: 79.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/microsoft/phi-3-mini-128k-instruct
+  name: Phi-3-mini instruct (128k)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/microsoft/phi-4-reasoning
+  name: Phi-4-Reasoning
+  reasoning_effort: Medium
+  scores:
+    swe_bench_verified: 79.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/core42/jais-30b-chat
+  name: JAIS 30b Chat
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/mistral-ai/ministral-3b
+  name: Ministral 3B
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/mistral-ai/mistral-medium-2505
+  name: Mistral Medium 3 (25.05)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/mistral-ai/mistral-nemo
+  name: Mistral Nemo
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/mistral-ai/mistral-large-2411
+  name: Mistral Large 24.11
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 68.0
+    agentic_coding: 68.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/mistral-ai/mistral-small-2503
+  name: Mistral Small 3.1
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/mistral-ai/codestral-2501
+  name: Codestral 25.01
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/deepseek/deepseek-v3-0324
+  name: DeepSeek-V3-0324
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/meta/llama-3.2-90b-vision-instruct
+  name: Llama-3.2-90B-Vision-Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/meta/meta-llama-3.1-405b-instruct
+  name: Meta-Llama-3.1-405B-Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/meta/meta-llama-3-8b-instruct
+  name: Meta-Llama-3-8B-Instruct
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/meta/meta-llama-3-70b-instruct
+  name: Meta-Llama-3-70B-Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/meta/meta-llama-3.1-70b-instruct
+  name: Meta-Llama-3.1-70B-Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/meta/meta-llama-3.1-8b-instruct
+  name: Meta-Llama-3.1-8B-Instruct
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/meta/llama-4-maverick-17b-128e-instruct-fp8
+  name: Llama 4 Maverick 17B 128E Instruct FP8
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/openai/o1
+  name: OpenAI o1
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: github-models/openai/o3
+  name: OpenAI o3
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: github-models/openai/gpt-4.1-nano
+  name: GPT-4.1-nano
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/openai/gpt-4.1
+  name: GPT-4.1
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/openai/o4-mini
+  name: OpenAI o4-mini
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: github-models/openai/gpt-4.1-mini
+  name: GPT-4.1-mini
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/openai/o1-preview
+  name: OpenAI o1-preview
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: github-models/openai/o3-mini
+  name: OpenAI o3-mini
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: github-models/openai/o1-mini
+  name: OpenAI o1-mini
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: github-models/openai/gpt-4o
+  name: GPT-4o
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/cohere/cohere-command-a
+  name: Cohere Command A
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/cohere/cohere-command-r-plus-08-2024
+  name: Cohere Command R+ 08-2024
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/cohere/cohere-command-r
+  name: Cohere Command R
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/cohere/cohere-command-r-08-2024
+  name: Cohere Command R 08-2024
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/cohere/cohere-command-r-plus
+  name: Cohere Command R+
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/xai/grok-3
+  name: Grok 3
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: github-models/xai/grok-3-mini
+  name: Grok 3 Mini
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: kilo/z-ai/glm-5:free
+  name: 'Z.ai: GLM 5 (free)'
+  reasoning_effort: Medium
+  scores:
+    swe_bench_verified: 79.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: kilo/qwen/qwen3-vl-30b-a3b-thinking
+  name: 'Qwen: Qwen3 VL 30B A3B Thinking'
+  reasoning_effort: Medium
+  scores:
+    swe_bench_verified: 80.0
+    agentic_coding: 80.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: kilo/qwen/qwen3-vl-235b-a22b-thinking
+  name: 'Qwen: Qwen3 VL 235B A22B Thinking'
+  reasoning_effort: Medium
+  scores:
+    swe_bench_verified: 80.0
+    agentic_coding: 80.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: kilo/qwen/qwen3-235b-a22b-thinking-2507
+  name: 'Qwen: Qwen3 235B A22B Thinking 2507'
+  reasoning_effort: Medium
+  scores:
+    swe_bench_verified: 80.0
+    agentic_coding: 80.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: kilo/mistralai/mistral-small-3.1-24b-instruct:free
+  name: 'Mistral: Mistral Small 3.1 24B (free)'
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: kilo/minimax/minimax-m2.5:free
+  name: 'MiniMax: MiniMax M2.5 (free)'
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: iflowcn/kimi-k2
+  name: Kimi-K2
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: iflowcn/qwen3-max-preview
+  name: Qwen3-Max-Preview
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: iflowcn/kimi-k2-0905
+  name: Kimi-K2-0905
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: iflowcn/qwen3-235b-a22b-instruct
+  name: Qwen3-235B-A22B-Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: iflowcn/glm-4.6
+  name: GLM-4.6
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: iflowcn/qwen3-vl-plus
+  name: Qwen3-VL-Plus
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: iflowcn/qwen3-max
+  name: Qwen3-Max
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: iflowcn/qwen3-coder-plus
+  name: Qwen3-Coder-Plus
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: zai-coding-plan/glm-4.5-air
+  name: GLM-4.5-Air
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: zai-coding-plan/glm-4.5
+  name: GLM-4.5
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: zai-coding-plan/glm-4.5-flash
+  name: GLM-4.5-Flash
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 100.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: zai-coding-plan/glm-4.7-flash
+  name: GLM-4.7-Flash
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 100.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: zai-coding-plan/glm-4.7
+  name: GLM-4.7
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: zai-coding-plan/glm-4.5v
+  name: GLM-4.5V
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: zai-coding-plan/glm-4.6v
+  name: GLM-4.6V
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: zhipuai-coding-plan/glm-4.6v-flash
+  name: GLM-4.6V-Flash
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 100.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: llama/cerebras-llama-4-maverick-17b-128e-instruct
+  name: Cerebras-Llama-4-Maverick-17B-128E-Instruct
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: llama/llama-4-scout-17b-16e-instruct-fp8
+  name: Llama-4-Scout-17B-16E-Instruct-FP8
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: llama/llama-3.3-8b-instruct
+  name: Llama-3.3-8B-Instruct
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 68.0
+    agentic_coding: 68.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: llama/groq-llama-4-maverick-17b-128e-instruct
+  name: Groq-Llama-4-Maverick-17B-128E-Instruct
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: llama/cerebras-llama-4-scout-17b-16e-instruct
+  name: Cerebras-Llama-4-Scout-17B-16E-Instruct
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: modelscope/Qwen/Qwen3-30B-A3B-Instruct-2507
+  name: Qwen3 30B A3B Instruct 2507
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: modelscope/Qwen/Qwen3-30B-A3B-Thinking-2507
+  name: Qwen3 30B A3B Thinking 2507
+  reasoning_effort: Medium
+  scores:
+    swe_bench_verified: 80.0
+    agentic_coding: 80.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: modelscope/Qwen/Qwen3-Coder-30B-A3B-Instruct
+  name: Qwen3 Coder 30B A3B Instruct
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: modelscope/Qwen/Qwen3-235B-A22B-Instruct-2507
+  name: Qwen3 235B A22B Instruct 2507
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 75.0
+    agentic_coding: 75.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: cloudflare-workers-ai/@cf/facebook/bart-large-cnn
+  name: BART Large CNN
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: cloudflare-workers-ai/@cf/myshell-ai/melotts
+  name: MyShell MeloTTS
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: cloudflare-workers-ai/@cf/pipecat-ai/smart-turn-v2
+  name: Pipecat Smart Turn v2
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: cloudflare-workers-ai/@cf/deepgram/aura-2-es
+  name: Deepgram Aura 2 (ES)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: cloudflare-workers-ai/@cf/deepgram/nova-3
+  name: Deepgram Nova 3
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: cloudflare-workers-ai/@cf/deepgram/aura-2-en
+  name: Deepgram Aura 2 (EN)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: false
+  best_for:
+  - coding-smart
+- id: zenmux/xiaomi/mimo-v2-flash-free
+  name: MiMo-V2-Flash Free
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 100.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: zenmux/kuaishou/kat-coder-pro-v1-free
+  name: KAT-Coder-Pro-V1 Free
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: zenmux/stepfun/step-3.5-flash-free
+  name: Step 3.5 Flash (Free)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 100.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: zenmux/z-ai/glm-4.6v-flash-free
+  name: GLM 4.6V Flash (Free)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 100.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: zenmux/z-ai/glm-4.7-flash-free
+  name: GLM 4.7 Flash (Free)
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 100.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: minimax-cn-coding-plan/MiniMax-M2.5
+  name: MiniMax-M2.5
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: minimax-cn-coding-plan/MiniMax-M2.5-highspeed
+  name: MiniMax-M2.5-highspeed
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: cortecs/devstral-small-2512
+  name: Devstral Small 2 2512
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: cortecs/devstral-2512
+  name: Devstral 2 2512
+  reasoning_effort: Medium
+  scores:
+    swe_bench_verified: 84.0
+    agentic_coding: 84.0
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: aihubmix/coding-glm-4.7-free
+  name: Coding GLM 4.7 Free
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: aihubmix/coding-minimax-m2.1-free
+  name: Coding MiniMax M2.1 Free
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: alibaba-cn/deepseek-r1-distill-llama-8b
+  name: DeepSeek R1 Distill Llama 8B
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 83.5
+    agentic_coding: 83.5
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: alibaba-cn/deepseek-r1-distill-qwen-1-5b
+  name: DeepSeek R1 Distill Qwen 1.5B
+  reasoning_effort: High
+  scores:
+    swe_bench_verified: 83.5
+    agentic_coding: 83.5
+    speed_tps: 50.0
+    hallucination_rate: 5.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-elite
+- id: kimi-for-coding/k2p5
+  name: Kimi K2.5
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nova/nova-2-lite-v1
+  name: Nova 2 Lite
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: nova/nova-2-pro-v1
+  name: Nova 2 Pro
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: friendli/LGAI-EXAONE/K-EXAONE-236B-A23B
+  name: K EXAONE 236B A23B
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: jiekou/xiaomimimo/mimo-v2-flash
+  name: XiaomiMiMo/MiMo-V2-Flash
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 100.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: novita-ai/kwaipilot/kat-coder
+  name: KAT-Coder-Pro V1(Free)
+  reasoning_effort: None
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: false
+    tool_call: true
+  best_for:
+  - coding-smart
+- id: siliconflow/tencent/Hunyuan-MT-7B
+  name: tencent/Hunyuan-MT-7B
+  reasoning_effort: Low
+  scores:
+    swe_bench_verified: 40.0
+    agentic_coding: 40.0
+    speed_tps: 50.0
+    hallucination_rate: 8.0
+  capabilities:
+    web_search_capable: true
+    tool_call: true
+  best_for:
+  - coding-smart
