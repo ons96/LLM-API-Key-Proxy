@@ -8,309 +8,180 @@ virtual_models:
   coding-elite:
     description: "Best agentic coding models (SWE-bench + LiveCodeBench weighted)"
     fallback_chain:
-    # Tier 1: S-Tier Agentic Coding (70%+ SWE-bench)
-    - provider: g4f-hosted
-      model: claude-opus-4-5
+    # Tier 1: S-Tier Agentic Coding
+    - provider: g4f-gemini
+      model: openai/gemini-3-flash
       priority: 1
-      reasoning_effort: high
-    - provider: g4f-hosted
-      model: claude-opus-4-6
+    - provider: g4f-gemini
+      model: openai/gemini-3-pro
       priority: 2
-      reasoning_effort: high
-    - provider: g4f-hosted
-      model: claude-sonnet-4-5
+    - provider: g4f-groq
+      model: openai/llama-4-maverick-17b-128e-instruct
       priority: 3
-      reasoning_effort: high
-    - provider: g4f-gemini
-      model: gemini-3-flash
+    - provider: g4f-groq
+      model: openai/llama-3.3-70b-versatile
       priority: 4
-      reasoning_effort: high
-    - provider: g4f-gemini
-      model: gemini-3-pro
+    - provider: g4f-pollinations
+      model: openai/deepseek
       priority: 5
-      reasoning_effort: high
-    - provider: g4f-hosted
-      model: gpt-5-2
+    - provider: g4f-pollinations
+      model: openai/glm
       priority: 6
-      reasoning_effort: high
-    - provider: g4f-hosted
-      model: minimax-m2-5
+    # Tier 2: Fast fallbacks
+    - provider: groq
+      model: groq/llama-3.3-70b-versatile
       priority: 7
-      reasoning_effort: high
-    # Tier 2: A-Tier Agentic Coding (60-70% SWE-bench)
-    - provider: g4f-hosted
-      model: kimi-k2-5
+    - provider: gemini
+      model: gemini/gemini-2.5-flash
       priority: 8
-      reasoning_effort: high
-    - provider: together
-      model: deepseek-chat
-      priority: 9
-      reasoning_effort: high
-    - provider: g4f-hosted
-      model: claude-opus-4
-      priority: 10
-    - provider: g4f-hosted
-      model: gpt-5-2-codex
-      priority: 11
-    - provider: g4f-hosted
-      model: claude-haiku-4-5
-      priority: 12
-      reasoning_effort: high
-    # Tier 3: Fast fallbacks
-    - provider: g4f-groq
-      model: llama-4-maverick-17b-128e-instruct
-      priority: 13
-    - provider: g4f-groq
-      model: llama-3.3-70b-versatile
-      priority: 14
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
 
   # =============================================================================
-  # CODING SMART (High-quality coding with balanced performance)
+  # CODING SMART
   # =============================================================================
   coding-smart:
     description: "High-quality coding with balanced performance"
     fallback_chain:
     - provider: g4f-gemini
-      model: gemini-3-flash
+      model: openai/gemini-3-flash
       priority: 1
-      reasoning_effort: high
-    - provider: g4f-hosted
-      model: claude-opus-4-5
-      priority: 2
-      reasoning_effort: high
-    - provider: g4f-hosted
-      model: claude-opus-4-6
-      priority: 3
-    - provider: g4f-hosted
-      model: minimax-m2-5
-      priority: 4
-      reasoning_effort: high
-    - provider: g4f-hosted
-      model: gpt-5-2
-      priority: 5
-      reasoning_effort: high
-    - provider: g4f-gemini
-      model: gemini-3-pro
-      priority: 6
-    - provider: g4f-hosted
-      model: claude-sonnet-4-5
-      priority: 7
-      reasoning_effort: high
-    - provider: together
-      model: deepseek-chat
-      priority: 8
-      reasoning_effort: high
     - provider: g4f-groq
-      model: llama-3.3-70b-versatile
-      priority: 9
+      model: openai/llama-3.3-70b-versatile
+      priority: 2
+    - provider: g4f-pollinations
+      model: openai/deepseek
+      priority: 3
+    - provider: groq
+      model: groq/llama-3.3-70b-versatile
+      priority: 4
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
 
   # =============================================================================
-  # CODING FAST (Fastest coding models - TPS priority with quality floor)
+  # CODING FAST
   # =============================================================================
   coding-fast:
-    description: "Fastest coding models (TPS priority with quality floor)"
+    description: "Fastest coding models (TPS priority)"
     fallback_chain:
     - provider: g4f-groq
-      model: llama-3.1-8b-instant
+      model: openai/llama-3.1-8b-instant
       priority: 1
     - provider: g4f-groq
-      model: llama-3.3-70b-versatile
+      model: openai/llama-3.3-70b-versatile
       priority: 2
-    - provider: g4f-groq
-      model: llama-4-maverick-17b-128e-instruct
+    - provider: g4f-gemini
+      model: openai/gemini-2.5-flash
       priority: 3
-    - provider: g4f-gemini
-      model: gemini-3-flash
+    - provider: g4f-pollinations
+      model: openai/qwen-coder
       priority: 4
-      reasoning_effort: high
-    - provider: g4f-gemini
-      model: gemini-2.5-flash
-      priority: 5
-    - provider: g4f-pollinations
-      model: deepseek
-      priority: 6
-    - provider: g4f-pollinations
-      model: qwen-coder
-      priority: 7
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
 
   # =============================================================================
-  # CHAT SMART (Best intelligence-to-speed ratio)
+  # CHAT SMART
   # =============================================================================
   chat-smart:
     description: "Best intelligence-to-speed ratio"
     fallback_chain:
     - provider: g4f-gemini
-      model: gemini-3-pro
+      model: openai/gemini-3-pro
       priority: 1
     - provider: g4f-gemini
-      model: gemini-3-flash
+      model: openai/gemini-3-flash
       priority: 2
-    - provider: g4f-hosted
-      model: grok-4-1-thinking
-      priority: 3
-    - provider: g4f-hosted
-      model: gpt-5-xhigh
-      priority: 4
-    - provider: g4f-hosted
-      model: grok-4-1
-      priority: 5
-    - provider: g4f-hosted
-      model: claude-opus-4-5-thinking-32k
-      priority: 6
-    - provider: g4f-hosted
-      model: gpt-5-high
-      priority: 7
     - provider: g4f-groq
-      model: llama-4-scout
-      priority: 8
-    - provider: together
-      model: deepseek-v3
-      priority: 9
+      model: openai/llama-4-scout
+      priority: 3
+    - provider: groq
+      model: groq/llama-3.3-70b-versatile
+      priority: 4
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
 
   # =============================================================================
-  # CHAT ELITE (Most intelligent models regardless of speed)
+  # CHAT ELITE
   # =============================================================================
   chat-elite:
     description: "Most intelligent models regardless of speed"
     fallback_chain:
     - provider: g4f-gemini
-      model: gemini-3-pro
+      model: openai/gemini-3-pro
       priority: 1
-    - provider: g4f-hosted
-      model: claude-opus-4-5-thinking-32k
-      priority: 2
-    - provider: g4f-hosted
-      model: gpt-5-xhigh
-      priority: 3
-    - provider: g4f-hosted
-      model: grok-4-1-thinking
-      priority: 4
     - provider: g4f-gemini
-      model: gemini-3-flash
-      priority: 5
-    - provider: g4f-hosted
-      model: claude-sonnet-4-5-thinking-32k
-      priority: 6
-    - provider: g4f-hosted
-      model: gpt-5-high
-      priority: 7
-    - provider: g4f-hosted
-      model: grok-4-1
-      priority: 8
+      model: openai/gemini-3-flash
+      priority: 2
+    - provider: g4f-groq
+      model: openai/llama-4-maverick-17b-128e-instruct
+      priority: 3
+    - provider: g4f-pollinations
+      model: openai/claude
+      priority: 4
     settings:
       timeout_ms: 300000
       retry_on_rate_limit: true
 
   # =============================================================================
-  # CHAT FAST (Fastest models that aren't stupid)
+  # CHAT FAST
   # =============================================================================
   chat-fast:
-    description: "Fastest models that aren't stupid"
+    description: "Fastest models that work well"
     fallback_chain:
     - provider: g4f-groq
-      model: llama-4-scout
+      model: openai/llama-3.1-8b-instant
       priority: 1
-    - provider: g4f-groq
-      model: llama-3.3-70b-versatile
-      priority: 2
     - provider: g4f-gemini
-      model: gemini-3-flash
+      model: openai/gemini-2.5-flash
+      priority: 2
+    - provider: g4f-pollinations
+      model: openai/nova-fast
       priority: 3
-    - provider: g4f-hosted
-      model: grok-4-1
-      priority: 4
-    - provider: g4f-hosted
-      model: gpt-5-medium
-      priority: 5
-    - provider: together
-      model: deepseek-v3
-      priority: 6
     settings:
       timeout_ms: 15000
       retry_on_rate_limit: true
 
   # =============================================================================
-  # CHAT RP (Uncensored RP models)
+  # CHAT RP
   # =============================================================================
   chat-rp:
-    description: "Uncensored RP models"
+    description: "Roleplay models"
     fallback_chain:
-    - provider: g4f-hosted
-      model: mn-violet-lotus-12b
-      priority: 1
-    - provider: g4f-hosted
-      model: cydonia-24b-v4.1
-      priority: 2
-    - provider: g4f-hosted
-      model: anubis-70b-v1.1
-      priority: 3
-    - provider: g4f-hosted
-      model: broken-tutu-24b-unslop-v2.0
-      priority: 4
     - provider: g4f-groq
-      model: llama-3.1-8b-instant
-      priority: 5
+      model: openai/llama-3.1-8b-instant
+      priority: 1
+    - provider: g4f-pollinations
+      model: openai/kimi
+      priority: 2
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
 
 providers:
-  nvidia:
-    base_url: https://integrate.api.nvidia.com/v1
-    api_key_env: NVIDIA_API_KEY
-    rate_limits:
-      rpm: 60
-  together:
-    base_url: https://api.together.xyz/v1
-    api_key_env: TOGETHER_API_KEY
-    rate_limits:
-      rpm: 60
-  cerebras:
-    base_url: https://api.cerebras.ai/v1
-    api_key_env: CEREBRAS_API_KEY
-    rate_limits:
-      rpm: 50
-      daily: 5000
+  # Direct API providers (require API keys)
   groq:
     base_url: https://api.groq.com/openai/v1
     api_key_env: GROQ_API_KEY
     rate_limits:
       rpm: 30
       daily: 14400
-  google:
-    base_url: https://generativelanguage.googleapis.com/v1beta
-    api_key_env: GEMINI_API_KEY
-    rate_limits:
-      rpm: 15
-      daily: 1500
   gemini:
     base_url: https://generativelanguage.googleapis.com/v1beta
     api_key_env: GEMINI_API_KEY
     rate_limits:
       rpm: 15
       daily: 1500
-  openai:
-    base_url: https://api.openai.com/v1
-    api_key_env: OPENAI_API_KEY
+  together:
+    base_url: https://api.together.xyz/v1
+    api_key_env: TOGETHER_API_KEY
     rate_limits:
-      rpm: 3000
-  mistral:
-    base_url: https://api.mistral.ai/v1
-    api_key_env: MISTRAL_API_KEY
-    rate_limits:
-      rpm: 10
+      rpm: 60
+
+  # G4F Free providers (OpenAI-compatible, no API key needed)
   g4f-groq:
     base_url: https://g4f.space/api/groq
     free_tier_only: true
@@ -326,6 +197,3 @@ providers:
   g4f-gemini:
     base_url: https://g4f.space/api/gemini
     free_tier_only: true
-  g4f-hosted:
-    base_url: https://g4f.space/v1
-    api_key_env: G4F_API_KEY
