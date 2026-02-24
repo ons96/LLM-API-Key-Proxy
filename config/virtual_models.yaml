@@ -1,4 +1,7 @@
 virtual_models:
+  _global_settings:
+    free_only_mode: false
+
   coding-elite:
     description: Best agentic coding models - REAL working models from g4f.space
     fallback_chain:
