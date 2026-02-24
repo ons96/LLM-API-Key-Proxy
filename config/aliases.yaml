@@ -3,37 +3,37 @@ aliases:
     description: Aggregated Leaderboard Top Coding Models
     strategy: chain_fallback
     candidates:
-      - provider: groq
-        model: llama-3.3-70b-versatile
-      - provider: gemini
-        model: gemini-1.5-pro
-      - provider: openai
-        model: gpt-4o
-      - provider: together
-        model: deepseek-ai/DeepSeek-V3
-      - provider: g4f
-        model: claude-3-5-sonnet
-
+    - provider: groq
+      model: llama-3.3-70b-versatile
+    - provider: gemini
+      model: gemini-1.5-pro
+    - provider: openai
+      model: gpt-4o
+    - provider: together
+      model: deepseek-ai/DeepSeek-V3
+    - provider: cerebras
+      model: llama-3.3-70b
   smart:
     description: Highest Agentic Coding Score
     strategy: chain_fallback
     candidates:
-      - provider: groq
-        model: llama-3.3-70b-versatile
-      - provider: gemini
-        model: gemini-1.5-pro
-      - provider: openai
-        model: gpt-4o
-
+    - provider: groq
+      model: llama-3.3-70b-versatile
+    - provider: gemini
+      model: gemini-1.5-flash
+    - provider: openai
+      model: gpt-4o-mini
+    - provider: together
+      model: deepseek-ai/DeepSeek-V3
   fast:
-    description: Highest TPS (Quality > 30)
+    description: Highest TPS (Quality > 40)
     strategy: chain_fallback
     candidates:
-      - provider: cerebras
-        model: llama-3.3-70b
-      - provider: groq
-        model: llama-3.1-8b-instant
-      - provider: gemini
-        model: gemini-1.5-flash
-      - provider: openai
-        model: gpt-4o-mini
+    - provider: cerebras
+      model: llama-3.3-70b
+    - provider: groq
+      model: llama-3.1-8b-instant
+    - provider: gemini
+      model: gemini-1.5-flash
+    - provider: openai
+      model: gpt-4o-mini

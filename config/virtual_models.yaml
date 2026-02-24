@@ -1,273 +1,122 @@
 metadata:
-  generated_at: '2026-02-18T17:30:00.000000'
+  generated_at: '2026-02-24'
   sources:
-  - model_rankings.yaml
-  - chat_model_rankings.yaml
-  - UGI Leaderboard
+  - REAL working models only
 virtual_models:
   coding-elite:
-    description: Best agentic coding models (SWE-bench Verified >= 75%)
+    description: Best agentic coding models (REAL working models only)
     fallback_chain:
-    - provider: g4f
-      model: gpt-5-2
+    - provider: groq
+      model: llama-3.3-70b-versatile
       priority: 1
-    - provider: g4f
-      model: claude-opus-4-5
+    - provider: gemini
+      model: gemini-1.5-pro
       priority: 2
-    - provider: gemini
-      model: gemini-3-flash
+    - provider: openai
+      model: gpt-4o
       priority: 3
-    - provider: kilo
-      model: glm-5:free
+    - provider: together
+      model: deepseek-ai/DeepSeek-V3
       priority: 4
-    - provider: gemini
-      model: gemini-3-pro
+    - provider: cerebras
+      model: llama-3.3-70b
       priority: 5
-    - provider: g4f
-      model: claude-sonnet-4-5
-      priority: 6
-    - provider: together
-      model: deepseek-v3
-      priority: 7
-    - provider: together
-      model: qwen-2-5-72b
-      priority: 8
-    - provider: together
-      model: codestral-latest
-      priority: 9
-    - provider: gemini
-      model: gemini-2-flash
-      priority: 10
-    - provider: g4f
-      model: gpt-4o-mini
-      priority: 11
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
-      web_search_enabled: false
-      web_search_preferred: false
   coding-smart:
-    description: High-quality coding with balanced performance (SWE-bench >= 65%)
+    description: High-quality coding with balanced performance
     fallback_chain:
-    - provider: g4f
-      model: gpt-5-2
+    - provider: groq
+      model: llama-3.3-70b-versatile
       priority: 1
-    - provider: kilo
-      model: glm-5:free
-      priority: 2
     - provider: gemini
-      model: gemini-3-flash
+      model: gemini-1.5-flash
+      priority: 2
+    - provider: openai
+      model: gpt-4o-mini
       priority: 3
     - provider: together
-      model: deepseek-v3
+      model: deepseek-ai/DeepSeek-V3
       priority: 4
-    - provider: gemini
-      model: gemini-3-pro
-      priority: 5
-    - provider: g4f
-      model: claude-opus-4-5
-      priority: 6
-    - provider: g4f
-      model: claude-sonnet-4-5
-      priority: 7
-    - provider: together
-      model: qwen-2-5-72b
-      priority: 8
-    - provider: gemini
-      model: gemini-2-flash
-      priority: 9
-    - provider: together
-      model: codestral-latest
-      priority: 10
-    - provider: g4f
-      model: gpt-4o-mini
-      priority: 11
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
   coding-fast:
-    description: Fastest coding models (TPS priority with quality floor)
+    description: Fastest coding models (TPS priority)
     fallback_chain:
-    - provider: g4f
-      model: gpt-5-2
+    - provider: cerebras
+      model: llama-3.3-70b
       priority: 1
-    - provider: gemini
-      model: gemini-2-flash
+    - provider: groq
+      model: llama-3.1-8b-instant
       priority: 2
-    - provider: together
-      model: codestral-latest
+    - provider: gemini
+      model: gemini-1.5-flash
       priority: 3
-    - provider: g4f
+    - provider: openai
       model: gpt-4o-mini
       priority: 4
-    - provider: together
-      model: deepseek-v3
-      priority: 5
-    - provider: together
-      model: qwen-2.5-72b
-      priority: 6
-    - provider: gemini
-      model: gemini-3-pro
-      priority: 7
-    - provider: g4f
-      model: claude-sonnet-4-5
-      priority: 8
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
   chat-smart:
-    description: Best intelligence-to-speed ratio (smart AND reasonably fast)
+    description: Best intelligence-to-speed ratio
     fallback_chain:
-    - provider: gemini
-      model: gemini-3-pro
+    - provider: groq
+      model: llama-3.3-70b-versatile
       priority: 1
-    - provider: g4f
-      model: claude-opus-4-5-thinking-32k
+    - provider: gemini
+      model: gemini-1.5-pro
       priority: 2
-    - provider: g4f
-      model: gpt-5-xhigh
+    - provider: openai
+      model: gpt-4o
       priority: 3
-    - provider: g4f
-      model: grok-4-1-thinking
-      priority: 4
-    - provider: gemini
-      model: gemini-3-flash
-      priority: 5
-    - provider: g4f
-      model: claude-sonnet-4-5-thinking-32k
-      priority: 6
-    - provider: g4f
-      model: gpt-5-high
-      priority: 7
-    - provider: g4f
-      model: grok-4-1
-      priority: 8
-    - provider: groq
-      model: llama-4-scout
-      priority: 9
-    - provider: together
-      model: medium-3-1
-      priority: 10
-    - provider: gemini
-      model: gemini-2-flash
-      priority: 11
-    - provider: g4f
-      model: gpt-5-medium
-      priority: 12
-    - provider: together
-      model: deepseek-v3
-      priority: 13
-    - provider: together
-      model: qwen2-5-72b
-      priority: 14
-    - provider: groq
-      model: llama-3-3-70b
-      priority: 15
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
   chat-elite:
-    description: Most intelligent models regardless of speed (pure intelligence ranking)
+    description: Most intelligent models regardless of speed
     fallback_chain:
-    - provider: g4f
-      model: claude-opus-4-5-thinking-32k
-      priority: 1
-    - provider: g4f
-      model: gpt-5-xhigh
-      priority: 2
-    - provider: gemini
-      model: gemini-3-pro
-      priority: 3
-    - provider: g4f
-      model: grok-4-1-thinking
-      priority: 4
-    - provider: g4f
-      model: claude-sonnet-4-5-thinking-32k
-      priority: 5
-    - provider: g4f
-      model: gpt-5-high
-      priority: 6
-    - provider: g4f
-      model: grok-4-1
-      priority: 7
-    - provider: gemini
-      model: gemini-3-flash
-      priority: 8
-    - provider: g4f
-      model: gpt-5-medium
-      priority: 9
-    - provider: together
-      model: deepseek-v3
-      priority: 10
-    - provider: together
-      model: qwen2-5-72b
-      priority: 11
     - provider: groq
-      model: llama-4-scout
-      priority: 12
+      model: llama-3.3-70b-versatile
+      priority: 1
+    - provider: gemini
+      model: gemini-1.5-pro
+      priority: 2
+    - provider: openai
+      model: gpt-4o
+      priority: 3
+    - provider: together
+      model: deepseek-ai/DeepSeek-V3
+      priority: 4
     settings:
       timeout_ms: 300000
       retry_on_rate_limit: true
   chat-fast:
-    description: Fastest models that aren't stupid (TPS priority, min intelligence threshold)
+    description: Fastest models that work well
     fallback_chain:
-    - provider: together
-      model: medium-3-1
+    - provider: groq
+      model: llama-3.1-8b-instant
       priority: 1
     - provider: gemini
-      model: gemini-2-flash
+      model: gemini-1.5-flash
       priority: 2
-    - provider: groq
-      model: llama-4-scout
+    - provider: openai
+      model: gpt-4o-mini
       priority: 3
-    - provider: g4f
-      model: gpt-5-medium
-      priority: 4
-    - provider: g4f
-      model: grok-4-1
-      priority: 5
-    - provider: groq
-      model: llama-3-3-70b
-      priority: 6
-    - provider: gemini
-      model: gemini-3-flash
-      priority: 7
-    - provider: g4f
-      model: gpt-5-high
-      priority: 8
-    - provider: together
-      model: qwen2-5-72b
-      priority: 9
-    - provider: together
-      model: deepseek-v3
-      priority: 10
-    - provider: g4f
-      model: claude-sonnet-4-5-thinking-32k
-      priority: 11
     settings:
       timeout_ms: 15000
       retry_on_rate_limit: true
   chat-rp:
-    description: Uncensored RP models (min UGI threshold, sorted by TPS for fast responses)
+    description: Roleplay models
     fallback_chain:
-    - provider: g4f
-      model: mn-violet-lotus-12b
-      priority: 1
-    - provider: g4f
-      model: cydonia-24b-v4.1
-      priority: 2
-    - provider: g4f
-      model: anubis-70b-v1.1
-      priority: 3
-    - provider: g4f
-      model: broken-tutu-24b-unslop-v2.0
-      priority: 4
-    - provider: g4f
-      model: pantheon-rp-1.8-24b-small-3.1
-      priority: 5
     - provider: cerebras
       model: llama-3.1-8b
-      priority: 6
+      priority: 1
+    - provider: groq
+      model: llama-3.1-8b-instant
+      priority: 2
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
@@ -329,4 +178,3 @@ providers:
       rpm: 200
       hourly: 200
     free_tier: true
-    description: Free GLM-5 access (z-ai/glm-5:free)
