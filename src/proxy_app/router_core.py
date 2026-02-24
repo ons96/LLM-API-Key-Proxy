@@ -1319,16 +1319,13 @@ class RouterCore:
             "aggregator_model", "groq/llama-3.3-70b-versatile"
         )
 
-        # Filter expert candidates
-        all_expert_candidates = await self._get_candidates(
+        # Get all candidates and use first N as experts (simpler than filtering by role)
+        all_candidates = await self._get_candidates(
             request.get("model", ""), self._extract_requirements(request)
         )
-        expert_candidates = [
-            c for c in all_expert_candidates if c.role and "expert" in c.role
-        ]
-
-        # Limit to max_experts
-        expert_candidates = expert_candidates[:max_experts]
+        
+        # Use first N candidates as experts (already sorted by priority)
+        expert_candidates = list(all_candidates)[:max_experts]
 
         if not expert_candidates:
             raise ValueError("No expert candidates available for MoE mode")
