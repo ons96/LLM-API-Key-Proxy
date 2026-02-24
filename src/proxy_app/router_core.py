@@ -997,6 +997,13 @@ class RouterCore:
         if any(keyword in error_str for keyword in ["bad request", "invalid", "400"]):
             return ErrorCategory.INVALID_REQUEST, None
 
+        # Missing model errors - should try next provider
+        if any(
+            keyword in error_str
+            for keyword in ["model not found", "not found", "404", "not supported"]
+        ):
+            return ErrorCategory.PROVIDER_ERROR, None
+
         # Default to provider error
         return ErrorCategory.PROVIDER_ERROR, None
 
@@ -1743,6 +1750,12 @@ class RouterCore:
                 ]:
                     # Don't retry on invalid requests or auth errors
                     break
+
+                    elif error_category == ErrorCategory.INVALID_REQUEST:
+                        # Fallback on "model not found" even if it's a bad request
+                        if any(k in str(e).lower() for k in ["not found", "not supported", "model"]):
+                            continue
+                        break
 
                 logger.warning(
                     f"[{request_id}] Candidate {candidate.provider}/{candidate.model} failed, trying next"
