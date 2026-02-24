@@ -1,0 +1,3959 @@
+📁 Loaded 3 .env file(s): your-env-file.env, simple-env-template.env, .env
+  → Loading FastAPI framework...
+  → Loading core dependencies...
+  → Loading LiteLLM library...
+  → Initializing proxy core...
+  → Discovering provider plugins...
+/home/owens/CodingProjects/LLM-API-Key-Proxy/src/proxy_app/main.py:179: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+  class EnrichedModelCard(BaseModel):
+[H[2J[3J✓ Server ready in 1.65s (24 providers discovered in 0.00s)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Starting proxy on 127.0.0.1:8000
+Proxy API Key: ✓ ****
+GitHub: https://github.com/ons96/LLM-API-Key-Proxy
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ Server ready in 1.65s (24 providers discovered in 0.00s)
+  → Mounting provider status API routes...
+INFO:     Started server process [8258]
+INFO:     Waiting for application startup.
+[32mStarting automated OAuth credential discovery...[0m
+[32mOAuth credential discovery complete.[0m
+[32mTelemetryManager initialized: /tmp/llm_proxy_telemetry.db[0m
+[32mProvider priority manager initialized with 16 providers[0m
+[32mPriority manager initialized: ProviderPriorityManager(tiers={Premium: 2, Fast/Affordable: 3, Standard: 6, Fallback: 1, Lowest Priority: 4})[0m
+[32mBackground token refresher started. Check interval: 600 seconds.[0m
+[32mRotatingClient initialized (EmbeddingBatcher disabled).[0m
+[32mModelRegistry started (refresh every 21600s)[0m
+[32mModel info service started (fetching pricing data in background).[0m
+[32mTelemetryManager initialized: /tmp/llm_proxy_telemetry.db[0m
+[32mRegistered search API key for tavily[0m
+[32mRegistered search API key for brave[0m
+[33mNo API keys found for search provider: exa[0m
+[32mInitialized 4 search providers[0m
+[32mInitialized 0 virtual models[0m
+[32mLoaded 7 virtual models from /home/owens/CodingProjects/LLM-API-Key-Proxy/config/virtual_models.yaml[0m
+[32mLoaded 3 aliases from /home/owens/CodingProjects/LLM-API-Key-Proxy/config/aliases.yaml[0m
+[32mRouter initialized with FREE_ONLY_MODE=True[0m
+[32mInitialized groq adapter[0m
+[32mInitialized gemini adapter[0m
+[32mInitialized together adapter[0m
+[32mInitialized g4f adapter (no API key required)[0m
+[32mRouter integration initialized with 4 providers[0m
+[32mRouterWrapper initialized with router integration[0m
+[32mGlobal router wrapper initialized[0m
+[32mRouter system initialized and linked with RotatingClient.[0m
+[32mHealth checker started (interval: 300s)[0m
+[32mDatabase initialized at provider_status.db[0m
+[32mProviderStatusTracker initialized with 12 providers[0m
+[32mProviders to monitor: g4f_main, g4f_grok, google, nvidia, g4f_gemini, g4f, together, g4f_nvidia, g4f_groq, groq, gemini, openrouter[0m
+[32mStarting provider status tracker (interval: 5 minutes)[0m
+[32mProvider status tracker initialized and started[0m
+[32mProvider status tracker initialized and started[0m
+[32mStarting health checks for 12 providers[0m
+[32mFetching models.dev API data...[0m
+INFO:     Application startup complete.
+New g4f version available: 7.1.2 (current: 6.9.3) | pip install -U g4f
+[32mOpenRouter: 338 models loaded[0m
+[32mModels.dev: 2973 models loaded[0m
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+[32mLoaded 94 providers from models.dev[0m
+[32mFound 302 new free models across 27 providers (24 entirely new)[0m
+[32mDiscovery cache saved to /home/owens/CodingProjects/LLM-API-Key-Proxy/config/discovered_models.json[0m
+[32mmodels.dev discovery: found 302 new free models across 27 providers. Run 'python scripts/discover_free_models.py' for details.[0m
+/home/owens/CodingProjects/LLM-API-Key-Proxy/venv/lib/python3.12/site-packages/pydantic/main.py:464: UserWarning: Pydantic serializer warnings:
+  PydanticSerializationUnexpectedValue(Expected 10 fields but got 5: Expected `Message` - serialized value may not be as expected [field_name='message', input_value=Message(content='It', rol...er_specific_fields=None), input_type=Message])
+  PydanticSerializationUnexpectedValue(Expected `StreamingChoices` - serialized value may not be as expected [field_name='choices', input_value=Choices(finish_reason='le...r_specific_fields=None)), input_type=Choices])
+  return self.__pydantic_serializer__.to_python(
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 52.905906607s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "52s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+INFO:     127.0.0.1:41568 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41570 - "GET /health HTTP/1.1" 200 OK
+[32m✓ g4f_main: 34503.4ms[0m
+[32m✓ g4f_grok: 37655.7ms[0m
+[32m✓ google: 1149.5ms[0m
+[32m✓ nvidia: 1266.1ms[0m
+[32m✓ g4f_gemini: 34228.3ms[0m
+[32m✓ g4f: 32387.5ms[0m
+[32m✓ together: 6243.7ms[0m
+[32m✓ g4f_nvidia: 34888.9ms[0m
+[32m✓ g4f_groq: 34968.9ms[0m
+[32m✓ groq: 1410.0ms[0m
+[32m✓ gemini: 920.3ms[0m
+[32m✓ openrouter: 1421.7ms[0m
+[32mHealth checks completed[0m
+[32mStarting health checks for 12 providers[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 49.210322717s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "model": "gemini-2.5-flash",
+              "location": "global"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "49s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32m✓ g4f_main: 34806.2ms[0m
+[32m✓ g4f_grok: 35063.7ms[0m
+[32m✓ google: 420.2ms[0m
+[32m✓ nvidia: 507.1ms[0m
+[32m✓ g4f_gemini: 34875.5ms[0m
+[32m✓ g4f: 33064.9ms[0m
+[32m✓ together: 4017.8ms[0m
+[32m✓ g4f_nvidia: 32479.4ms[0m
+[32m✓ g4f_groq: 32863.7ms[0m
+[32m✓ groq: 586.3ms[0m
+[32m✓ gemini: 353.4ms[0m
+[32m✓ openrouter: 614.8ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 44.704815892s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "44s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 34890.4ms[0m
+[32m✓ g4f_grok: 36088.2ms[0m
+[32m✓ google: 625.7ms[0m
+[32m✓ nvidia: 703.4ms[0m
+[32m✓ g4f_gemini: 32652.8ms[0m
+[32m✓ g4f: 32603.9ms[0m
+[32m✓ together: 3091.6ms[0m
+[32m✓ g4f_nvidia: 32399.6ms[0m
+[32m✓ g4f_groq: 34674.4ms[0m
+[32m✓ groq: 878.9ms[0m
+[32m✓ gemini: 517.4ms[0m
+[32m✓ openrouter: 847.6ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 39.869030333s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "39s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 32522.0ms[0m
+[32m✓ g4f_grok: 34079.5ms[0m
+[32m✓ google: 674.8ms[0m
+[32m✓ nvidia: 785.3ms[0m
+[32m✓ g4f_gemini: 32240.9ms[0m
+[32m✓ g4f: 31927.7ms[0m
+[32m✓ together: 5683.5ms[0m
+[32m✓ g4f_nvidia: 32274.0ms[0m
+[32m✓ g4f_groq: 34744.4ms[0m
+[32m✓ groq: 856.8ms[0m
+[32m✓ gemini: 570.2ms[0m
+[32m✓ openrouter: 846.8ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 38.334898338s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "38s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 35212.3ms[0m
+[32m✓ g4f_grok: 32513.0ms[0m
+[32m✓ google: 641.5ms[0m
+[32m✓ nvidia: 718.0ms[0m
+[32m✓ g4f_gemini: 32389.0ms[0m
+[32m✓ g4f: 34998.1ms[0m
+[32m✓ together: 9216.9ms[0m
+[32m✓ g4f_nvidia: 35406.0ms[0m
+[32m✓ g4f_groq: 34561.7ms[0m
+[32m✓ groq: 701.2ms[0m
+[32m✓ gemini: 447.4ms[0m
+[32m✓ openrouter: 696.9ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 34.326865801s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "34s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 34290.3ms[0m
+[32m✓ g4f_grok: 34528.7ms[0m
+[32m✓ google: 494.5ms[0m
+[32m✓ nvidia: 503.4ms[0m
+[32m✓ g4f_gemini: 32193.6ms[0m
+[32m✓ g4f: 33179.2ms[0m
+[32m✓ together: 3762.4ms[0m
+[32m✓ g4f_nvidia: 31614.2ms[0m
+[32m✓ g4f_groq: 32133.6ms[0m
+[32m✓ groq: 640.8ms[0m
+[32m✓ gemini: 487.7ms[0m
+[32m✓ openrouter: 640.7ms[0m
+[32mHealth checks completed[0m
+/home/owens/CodingProjects/LLM-API-Key-Proxy/venv/lib/python3.12/site-packages/pydantic/main.py:464: UserWarning: Pydantic serializer warnings:
+  PydanticSerializationUnexpectedValue(Expected 10 fields but got 5: Expected `Message` - serialized value may not be as expected [field_name='message', input_value=Message(content='How', ro...er_specific_fields=None), input_type=Message])
+  PydanticSerializationUnexpectedValue(Expected `StreamingChoices` - serialized value may not be as expected [field_name='choices', input_value=Choices(finish_reason='le...r_specific_fields=None)), input_type=Choices])
+  return self.__pydantic_serializer__.to_python(
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 32.7922771s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "32s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 34622.9ms[0m
+[32m✓ g4f_grok: 32575.5ms[0m
+[32m✓ google: 568.1ms[0m
+[32m✓ nvidia: 565.8ms[0m
+[32m✓ g4f_gemini: 34472.3ms[0m
+[32m✓ g4f: 32218.1ms[0m
+[32m✓ together: 3909.3ms[0m
+[32m✓ g4f_nvidia: 32114.7ms[0m
+[32m✓ g4f_groq: 34408.9ms[0m
+[32m✓ groq: 661.6ms[0m
+[32m✓ gemini: 493.1ms[0m
+[32m✓ openrouter: 611.0ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 28.234808066s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "28s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 34943.4ms[0m
+[32m✓ g4f_grok: 35079.1ms[0m
+[32m✓ google: 368.7ms[0m
+[32m✓ nvidia: 391.4ms[0m
+[32m✓ g4f_gemini: 35028.6ms[0m
+[32m✓ g4f: 32203.8ms[0m
+[32m✓ together: 3392.1ms[0m
+[32m✓ g4f_nvidia: 32598.0ms[0m
+[32m✓ g4f_groq: 32130.3ms[0m
+[32m✓ groq: 666.9ms[0m
+[32m✓ gemini: 388.1ms[0m
+[32m✓ openrouter: 510.3ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 24.429284191s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "model": "gemini-2.5-flash",
+              "location": "global"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "24s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 34104.6ms[0m
+[32m✓ g4f_grok: 33890.3ms[0m
+[32m✓ google: 496.6ms[0m
+[32m✓ nvidia: 489.3ms[0m
+[32m✓ g4f_gemini: 31989.9ms[0m
+[32m✓ g4f: 32016.6ms[0m
+[32m✓ together: 3737.8ms[0m
+[32m✓ g4f_nvidia: 31849.6ms[0m
+[32m✓ g4f_groq: 31976.5ms[0m
+[32m✓ groq: 567.3ms[0m
+[32m✓ gemini: 431.0ms[0m
+[32m✓ openrouter: 594.8ms[0m
+[32mHealth checks completed[0m
+/home/owens/CodingProjects/LLM-API-Key-Proxy/venv/lib/python3.12/site-packages/pydantic/main.py:464: UserWarning: Pydantic serializer warnings:
+  PydanticSerializationUnexpectedValue(Expected 10 fields but got 5: Expected `Message` - serialized value may not be as expected [field_name='message', input_value=Message(content='Hi', rol...er_specific_fields=None), input_type=Message])
+  PydanticSerializationUnexpectedValue(Expected `StreamingChoices` - serialized value may not be as expected [field_name='choices', input_value=Choices(finish_reason='le...r_specific_fields=None)), input_type=Choices])
+  return self.__pydantic_serializer__.to_python(
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 21.265670359s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "21s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 31878.0ms[0m
+[32m✓ g4f_grok: 31894.4ms[0m
+[32m✓ google: 535.0ms[0m
+[32m✓ nvidia: 471.5ms[0m
+[32m✓ g4f_gemini: 33741.2ms[0m
+[32m✓ g4f: 33464.4ms[0m
+[32m✓ together: 3902.5ms[0m
+[32m✓ g4f_nvidia: 31892.8ms[0m
+[32m✓ g4f_groq: 31871.4ms[0m
+[32m✓ groq: 597.5ms[0m
+[32m✓ gemini: 501.3ms[0m
+[32m✓ openrouter: 584.8ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 18.355860712s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "18s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+INFO:     127.0.0.1:50996 - "GET /health HTTP/1.1" 200 OK
+[32mStarting health checks for 12 providers[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 15.958406129s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "15s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+/home/owens/CodingProjects/LLM-API-Key-Proxy/venv/lib/python3.12/site-packages/pydantic/main.py:464: UserWarning: Pydantic serializer warnings:
+  PydanticSerializationUnexpectedValue(Expected 10 fields but got 5: Expected `Message` - serialized value may not be as expected [field_name='message', input_value=Message(content='Hello', ...er_specific_fields=None), input_type=Message])
+  PydanticSerializationUnexpectedValue(Expected `StreamingChoices` - serialized value may not be as expected [field_name='choices', input_value=Choices(finish_reason='le...r_specific_fields=None)), input_type=Choices])
+  return self.__pydantic_serializer__.to_python(
+[32m✓ g4f_main: 31310.9ms[0m
+[32m✓ g4f_grok: 33847.7ms[0m
+[32m✓ google: 487.8ms[0m
+[32m✓ nvidia: 523.9ms[0m
+[32m✓ g4f_gemini: 31311.9ms[0m
+[32m✓ g4f: 31317.3ms[0m
+[32m✓ together: 3437.2ms[0m
+[32m✓ g4f_nvidia: 33660.2ms[0m
+[32m✓ g4f_groq: 34209.1ms[0m
+[32m✓ groq: 785.7ms[0m
+[32m✓ gemini: 327.7ms[0m
+[32m✓ openrouter: 3116.4ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 12.517865586s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "model": "gemini-2.5-flash",
+              "location": "global"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "12s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 33641.5ms[0m
+[32m✓ g4f_grok: 31058.3ms[0m
+[32m✓ google: 394.2ms[0m
+[32m✓ nvidia: 439.4ms[0m
+[32m✓ g4f_gemini: 31045.5ms[0m
+[32m✓ g4f: 31930.9ms[0m
+[32m✓ together: 3016.7ms[0m
+[32m✓ g4f_nvidia: 34338.0ms[0m
+[32m✓ g4f_groq: 34117.4ms[0m
+[32m✓ groq: 513.7ms[0m
+[32m✓ gemini: 374.1ms[0m
+[32m✓ openrouter: 541.9ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 8.876026803s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "8s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 34083.8ms[0m
+[32m✓ g4f_grok: 32128.3ms[0m
+[32m✓ google: 498.7ms[0m
+[32m✓ nvidia: 477.1ms[0m
+[32m✓ g4f_gemini: 31715.6ms[0m
+[32m✓ g4f: 33745.2ms[0m
+[32m✓ together: 5007.8ms[0m
+[32m✓ g4f_nvidia: 32933.1ms[0m
+[32m✓ g4f_groq: 33907.5ms[0m
+[32m✓ groq: 533.4ms[0m
+[32m✓ gemini: 457.8ms[0m
+[32m✓ openrouter: 553.7ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 7.226311452s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "7s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 32945.3ms[0m
+[32m✓ g4f_grok: 108779.0ms[0m
+[32m✓ google: 322.9ms[0m
+[32m✓ nvidia: 336.1ms[0m
+[32m✓ g4f_gemini: 34799.8ms[0m
+[32m✓ g4f: 33053.8ms[0m
+[32m✓ together: 9743.3ms[0m
+[32m✓ g4f_nvidia: 34605.6ms[0m
+[32m✓ g4f_groq: 32073.7ms[0m
+[32m✓ groq: 404.5ms[0m
+[32m✓ gemini: 308.9ms[0m
+[32m✓ openrouter: 446.1ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 3.688531735s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "3s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 108264.4ms[0m
+[32m✓ g4f_grok: 108377.2ms[0m
+[32m✓ google: 317.8ms[0m
+[32m✓ nvidia: 314.8ms[0m
+[32m✓ g4f_gemini: 108241.1ms[0m
+[32m✓ g4f: 107652.6ms[0m
+[32m✓ together: 1396.6ms[0m
+[32m✓ g4f_nvidia: 108482.9ms[0m
+[32m✓ g4f_groq: 32584.6ms[0m
+[32m✓ groq: 422.6ms[0m
+[32m✓ gemini: 313.1ms[0m
+[32m✓ openrouter: 384.6ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 45.14672598s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "45s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 31883.9ms[0m
+[32m✓ g4f_grok: 108454.5ms[0m
+[32m✓ google: 456.7ms[0m
+[32m✓ nvidia: 476.4ms[0m
+[32m✓ g4f_gemini: 108352.8ms[0m
+[32m✓ g4f: 31612.1ms[0m
+[32m✓ together: 4656.0ms[0m
+[32m✓ g4f_nvidia: 32449.6ms[0m
+[32m✓ g4f_groq: 31956.3ms[0m
+[32m✓ groq: 697.2ms[0m
+[32m✓ gemini: 411.9ms[0m
+[32m✓ openrouter: 552.5ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 26.376538082s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "model": "gemini-2.5-flash",
+              "location": "global"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "26s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 32586.6ms[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 25.001245857s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "25s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32m✓ g4f_grok: 107934.8ms[0m
+[32m✓ google: 522.6ms[0m
+[32m✓ nvidia: 493.0ms[0m
+[32m✓ g4f_gemini: 32136.9ms[0m
+[32m✓ g4f: 107798.7ms[0m
+[32m✓ together: 1939.0ms[0m
+[32m✓ g4f_nvidia: 32489.5ms[0m
+[32m✓ g4f_groq: 108597.0ms[0m
+[32m✓ groq: 603.5ms[0m
+[32m✓ gemini: 384.6ms[0m
+[32m✓ openrouter: 577.2ms[0m
+[32mHealth checks completed[0m
+[32mStarting health checks for 12 providers[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 7.506709988s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "7s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32m✓ g4f_main: 108520.5ms[0m
+[32m✓ g4f_grok: 32734.3ms[0m
+[32m✓ google: 517.0ms[0m
+[32m✓ nvidia: 531.7ms[0m
+[32m✓ g4f_gemini: 108426.0ms[0m
+[32m✓ g4f: 108494.1ms[0m
+[32m✓ together: 3208.2ms[0m
+[32m✓ g4f_nvidia: 108346.5ms[0m
+[32m✓ g4f_groq: 108556.5ms[0m
+[32m✓ groq: 631.2ms[0m
+[32m✓ gemini: 622.6ms[0m
+[32m✓ openrouter: 589.6ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 6.239923536s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "model": "gemini-2.5-flash",
+              "location": "global"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "6s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 1228.3ms[0m
+[32m✓ g4f_grok: 1898.1ms[0m
+[32m✓ google: 174.9ms[0m
+[32m✓ nvidia: 152.3ms[0m
+[32m✓ g4f_gemini: 78629.4ms[0m
+[32m✓ g4f: 78322.4ms[0m
+[32m✓ together: 1335.0ms[0m
+[32m✓ g4f_nvidia: 78560.4ms[0m
+[32m✓ g4f_groq: 1235.3ms[0m
+[32m✓ groq: 367.7ms[0m
+[32m✓ gemini: 174.5ms[0m
+[32m✓ openrouter: 259.1ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 4.65709577s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "4s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 990.5ms[0m
+[32m✓ g4f_grok: 989.2ms[0m
+[32m✓ google: 182.9ms[0m
+[32m✓ nvidia: 166.2ms[0m
+[32m✓ g4f_gemini: 77863.8ms[0m
+[32m✓ g4f: 986.4ms[0m
+[32m✓ together: 3086.2ms[0m
+[32m✓ g4f_nvidia: 77861.2ms[0m
+[32m✓ g4f_groq: 77860.6ms[0m
+[32m✓ groq: 229.2ms[0m
+[32m✓ gemini: 177.9ms[0m
+[32m✓ openrouter: 255.6ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 3.772146874s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "3s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 3.353319185s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "3s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32m✓ g4f_main: 108906.6ms[0m
+[32m✓ g4f_grok: 108910.5ms[0m
+[32m✓ google: 1240.4ms[0m
+[32m✓ nvidia: 1326.4ms[0m
+[32m✓ g4f_gemini: 32161.2ms[0m
+[32m✓ g4f: 32159.4ms[0m
+[32m✓ together: 3715.5ms[0m
+[32m✓ g4f_nvidia: 31919.2ms[0m
+[32m✓ g4f_groq: 108891.4ms[0m
+[32m✓ groq: 1409.7ms[0m
+[32m✓ gemini: 1218.0ms[0m
+[32m✓ openrouter: 1427.7ms[0m
+[32mHealth checks completed[0m
+[32mStarting health checks for 12 providers[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 46.332650995s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "46s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32m✓ g4f_main: 77141.2ms[0m
+[32m✓ g4f_grok: 1912.5ms[0m
+[32m✓ google: 211.9ms[0m
+[32m✓ nvidia: 169.2ms[0m
+[32m✓ g4f_gemini: 2030.7ms[0m
+[32m✓ g4f: 1932.1ms[0m
+[32m✓ together: 3952.9ms[0m
+[32m✓ g4f_nvidia: 1853.2ms[0m
+[32m✓ g4f_groq: 1696.0ms[0m
+[32m✓ groq: 237.8ms[0m
+[32m✓ gemini: 186.2ms[0m
+[32m✓ openrouter: 237.9ms[0m
+[32mHealth checks completed[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 32086.2ms[0m
+[32m✓ g4f_grok: 31695.0ms[0m
+[32m✓ google: 671.1ms[0m
+[32m✓ nvidia: 682.4ms[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+/home/owens/CodingProjects/LLM-API-Key-Proxy/venv/lib/python3.12/site-packages/pydantic/main.py:464: UserWarning: Pydantic serializer warnings:
+  PydanticSerializationUnexpectedValue(Expected 10 fields but got 5: Expected `Message` - serialized value may not be as expected [field_name='message', input_value=Message(content=None, rol...er_specific_fields=None), input_type=Message])
+  PydanticSerializationUnexpectedValue(Expected `StreamingChoices` - serialized value may not be as expected [field_name='choices', input_value=Choices(finish_reason='le...r_specific_fields=None)), input_type=Choices])
+  return self.__pydantic_serializer__.to_python(
+[32m✓ g4f_gemini: 107860.7ms[0m
+[32m✓ g4f: 107893.1ms[0m
+[32m✓ together: 3375.4ms[0m
+[32m✓ g4f_nvidia: 31652.1ms[0m
+[32m✓ g4f_groq: 108777.3ms[0m
+[32m✓ groq: 792.3ms[0m
+[32m✓ gemini: 685.1ms[0m
+[32m✓ openrouter: 839.7ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 28.219060264s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "28s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 107911.1ms[0m
+[32m✓ g4f_grok: 31441.5ms[0m
+[32m✓ google: 391.1ms[0m
+[32m✓ nvidia: 419.2ms[0m
+[32m✓ g4f_gemini: 26771.2ms[0m
+[32m✓ g4f: 28200.0ms[0m
+[32m✓ together: 6748.6ms[0m
+[32m✓ g4f_nvidia: 31072.9ms[0m
+[32m✓ g4f_groq: 31376.2ms[0m
+[32m✓ groq: 603.1ms[0m
+[32m✓ gemini: 331.3ms[0m
+[32m✓ openrouter: 627.0ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 9.899569255s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "model": "gemini-2.5-flash",
+              "location": "global"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "9s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[31mG4F completion failed: 500: G4F error: No .har file found[0m
+[33mHealth check failed for g4f[0m
+[32m✓ g4f_main: 78286.1ms[0m
+[32m✓ g4f_grok: 78666.2ms[0m
+[32m✓ google: 176.4ms[0m
+[32m✓ nvidia: 158.2ms[0m
+[32m✓ g4f_gemini: 78177.6ms[0m
+[32m✓ g4f: 78480.7ms[0m
+[32m✓ together: 9492.0ms[0m
+[32m✓ g4f_nvidia: 1702.8ms[0m
+[32m✓ g4f_groq: 77948.9ms[0m
+[32m✓ groq: 229.9ms[0m
+[32m✓ gemini: 163.5ms[0m
+[32m✓ openrouter: 205.8ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 51.520578713s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "51s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 77646.9ms[0m
+[32m✓ g4f_grok: 78421.3ms[0m
+[32m✓ google: 217.2ms[0m
+[32m✓ nvidia: 190.4ms[0m
+[32m✓ g4f_gemini: 77631.7ms[0m
+[32m✓ g4f: 77862.3ms[0m
+[33m✗ together: down - [0m
+[32m✓ g4f_nvidia: 2449.4ms[0m
+[32m✓ g4f_groq: 77951.2ms[0m
+[32m✓ groq: 214.9ms[0m
+[32m✓ gemini: 196.5ms[0m
+[32m✓ openrouter: 214.4ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 33.752699763s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "33s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 1806.0ms[0m
+[32m✓ g4f_grok: 2289.7ms[0m
+[32m✓ google: 195.5ms[0m
+[32m✓ nvidia: 186.6ms[0m
+[32m✓ g4f_gemini: 78942.5ms[0m
+[32m✓ g4f: 1899.5ms[0m
+[32m✓ together: 6859.3ms[0m
+[32m✓ g4f_nvidia: 1770.3ms[0m
+[32m✓ g4f_groq: 78957.4ms[0m
+[32m✓ groq: 223.5ms[0m
+[32m✓ gemini: 191.5ms[0m
+[32m✓ openrouter: 191.3ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 15.700935132s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "15s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 32284.7ms[0m
+[32m✓ g4f_grok: 108344.0ms[0m
+[32m✓ google: 603.9ms[0m
+[32m✓ nvidia: 474.7ms[0m
+[32m✓ g4f_gemini: 32090.5ms[0m
+[32m✓ g4f: 31890.3ms[0m
+[32m✓ together: 10048.3ms[0m
+[32m✓ g4f_nvidia: 32181.6ms[0m
+[32m✓ g4f_groq: 31699.4ms[0m
+[32m✓ groq: 642.3ms[0m
+[32m✓ gemini: 541.9ms[0m
+[32m✓ openrouter: 699.7ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 58.518772154s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "58s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 78461.1ms[0m
+[32m✓ g4f_grok: 78445.2ms[0m
+[32m✓ google: 176.9ms[0m
+[32m✓ nvidia: 164.6ms[0m
+[32m✓ g4f_gemini: 77972.6ms[0m
+[32m✓ g4f: 78211.4ms[0m
+[33m✗ together: down - [0m
+[32m✓ g4f_nvidia: 78552.4ms[0m
+[32m✓ g4f_groq: 77880.2ms[0m
+[32m✓ groq: 270.0ms[0m
+[32m✓ gemini: 172.8ms[0m
+[32m✓ openrouter: 250.1ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 57.019901973s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "57s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 77160.3ms[0m
+[32m✓ g4f_grok: 610.8ms[0m
+[32m✓ google: 175.7ms[0m
+[32m✓ nvidia: 185.0ms[0m
+[32m✓ g4f_gemini: 604.6ms[0m
+[32m✓ g4f: 77178.2ms[0m
+[32m✓ together: 5328.5ms[0m
+[32m✓ g4f_nvidia: 605.2ms[0m
+[32m✓ g4f_groq: 752.4ms[0m
+[32m✓ groq: 225.3ms[0m
+[32m✓ gemini: 168.0ms[0m
+[32m✓ openrouter: 198.0ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 55.824225795s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "55s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 1125.9ms[0m
+[32m✓ g4f_grok: 77480.3ms[0m
+[32m✓ google: 272.3ms[0m
+[32m✓ nvidia: 272.1ms[0m
+[32m✓ g4f_gemini: 77479.9ms[0m
+[32m✓ g4f: 77479.0ms[0m
+[32m✓ together: 6020.0ms[0m
+[32m✓ g4f_nvidia: 1104.0ms[0m
+[32m✓ g4f_groq: 1121.9ms[0m
+[32m✓ groq: 373.6ms[0m
+[32m✓ gemini: 266.6ms[0m
+[32m✓ openrouter: 361.1ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 54.98181542s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "54s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 78035.1ms[0m
+[32m✓ g4f_grok: 1488.2ms[0m
+[32m✓ google: 189.6ms[0m
+[32m✓ nvidia: 168.7ms[0m
+[32m✓ g4f_gemini: 2553.9ms[0m
+[32m✓ g4f: 1477.7ms[0m
+[32m✓ together: 6287.2ms[0m
+[32m✓ g4f_nvidia: 2113.2ms[0m
+[32m✓ g4f_groq: 2659.2ms[0m
+[32m✓ groq: 215.0ms[0m
+[32m✓ gemini: 184.7ms[0m
+[32m✓ openrouter: 216.7ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 37.410392042s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "37s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 2175.7ms[0m
+[32m✓ g4f_grok: 2087.0ms[0m
+[32m✓ google: 205.9ms[0m
+[32m✓ nvidia: 168.9ms[0m
+[32m✓ g4f_gemini: 2127.4ms[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 36.971109152s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "36s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32m✓ g4f: 77963.6ms[0m
+[32m✓ together: 8528.4ms[0m
+[32m✓ g4f_nvidia: 2172.5ms[0m
+[32m✓ g4f_groq: 1603.4ms[0m
+[32m✓ groq: 234.4ms[0m
+[32m✓ gemini: 187.4ms[0m
+[32m✓ openrouter: 268.5ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 35.744228869s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "35s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 77084.8ms[0m
+[32m✓ g4f_grok: 3013.9ms[0m
+[32m✓ google: 185.7ms[0m
+[32m✓ nvidia: 174.9ms[0m
+[32m✓ g4f_gemini: 1674.9ms[0m
+[32m✓ g4f: 1766.3ms[0m
+[32m✓ together: 3535.4ms[0m
+[32m✓ g4f_nvidia: 78380.2ms[0m
+[32m✓ g4f_groq: 1743.1ms[0m
+[32m✓ groq: 427.8ms[0m
+[32m✓ gemini: 173.0ms[0m
+[32m✓ openrouter: 301.6ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 17.936156343s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "17s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 77463.8ms[0m
+[32m✓ g4f_grok: 1362.9ms[0m
+[32m✓ google: 192.9ms[0m
+[32m✓ nvidia: 174.4ms[0m
+[32m✓ g4f_gemini: 1716.4ms[0m
+[32m✓ g4f: 1750.4ms[0m
+[33m✗ together: down - [0m
+[32m✓ g4f_nvidia: 1920.5ms[0m
+[32m✓ g4f_groq: 1798.5ms[0m
+[32m✓ groq: 237.4ms[0m
+[32m✓ gemini: 187.9ms[0m
+[32m✓ openrouter: 231.6ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 17.145485233s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "17s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 77866.4ms[0m
+[32m✓ g4f_grok: 1347.9ms[0m
+[32m✓ google: 226.7ms[0m
+[32m✓ nvidia: 204.2ms[0m
+[32m✓ g4f_gemini: 77589.5ms[0m
+[32m✓ g4f: 77605.7ms[0m
+[32m✓ together: 8826.5ms[0m
+[32m✓ g4f_nvidia: 77860.6ms[0m
+[32m✓ g4f_groq: 77834.2ms[0m
+[32m✓ groq: 249.6ms[0m
+[32m✓ gemini: 223.4ms[0m
+[32m✓ openrouter: 249.9ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 58.67755793s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "58s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 1418.0ms[0m
+[32m✓ g4f_grok: 1809.1ms[0m
+[32m✓ google: 176.8ms[0m
+[32m✓ nvidia: 171.2ms[0m
+[32m✓ g4f_gemini: 2065.3ms[0m
+[32m✓ g4f: 1145.2ms[0m
+[32m✓ together: 5396.6ms[0m
+[32m✓ g4f_nvidia: 78170.1ms[0m
+[32m✓ g4f_groq: 2636.2ms[0m
+[32m✓ groq: 222.7ms[0m
+[32m✓ gemini: 174.3ms[0m
+[32m✓ openrouter: 256.3ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 40.234587406s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "40s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 2466.8ms[0m
+[32m✓ g4f_grok: 1238.5ms[0m
+[32m✓ google: 171.6ms[0m
+[32m✓ nvidia: 169.9ms[0m
+[32m✓ g4f_gemini: 78219.3ms[0m
+[32m✓ g4f: 77733.2ms[0m
+[32m✓ together: 8200.5ms[0m
+[32m✓ g4f_nvidia: 3168.1ms[0m
+[32m✓ g4f_groq: 78304.3ms[0m
+[32m✓ groq: 233.1ms[0m
+[32m✓ gemini: 164.2ms[0m
+[32m✓ openrouter: 222.8ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 22.056793091s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "22s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 79154.2ms[0m
+[32m✓ g4f_grok: 1864.4ms[0m
+[32m✓ google: 199.1ms[0m
+[32m✓ nvidia: 186.0ms[0m
+[32m✓ g4f_gemini: 83523.8ms[0m
+[32m✓ g4f: 1259.7ms[0m
+[32m✓ together: 4226.1ms[0m
+[32m✓ g4f_nvidia: 83285.6ms[0m
+[32m✓ g4f_groq: 1409.2ms[0m
+[32m✓ groq: 262.1ms[0m
+[32m✓ gemini: 197.4ms[0m
+[32m✓ openrouter: 277.0ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 16.998109514s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "model": "gemini-2.5-flash",
+              "location": "global"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "16s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+[32mStarting health checks for 12 providers[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 16.488859072s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "model": "gemini-2.5-flash",
+              "location": "global"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "16s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32m✓ g4f_main: 78213.0ms[0m
+[32m✓ g4f_grok: 78402.0ms[0m
+[32m✓ google: 207.8ms[0m
+[32m✓ nvidia: 173.8ms[0m
+[32m✓ g4f_gemini: 78210.6ms[0m
+[32m✓ g4f: 78497.5ms[0m
+[32m✓ together: 5137.4ms[0m
+[32m✓ g4f_nvidia: 78209.3ms[0m
+[32m✓ g4f_groq: 908.2ms[0m
+[32m✓ groq: 227.2ms[0m
+[32m✓ gemini: 186.9ms[0m
+[32m✓ openrouter: 244.6ms[0m
+[32mHealth checks completed[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 1651.1ms[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 59.44320794s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "59s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32m✓ g4f_grok: 77810.5ms[0m
+[32m✓ google: 241.4ms[0m
+[32m✓ nvidia: 241.1ms[0m
+[32m✓ g4f_gemini: 1646.8ms[0m
+[32m✓ g4f: 77796.2ms[0m
+[33m✗ together: down - [0m
+[32m✓ g4f_nvidia: 77806.2ms[0m
+[32m✓ g4f_groq: 1620.7ms[0m
+[32m✓ groq: 470.4ms[0m
+[32m✓ gemini: 236.8ms[0m
+[32m✓ openrouter: 373.0ms[0m
+[32mHealth checks completed[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 1869.7ms[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 42.46224411s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "42s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32m✓ g4f_grok: 78061.0ms[0m
+[32m✓ google: 201.0ms[0m
+[32m✓ nvidia: 200.8ms[0m
+[32m✓ g4f_gemini: 78377.8ms[0m
+[32m✓ g4f: 77938.3ms[0m
+[32m✓ together: 5752.3ms[0m
+[32m✓ g4f_nvidia: 78542.4ms[0m
+[32m✓ g4f_groq: 1573.2ms[0m
+[32m✓ groq: 286.4ms[0m
+[32m✓ gemini: 204.6ms[0m
+[32m✓ openrouter: 213.0ms[0m
+[32mHealth checks completed[0m
+[32mStarting health checks for 12 providers[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32m✓ g4f_main: 78156.9ms[0m
+[32m✓ g4f_grok: 78154.7ms[0m
+[32m✓ google: 211.6ms[0m
+[32m✓ nvidia: 164.7ms[0m
+[32m✓ g4f_gemini: 78442.7ms[0m
+[32m✓ g4f: 2035.6ms[0m
+[32m✓ together: 9513.2ms[0m
+[32m✓ g4f_nvidia: 78149.3ms[0m
+[32m✓ g4f_groq: 78545.7ms[0m
+[32m✓ groq: 314.6ms[0m
+[32m✓ gemini: 204.1ms[0m
+[32m✓ openrouter: 314.4ms[0m
+[32mHealth checks completed[0m
+[32mStarting health checks for 12 providers[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 7.704522607s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "7s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32m✓ g4f_main: 78008.0ms[0m
+[32m✓ g4f_grok: 78427.4ms[0m
+[32m✓ google: 163.3ms[0m
+[32m✓ nvidia: 143.6ms[0m
+[32m✓ g4f_gemini: 1808.1ms[0m
+[32m✓ g4f: 1557.9ms[0m
+[32m✓ together: 4188.3ms[0m
+[32m✓ g4f_nvidia: 78106.4ms[0m
+[32m✓ g4f_groq: 77981.4ms[0m
+[32m✓ groq: 394.6ms[0m
+[32m✓ gemini: 146.1ms[0m
+[32m✓ openrouter: 270.9ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 5.993037446s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "5s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 1900.3ms[0m
+[32m✓ g4f_grok: 2102.5ms[0m
+[32m✓ google: 230.4ms[0m
+[32m✓ nvidia: 217.8ms[0m
+[32m✓ g4f_gemini: 2003.3ms[0m
+[32m✓ g4f: 77833.6ms[0m
+[32m✓ together: 7580.5ms[0m
+[32m✓ g4f_nvidia: 77937.3ms[0m
+[32m✓ g4f_groq: 78083.2ms[0m
+[32m✓ groq: 304.8ms[0m
+[32m✓ gemini: 227.8ms[0m
+[32m✓ openrouter: 321.4ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 48.038241256s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "48s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 77344.7ms[0m
+[32m✓ g4f_grok: 1311.1ms[0m
+[32m✓ google: 214.1ms[0m
+[32m✓ nvidia: 269.4ms[0m
+[32m✓ g4f_gemini: 1308.8ms[0m
+[32m✓ g4f: 1307.4ms[0m
+[32m✓ together: 4094.1ms[0m
+[32m✓ g4f_nvidia: 77338.6ms[0m
+[32m✓ g4f_groq: 77344.5ms[0m
+[32m✓ groq: 287.0ms[0m
+[32m✓ gemini: 287.8ms[0m
+[32m✓ openrouter: 275.3ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 46.925711576s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "model": "gemini-2.5-flash",
+              "location": "global"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "46s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 965.9ms[0m
+[32m✓ g4f_grok: 78207.2ms[0m
+[32m✓ google: 217.9ms[0m
+[32m✓ nvidia: 161.1ms[0m
+[32m✓ g4f_gemini: 77820.0ms[0m
+[32m✓ g4f: 1238.7ms[0m
+[32m✓ together: 6995.4ms[0m
+[32m✓ g4f_nvidia: 78200.1ms[0m
+[32m✓ g4f_groq: 1914.7ms[0m
+[32m✓ groq: 275.5ms[0m
+[32m✓ gemini: 203.6ms[0m
+[32m✓ openrouter: 260.6ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 27.816912822s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "27s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 1906.2ms[0m
+[32m✓ g4f_grok: 78610.7ms[0m
+[32m✓ google: 294.4ms[0m
+[32m✓ nvidia: 279.9ms[0m
+[32m✓ g4f_gemini: 78021.9ms[0m
+[32m✓ g4f: 78470.1ms[0m
+[32m✓ together: 5742.9ms[0m
+[32m✓ g4f_nvidia: 78469.2ms[0m
+[32m✓ g4f_groq: 78626.1ms[0m
+[32m✓ groq: 370.0ms[0m
+[32m✓ gemini: 249.8ms[0m
+[32m✓ openrouter: 371.4ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 26.178171313s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "26s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 78339.0ms[0m
+[32m✓ g4f_grok: 1632.2ms[0m
+[32m✓ google: 215.3ms[0m
+[32m✓ nvidia: 194.5ms[0m
+[32m✓ g4f_gemini: 1630.9ms[0m
+[32m✓ g4f: 78437.7ms[0m
+[32m✓ together: 10687.5ms[0m
+[32m✓ g4f_nvidia: 1974.4ms[0m
+[32m✓ g4f_groq: 1631.2ms[0m
+[32m✓ groq: 268.4ms[0m
+[32m✓ gemini: 211.1ms[0m
+[32m✓ openrouter: 293.6ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 24.881224242s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "24s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 1433.7ms[0m
+[32m✓ g4f_grok: 1504.2ms[0m
+[32m✓ google: 572.8ms[0m
+[32m✓ nvidia: 502.6ms[0m
+[32m✓ g4f_gemini: 1420.3ms[0m
+[32m✓ g4f: 77653.5ms[0m
+[32m✓ together: 8224.3ms[0m
+[32m✓ g4f_nvidia: 77899.8ms[0m
+[32m✓ g4f_groq: 77651.1ms[0m
+[32m✓ groq: 590.0ms[0m
+[32m✓ gemini: 566.3ms[0m
+[32m✓ openrouter: 855.2ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 7.1957601s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "7s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 967.7ms[0m
+[32m✓ g4f_grok: 968.2ms[0m
+[32m✓ google: 216.0ms[0m
+[32m✓ nvidia: 206.7ms[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 6.71273851s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "6s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32m✓ g4f_gemini: 77181.4ms[0m
+[32m✓ g4f: 77409.3ms[0m
+[32m✓ together: 3808.8ms[0m
+[32m✓ g4f_nvidia: 77410.1ms[0m
+[32m✓ g4f_groq: 77475.0ms[0m
+[32m✓ groq: 468.7ms[0m
+[32m✓ gemini: 212.6ms[0m
+[32m✓ openrouter: 325.3ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 6.215812406s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "6s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 1868.8ms[0m
+[32m✓ g4f_grok: 1858.9ms[0m
+[32m✓ google: 200.6ms[0m
+[32m✓ nvidia: 195.3ms[0m
+[32m✓ g4f_gemini: 78244.0ms[0m
+[32m✓ g4f: 1831.6ms[0m
+[32m✓ together: 5498.9ms[0m
+[32m✓ g4f_nvidia: 78242.4ms[0m
+[32m✓ g4f_groq: 1770.3ms[0m
+[32m✓ groq: 286.4ms[0m
+[32m✓ gemini: 170.7ms[0m
+[32m✓ openrouter: 1094.5ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 48.197687943s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "48s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 1592.6ms[0m
+[32m✓ g4f_grok: 1591.1ms[0m
+[32m✓ google: 259.1ms[0m
+[32m✓ nvidia: 244.8ms[0m
+[32m✓ g4f_gemini: 1600.0ms[0m
+[32m✓ g4f: 933.3ms[0m
+[32m✓ together: 4247.9ms[0m
+[32m✓ g4f_nvidia: 953.5ms[0m
+[32m✓ g4f_groq: 1719.8ms[0m
+[32m✓ groq: 290.0ms[0m
+[32m✓ gemini: 253.6ms[0m
+[32m✓ openrouter: 486.9ms[0m
+[32mHealth checks completed[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 1707.5ms[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 24.932299703s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "24s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32m✓ g4f_grok: 78542.6ms[0m
+[32m✓ google: 237.1ms[0m
+[32m✓ nvidia: 186.9ms[0m
+[32m✓ g4f_gemini: 1630.6ms[0m
+[32m✓ g4f: 77798.0ms[0m
+[32m✓ together: 5298.8ms[0m
+[32m✓ g4f_nvidia: 77897.9ms[0m
+[32m✓ g4f_groq: 78443.6ms[0m
+[32m✓ groq: 305.6ms[0m
+[32m✓ gemini: 215.0ms[0m
+[32m✓ openrouter: 248.9ms[0m
+[32mHealth checks completed[0m
+[32mStarting health checks for 12 providers[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 6.870202648s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "6s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32m✓ g4f_main: 78706.5ms[0m
+[32m✓ g4f_grok: 1540.4ms[0m
+[32m✓ google: 281.2ms[0m
+[32m✓ nvidia: 271.2ms[0m
+[32m✓ g4f_gemini: 78696.4ms[0m
+[32m✓ g4f: 78457.4ms[0m
+[32m✓ together: 5072.8ms[0m
+[32m✓ g4f_nvidia: 78387.5ms[0m
+[32m✓ g4f_groq: 1593.5ms[0m
+[32m✓ groq: 289.6ms[0m
+[32m✓ gemini: 272.0ms[0m
+[32m✓ openrouter: 332.5ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 2071.8ms[0m
+[32m✓ g4f_grok: 77470.5ms[0m
+[32m✓ google: 346.5ms[0m
+[32m✓ nvidia: 224.9ms[0m
+[32m✓ g4f_gemini: 1693.0ms[0m
+[32m✓ g4f: 2038.5ms[0m
+[33m✗ together: down - [0m
+[32m✓ g4f_nvidia: 77445.9ms[0m
+[32m✓ g4f_groq: 2035.2ms[0m
+[32m✓ groq: 432.5ms[0m
+[32m✓ gemini: 187.5ms[0m
+[32m✓ openrouter: 337.5ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 48.857492915s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "model": "gemini-2.5-flash",
+              "location": "global"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "48s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 1577.4ms[0m
+[32m✓ g4f_grok: 77886.9ms[0m
+[32m✓ google: 202.8ms[0m
+[32m✓ nvidia: 192.5ms[0m
+[32m✓ g4f_gemini: 1551.5ms[0m
+[32m✓ g4f: 77883.9ms[0m
+[32m✓ together: 6041.1ms[0m
+[32m✓ g4f_nvidia: 77882.1ms[0m
+[32m✓ g4f_groq: 77880.1ms[0m
+[32m✓ groq: 302.1ms[0m
+[32m✓ gemini: 193.8ms[0m
+[32m✓ openrouter: 286.0ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 29.879212713s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "29s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32m✓ g4f_main: 78270.4ms[0m
+[32m✓ g4f_grok: 1420.0ms[0m
+[32m✓ google: 332.3ms[0m
+[32m✓ nvidia: 227.6ms[0m
+[32m✓ g4f_gemini: 78748.8ms[0m
+[32m✓ g4f: 1413.1ms[0m
+[32m✓ together: 5472.4ms[0m
+[32m✓ g4f_nvidia: 1765.4ms[0m
+[32m✓ g4f_groq: 1754.3ms[0m
+[32m✓ groq: 256.8ms[0m
+[32m✓ gemini: 220.3ms[0m
+[32m✓ openrouter: 248.2ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 11.287055288s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "location": "global",
+              "model": "gemini-2.5-flash"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "11s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m
+[32mScheduled registry refresh...[0m
+[32mOpenRouter: 337 models loaded[0m
+[32mModels.dev: 2974 models loaded[0m
+[32mRegistry refresh complete[0m
+[32m✓ g4f_main: 81185.3ms[0m
+[32m✓ g4f_grok: 1500.1ms[0m
+[32m✓ google: 234.2ms[0m
+[32m✓ nvidia: 204.7ms[0m
+[32m✓ g4f_gemini: 1217.2ms[0m
+[32m✓ g4f: 78616.7ms[0m
+[32m✓ together: 4987.2ms[0m
+[32m✓ g4f_nvidia: 1157.0ms[0m
+[32m✓ g4f_groq: 1050.5ms[0m
+[32m✓ groq: 302.0ms[0m
+[32m✓ gemini: 228.4ms[0m
+[32m✓ openrouter: 275.5ms[0m
+[32mHealth checks completed[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mGemini completion failed: litellm.RateLimitError: litellm.RateLimitError: geminiException - {
+  "error": {
+    "code": 429,
+    "message": "You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash\nPlease retry in 9.078784753s.",
+    "status": "RESOURCE_EXHAUSTED",
+    "details": [
+      {
+        "@type": "type.googleapis.com/google.rpc.Help",
+        "links": [
+          {
+            "description": "Learn more about Gemini API quotas",
+            "url": "https://ai.google.dev/gemini-api/docs/rate-limits"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.QuotaFailure",
+        "violations": [
+          {
+            "quotaMetric": "generativelanguage.googleapis.com/generate_content_free_tier_requests",
+            "quotaId": "GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "quotaDimensions": {
+              "model": "gemini-2.5-flash",
+              "location": "global"
+            },
+            "quotaValue": "20"
+          }
+        ]
+      },
+      {
+        "@type": "type.googleapis.com/google.rpc.RetryInfo",
+        "retryDelay": "9s"
+      }
+    ]
+  }
+}
+[0m
+[33mHealth check failed for gemini[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm._turn_on_debug()'.
+
+[31mTogether completion failed: litellm.BadRequestError: Together_aiException - Unable to access model togethercomputer/MoA-1. Please visit https://api.together.ai/models to view the list of supported models.[0m
+[33mHealth check failed for together[0m
+[32mStarting health checks for 12 providers[0m

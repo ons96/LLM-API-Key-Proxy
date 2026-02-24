@@ -1,5 +1,5 @@
 metadata:
-  generated_at: '2026-02-19T18:03:28.201856'
+  generated_at: '2026-02-20T00:01:51.139135'
   sources:
   - model_rankings.yaml
   - chat_model_rankings.yaml
@@ -11,225 +11,361 @@ virtual_models:
     - provider: g4f
       model: claude-opus-4-5
       priority: 1
-      reasoning_effort: None
-    - provider: nvidia
-      model: deepseek-v3.2
-      priority: 2
-      reasoning_effort: High
-    - provider: together
-      model: deepseek-r1-0528:free
-      priority: 3
-      reasoning_effort: High
-    - provider: together
-      model: deepseek-r1:free
-      priority: 4
-      reasoning_effort: High
-    - provider: nvidia
-      model: deepseek-r1-0528
-      priority: 5
-      reasoning_effort: High
-    - provider: nvidia
-      model: deepseek-r1
-      priority: 6
-      reasoning_effort: High
-    - provider: g4f
-      model: gpt-5-2
-      priority: 7
-      reasoning_effort: Medium
+      reasoning_effort: high
     - provider: gemini
       model: gemini-3-flash
-      priority: 8
-      reasoning_effort: Low
-    - provider: together
-      model: deepseek-r1-0528-qwen3-8b:free
-      priority: 9
-      reasoning_effort: High
-    - provider: together
-      model: devstral-2512:free
-      priority: 10
-      reasoning_effort: Medium
-    - provider: nvidia
-      model: devstral-2-123b-instruct-2512
-      priority: 11
-      reasoning_effort: Medium
+      priority: 2
+      reasoning_effort: high
     - provider: g4f
-      model: devstral-2512
-      priority: 12
-      reasoning_effort: Medium
+      model: claude-opus-4-6
+      priority: 3
+      reasoning_effort: None
     - provider: g4f
-      model: glm-5
-      priority: 13
-      reasoning_effort: Medium
-    - provider: g4f
-      model: claude-sonnet-4-5
-      priority: 14
-      reasoning_effort: Medium
+      model: minimax-m2-5
+      priority: 4
+      reasoning_effort: high
     - provider: gemini
       model: gemini-3-pro
-      priority: 15
-      reasoning_effort: Low
+      priority: 5
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-2
+      priority: 6
+      reasoning_effort: high
+    - provider: cerebras
+      model: glm-5
+      priority: 7
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-sonnet-4-5
+      priority: 8
+      reasoning_effort: high
     - provider: g4f
       model: kimi-k2-5
+      priority: 9
+      reasoning_effort: None
+    - provider: together
+      model: deepseek-chat
+      priority: 10
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-opus-4
+      priority: 11
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-2-codex
+      priority: 12
+      reasoning_effort: None
+    - provider: g4f
+      model: claude-haiku-4-5
+      priority: 13
+      reasoning_effort: high
+    - provider: g4f
+      model: gpt-5-1
+      priority: 14
+      reasoning_effort: medium
+    - provider: g4f
+      model: gpt-5
+      priority: 15
+      reasoning_effort: medium
+    - provider: g4f
+      model: claude-sonnet-4
       priority: 16
       reasoning_effort: None
     - provider: g4f
-      model: gpt-5-1
+      model: kimi-k2-thinking
       priority: 17
-      reasoning_effort: Medium
-    - provider: g4f
-      model: claude-haiku-4-5
-      priority: 18
-      reasoning_effort: None
-    - provider: g4f
-      model: grok-4
-      priority: 19
-      reasoning_effort: None
-    - provider: together
-      model: deepseek-v3
-      priority: 20
-      reasoning_effort: None
-    - provider: together
-      model: deepseek-r1t2-chimera:free
-      priority: 21
-      reasoning_effort: High
+      reasoning_effort: high
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
   coding-smart:
     description: High-quality coding with balanced performance
     fallback_chain:
-    - provider: g4f
-      model: claude-opus-4-5
-      priority: 1
-      reasoning_effort: None
-    - provider: g4f
-      model: gpt-5-2
-      priority: 2
-      reasoning_effort: Medium
-    - provider: nvidia
-      model: deepseek-v3.2
-      priority: 3
-      reasoning_effort: High
-    - provider: together
-      model: deepseek-r1-0528:free
-      priority: 4
-      reasoning_effort: High
-    - provider: together
-      model: deepseek-r1:free
-      priority: 5
-      reasoning_effort: High
-    - provider: nvidia
-      model: deepseek-r1-0528
-      priority: 6
-      reasoning_effort: High
-    - provider: nvidia
-      model: deepseek-r1
-      priority: 7
-      reasoning_effort: High
     - provider: gemini
       model: gemini-3-flash
-      priority: 8
-      reasoning_effort: Low
-    - provider: together
-      model: deepseek-r1-0528-qwen3-8b:free
-      priority: 9
-      reasoning_effort: High
+      priority: 1
+      reasoning_effort: high
     - provider: g4f
-      model: glm-5
-      priority: 10
-      reasoning_effort: Medium
-    - provider: together
-      model: devstral-2512:free
-      priority: 11
-      reasoning_effort: Medium
-    - provider: nvidia
-      model: devstral-2-123b-instruct-2512
-      priority: 12
-      reasoning_effort: Medium
+      model: claude-opus-4-5
+      priority: 2
+      reasoning_effort: high
     - provider: g4f
-      model: devstral-2512
-      priority: 13
-      reasoning_effort: Medium
+      model: claude-opus-4-6
+      priority: 3
+      reasoning_effort: None
     - provider: g4f
-      model: claude-sonnet-4-5
-      priority: 14
-      reasoning_effort: Medium
+      model: minimax-m2-5
+      priority: 4
+      reasoning_effort: high
+    - provider: g4f
+      model: gpt-5-2
+      priority: 5
+      reasoning_effort: high
     - provider: gemini
       model: gemini-3-pro
-      priority: 15
-      reasoning_effort: Low
+      priority: 6
+      reasoning_effort: None
+    - provider: cerebras
+      model: glm-5
+      priority: 7
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-sonnet-4-5
+      priority: 8
+      reasoning_effort: high
+    - provider: together
+      model: deepseek-chat
+      priority: 9
+      reasoning_effort: high
     - provider: g4f
       model: kimi-k2-5
-      priority: 16
+      priority: 10
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-2-codex
+      priority: 11
       reasoning_effort: None
     - provider: g4f
       model: gpt-5-1
-      priority: 17
-      reasoning_effort: Medium
+      priority: 12
+      reasoning_effort: medium
+    - provider: g4f
+      model: claude-opus-4
+      priority: 13
+      reasoning_effort: None
     - provider: g4f
       model: claude-haiku-4-5
-      priority: 18
+      priority: 14
+      reasoning_effort: high
+    - provider: g4f
+      model: gpt-5
+      priority: 15
+      reasoning_effort: medium
+    - provider: g4f
+      model: claude-sonnet-4
+      priority: 16
       reasoning_effort: None
     - provider: g4f
-      model: grok-4
+      model: kimi-k2-thinking
+      priority: 17
+      reasoning_effort: high
+    - provider: g4f
+      model: minimax-m2
+      priority: 18
+      reasoning_effort: None
+    - provider: together
+      model: devstral
       priority: 19
       reasoning_effort: None
-    - provider: together
-      model: deepseek-v3
+    - provider: gemini
+      model: gemini-2-5-pro
       priority: 20
       reasoning_effort: None
-    - provider: together
-      model: deepseek-r1t2-chimera:free
+    - provider: cerebras
+      model: glm-4-6b
       priority: 21
-      reasoning_effort: High
+      reasoning_effort: None
     - provider: together
-      model: deepseek-r1-distill-qwen-14b
+      model: qwen3-coder-480b-a35b-instruct
       priority: 22
-      reasoning_effort: High
-    - provider: groq
-      model: deepseek-r1-distill-llama-70b
+      reasoning_effort: None
+    - provider: cerebras
+      model: glm-4-5
       priority: 23
-      reasoning_effort: High
-    - provider: groq
-      model: deepseek-r1-distill-llama-8b
-      priority: 24
-      reasoning_effort: High
-    - provider: together
-      model: deepseek-r1-distill-qwen-1-5b
-      priority: 25
-      reasoning_effort: High
-    - provider: together
-      model: qwen-2-5-72b
-      priority: 26
       reasoning_effort: None
-    - provider: together
-      model: codestral-latest
-      priority: 27
-      reasoning_effort: None
-    - provider: gemini
-      model: gemini-2-flash
-      priority: 28
-      reasoning_effort: Low
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
   coding-fast:
     description: Fastest coding models (TPS priority with quality floor)
     fallback_chain:
-    - provider: cerebras
-      model: llama-3-1-8b
-      priority: 1
-      reasoning_effort: Low
     - provider: g4f
       model: gpt-5-2
+      priority: 1
+      reasoning_effort: high
+    - provider: gemini
+      model: gemini-3-flash
       priority: 2
-      reasoning_effort: Medium
+      reasoning_effort: high
+    - provider: g4f
+      model: gpt-5-2-codex
+      priority: 3
+      reasoning_effort: None
+    - provider: gemini
+      model: gemini-3-pro
+      priority: 4
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-1
+      priority: 5
+      reasoning_effort: medium
+    - provider: together
+      model: deepseek-chat
+      priority: 6
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-opus-4-5
+      priority: 7
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-opus-4-6
+      priority: 8
+      reasoning_effort: None
+    - provider: g4f
+      model: minimax-m2-5
+      priority: 9
+      reasoning_effort: high
+    - provider: g4f
+      model: gpt-5
+      priority: 10
+      reasoning_effort: medium
+    - provider: cerebras
+      model: glm-5
+      priority: 11
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-sonnet-4-5
+      priority: 12
+      reasoning_effort: high
+    - provider: g4f
+      model: kimi-k2-5
+      priority: 13
+      reasoning_effort: None
+    - provider: g4f
+      model: claude-haiku-4-5
+      priority: 14
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-opus-4
+      priority: 15
+      reasoning_effort: None
+    - provider: g4f
+      model: kimi-k2-thinking
+      priority: 16
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-sonnet-4
+      priority: 17
+      reasoning_effort: None
+    - provider: g4f
+      model: minimax-m2
+      priority: 18
+      reasoning_effort: None
+    - provider: g4f
+      model: o4-mini
+      priority: 19
+      reasoning_effort: None
+    - provider: together
+      model: devstral
+      priority: 20
+      reasoning_effort: None
+    - provider: gemini
+      model: gemini-2-5-pro
+      priority: 21
+      reasoning_effort: None
+    - provider: cerebras
+      model: glm-4-6b
+      priority: 22
+      reasoning_effort: None
+    - provider: together
+      model: qwen3-coder-480b-a35b-instruct
+      priority: 23
+      reasoning_effort: None
+    - provider: cerebras
+      model: glm-4-5
+      priority: 24
+      reasoning_effort: None
+    - provider: g4f
+      model: kimi-k2-instruct
+      priority: 25
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5 (opencode)
+      priority: 26
+      reasoning_effort: None
+    - provider: gemini
+      model: gemini-3-pro-preview
+      priority: 27
+      reasoning_effort: None
+    - provider: together
+      model: qwen3-coder-next (qwen)
+      priority: 28
+      reasoning_effort: None
+    - provider: gemini
+      model: gemini-3-flash-preview
+      priority: 29
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-sonnet-4-20250514 (opencode)
+      priority: 30
+      reasoning_effort: None
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
   chat-smart:
     description: Best intelligence-to-speed ratio (smart AND reasonably fast)
-    fallback_chain: []
+    fallback_chain:
+    - provider: gemini
+      model: gemini-3-pro
+      priority: 1
+      reasoning_effort: None
+    - provider: gemini
+      model: gemini-3-flash
+      priority: 2
+      reasoning_effort: None
+    - provider: g4f
+      model: grok-4-1-thinking
+      priority: 3
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-xhigh
+      priority: 4
+      reasoning_effort: None
+    - provider: g4f
+      model: grok-4-1
+      priority: 5
+      reasoning_effort: None
+    - provider: g4f
+      model: claude-opus-4-5-thinking-32k
+      priority: 6
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-high
+      priority: 7
+      reasoning_effort: None
+    - provider: groq
+      model: llama-4-scout
+      priority: 8
+      reasoning_effort: None
+    - provider: g4f
+      model: claude-sonnet-4-5-thinking-32k
+      priority: 9
+      reasoning_effort: None
+    - provider: together
+      model: medium-3-1
+      priority: 10
+      reasoning_effort: None
+    - provider: gemini
+      model: gemini-2-flash
+      priority: 11
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-medium
+      priority: 12
+      reasoning_effort: None
+    - provider: together
+      model: deepseek-v3
+      priority: 13
+      reasoning_effort: None
+    - provider: together
+      model: qwen2-5-72b
+      priority: 14
+      reasoning_effort: None
+    - provider: groq
+      model: llama-3-3-70b
+      priority: 15
+      reasoning_effort: None
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
@@ -284,14 +420,6 @@ virtual_models:
       model: gpt-5-medium
       priority: 12
       reasoning_effort: None
-    - provider: together
-      model: deepseek-v3
-      priority: 13
-      reasoning_effort: None
-    - provider: together
-      model: qwen2-5-72b
-      priority: 14
-      reasoning_effort: None
     settings:
       timeout_ms: 300000
       retry_on_rate_limit: true
@@ -303,17 +431,61 @@ virtual_models:
       model: medium-3-1
       priority: 1
       reasoning_effort: None
-    - provider: gemini
-      model: gemini-2-flash
-      priority: 2
-      reasoning_effort: None
     - provider: groq
       model: llama-4-scout
+      priority: 2
+      reasoning_effort: None
+    - provider: gemini
+      model: gemini-2-flash
       priority: 3
       reasoning_effort: None
     - provider: g4f
-      model: gpt-5-medium
+      model: grok-4-1
       priority: 4
+      reasoning_effort: None
+    - provider: gemini
+      model: gemini-3-flash
+      priority: 5
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-medium
+      priority: 6
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-high
+      priority: 7
+      reasoning_effort: None
+    - provider: groq
+      model: llama-3-3-70b
+      priority: 8
+      reasoning_effort: None
+    - provider: g4f
+      model: grok-4-1-thinking
+      priority: 9
+      reasoning_effort: None
+    - provider: gemini
+      model: gemini-3-pro
+      priority: 10
+      reasoning_effort: None
+    - provider: g4f
+      model: claude-sonnet-4-5-thinking-32k
+      priority: 11
+      reasoning_effort: None
+    - provider: together
+      model: qwen2-5-72b
+      priority: 12
+      reasoning_effort: None
+    - provider: together
+      model: deepseek-v3
+      priority: 13
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-xhigh
+      priority: 14
+      reasoning_effort: None
+    - provider: g4f
+      model: claude-opus-4-5-thinking-32k
+      priority: 15
       reasoning_effort: None
     settings:
       timeout_ms: 15000
@@ -323,85 +495,23 @@ virtual_models:
       responses)
     fallback_chain:
     - provider: g4f
-      model: grok-4-0709
+      model: mn-violet-lotus-12b
       priority: 1
-      reasoning_effort: None
     - provider: g4f
-      model: claude-opus-4-6 (adaptive, effort=high)
+      model: cydonia-24b-v4.1
       priority: 2
-      reasoning_effort: None
     - provider: g4f
-      model: claude-opus-4-6 (adaptive, effort=max)
+      model: anubis-70b-v1.1
       priority: 3
-      reasoning_effort: None
     - provider: g4f
-      model: claude-opus-4-6 (adaptive, effort=medium)
+      model: broken-tutu-24b-unslop-v2.0
       priority: 4
-      reasoning_effort: None
     - provider: g4f
-      model: grok-3
+      model: pantheon-rp-1.8-24b-small-3.1
       priority: 5
-      reasoning_effort: None
-    - provider: g4f
-      model: deepseek-v3.2-speciale
+    - provider: cerebras
+      model: llama-3.1-8b
       priority: 6
-      reasoning_effort: None
-    - provider: g4f
-      model: o3-2025-04-16 (reasoning_effort=low)
-      priority: 7
-      reasoning_effort: None
-    - provider: g4f
-      model: kimi-k2.5 (reasoning=enabled)
-      priority: 8
-      reasoning_effort: None
-    - provider: g4f
-      model: claude-opus-4-6 (adaptive, effort=low)
-      priority: 9
-      reasoning_effort: None
-    - provider: g4f
-      model: claude-sonnet-4-6 (adaptive, effort=max)
-      priority: 10
-      reasoning_effort: None
-    - provider: g4f
-      model: gemini-3-flash-preview (thinking_level=medium)
-      priority: 11
-      reasoning_effort: None
-    - provider: g4f
-      model: claude-sonnet-4-6 (adaptive, effort=medium)
-      priority: 12
-      reasoning_effort: None
-    - provider: g4f
-      model: gpt-4.1-2025-04-14
-      priority: 13
-      reasoning_effort: None
-    - provider: g4f
-      model: o3-2025-04-16 (reasoning_effort=medium)
-      priority: 14
-      reasoning_effort: None
-    - provider: g4f
-      model: gemini-3-flash-preview (thinking_level=minimal)
-      priority: 15
-      reasoning_effort: None
-    - provider: g4f
-      model: deepseek-v3.2 (reasoning=enabled)
-      priority: 16
-      reasoning_effort: None
-    - provider: g4f
-      model: o3-2025-04-16 (reasoning_effort=high)
-      priority: 17
-      reasoning_effort: None
-    - provider: g4f
-      model: grok-4-1-fast-reasoning
-      priority: 18
-      reasoning_effort: None
-    - provider: g4f
-      model: gemini-3-flash-preview (thinking_level=high)
-      priority: 19
-      reasoning_effort: None
-    - provider: g4f
-      model: claude-opus-4-5-20251101 (thinking=disabled)
-      priority: 20
-      reasoning_effort: None
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true

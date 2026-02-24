@@ -6,26 +6,19 @@ providers:
     enabled: true
     env_var: GROQ_API_KEY
     free_tier_models:
-    # Core models (existing)
     - llama-3.1-8b-instant
     - llama-3.3-70b-versatile
     - mixtral-8x7b-32768
     - gemma2-9b-it
-    # Llama 4 models (NEW - discovered from API)
     - meta-llama/llama-4-maverick-17b-128e-instruct
     - meta-llama/llama-4-scout-17b-16e-instruct
-    # Compound models (NEW)
     - groq/compound
     - groq/compound-mini
-    # Kimi models (NEW - large context window)
     - moonshotai/kimi-k2-instruct
     - moonshotai/kimi-k2-instruct-0905
-    # OpenAI OSS models (NEW - coding focused)
     - openai/gpt-oss-120b
     - openai/gpt-oss-20b
-    # Qwen models (NEW - excellent for coding)
     - qwen/qwen3-32b
-    # Arabic models
     - allam-2-7b
     - canopylabs/orpheus-arabic-saudi
     - canopylabs/orpheus-v1-english
@@ -46,15 +39,12 @@ providers:
     enabled: true
     env_var: CEREBRAS_API_KEY
     free_tier_models:
-    # Llama models (existing)
     - llama-3.3-70b
     - llama3.1-8b
-    # Qwen models (NEW - EXCELLENT for coding!)
-    - qwen-3-235b-a22b-instruct-2507  # 235B parameter model - best for complex coding
-    - qwen-3-32b  # Fast and capable
-    # Other models (NEW)
-    - gpt-oss-120b  # Large open-source model
-    - zai-glm-4.7  # Chinese language model
+    - qwen-3-235b-a22b-instruct-2507
+    - qwen-3-32b
+    - gpt-oss-120b
+    - zai-glm-4.7
   openai:
     enabled: true
     env_var: OPENAI_API_KEY
@@ -118,13 +108,13 @@ providers:
     enabled: false
     env_var: CLOUDFLARE_API_TOKEN
     free_tier_models:
-    - "@cf/meta/llama-3.3-70b-instruct"
-    - "@cf/meta/llama-3.1-8b-instruct"
-    - "@cf/mistral/mistral-large-2407"
-    - "@cf/qwen/qwen2.5-72b-instruct"
-    - "@cf/openchat/openchat-7b"
-    - "@cf/tinyllama/tinyllama-1.1b-chat"
-    api_base: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/run/"
+    - '@cf/meta/llama-3.3-70b-instruct'
+    - '@cf/meta/llama-3.1-8b-instruct'
+    - '@cf/mistral/mistral-large-2407'
+    - '@cf/qwen/qwen2.5-72b-instruct'
+    - '@cf/openchat/openchat-7b'
+    - '@cf/tinyllama/tinyllama-1.1b-chat'
+    api_base: https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/run/
   brave_search:
     enabled: true
     env_var: BRAVE_API_KEY
@@ -147,7 +137,7 @@ providers:
     env_var: JINA_API_KEY
     free_tier: true
     no_api_key_required: true
-  router_models:
+  router_models: null
   router/best-coding:
     description: Best for coding tasks
     candidates:
@@ -378,3 +368,305 @@ safety:
   - openai
   - anthropic
   - cohere
+router_models:
+  coding-smart:
+    description: Best models for complex coding tasks (Auto-synced)
+    candidates:
+    - provider: google
+      model: gemini-3-flash
+      priority: 1
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+    - provider: openai
+      model: gpt-5-2
+      priority: 2
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: google
+      model: gemini-3-pro
+      priority: 3
+      capabilities:
+      - tools
+      - function_calling
+      fallback_only: true
+    - provider: deepseek
+      model: deepseek-r1
+      priority: 4
+      capabilities:
+      - tools
+      - function_calling
+      fallback_only: true
+    - provider: cerebras
+      model: glm-5
+      priority: 5
+      capabilities:
+      - tools
+      - function_calling
+      fallback_only: true
+    - provider: openai
+      model: o3-mini-high
+      priority: 6
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: qwen
+      model: qwen3-235b-a22b-reasoning
+      priority: 7
+      capabilities:
+      - tools
+      - function_calling
+      - reasoning
+      fallback_only: true
+    - provider: grok
+      model: grok-3-mini-reasoning
+      priority: 8
+      capabilities:
+      - tools
+      - function_calling
+      - reasoning
+      fallback_only: true
+    - provider: google
+      model: gemini-2-5-flash
+      priority: 9
+      capabilities:
+      - tools
+      - function_calling
+      fallback_only: true
+    - provider: openai
+      model: o3-mini
+      priority: 10
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+  coding-fast:
+    description: Fastest models for quick coding tasks (Auto-synced)
+    candidates:
+    - provider: google
+      model: gemini-3-flash
+      priority: 1
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+    - provider: openai
+      model: gpt-5-2
+      priority: 2
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: openai
+      model: o3-mini-high
+      priority: 3
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: google
+      model: gemini-2-5-flash
+      priority: 4
+      capabilities:
+      - tools
+      - function_calling
+      fallback_only: true
+    - provider: openai
+      model: o3-mini
+      priority: 5
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: openai
+      model: gpt-4-1
+      priority: 6
+      capabilities:
+      - tools
+      - function_calling
+      fallback_only: true
+    - provider: deepseek
+      model: deepseek-chat
+      priority: 7
+      capabilities:
+      - tools
+      - function_calling
+      fallback_only: true
+    - provider: openai
+      model: gpt-5-2-codex
+      priority: 8
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: openai
+      model: gpt-5-1
+      priority: 9
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: openai
+      model: gpt-5
+      priority: 10
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+  chat-smart:
+    description: High intelligence chat models (Auto-synced)
+    candidates:
+    - provider: google
+      model: gemini-3-flash
+      priority: 1
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+    - provider: openai
+      model: gpt-5-2
+      priority: 2
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: google
+      model: gemini-3-pro
+      priority: 3
+      capabilities:
+      - tools
+      - function_calling
+      fallback_only: true
+    - provider: deepseek
+      model: deepseek-r1
+      priority: 4
+      capabilities:
+      - tools
+      - function_calling
+      fallback_only: true
+    - provider: cerebras
+      model: glm-5
+      priority: 5
+      capabilities:
+      - tools
+      - function_calling
+      fallback_only: true
+    - provider: openai
+      model: o3-mini-high
+      priority: 6
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: qwen
+      model: qwen3-235b-a22b-reasoning
+      priority: 7
+      capabilities:
+      - tools
+      - function_calling
+      - reasoning
+      fallback_only: true
+    - provider: grok
+      model: grok-3-mini-reasoning
+      priority: 8
+      capabilities:
+      - tools
+      - function_calling
+      - reasoning
+      fallback_only: true
+    - provider: google
+      model: gemini-2-5-flash
+      priority: 9
+      capabilities:
+      - tools
+      - function_calling
+      fallback_only: true
+    - provider: openai
+      model: o3-mini
+      priority: 10
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+  chat-fast:
+    description: Low latency chat models (Auto-synced)
+    candidates:
+    - provider: google
+      model: gemini-3-flash
+      priority: 1
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+    - provider: openai
+      model: gpt-5-2
+      priority: 2
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: openai
+      model: o3-mini-high
+      priority: 3
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: openai
+      model: o3-mini
+      priority: 4
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: openai
+      model: gpt-5-2-codex
+      priority: 5
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: openai
+      model: gpt-5-1
+      priority: 6
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: openai
+      model: gpt-5
+      priority: 7
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true
+    - provider: openai
+      model: o4-mini
+      priority: 8
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+      fallback_only: true

@@ -366,6 +366,108 @@ def scrape_artificial_analysis():
         return []
 
 
+def load_artificial_analysis_csv(csv_path: str = None):
+    """Load model data from local artificial_analysis_models.csv file.
+
+    This provides comprehensive benchmark data when web scraping fails.
+    The CSV has columns like:
+    - eval_artificial_analysis_intelligence_index
+    - eval_artificial_analysis_coding_index
+    - eval_livecodebench
+    - median_output_tokens_per_second (TPS)
+    """
+    if csv_path is None:
+        # Try multiple possible locations
+        possible_paths = [
+            "/home/owens/CodingProjects/llm-leaderboard/artificial_analysis_models.csv",
+            "artificial_analysis_models.csv",
+            "../llm-leaderboard/artificial_analysis_models.csv",
+        ]
+        for path in possible_paths:
+            if os.path.exists(path):
+                csv_path = path
+                break
+
+    if csv_path is None or not os.path.exists(csv_path):
+        print(f"Artificial Analysis CSV not found at {csv_path}")
+        return []
+
+    data = []
+    try:
+        df = pd.read_csv(csv_path)
+        print(f"Loaded {len(df)} models from Artificial Analysis CSV")
+
+        for _, row in df.iterrows():
+            model_name = row.get("slug") or row.get("name")
+            if not model_name:
+                continue
+
+            # Extract intelligence index (0-100 scale)
+            intelligence = row.get("eval_artificial_analysis_intelligence_index")
+            if pd.notna(intelligence) and intelligence > 0:
+                data.append(
+                    (
+                        model_name,
+                        float(intelligence),
+                        "AA Intelligence Index",
+                        "artificial_analysis_csv",
+                    )
+                )
+
+            # Extract coding index (0-100 scale)
+            coding = row.get("eval_artificial_analysis_coding_index")
+            if pd.notna(coding) and coding > 0:
+                tps = row.get("median_output_tokens_per_second", 0)
+                context = f"TPS:{tps}" if pd.notna(tps) and tps > 0 else ""
+                data.append(
+                    (
+                        model_name,
+                        float(coding),
+                        "AA Coding Index",
+                        "artificial_analysis_csv",
+                        context,
+                    )
+                )
+
+            # Extract LiveCodeBench score (0-1 scale, multiply by 100)
+            livecodebench = row.get("eval_livecodebench")
+            if pd.notna(livecodebench) and livecodebench > 0:
+                # Convert to 0-100 scale for consistency
+                score = (
+                    float(livecodebench) * 100
+                    if livecodebench <= 1
+                    else float(livecodebench)
+                )
+                data.append(
+                    (
+                        model_name,
+                        score,
+                        "LiveCodeBench",
+                        "artificial_analysis_csv",
+                    )
+                )
+
+            # Extract MMLU Pro (0-1 scale, multiply by 100)
+            mmlu_pro = row.get("eval_mmlu_pro")
+            if pd.notna(mmlu_pro) and mmlu_pro > 0:
+                score = float(mmlu_pro) * 100 if mmlu_pro <= 1 else float(mmlu_pro)
+                data.append(
+                    (
+                        model_name,
+                        score,
+                        "MMLU Pro",
+                        "artificial_analysis_csv",
+                    )
+                )
+
+        print(f"Extracted {len(data)} benchmark entries from Artificial Analysis CSV")
+        return data
+
+    except Exception as e:
+        print(f"Error loading Artificial Analysis CSV: {e}")
+        return []
+
+
 def scrape_swe_rebench():
     """Scrapes SWE-rebench."""
     url = "https://swe-rebench.com/"
@@ -753,19 +855,67 @@ _VARIANT_SUFFIXES = {
     "max",
 }
 
+# Model family patterns that indicate FUNDAMENTALLY different models
+# These should NEVER match each other even if base name is similar
+_DISTINCT_MODEL_FAMILIES = [
+    r"r1[-]?distill",  # Distilled R1 models are NOT equivalent to full R1
+    r"r1t\d*",  # R1T variants (chimera, etc.)
+    r"chimera",  # Chimera models
+    r"v\d+[-]?base",  # Base vs full models
+    r"[-]coder[-]?",  # Coder-specialized variants
+    r"deepseek[-]coder",  # DeepSeek Coder variants
+]
+
+# Version number patterns that indicate different model generations
+_VERSION_PATTERN = re.compile(r"v(\d+(?:\.\d+)*)")
+
 
 def _has_variant_mismatch(name_a, name_b):
-    """Check if two model names differ by a variant suffix.
+    """Check if two model names differ by a critical variant suffix or family.
 
-    Returns True if one has a variant suffix the other lacks,
-    which means they should NOT be matched together.
-    E.g., 'claude-opus-4-5' vs 'claude-opus-4-5-thinking' → True (mismatch)
+    Returns True if models should NOT be matched together.
+
+    Prevents:
+    - R1 Full from matching R1 Distill variants (critical for quality)
+    - V3 from matching V3.2 (different versions)
+    - Chimera models from matching non-Chimera
+    - Claude Opus from matching Claude Opus Thinking
     """
     parts_a = set(name_a.split("-"))
     parts_b = set(name_b.split("-"))
+
+    # 1. Check standard variant suffixes (thinking, mini, etc.)
     for suffix in _VARIANT_SUFFIXES:
         if (suffix in parts_a) != (suffix in parts_b):
             return True
+
+    # 2. Check distillation/chimera patterns (CRITICAL for R1 vs R1-distill)
+    name_a_lower = name_a.lower()
+    name_b_lower = name_b.lower()
+
+    for pattern in _DISTINCT_MODEL_FAMILIES:
+        has_pattern_a = bool(re.search(pattern, name_a_lower))
+        has_pattern_b = bool(re.search(pattern, name_b_lower))
+        if has_pattern_a != has_pattern_b:
+            return True
+
+    # 3. Check version mismatch (v3 vs v3.2, etc.)
+    versions_a = set(_VERSION_PATTERN.findall(name_a_lower))
+    versions_b = set(_VERSION_PATTERN.findall(name_b_lower))
+    # If both have versions and they differ, don't match
+    if versions_a and versions_b and versions_a != versions_b:
+        return True
+
+    # 4. Special case: R1 full vs R1 distill
+    # R1 without "distill" should never match R1 with "distill"
+    is_r1_a = "r1" in name_a_lower
+    is_r1_b = "r1" in name_b_lower
+    if is_r1_a and is_r1_b:
+        is_distill_a = "distill" in name_a_lower
+        is_distill_b = "distill" in name_b_lower
+        if is_distill_a != is_distill_b:
+            return True
+
     return False
 
 
@@ -847,23 +997,44 @@ def calculate_aggregate_scores(df):
     agg_df["swe_bench_verified"] = verified_scores
 
     def get_weighted_score(row):
+        """
+        Calculate quality score without penalizing models with more benchmarks.
+
+        Strategy:
+        1. SWE-bench Verified is the gold standard - use it if available (weight 2.0)
+        2. For other benchmarks, use MAX score (not mean) to avoid penalizing thorough testing
+        3. Add small confidence bonus for models with more benchmarks (+0.5 per benchmark, max +2.0)
+        """
         m_name = row.name
         m_data = df[df["Model"] == m_name]
 
         verified = m_data[m_data["Header"] == "SWE-bench Verified"]["Score"]
         others = m_data[m_data["Header"] != "SWE-bench Verified"]["Score"]
 
-        # Drop NaN values before computing means
+        # Drop NaN values
         verified = verified.dropna()
         others = others.dropna()
 
+        # Calculate confidence bonus: +0.5 per benchmark, max +2.0
+        total_benchmarks = len(verified) + len(others)
+        confidence_bonus = min(total_benchmarks * 0.5, 2.0)
+
         if not verified.empty:
+            # SWE-bench Verified is the gold standard - use mean of verified scores
             v_val = verified.mean()
             if not others.empty:
-                o_val = others.mean()
-                return (v_val * 2 + o_val) / 3
-            return v_val
-        return others.mean() if not others.empty else np.nan
+                # Use MAX of other scores to avoid benchmark count penalty
+                o_val = others.max()
+                # Weight: SWE-bench Verified 2x, but cap the penalty
+                base_score = (v_val * 2 + o_val) / 3
+                return base_score + confidence_bonus
+            return v_val + confidence_bonus
+
+        if not others.empty:
+            # No verified score - use max of other scores
+            return others.max() + confidence_bonus
+
+        return np.nan
 
     agg_df["Quality_Score"] = agg_df.apply(get_weighted_score, axis=1)
 
@@ -935,6 +1106,12 @@ def main():
 
     print("Starting Optimized Aggregated Leaderboard Scraper...")
     all_data = []
+
+    # First, load local CSV data (most reliable source)
+    csv_data = load_artificial_analysis_csv()
+    if csv_data:
+        all_data.extend(csv_data)
+        print(f"Added {len(csv_data)} entries from local Artificial Analysis CSV")
 
     # Run scrapers
     scrapers = [

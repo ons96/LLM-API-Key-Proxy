@@ -14,6 +14,7 @@ Outputs: config/virtual_models_generated.yaml
 import sys
 import yaml
 import requests
+import math
 from pathlib import Path
 from typing import Dict, List, Any
 from datetime import datetime
@@ -21,49 +22,57 @@ from datetime import datetime
 PROJECT_ROOT = Path(__file__).parent.parent
 CONFIG_DIR = PROJECT_ROOT / "config"
 
+# Scoring weights for each virtual model type
+# Key changes from previous version:
+# 1. TPS weight reduced to 2-5% for elite models (was 10-15%)
+# 2. SWE-bench + Agentic coding get highest combined weight for coding
+# 3. Logarithmic TPS scaling prevents ultra-fast from dominating
 WEIGHTS = {
     "coding-elite": {
-        "swe_bench": 0.40,
-        "livecodebench": 0.30,
-        "humaneval": 0.15,
-        "tps": 0.05,
-        "hallucination_penalty": 0.10,
+        # Agentic coding benchmarks dominate - actual measure of ability
+        "swe_bench": 0.35,  # Primary: SWE-bench (most reliable)
+        "agentic": 0.30,  # Secondary: Agentic coding composite
+        "livecodebench": 0.18,  # LiveBench coding
+        "humaneval": 0.12,  # Classic coding benchmark
+        "tps": 0.03,  # Minimal speed weight (was 0.10)
+        "hallucination_penalty": 0.02,
     },
     "coding-smart": {
         "swe_bench": 0.30,
-        "livecodebench": 0.25,
-        "humaneval": 0.15,
-        "tps": 0.10,
-        "agentic": 0.10,
+        "agentic": 0.25,
+        "livecodebench": 0.15,
+        "humaneval": 0.12,
+        "tps": 0.08,  # Slightly higher for "smart but reasonable"
         "hallucination_penalty": 0.10,
     },
     "coding-fast": {
-        "tps": 0.55,
-        "swe_bench": 0.20,
-        "humaneval": 0.10,
-        "hallucination_penalty": 0.15,
+        "swe_bench": 0.22,  # Still need quality floor
+        "agentic": 0.18,
+        "tps": 0.38,  # Speed dominates for fast category
+        "humaneval": 0.12,
+        "hallucination_penalty": 0.10,
     },
     "chat-elite": {
-        "intelligence": 0.55,
+        "intelligence": 0.50,
         "mmlu": 0.20,
-        "arena_elo": 0.15,
+        "arena_elo": 0.20,
         "hallucination_penalty": 0.10,
     },
     "chat-smart": {
-        "intelligence": 0.35,
+        "intelligence": 0.38,
         "mmlu": 0.15,
         "arena_elo": 0.15,
-        "tps": 0.15,
-        "hallucination_penalty": 0.20,
+        "tps": 0.15,  # Chat benefits from reasonable speed
+        "hallucination_penalty": 0.17,
     },
     "chat-fast": {
-        "tps": 0.60,
-        "intelligence": 0.20,
-        "hallucination_penalty": 0.20,
+        "tps": 0.45,
+        "intelligence": 0.30,
+        "hallucination_penalty": 0.25,
     },
     "chat-rp": {
-        "tps": 0.50,
-        "ugi": 0.25,
+        "tps": 0.35,
+        "ugi": 0.40,
         "writing": 0.25,
     },
 }
@@ -129,24 +138,38 @@ def fetch_models_dev_free() -> List[Dict]:
 
 
 def calculate_score(model: Dict, weights: Dict) -> float:
+    """Calculate composite score with logarithmic TPS scaling.
+
+    Key changes:
+    1. No hard TPS cap - uses logarithmic scaling instead
+    2. SWE-bench + Agentic coding prioritized for coding models
+    3. TPS weight reduced to 2-5% for elite models
+    """
     total = 0.0
     for metric, weight in weights.items():
         if metric == "hallucination_penalty":
             hallucination_rate = model.get("hallucination_rate", 10.0)
             if hallucination_rate > 0:
-                normalized_penalty = min(hallucination_rate / 20.0, 1.0)
+                # Scale penalty: 0% = 0, 25%+ = 1.0
+                normalized_penalty = min(hallucination_rate / 25.0, 1.0)
                 total -= normalized_penalty * weight
             continue
 
         value = model.get(metric, 0)
         if isinstance(value, (int, float)) and value > 0:
-            if metric in ["tps", "arena_elo"]:
-                # Removed the hard cap of 200 to allow ultra-fast providers to shine
-                # Using a 1000 TPS baseline for normalization
-                normalized = min(value / 1000, 1.0)
+            if metric == "tps":
+                # LOGARITHMIC scaling: diminishing returns for ultra-fast
+                # log2(50) ≈ 5.6, log2(200) ≈ 7.6, log2(500) ≈ 8.9
+                # This rewards speed but doesn't over-penalize quality models
+                normalized = min(math.log2(max(value, 1)) / 9.0, 1.0)
+            elif metric == "arena_elo":
+                # ELO ranges from ~1200-1500, normalize to 0-1
+                normalized = (value - 1200) / 300
+                normalized = max(0, min(1.0, normalized))
             elif metric == "efficiency":
                 normalized = min(value / 50, 1.0)
             else:
+                # Standard percentage-based benchmarks (0-100)
                 normalized = min(value / 100, 1.0)
             total += normalized * weight
     return total
@@ -465,6 +488,12 @@ def main():
         chain = vm_data.get("fallback_chain", [])[:5]
         for i, m in enumerate(chain, 1):
             print(f"  {i}. {m['provider']}/{m['model']}")
+
+    # Write output to file
+    output_path = PROJECT_ROOT / "config" / "virtual_models.yaml"
+    with open(output_path, "w") as f:
+        yaml.dump(output, f, default_flow_style=False, sort_keys=False)
+    print(f"\nWrote virtual models to {output_path}")
 
     return 0
 

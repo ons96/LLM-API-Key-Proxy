@@ -1,0 +1,5666 @@
+{
+  "timestamp": "2026-02-22T03:34:32.674910+00:00",
+  "total_discoveries": 28,
+  "new_providers": 25,
+  "total_new_models": 306,
+  "discoveries": [
+    {
+      "provider_id": "openrouter",
+      "provider_name": "OpenRouter",
+      "api_url": "https://openrouter.ai/api/v1",
+      "env_vars": [
+        "OPENROUTER_API_KEY"
+      ],
+      "doc_url": "https://openrouter.ai/models",
+      "is_new_provider": false,
+      "new_models": [
+        {
+          "id": "stepfun/step-3.5-flash:free",
+          "name": "Step 3.5 Flash (free)",
+          "context_window": 256000,
+          "max_output": 256000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "step"
+        },
+        {
+          "id": "moonshotai/kimi-dev-72b:free",
+          "name": "Kimi Dev 72b (free)",
+          "context_window": 131072,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "kimi"
+        },
+        {
+          "id": "moonshotai/kimi-k2:free",
+          "name": "Kimi K2 (free)",
+          "context_window": 32800,
+          "max_output": 32800,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "kimi"
+        },
+        {
+          "id": "thudm/glm-z1-32b:free",
+          "name": "GLM Z1 32B (free)",
+          "context_window": 32768,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm-z"
+        },
+        {
+          "id": "nousresearch/deephermes-3-llama-3-8b-preview",
+          "name": "DeepHermes 3 Llama 3 8B Preview",
+          "context_window": 131072,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "nousresearch/hermes-3-llama-3.1-405b:free",
+          "name": "Hermes 3 405B Instruct (free)",
+          "context_window": 131072,
+          "max_output": 131072,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "hermes"
+        },
+        {
+          "id": "nvidia/nemotron-nano-12b-v2-vl:free",
+          "name": "Nemotron Nano 12B 2 VL (free)",
+          "context_window": 128000,
+          "max_output": 128000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "nemotron"
+        },
+        {
+          "id": "nvidia/nemotron-3-nano-30b-a3b:free",
+          "name": "Nemotron 3 Nano 30B A3B (free)",
+          "context_window": 256000,
+          "max_output": 256000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "nemotron"
+        },
+        {
+          "id": "nvidia/nemotron-nano-9b-v2:free",
+          "name": "Nemotron Nano 9B V2 (free)",
+          "context_window": 128000,
+          "max_output": 128000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "nemotron"
+        },
+        {
+          "id": "kwaipilot/kat-coder-pro:free",
+          "name": "Kat Coder Pro (free)",
+          "context_window": 256000,
+          "max_output": 65536,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "kat-coder"
+        },
+        {
+          "id": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+          "name": "Uncensored (free)",
+          "context_window": 32768,
+          "max_output": 32768,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "mistral"
+        },
+        {
+          "id": "cognitivecomputations/dolphin3.0-mistral-24b",
+          "name": "Dolphin3.0 Mistral 24B",
+          "context_window": 32768,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "mistral"
+        },
+        {
+          "id": "cognitivecomputations/dolphin3.0-r1-mistral-24b",
+          "name": "Dolphin3.0 R1 Mistral 24B",
+          "context_window": 32768,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "mistral"
+        },
+        {
+          "id": "deepseek/deepseek-r1:free",
+          "name": "R1 (free)",
+          "context_window": 163840,
+          "max_output": 163840,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "deepseek"
+        },
+        {
+          "id": "deepseek/deepseek-v3-base:free",
+          "name": "DeepSeek V3 Base (free)",
+          "context_window": 163840,
+          "max_output": 163840,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "deepseek"
+        },
+        {
+          "id": "deepseek/deepseek-r1-0528-qwen3-8b:free",
+          "name": "Deepseek R1 0528 Qwen3 8B (free)",
+          "context_window": 131072,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "deepseek/deepseek-chat-v3-0324",
+          "name": "DeepSeek V3 0324",
+          "context_window": 16384,
+          "max_output": 8192,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "deepseek"
+        },
+        {
+          "id": "deepseek/deepseek-r1-0528:free",
+          "name": "R1 0528 (free)",
+          "context_window": 163840,
+          "max_output": 163840,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "deepseek"
+        },
+        {
+          "id": "deepseek/deepseek-r1-distill-llama-70b",
+          "name": "DeepSeek R1 Distill Llama 70B",
+          "context_window": 8192,
+          "max_output": 8192,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "deepseek-thinking"
+        },
+        {
+          "id": "deepseek/deepseek-r1-distill-qwen-14b",
+          "name": "DeepSeek R1 Distill Qwen 14B",
+          "context_window": 64000,
+          "max_output": 8192,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "featherless/qwerky-72b",
+          "name": "Qwerky 72B",
+          "context_window": 32768,
+          "max_output": 8192,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "qwerky"
+        },
+        {
+          "id": "tngtech/tng-r1t-chimera:free",
+          "name": "R1T Chimera (free)",
+          "context_window": 163840,
+          "max_output": 163840,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "tngtech"
+        },
+        {
+          "id": "tngtech/deepseek-r1t2-chimera:free",
+          "name": "DeepSeek R1T2 Chimera (free)",
+          "context_window": 163840,
+          "max_output": 163840,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "deepseek-thinking"
+        },
+        {
+          "id": "allenai/molmo-2-8b:free",
+          "name": "Molmo2 8B (free)",
+          "context_window": 36864,
+          "max_output": 36864,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "allenai"
+        },
+        {
+          "id": "arcee-ai/trinity-mini:free",
+          "name": "Trinity Mini",
+          "context_window": 131072,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "trinity-mini"
+        },
+        {
+          "id": "arcee-ai/trinity-large-preview:free",
+          "name": "Trinity Large Preview",
+          "context_window": 131072,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "trinity"
+        },
+        {
+          "id": "liquid/lfm-2.5-1.2b-thinking:free",
+          "name": "LFM2.5-1.2B-Thinking (free)",
+          "context_window": 131072,
+          "max_output": 32768,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "liquid"
+        },
+        {
+          "id": "liquid/lfm-2.5-1.2b-instruct:free",
+          "name": "LFM2.5-1.2B-Instruct (free)",
+          "context_window": 131072,
+          "max_output": 32768,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "liquid"
+        },
+        {
+          "id": "google/gemma-3-27b-it:free",
+          "name": "Gemma 3 27B (free)",
+          "context_window": 131072,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "gemma"
+        },
+        {
+          "id": "google/gemma-3-12b-it:free",
+          "name": "Gemma 3 12B (free)",
+          "context_window": 32768,
+          "max_output": 8192,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "gemma"
+        },
+        {
+          "id": "google/gemma-3n-e2b-it:free",
+          "name": "Gemma 3n 2B (free)",
+          "context_window": 8192,
+          "max_output": 2000,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "gemma"
+        },
+        {
+          "id": "google/gemma-3n-e4b-it:free",
+          "name": "Gemma 3n 4B (free)",
+          "context_window": 8192,
+          "max_output": 2000,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "gemma"
+        },
+        {
+          "id": "google/gemma-3-4b-it:free",
+          "name": "Gemma 3 4B (free)",
+          "context_window": 32768,
+          "max_output": 8192,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "gemma"
+        },
+        {
+          "id": "google/gemini-2.0-flash-exp:free",
+          "name": "Gemini 2.0 Flash Experimental (free)",
+          "context_window": 1048576,
+          "max_output": 1048576,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "gemini-flash"
+        },
+        {
+          "id": "microsoft/mai-ds-r1:free",
+          "name": "MAI DS R1 (free)",
+          "context_window": 163840,
+          "max_output": 163840,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "mai"
+        },
+        {
+          "id": "openai/gpt-oss-20b:free",
+          "name": "gpt-oss-20b (free)",
+          "context_window": 131072,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "gpt-oss"
+        },
+        {
+          "id": "openai/gpt-oss-120b:free",
+          "name": "gpt-oss-120b (free)",
+          "context_window": 131072,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "gpt-oss"
+        },
+        {
+          "id": "openrouter/sherlock-think-alpha",
+          "name": "Sherlock Think Alpha",
+          "context_window": 1840000,
+          "max_output": 0,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "sherlock"
+        },
+        {
+          "id": "openrouter/sherlock-dash-alpha",
+          "name": "Sherlock Dash Alpha",
+          "context_window": 1840000,
+          "max_output": 0,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "sherlock"
+        },
+        {
+          "id": "openrouter/aurora-alpha",
+          "name": "Aurora Alpha",
+          "context_window": 128000,
+          "max_output": 50000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": ""
+        },
+        {
+          "id": "z-ai/glm-4.5-air:free",
+          "name": "GLM 4.5 Air (free)",
+          "context_window": 128000,
+          "max_output": 96000,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm-air"
+        },
+        {
+          "id": "qwen/qwen3-32b:free",
+          "name": "Qwen3 32B (free)",
+          "context_window": 40960,
+          "max_output": 40960,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen-2.5-coder-32b-instruct",
+          "name": "Qwen2.5 Coder 32B Instruct",
+          "context_window": 32768,
+          "max_output": 8192,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen3-235b-a22b:free",
+          "name": "Qwen3 235B A22B (free)",
+          "context_window": 131072,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen-2.5-vl-7b-instruct:free",
+          "name": "Qwen2.5-VL 7B Instruct (free)",
+          "context_window": 32768,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwq-32b:free",
+          "name": "QwQ 32B (free)",
+          "context_window": 32768,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen3-4b:free",
+          "name": "Qwen3 4B (free)",
+          "context_window": 40960,
+          "max_output": 40960,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen3-30b-a3b:free",
+          "name": "Qwen3 30B A3B (free)",
+          "context_window": 40960,
+          "max_output": 40960,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen2.5-vl-72b-instruct",
+          "name": "Qwen2.5 VL 72B Instruct",
+          "context_window": 32768,
+          "max_output": 8192,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen3-14b:free",
+          "name": "Qwen3 14B (free)",
+          "context_window": 40960,
+          "max_output": 40960,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen2.5-vl-32b-instruct:free",
+          "name": "Qwen2.5 VL 32B Instruct (free)",
+          "context_window": 8192,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen3-next-80b-a3b-instruct:free",
+          "name": "Qwen3 Next 80B A3B Instruct (free)",
+          "context_window": 262144,
+          "max_output": 262144,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen2.5-vl-72b-instruct:free",
+          "name": "Qwen2.5 VL 72B Instruct (free)",
+          "context_window": 32768,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen3-235b-a22b-07-25:free",
+          "name": "Qwen3 235B A22B Instruct 2507 (free)",
+          "context_window": 262144,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen3-coder:free",
+          "name": "Qwen3 Coder 480B A35B Instruct (free)",
+          "context_window": 262144,
+          "max_output": 66536,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen3-8b:free",
+          "name": "Qwen3 8B (free)",
+          "context_window": 40960,
+          "max_output": 40960,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "mistralai/devstral-2512:free",
+          "name": "Devstral 2 2512 (free)",
+          "context_window": 262144,
+          "max_output": 262144,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "devstral"
+        },
+        {
+          "id": "mistralai/mistral-7b-instruct:free",
+          "name": "Mistral 7B Instruct (free)",
+          "context_window": 32768,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "mistral"
+        },
+        {
+          "id": "mistralai/mistral-small-3.2-24b-instruct",
+          "name": "Mistral Small 3.2 24B Instruct",
+          "context_window": 96000,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "mistral-small"
+        },
+        {
+          "id": "mistralai/devstral-small-2505:free",
+          "name": "Devstral Small 2505 (free)",
+          "context_window": 32768,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "devstral"
+        },
+        {
+          "id": "mistralai/mistral-small-3.2-24b-instruct:free",
+          "name": "Mistral Small 3.2 24B (free)",
+          "context_window": 96000,
+          "max_output": 96000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "mistral-small"
+        },
+        {
+          "id": "mistralai/mistral-small-3.1-24b-instruct",
+          "name": "Mistral Small 3.1 24B Instruct",
+          "context_window": 128000,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "mistral-small"
+        },
+        {
+          "id": "mistralai/mistral-nemo:free",
+          "name": "Mistral Nemo (free)",
+          "context_window": 131072,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "mistral-nemo"
+        },
+        {
+          "id": "rekaai/reka-flash-3",
+          "name": "Reka Flash 3",
+          "context_window": 32768,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "reka"
+        },
+        {
+          "id": "meta-llama/llama-3.2-11b-vision-instruct",
+          "name": "Llama 3.2 11B Vision Instruct",
+          "context_window": 131072,
+          "max_output": 8192,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "meta-llama/llama-3.3-70b-instruct:free",
+          "name": "Llama 3.3 70B Instruct (free)",
+          "context_window": 131072,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "meta-llama/llama-4-scout:free",
+          "name": "Llama 4 Scout (free)",
+          "context_window": 64000,
+          "max_output": 64000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "meta-llama/llama-3.2-3b-instruct:free",
+          "name": "Llama 3.2 3B Instruct (free)",
+          "context_window": 131072,
+          "max_output": 131072,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "meta-llama/llama-3.1-405b-instruct:free",
+          "name": "Llama 3.1 405B Instruct (free)",
+          "context_window": 131072,
+          "max_output": 131072,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "sarvamai/sarvam-m:free",
+          "name": "Sarvam-M (free)",
+          "context_window": 32768,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "sarvam"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "stepfun/step-3.5-flash:free",
+          "name": "Step 3.5 Flash (free)",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "moonshotai/kimi-dev-72b:free",
+          "name": "Kimi Dev 72b (free)",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "moonshotai/kimi-k2:free",
+          "name": "Kimi K2 (free)",
+          "context_window": 32800,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "thudm/glm-z1-32b:free",
+          "name": "GLM Z1 32B (free)",
+          "context_window": 32768,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "nousresearch/deephermes-3-llama-3-8b-preview",
+          "name": "DeepHermes 3 Llama 3 8B Preview",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "nousresearch/hermes-3-llama-3.1-405b:free",
+          "name": "Hermes 3 405B Instruct (free)",
+          "context_window": 131072,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "nvidia/nemotron-nano-12b-v2-vl:free",
+          "name": "Nemotron Nano 12B 2 VL (free)",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "nvidia/nemotron-3-nano-30b-a3b:free",
+          "name": "Nemotron 3 Nano 30B A3B (free)",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "nvidia/nemotron-nano-9b-v2:free",
+          "name": "Nemotron Nano 9B V2 (free)",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "kwaipilot/kat-coder-pro:free",
+          "name": "Kat Coder Pro (free)",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+          "name": "Uncensored (free)",
+          "context_window": 32768,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "cognitivecomputations/dolphin3.0-mistral-24b",
+          "name": "Dolphin3.0 Mistral 24B",
+          "context_window": 32768,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "cognitivecomputations/dolphin3.0-r1-mistral-24b",
+          "name": "Dolphin3.0 R1 Mistral 24B",
+          "context_window": 32768,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "deepseek/deepseek-r1:free",
+          "name": "R1 (free)",
+          "context_window": 163840,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "deepseek/deepseek-v3-base:free",
+          "name": "DeepSeek V3 Base (free)",
+          "context_window": 163840,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "deepseek/deepseek-r1-0528-qwen3-8b:free",
+          "name": "Deepseek R1 0528 Qwen3 8B (free)",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "deepseek/deepseek-chat-v3-0324",
+          "name": "DeepSeek V3 0324",
+          "context_window": 16384,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "deepseek/deepseek-r1-0528:free",
+          "name": "R1 0528 (free)",
+          "context_window": 163840,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "deepseek/deepseek-r1-distill-llama-70b",
+          "name": "DeepSeek R1 Distill Llama 70B",
+          "context_window": 8192,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "deepseek/deepseek-r1-distill-qwen-14b",
+          "name": "DeepSeek R1 Distill Qwen 14B",
+          "context_window": 64000,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "featherless/qwerky-72b",
+          "name": "Qwerky 72B",
+          "context_window": 32768,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "tngtech/tng-r1t-chimera:free",
+          "name": "R1T Chimera (free)",
+          "context_window": 163840,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "tngtech/deepseek-r1t2-chimera:free",
+          "name": "DeepSeek R1T2 Chimera (free)",
+          "context_window": 163840,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "allenai/molmo-2-8b:free",
+          "name": "Molmo2 8B (free)",
+          "context_window": 36864,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "arcee-ai/trinity-mini:free",
+          "name": "Trinity Mini",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "arcee-ai/trinity-large-preview:free",
+          "name": "Trinity Large Preview",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "liquid/lfm-2.5-1.2b-thinking:free",
+          "name": "LFM2.5-1.2B-Thinking (free)",
+          "context_window": 131072,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "liquid/lfm-2.5-1.2b-instruct:free",
+          "name": "LFM2.5-1.2B-Instruct (free)",
+          "context_window": 131072,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-3-27b-it:free",
+          "name": "Gemma 3 27B (free)",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-3-12b-it:free",
+          "name": "Gemma 3 12B (free)",
+          "context_window": 32768,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-3n-e2b-it:free",
+          "name": "Gemma 3n 2B (free)",
+          "context_window": 8192,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-3n-e4b-it:free",
+          "name": "Gemma 3n 4B (free)",
+          "context_window": 8192,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-3-4b-it:free",
+          "name": "Gemma 3 4B (free)",
+          "context_window": 32768,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemini-2.0-flash-exp:free",
+          "name": "Gemini 2.0 Flash Experimental (free)",
+          "context_window": 1048576,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "microsoft/mai-ds-r1:free",
+          "name": "MAI DS R1 (free)",
+          "context_window": 163840,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "openai/gpt-oss-20b:free",
+          "name": "gpt-oss-20b (free)",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "openai/gpt-oss-120b:free",
+          "name": "gpt-oss-120b (free)",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "openrouter/sherlock-think-alpha",
+          "name": "Sherlock Think Alpha",
+          "context_window": 1840000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "openrouter/sherlock-dash-alpha",
+          "name": "Sherlock Dash Alpha",
+          "context_window": 1840000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "openrouter/aurora-alpha",
+          "name": "Aurora Alpha",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "z-ai/glm-4.5-air:free",
+          "name": "GLM 4.5 Air (free)",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "qwen/qwen3-32b:free",
+          "name": "Qwen3 32B (free)",
+          "context_window": 40960,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen/qwen-2.5-coder-32b-instruct",
+          "name": "Qwen2.5 Coder 32B Instruct",
+          "context_window": 32768,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "qwen/qwen3-235b-a22b:free",
+          "name": "Qwen3 235B A22B (free)",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen/qwen-2.5-vl-7b-instruct:free",
+          "name": "Qwen2.5-VL 7B Instruct (free)",
+          "context_window": 32768,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen/qwq-32b:free",
+          "name": "QwQ 32B (free)",
+          "context_window": 32768,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen/qwen3-4b:free",
+          "name": "Qwen3 4B (free)",
+          "context_window": 40960,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen/qwen3-30b-a3b:free",
+          "name": "Qwen3 30B A3B (free)",
+          "context_window": 40960,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen/qwen2.5-vl-72b-instruct",
+          "name": "Qwen2.5 VL 72B Instruct",
+          "context_window": 32768,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "qwen/qwen3-14b:free",
+          "name": "Qwen3 14B (free)",
+          "context_window": 40960,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen/qwen2.5-vl-32b-instruct:free",
+          "name": "Qwen2.5 VL 32B Instruct (free)",
+          "context_window": 8192,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen/qwen3-next-80b-a3b-instruct:free",
+          "name": "Qwen3 Next 80B A3B Instruct (free)",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen/qwen2.5-vl-72b-instruct:free",
+          "name": "Qwen2.5 VL 72B Instruct (free)",
+          "context_window": 32768,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen/qwen3-235b-a22b-07-25:free",
+          "name": "Qwen3 235B A22B Instruct 2507 (free)",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen/qwen3-coder:free",
+          "name": "Qwen3 Coder 480B A35B Instruct (free)",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen/qwen3-8b:free",
+          "name": "Qwen3 8B (free)",
+          "context_window": 40960,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "mistralai/devstral-2512:free",
+          "name": "Devstral 2 2512 (free)",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "mistralai/mistral-7b-instruct:free",
+          "name": "Mistral 7B Instruct (free)",
+          "context_window": 32768,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "mistralai/mistral-small-3.2-24b-instruct",
+          "name": "Mistral Small 3.2 24B Instruct",
+          "context_window": 96000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "mistralai/devstral-small-2505:free",
+          "name": "Devstral Small 2505 (free)",
+          "context_window": 32768,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "mistralai/mistral-small-3.2-24b-instruct:free",
+          "name": "Mistral Small 3.2 24B (free)",
+          "context_window": 96000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "mistralai/mistral-small-3.1-24b-instruct",
+          "name": "Mistral Small 3.1 24B Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "mistralai/mistral-nemo:free",
+          "name": "Mistral Nemo (free)",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "rekaai/reka-flash-3",
+          "name": "Reka Flash 3",
+          "context_window": 32768,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "meta-llama/llama-3.2-11b-vision-instruct",
+          "name": "Llama 3.2 11B Vision Instruct",
+          "context_window": 131072,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "meta-llama/llama-3.3-70b-instruct:free",
+          "name": "Llama 3.3 70B Instruct (free)",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "meta-llama/llama-4-scout:free",
+          "name": "Llama 4 Scout (free)",
+          "context_window": 64000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "meta-llama/llama-3.2-3b-instruct:free",
+          "name": "Llama 3.2 3B Instruct (free)",
+          "context_window": 131072,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "meta-llama/llama-3.1-405b-instruct:free",
+          "name": "Llama 3.1 405B Instruct (free)",
+          "context_window": 131072,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "sarvamai/sarvam-m:free",
+          "name": "Sarvam-M (free)",
+          "context_window": 32768,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "nvidia",
+      "provider_name": "Nvidia",
+      "api_url": "https://integrate.api.nvidia.com/v1",
+      "env_vars": [
+        "NVIDIA_API_KEY"
+      ],
+      "doc_url": "https://docs.api.nvidia.com/nim/",
+      "is_new_provider": false,
+      "new_models": [
+        {
+          "id": "moonshotai/kimi-k2.5",
+          "name": "Kimi K2.5",
+          "context_window": 262144,
+          "max_output": 262144,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "kimi"
+        },
+        {
+          "id": "moonshotai/kimi-k2-thinking",
+          "name": "Kimi K2 Thinking",
+          "context_window": 262144,
+          "max_output": 262144,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "kimi-thinking"
+        },
+        {
+          "id": "nvidia/nvidia-nemotron-nano-9b-v2",
+          "name": "nvidia-nemotron-nano-9b-v2",
+          "context_window": 131072,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "nemotron"
+        },
+        {
+          "id": "nvidia/cosmos-nemotron-34b",
+          "name": "Cosmos Nemotron 34B",
+          "context_window": 131072,
+          "max_output": 8192,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "nemotron"
+        },
+        {
+          "id": "nvidia/llama-embed-nemotron-8b",
+          "name": "Llama Embed Nemotron 8B",
+          "context_window": 32768,
+          "max_output": 2048,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "llama"
+        },
+        {
+          "id": "nvidia/nemotron-3-nano-30b-a3b",
+          "name": "nemotron-3-nano-30b-a3b",
+          "context_window": 131072,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "nemotron"
+        },
+        {
+          "id": "nvidia/llama-3.3-nemotron-super-49b-v1",
+          "name": "Llama 3.3 Nemotron Super 49b V1",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": false,
+          "family": ""
+        },
+        {
+          "id": "nvidia/llama-3.1-nemotron-51b-instruct",
+          "name": "Llama 3.1 Nemotron 51b Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": ""
+        },
+        {
+          "id": "nvidia/llama3-chatqa-1.5-70b",
+          "name": "Llama3 Chatqa 1.5 70b",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": ""
+        },
+        {
+          "id": "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+          "name": "Llama-3.1-Nemotron-Ultra-253B-v1",
+          "context_window": 131072,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "llama"
+        },
+        {
+          "id": "nvidia/llama-3.1-nemotron-70b-instruct",
+          "name": "Llama 3.1 Nemotron 70b Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": ""
+        },
+        {
+          "id": "nvidia/nemotron-4-340b-instruct",
+          "name": "Nemotron 4 340b Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": ""
+        },
+        {
+          "id": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+          "name": "Llama 3.3 Nemotron Super 49b V1.5",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": false,
+          "family": ""
+        },
+        {
+          "id": "minimaxai/minimax-m2",
+          "name": "MiniMax-M2",
+          "context_window": 128000,
+          "max_output": 16384,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "minimax"
+        },
+        {
+          "id": "minimaxai/minimax-m2.1",
+          "name": "MiniMax-M2.1",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "minimax"
+        },
+        {
+          "id": "google/gemma-3n-e2b-it",
+          "name": "Gemma 3n E2b It",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "google/codegemma-1.1-7b",
+          "name": "Codegemma 1.1 7b",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "google/gemma-3n-e4b-it",
+          "name": "Gemma 3n E4b It",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "google/gemma-2-2b-it",
+          "name": "Gemma 2 2b It",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "google/gemma-3-12b-it",
+          "name": "Gemma 3 12b It",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "google/codegemma-7b",
+          "name": "Codegemma 7b",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "google/gemma-3-1b-it",
+          "name": "Gemma 3 1b It",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "google/gemma-2-27b-it",
+          "name": "Gemma 2 27b It",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "google/gemma-3-27b-it",
+          "name": "Gemma-3-27B-IT",
+          "context_window": 131072,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "gemma"
+        },
+        {
+          "id": "microsoft/phi-3-medium-128k-instruct",
+          "name": "Phi 3 Medium 128k Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "microsoft/phi-3-small-128k-instruct",
+          "name": "Phi 3 Small 128k Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "microsoft/phi-3.5-vision-instruct",
+          "name": "Phi 3.5 Vision Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "microsoft/phi-3-small-8k-instruct",
+          "name": "Phi 3 Small 8k Instruct",
+          "context_window": 8000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "microsoft/phi-3.5-moe-instruct",
+          "name": "Phi 3.5 Moe Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "microsoft/phi-4-mini-instruct",
+          "name": "Phi-4-Mini",
+          "context_window": 131072,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/phi-3-medium-4k-instruct",
+          "name": "Phi 3 Medium 4k Instruct",
+          "context_window": 4000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "microsoft/phi-3-vision-128k-instruct",
+          "name": "Phi 3 Vision 128k Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "z-ai/glm4.7",
+          "name": "GLM-4.7",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        },
+        {
+          "id": "z-ai/glm5",
+          "name": "GLM5",
+          "context_window": 202752,
+          "max_output": 131000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        },
+        {
+          "id": "qwen/qwen3-next-80b-a3b-instruct",
+          "name": "Qwen3-Next-80B-A3B-Instruct",
+          "context_window": 262144,
+          "max_output": 16384,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen2.5-coder-32b-instruct",
+          "name": "Qwen2.5 Coder 32b Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "qwen/qwen2.5-coder-7b-instruct",
+          "name": "Qwen2.5 Coder 7b Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "qwen/qwen3-235b-a22b",
+          "name": "Qwen3-235B-A22B",
+          "context_window": 131072,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwen3-coder-480b-a35b-instruct",
+          "name": "Qwen3 Coder 480B A35B Instruct",
+          "context_window": 262144,
+          "max_output": 66536,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen/qwq-32b",
+          "name": "Qwq 32b",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "qwen/qwen3-next-80b-a3b-thinking",
+          "name": "Qwen3-Next-80B-A3B-Thinking",
+          "context_window": 262144,
+          "max_output": 16384,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "mistralai/devstral-2-123b-instruct-2512",
+          "name": "Devstral-2-123B-Instruct-2512",
+          "context_window": 262144,
+          "max_output": 262144,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "devstral"
+        },
+        {
+          "id": "mistralai/mistral-large-3-675b-instruct-2512",
+          "name": "Mistral Large 3 675B Instruct 2512",
+          "context_window": 262144,
+          "max_output": 262144,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "mistral-large"
+        },
+        {
+          "id": "mistralai/ministral-14b-instruct-2512",
+          "name": "Ministral 3 14B Instruct 2512",
+          "context_window": 262144,
+          "max_output": 262144,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "ministral"
+        },
+        {
+          "id": "mistralai/mamba-codestral-7b-v0.1",
+          "name": "Mamba Codestral 7b V0.1",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "mistralai/mistral-large-2-instruct",
+          "name": "Mistral Large 2 Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "mistralai/codestral-22b-instruct-v0.1",
+          "name": "Codestral 22b Instruct V0.1",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "mistralai/mistral-small-3.1-24b-instruct-2503",
+          "name": "Mistral Small 3.1 24b Instruct 2503",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "meta/llama-3.2-11b-vision-instruct",
+          "name": "Llama 3.2 11b Vision Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "meta/llama3-70b-instruct",
+          "name": "Llama3 70b Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "meta/llama-3.3-70b-instruct",
+          "name": "Llama 3.3 70b Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "meta/llama-3.2-1b-instruct",
+          "name": "Llama 3.2 1b Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "meta/llama-4-scout-17b-16e-instruct",
+          "name": "Llama 4 Scout 17b 16e Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "meta/llama-4-maverick-17b-128e-instruct",
+          "name": "Llama 4 Maverick 17b 128e Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "meta/codellama-70b",
+          "name": "Codellama 70b",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "meta/llama-3.1-405b-instruct",
+          "name": "Llama 3.1 405b Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "meta/llama3-8b-instruct",
+          "name": "Llama3 8b Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "meta/llama-3.1-70b-instruct",
+          "name": "Llama 3.1 70b Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "deepseek-ai/deepseek-r1-0528",
+          "name": "Deepseek R1 0528",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "deepseek-ai/deepseek-r1",
+          "name": "Deepseek R1",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "deepseek-ai/deepseek-v3.1-terminus",
+          "name": "DeepSeek V3.1 Terminus",
+          "context_window": 128000,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "deepseek"
+        },
+        {
+          "id": "deepseek-ai/deepseek-v3.1",
+          "name": "DeepSeek V3.1",
+          "context_window": 128000,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "deepseek"
+        },
+        {
+          "id": "deepseek-ai/deepseek-v3.2",
+          "name": "DeepSeek V3.2",
+          "context_window": 163840,
+          "max_output": 65536,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "deepseek"
+        },
+        {
+          "id": "deepseek-ai/deepseek-coder-6.7b-instruct",
+          "name": "Deepseek Coder 6.7b Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "moonshotai/kimi-k2.5",
+          "name": "Kimi K2.5",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "moonshotai/kimi-k2-instruct-0905",
+          "name": "Kimi K2 0905",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "moonshotai/kimi-k2-thinking",
+          "name": "Kimi K2 Thinking",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "moonshotai/kimi-k2-instruct",
+          "name": "Kimi K2 Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "nvidia/nvidia-nemotron-nano-9b-v2",
+          "name": "nvidia-nemotron-nano-9b-v2",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "nvidia/cosmos-nemotron-34b",
+          "name": "Cosmos Nemotron 34B",
+          "context_window": 131072,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "nvidia/llama-embed-nemotron-8b",
+          "name": "Llama Embed Nemotron 8B",
+          "context_window": 32768,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "nvidia/nemotron-3-nano-30b-a3b",
+          "name": "nemotron-3-nano-30b-a3b",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "nvidia/llama-3.3-nemotron-super-49b-v1",
+          "name": "Llama 3.3 Nemotron Super 49b V1",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "nvidia/llama-3.1-nemotron-51b-instruct",
+          "name": "Llama 3.1 Nemotron 51b Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "nvidia/llama3-chatqa-1.5-70b",
+          "name": "Llama3 Chatqa 1.5 70b",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+          "name": "Llama-3.1-Nemotron-Ultra-253B-v1",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "nvidia/llama-3.1-nemotron-70b-instruct",
+          "name": "Llama 3.1 Nemotron 70b Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "nvidia/nemotron-4-340b-instruct",
+          "name": "Nemotron 4 340b Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+          "name": "Llama 3.3 Nemotron Super 49b V1.5",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "minimaxai/minimax-m2",
+          "name": "MiniMax-M2",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "minimaxai/minimax-m2.1",
+          "name": "MiniMax-M2.1",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "google/gemma-3n-e2b-it",
+          "name": "Gemma 3n E2b It",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "google/codegemma-1.1-7b",
+          "name": "Codegemma 1.1 7b",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-3n-e4b-it",
+          "name": "Gemma 3n E4b It",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-2-2b-it",
+          "name": "Gemma 2 2b It",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-3-12b-it",
+          "name": "Gemma 3 12b It",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "google/codegemma-7b",
+          "name": "Codegemma 7b",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-3-1b-it",
+          "name": "Gemma 3 1b It",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-2-27b-it",
+          "name": "Gemma 2 27b It",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-3-27b-it",
+          "name": "Gemma-3-27B-IT",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-3-medium-128k-instruct",
+          "name": "Phi 3 Medium 128k Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "microsoft/phi-3-small-128k-instruct",
+          "name": "Phi 3 Small 128k Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "microsoft/phi-3.5-vision-instruct",
+          "name": "Phi 3.5 Vision Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "microsoft/phi-3-small-8k-instruct",
+          "name": "Phi 3 Small 8k Instruct",
+          "context_window": 8000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "microsoft/phi-3.5-moe-instruct",
+          "name": "Phi 3.5 Moe Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "microsoft/phi-4-mini-instruct",
+          "name": "Phi-4-Mini",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-3-medium-4k-instruct",
+          "name": "Phi 3 Medium 4k Instruct",
+          "context_window": 4000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "microsoft/phi-3-vision-128k-instruct",
+          "name": "Phi 3 Vision 128k Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "openai/gpt-oss-120b",
+          "name": "GPT-OSS-120B",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "z-ai/glm4.7",
+          "name": "GLM-4.7",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "z-ai/glm5",
+          "name": "GLM5",
+          "context_window": 202752,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen/qwen3-next-80b-a3b-instruct",
+          "name": "Qwen3-Next-80B-A3B-Instruct",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen/qwen2.5-coder-32b-instruct",
+          "name": "Qwen2.5 Coder 32b Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen/qwen2.5-coder-7b-instruct",
+          "name": "Qwen2.5 Coder 7b Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen/qwen3-235b-a22b",
+          "name": "Qwen3-235B-A22B",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen/qwen3-coder-480b-a35b-instruct",
+          "name": "Qwen3 Coder 480B A35B Instruct",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen/qwq-32b",
+          "name": "Qwq 32b",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "qwen/qwen3-next-80b-a3b-thinking",
+          "name": "Qwen3-Next-80B-A3B-Thinking",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "mistralai/devstral-2-123b-instruct-2512",
+          "name": "Devstral-2-123B-Instruct-2512",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "mistralai/mistral-large-3-675b-instruct-2512",
+          "name": "Mistral Large 3 675B Instruct 2512",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "mistralai/ministral-14b-instruct-2512",
+          "name": "Ministral 3 14B Instruct 2512",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "mistralai/mamba-codestral-7b-v0.1",
+          "name": "Mamba Codestral 7b V0.1",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "mistralai/mistral-large-2-instruct",
+          "name": "Mistral Large 2 Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "mistralai/codestral-22b-instruct-v0.1",
+          "name": "Codestral 22b Instruct V0.1",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "mistralai/mistral-small-3.1-24b-instruct-2503",
+          "name": "Mistral Small 3.1 24b Instruct 2503",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "meta/llama-3.2-11b-vision-instruct",
+          "name": "Llama 3.2 11b Vision Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "meta/llama3-70b-instruct",
+          "name": "Llama3 70b Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "meta/llama-3.3-70b-instruct",
+          "name": "Llama 3.3 70b Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "meta/llama-3.2-1b-instruct",
+          "name": "Llama 3.2 1b Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "meta/llama-4-scout-17b-16e-instruct",
+          "name": "Llama 4 Scout 17b 16e Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "meta/llama-4-maverick-17b-128e-instruct",
+          "name": "Llama 4 Maverick 17b 128e Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "meta/codellama-70b",
+          "name": "Codellama 70b",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "meta/llama-3.1-405b-instruct",
+          "name": "Llama 3.1 405b Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "meta/llama3-8b-instruct",
+          "name": "Llama3 8b Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "meta/llama-3.1-70b-instruct",
+          "name": "Llama 3.1 70b Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "deepseek-ai/deepseek-r1-0528",
+          "name": "Deepseek R1 0528",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "deepseek-ai/deepseek-r1",
+          "name": "Deepseek R1",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "deepseek-ai/deepseek-v3.1-terminus",
+          "name": "DeepSeek V3.1 Terminus",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "deepseek-ai/deepseek-v3.1",
+          "name": "DeepSeek V3.1",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "deepseek-ai/deepseek-v3.2",
+          "name": "DeepSeek V3.2",
+          "context_window": 163840,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "deepseek-ai/deepseek-coder-6.7b-instruct",
+          "name": "Deepseek Coder 6.7b Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        }
+      ]
+    },
+    {
+      "provider_id": "github-models",
+      "provider_name": "GitHub Models",
+      "api_url": "https://models.github.ai/inference",
+      "env_vars": [
+        "GITHUB_TOKEN"
+      ],
+      "doc_url": "https://docs.github.com/en/github-models",
+      "is_new_provider": false,
+      "new_models": [
+        {
+          "id": "core42/jais-30b-chat",
+          "name": "JAIS 30b Chat",
+          "context_window": 8192,
+          "max_output": 2048,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "jais"
+        },
+        {
+          "id": "xai/grok-3",
+          "name": "Grok 3",
+          "context_window": 128000,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "grok"
+        },
+        {
+          "id": "xai/grok-3-mini",
+          "name": "Grok 3 Mini",
+          "context_window": 128000,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "grok"
+        },
+        {
+          "id": "cohere/cohere-command-r-08-2024",
+          "name": "Cohere Command R 08-2024",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "command-r"
+        },
+        {
+          "id": "cohere/cohere-command-a",
+          "name": "Cohere Command A",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "command-a"
+        },
+        {
+          "id": "cohere/cohere-command-r-plus-08-2024",
+          "name": "Cohere Command R+ 08-2024",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "command-r"
+        },
+        {
+          "id": "cohere/cohere-command-r",
+          "name": "Cohere Command R",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "command-r"
+        },
+        {
+          "id": "cohere/cohere-command-r-plus",
+          "name": "Cohere Command R+",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "command-r"
+        },
+        {
+          "id": "deepseek/deepseek-r1-0528",
+          "name": "DeepSeek-R1-0528",
+          "context_window": 65536,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "deepseek-thinking"
+        },
+        {
+          "id": "deepseek/deepseek-r1",
+          "name": "DeepSeek-R1",
+          "context_window": 65536,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "deepseek-thinking"
+        },
+        {
+          "id": "deepseek/deepseek-v3-0324",
+          "name": "DeepSeek-V3-0324",
+          "context_window": 128000,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "deepseek"
+        },
+        {
+          "id": "mistral-ai/mistral-medium-2505",
+          "name": "Mistral Medium 3 (25.05)",
+          "context_window": 128000,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "mistral-medium"
+        },
+        {
+          "id": "mistral-ai/ministral-3b",
+          "name": "Ministral 3B",
+          "context_window": 128000,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "ministral"
+        },
+        {
+          "id": "mistral-ai/mistral-nemo",
+          "name": "Mistral Nemo",
+          "context_window": 128000,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "mistral-nemo"
+        },
+        {
+          "id": "mistral-ai/mistral-large-2411",
+          "name": "Mistral Large 24.11",
+          "context_window": 128000,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "mistral-large"
+        },
+        {
+          "id": "mistral-ai/codestral-2501",
+          "name": "Codestral 25.01",
+          "context_window": 32000,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "codestral"
+        },
+        {
+          "id": "mistral-ai/mistral-small-2503",
+          "name": "Mistral Small 3.1",
+          "context_window": 128000,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "mistral-small"
+        },
+        {
+          "id": "microsoft/phi-3-medium-128k-instruct",
+          "name": "Phi-3-medium instruct (128k)",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/phi-3-mini-4k-instruct",
+          "name": "Phi-3-mini instruct (4k)",
+          "context_window": 4096,
+          "max_output": 1024,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/phi-3-small-128k-instruct",
+          "name": "Phi-3-small instruct (128k)",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/phi-3.5-vision-instruct",
+          "name": "Phi-3.5-vision instruct (128k)",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/phi-4",
+          "name": "Phi-4",
+          "context_window": 16000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/phi-4-mini-reasoning",
+          "name": "Phi-4-mini-reasoning",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/phi-3-small-8k-instruct",
+          "name": "Phi-3-small instruct (8k)",
+          "context_window": 8192,
+          "max_output": 2048,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/phi-3.5-mini-instruct",
+          "name": "Phi-3.5-mini instruct (128k)",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/phi-4-multimodal-instruct",
+          "name": "Phi-4-multimodal-instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/phi-3-mini-128k-instruct",
+          "name": "Phi-3-mini instruct (128k)",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/phi-3.5-moe-instruct",
+          "name": "Phi-3.5-MoE instruct (128k)",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/phi-4-mini-instruct",
+          "name": "Phi-4-mini-instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/phi-3-medium-4k-instruct",
+          "name": "Phi-3-medium instruct (4k)",
+          "context_window": 4096,
+          "max_output": 1024,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/phi-4-reasoning",
+          "name": "Phi-4-Reasoning",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "phi"
+        },
+        {
+          "id": "microsoft/mai-ds-r1",
+          "name": "MAI-DS-R1",
+          "context_window": 65536,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "mai"
+        },
+        {
+          "id": "openai/gpt-4.1-nano",
+          "name": "GPT-4.1-nano",
+          "context_window": 128000,
+          "max_output": 16384,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "gpt-nano"
+        },
+        {
+          "id": "openai/gpt-4.1-mini",
+          "name": "GPT-4.1-mini",
+          "context_window": 128000,
+          "max_output": 16384,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "gpt-mini"
+        },
+        {
+          "id": "openai/o1-preview",
+          "name": "OpenAI o1-preview",
+          "context_window": 128000,
+          "max_output": 32768,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "o"
+        },
+        {
+          "id": "openai/o3-mini",
+          "name": "OpenAI o3-mini",
+          "context_window": 200000,
+          "max_output": 100000,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "o-mini"
+        },
+        {
+          "id": "openai/gpt-4o",
+          "name": "GPT-4o",
+          "context_window": 128000,
+          "max_output": 16384,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "gpt"
+        },
+        {
+          "id": "openai/gpt-4.1",
+          "name": "GPT-4.1",
+          "context_window": 128000,
+          "max_output": 16384,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "gpt"
+        },
+        {
+          "id": "openai/o4-mini",
+          "name": "OpenAI o4-mini",
+          "context_window": 200000,
+          "max_output": 100000,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "o-mini"
+        },
+        {
+          "id": "openai/o1",
+          "name": "OpenAI o1",
+          "context_window": 200000,
+          "max_output": 100000,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "o"
+        },
+        {
+          "id": "openai/o1-mini",
+          "name": "OpenAI o1-mini",
+          "context_window": 128000,
+          "max_output": 65536,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "o-mini"
+        },
+        {
+          "id": "openai/o3",
+          "name": "OpenAI o3",
+          "context_window": 200000,
+          "max_output": 100000,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "o"
+        },
+        {
+          "id": "openai/gpt-4o-mini",
+          "name": "GPT-4o mini",
+          "context_window": 128000,
+          "max_output": 16384,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "gpt-mini"
+        },
+        {
+          "id": "meta/llama-3.2-11b-vision-instruct",
+          "name": "Llama-3.2-11B-Vision-Instruct",
+          "context_window": 128000,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "meta/meta-llama-3.1-405b-instruct",
+          "name": "Meta-Llama-3.1-405B-Instruct",
+          "context_window": 128000,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "meta/llama-4-maverick-17b-128e-instruct-fp8",
+          "name": "Llama 4 Maverick 17B 128E Instruct FP8",
+          "context_window": 128000,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "meta/meta-llama-3-70b-instruct",
+          "name": "Meta-Llama-3-70B-Instruct",
+          "context_window": 8192,
+          "max_output": 2048,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "meta/meta-llama-3.1-70b-instruct",
+          "name": "Meta-Llama-3.1-70B-Instruct",
+          "context_window": 128000,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "meta/llama-3.3-70b-instruct",
+          "name": "Llama-3.3-70B-Instruct",
+          "context_window": 128000,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "meta/llama-3.2-90b-vision-instruct",
+          "name": "Llama-3.2-90B-Vision-Instruct",
+          "context_window": 128000,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "meta/meta-llama-3-8b-instruct",
+          "name": "Meta-Llama-3-8B-Instruct",
+          "context_window": 8192,
+          "max_output": 2048,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "meta/llama-4-scout-17b-16e-instruct",
+          "name": "Llama 4 Scout 17B 16E Instruct",
+          "context_window": 128000,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "meta/meta-llama-3.1-8b-instruct",
+          "name": "Meta-Llama-3.1-8B-Instruct",
+          "context_window": 128000,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "ai21-labs/ai21-jamba-1.5-large",
+          "name": "AI21 Jamba 1.5 Large",
+          "context_window": 256000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "jamba"
+        },
+        {
+          "id": "ai21-labs/ai21-jamba-1.5-mini",
+          "name": "AI21 Jamba 1.5 Mini",
+          "context_window": 256000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "jamba"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "core42/jais-30b-chat",
+          "name": "JAIS 30b Chat",
+          "context_window": 8192,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "xai/grok-3",
+          "name": "Grok 3",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "xai/grok-3-mini",
+          "name": "Grok 3 Mini",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "cohere/cohere-command-r-08-2024",
+          "name": "Cohere Command R 08-2024",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "cohere/cohere-command-a",
+          "name": "Cohere Command A",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "cohere/cohere-command-r-plus-08-2024",
+          "name": "Cohere Command R+ 08-2024",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "cohere/cohere-command-r",
+          "name": "Cohere Command R",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "cohere/cohere-command-r-plus",
+          "name": "Cohere Command R+",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "deepseek/deepseek-r1-0528",
+          "name": "DeepSeek-R1-0528",
+          "context_window": 65536,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "deepseek/deepseek-r1",
+          "name": "DeepSeek-R1",
+          "context_window": 65536,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "deepseek/deepseek-v3-0324",
+          "name": "DeepSeek-V3-0324",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "mistral-ai/mistral-medium-2505",
+          "name": "Mistral Medium 3 (25.05)",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "mistral-ai/ministral-3b",
+          "name": "Ministral 3B",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "mistral-ai/mistral-nemo",
+          "name": "Mistral Nemo",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "mistral-ai/mistral-large-2411",
+          "name": "Mistral Large 24.11",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "mistral-ai/codestral-2501",
+          "name": "Codestral 25.01",
+          "context_window": 32000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "mistral-ai/mistral-small-2503",
+          "name": "Mistral Small 3.1",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-3-medium-128k-instruct",
+          "name": "Phi-3-medium instruct (128k)",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-3-mini-4k-instruct",
+          "name": "Phi-3-mini instruct (4k)",
+          "context_window": 4096,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-3-small-128k-instruct",
+          "name": "Phi-3-small instruct (128k)",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-3.5-vision-instruct",
+          "name": "Phi-3.5-vision instruct (128k)",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-4",
+          "name": "Phi-4",
+          "context_window": 16000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-4-mini-reasoning",
+          "name": "Phi-4-mini-reasoning",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-3-small-8k-instruct",
+          "name": "Phi-3-small instruct (8k)",
+          "context_window": 8192,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-3.5-mini-instruct",
+          "name": "Phi-3.5-mini instruct (128k)",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-4-multimodal-instruct",
+          "name": "Phi-4-multimodal-instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-3-mini-128k-instruct",
+          "name": "Phi-3-mini instruct (128k)",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-3.5-moe-instruct",
+          "name": "Phi-3.5-MoE instruct (128k)",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-4-mini-instruct",
+          "name": "Phi-4-mini-instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-3-medium-4k-instruct",
+          "name": "Phi-3-medium instruct (4k)",
+          "context_window": 4096,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/phi-4-reasoning",
+          "name": "Phi-4-Reasoning",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "microsoft/mai-ds-r1",
+          "name": "MAI-DS-R1",
+          "context_window": 65536,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "openai/gpt-4.1-nano",
+          "name": "GPT-4.1-nano",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "openai/gpt-4.1-mini",
+          "name": "GPT-4.1-mini",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "openai/o1-preview",
+          "name": "OpenAI o1-preview",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "openai/o3-mini",
+          "name": "OpenAI o3-mini",
+          "context_window": 200000,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "openai/gpt-4o",
+          "name": "GPT-4o",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "openai/gpt-4.1",
+          "name": "GPT-4.1",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "openai/o4-mini",
+          "name": "OpenAI o4-mini",
+          "context_window": 200000,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "openai/o1",
+          "name": "OpenAI o1",
+          "context_window": 200000,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "openai/o1-mini",
+          "name": "OpenAI o1-mini",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "openai/o3",
+          "name": "OpenAI o3",
+          "context_window": 200000,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "openai/gpt-4o-mini",
+          "name": "GPT-4o mini",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "meta/llama-3.2-11b-vision-instruct",
+          "name": "Llama-3.2-11B-Vision-Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "meta/meta-llama-3.1-405b-instruct",
+          "name": "Meta-Llama-3.1-405B-Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "meta/llama-4-maverick-17b-128e-instruct-fp8",
+          "name": "Llama 4 Maverick 17B 128E Instruct FP8",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "meta/meta-llama-3-70b-instruct",
+          "name": "Meta-Llama-3-70B-Instruct",
+          "context_window": 8192,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "meta/meta-llama-3.1-70b-instruct",
+          "name": "Meta-Llama-3.1-70B-Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "meta/llama-3.3-70b-instruct",
+          "name": "Llama-3.3-70B-Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "meta/llama-3.2-90b-vision-instruct",
+          "name": "Llama-3.2-90B-Vision-Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "meta/meta-llama-3-8b-instruct",
+          "name": "Meta-Llama-3-8B-Instruct",
+          "context_window": 8192,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "meta/llama-4-scout-17b-16e-instruct",
+          "name": "Llama 4 Scout 17B 16E Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "meta/meta-llama-3.1-8b-instruct",
+          "name": "Meta-Llama-3.1-8B-Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "ai21-labs/ai21-jamba-1.5-large",
+          "name": "AI21 Jamba 1.5 Large",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "ai21-labs/ai21-jamba-1.5-mini",
+          "name": "AI21 Jamba 1.5 Mini",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "kilo",
+      "provider_name": "Kilo Gateway",
+      "api_url": "https://api.kilo.ai/api/gateway",
+      "env_vars": [
+        "KILO_API_KEY"
+      ],
+      "doc_url": "https://kilo.ai",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "stepfun/step-3.5-flash:free",
+          "name": "StepFun: Step 3.5 Flash (free)",
+          "context_window": 256000,
+          "max_output": 256000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "nousresearch/hermes-3-llama-3.1-405b:free",
+          "name": "Nous: Hermes 3 405B Instruct (free)",
+          "context_window": 131072,
+          "max_output": 26215,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "nvidia/nemotron-nano-12b-v2-vl:free",
+          "name": "NVIDIA: Nemotron Nano 12B 2 VL (free)",
+          "context_window": 128000,
+          "max_output": 128000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "nvidia/nemotron-3-nano-30b-a3b:free",
+          "name": "NVIDIA: Nemotron 3 Nano 30B A3B (free)",
+          "context_window": 256000,
+          "max_output": 51200,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "nvidia/nemotron-nano-9b-v2:free",
+          "name": "NVIDIA: Nemotron Nano 9B V2 (free)",
+          "context_window": 128000,
+          "max_output": 25600,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+          "name": "Venice: Uncensored (free)",
+          "context_window": 32768,
+          "max_output": 6554,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "deepseek/deepseek-r1-0528:free",
+          "name": "DeepSeek: R1 0528 (free)",
+          "context_window": 163840,
+          "max_output": 163840,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "arcee-ai/trinity-mini:free",
+          "name": "Arcee AI: Trinity Mini (free)",
+          "context_window": 131072,
+          "max_output": 26215,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "arcee-ai/trinity-large-preview:free",
+          "name": "Arcee AI: Trinity Large Preview (free)",
+          "context_window": 131000,
+          "max_output": 26200,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "liquid/lfm-2.5-1.2b-thinking:free",
+          "name": "LiquidAI: LFM2.5-1.2B-Thinking (free)",
+          "context_window": 32768,
+          "max_output": 6554,
+          "tool_call": false,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "liquid/lfm-2.5-1.2b-instruct:free",
+          "name": "LiquidAI: LFM2.5-1.2B-Instruct (free)",
+          "context_window": 32768,
+          "max_output": 6554,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "minimax/minimax-m2.5:free",
+          "name": "MiniMax: MiniMax M2.5 (free)",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "google/gemma-3-27b-it:free",
+          "name": "Google: Gemma 3 27B (free)",
+          "context_window": 131072,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "google/gemma-3-12b-it:free",
+          "name": "Google: Gemma 3 12B (free)",
+          "context_window": 32768,
+          "max_output": 8192,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "google/gemma-3n-e2b-it:free",
+          "name": "Google: Gemma 3n 2B (free)",
+          "context_window": 8192,
+          "max_output": 2048,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "google/gemma-3n-e4b-it:free",
+          "name": "Google: Gemma 3n 4B (free)",
+          "context_window": 8192,
+          "max_output": 2048,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "google/gemma-3-4b-it:free",
+          "name": "Google: Gemma 3 4B (free)",
+          "context_window": 32768,
+          "max_output": 8192,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "openai/gpt-oss-20b:free",
+          "name": "OpenAI: gpt-oss-20b (free)",
+          "context_window": 131072,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "openai/gpt-oss-120b:free",
+          "name": "OpenAI: gpt-oss-120b (free)",
+          "context_window": 131072,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "openrouter/aurora-alpha",
+          "name": "Aurora Alpha (free)",
+          "context_window": 128000,
+          "max_output": 50000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": ""
+        },
+        {
+          "id": "z-ai/glm-4.5-air:free",
+          "name": "Z.ai: GLM 4.5 Air (free)",
+          "context_window": 131072,
+          "max_output": 96000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "z-ai/glm-5:free",
+          "name": "Z.ai: GLM 5 (free)",
+          "context_window": 202800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "qwen/qwen3-vl-30b-a3b-thinking",
+          "name": "Qwen: Qwen3 VL 30B A3B Thinking",
+          "context_window": 131072,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "qwen/qwen3-4b:free",
+          "name": "Qwen: Qwen3 4B (free)",
+          "context_window": 40960,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "qwen/qwen3-235b-a22b-thinking-2507",
+          "name": "Qwen: Qwen3 235B A22B Thinking 2507",
+          "context_window": 131072,
+          "max_output": 26215,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "qwen/qwen3-next-80b-a3b-instruct:free",
+          "name": "Qwen: Qwen3 Next 80B A3B Instruct (free)",
+          "context_window": 262144,
+          "max_output": 52429,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "qwen/qwen3-coder:free",
+          "name": "Qwen: Qwen3 Coder 480B A35B (free)",
+          "context_window": 262000,
+          "max_output": 262000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "qwen/qwen3-vl-235b-a22b-thinking",
+          "name": "Qwen: Qwen3 VL 235B A22B Thinking",
+          "context_window": 131072,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "mistralai/mistral-small-3.1-24b-instruct:free",
+          "name": "Mistral: Mistral Small 3.1 24B (free)",
+          "context_window": 128000,
+          "max_output": 25600,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "meta-llama/llama-3.3-70b-instruct:free",
+          "name": "Meta: Llama 3.3 70B Instruct (free)",
+          "context_window": 128000,
+          "max_output": 128000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "meta-llama/llama-3.2-3b-instruct:free",
+          "name": "Meta: Llama 3.2 3B Instruct (free)",
+          "context_window": 131072,
+          "max_output": 26215,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "stepfun/step-3.5-flash:free",
+          "name": "StepFun: Step 3.5 Flash (free)",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "nousresearch/hermes-3-llama-3.1-405b:free",
+          "name": "Nous: Hermes 3 405B Instruct (free)",
+          "context_window": 131072,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "nvidia/nemotron-nano-12b-v2-vl:free",
+          "name": "NVIDIA: Nemotron Nano 12B 2 VL (free)",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "nvidia/nemotron-3-nano-30b-a3b:free",
+          "name": "NVIDIA: Nemotron 3 Nano 30B A3B (free)",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "nvidia/nemotron-nano-9b-v2:free",
+          "name": "NVIDIA: Nemotron Nano 9B V2 (free)",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+          "name": "Venice: Uncensored (free)",
+          "context_window": 32768,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "deepseek/deepseek-r1-0528:free",
+          "name": "DeepSeek: R1 0528 (free)",
+          "context_window": 163840,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "arcee-ai/trinity-mini:free",
+          "name": "Arcee AI: Trinity Mini (free)",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "arcee-ai/trinity-large-preview:free",
+          "name": "Arcee AI: Trinity Large Preview (free)",
+          "context_window": 131000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "liquid/lfm-2.5-1.2b-thinking:free",
+          "name": "LiquidAI: LFM2.5-1.2B-Thinking (free)",
+          "context_window": 32768,
+          "tool_call": false,
+          "reasoning": true
+        },
+        {
+          "id": "liquid/lfm-2.5-1.2b-instruct:free",
+          "name": "LiquidAI: LFM2.5-1.2B-Instruct (free)",
+          "context_window": 32768,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "minimax/minimax-m2.5:free",
+          "name": "MiniMax: MiniMax M2.5 (free)",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "google/gemma-3-27b-it:free",
+          "name": "Google: Gemma 3 27B (free)",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-3-12b-it:free",
+          "name": "Google: Gemma 3 12B (free)",
+          "context_window": 32768,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-3n-e2b-it:free",
+          "name": "Google: Gemma 3n 2B (free)",
+          "context_window": 8192,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-3n-e4b-it:free",
+          "name": "Google: Gemma 3n 4B (free)",
+          "context_window": 8192,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "google/gemma-3-4b-it:free",
+          "name": "Google: Gemma 3 4B (free)",
+          "context_window": 32768,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "openai/gpt-oss-20b:free",
+          "name": "OpenAI: gpt-oss-20b (free)",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "openai/gpt-oss-120b:free",
+          "name": "OpenAI: gpt-oss-120b (free)",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "openrouter/aurora-alpha",
+          "name": "Aurora Alpha (free)",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "z-ai/glm-4.5-air:free",
+          "name": "Z.ai: GLM 4.5 Air (free)",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "z-ai/glm-5:free",
+          "name": "Z.ai: GLM 5 (free)",
+          "context_window": 202800,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen/qwen3-vl-30b-a3b-thinking",
+          "name": "Qwen: Qwen3 VL 30B A3B Thinking",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen/qwen3-4b:free",
+          "name": "Qwen: Qwen3 4B (free)",
+          "context_window": 40960,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen/qwen3-235b-a22b-thinking-2507",
+          "name": "Qwen: Qwen3 235B A22B Thinking 2507",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen/qwen3-next-80b-a3b-instruct:free",
+          "name": "Qwen: Qwen3 Next 80B A3B Instruct (free)",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen/qwen3-coder:free",
+          "name": "Qwen: Qwen3 Coder 480B A35B (free)",
+          "context_window": 262000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen/qwen3-vl-235b-a22b-thinking",
+          "name": "Qwen: Qwen3 VL 235B A22B Thinking",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "mistralai/mistral-small-3.1-24b-instruct:free",
+          "name": "Mistral: Mistral Small 3.1 24B (free)",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "meta-llama/llama-3.3-70b-instruct:free",
+          "name": "Meta: Llama 3.3 70B Instruct (free)",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "meta-llama/llama-3.2-3b-instruct:free",
+          "name": "Meta: Llama 3.2 3B Instruct (free)",
+          "context_window": 131072,
+          "tool_call": false,
+          "reasoning": false
+        }
+      ]
+    },
+    {
+      "provider_id": "iflowcn",
+      "provider_name": "iFlow",
+      "api_url": "https://apis.iflow.cn/v1",
+      "env_vars": [
+        "IFLOW_API_KEY"
+      ],
+      "doc_url": "https://platform.iflow.cn/en/docs",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "kimi-k2",
+          "name": "Kimi-K2",
+          "context_window": 128000,
+          "max_output": 64000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "kimi"
+        },
+        {
+          "id": "kimi-k2-0905",
+          "name": "Kimi-K2-0905",
+          "context_window": 256000,
+          "max_output": 64000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "kimi"
+        },
+        {
+          "id": "qwen3-235b-a22b-thinking-2507",
+          "name": "Qwen3-235B-A22B-Thinking",
+          "context_window": 256000,
+          "max_output": 64000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen3-vl-plus",
+          "name": "Qwen3-VL-Plus",
+          "context_window": 256000,
+          "max_output": 32000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "qwen"
+        },
+        {
+          "id": "glm-4.6",
+          "name": "GLM-4.6",
+          "context_window": 200000,
+          "max_output": 128000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "glm"
+        },
+        {
+          "id": "qwen3-235b-a22b-instruct",
+          "name": "Qwen3-235B-A22B-Instruct",
+          "context_window": 256000,
+          "max_output": 64000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen3-max",
+          "name": "Qwen3-Max",
+          "context_window": 256000,
+          "max_output": 32000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen3-max-preview",
+          "name": "Qwen3-Max-Preview",
+          "context_window": 256000,
+          "max_output": 32000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "qwen"
+        },
+        {
+          "id": "qwen3-coder-plus",
+          "name": "Qwen3-Coder-Plus",
+          "context_window": 256000,
+          "max_output": 64000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "qwen"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "deepseek-v3",
+          "name": "DeepSeek-V3",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "kimi-k2",
+          "name": "Kimi-K2",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "deepseek-r1",
+          "name": "DeepSeek-R1",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen3-235b",
+          "name": "Qwen3-235B-A22B",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "kimi-k2-0905",
+          "name": "Kimi-K2-0905",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen3-235b-a22b-thinking-2507",
+          "name": "Qwen3-235B-A22B-Thinking",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen3-vl-plus",
+          "name": "Qwen3-VL-Plus",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "glm-4.6",
+          "name": "GLM-4.6",
+          "context_window": 200000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "qwen3-235b-a22b-instruct",
+          "name": "Qwen3-235B-A22B-Instruct",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen3-max",
+          "name": "Qwen3-Max",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "deepseek-v3.2",
+          "name": "DeepSeek-V3.2-Exp",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen3-max-preview",
+          "name": "Qwen3-Max-Preview",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen3-coder-plus",
+          "name": "Qwen3-Coder-Plus",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "qwen3-32b",
+          "name": "Qwen3-32B",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        }
+      ]
+    },
+    {
+      "provider_id": "zai-coding-plan",
+      "provider_name": "Z.AI Coding Plan",
+      "api_url": "https://api.z.ai/api/coding/paas/v4",
+      "env_vars": [
+        "ZHIPU_API_KEY"
+      ],
+      "doc_url": "https://docs.z.ai/devpack/overview",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "glm-4.7",
+          "name": "GLM-4.7",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        },
+        {
+          "id": "glm-5",
+          "name": "GLM-5",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "glm"
+        },
+        {
+          "id": "glm-4.5-flash",
+          "name": "GLM-4.5-Flash",
+          "context_window": 131072,
+          "max_output": 98304,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm-flash"
+        },
+        {
+          "id": "glm-4.5",
+          "name": "GLM-4.5",
+          "context_window": 131072,
+          "max_output": 98304,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        },
+        {
+          "id": "glm-4.7-flash",
+          "name": "GLM-4.7-Flash",
+          "context_window": 200000,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm-flash"
+        },
+        {
+          "id": "glm-4.5-air",
+          "name": "GLM-4.5-Air",
+          "context_window": 131072,
+          "max_output": 98304,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm-air"
+        },
+        {
+          "id": "glm-4.5v",
+          "name": "GLM-4.5V",
+          "context_window": 64000,
+          "max_output": 16384,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        },
+        {
+          "id": "glm-4.6",
+          "name": "GLM-4.6",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        },
+        {
+          "id": "glm-4.6v",
+          "name": "GLM-4.6V",
+          "context_window": 128000,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "glm-4.7",
+          "name": "GLM-4.7",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-5",
+          "name": "GLM-5",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.5-flash",
+          "name": "GLM-4.5-Flash",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.5",
+          "name": "GLM-4.5",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.7-flash",
+          "name": "GLM-4.7-Flash",
+          "context_window": 200000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.5-air",
+          "name": "GLM-4.5-Air",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.5v",
+          "name": "GLM-4.5V",
+          "context_window": 64000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.6",
+          "name": "GLM-4.6",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.6v",
+          "name": "GLM-4.6V",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "zhipuai-coding-plan",
+      "provider_name": "Zhipu AI Coding Plan",
+      "api_url": "https://open.bigmodel.cn/api/coding/paas/v4",
+      "env_vars": [
+        "ZHIPU_API_KEY"
+      ],
+      "doc_url": "https://docs.bigmodel.cn/cn/coding-plan/overview",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "glm-5",
+          "name": "GLM-5",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "glm"
+        },
+        {
+          "id": "glm-4.6v-flash",
+          "name": "GLM-4.6V-Flash",
+          "context_window": 128000,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        },
+        {
+          "id": "glm-4.6v",
+          "name": "GLM-4.6V",
+          "context_window": 128000,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        },
+        {
+          "id": "glm-4.6",
+          "name": "GLM-4.6",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        },
+        {
+          "id": "glm-4.5v",
+          "name": "GLM-4.5V",
+          "context_window": 64000,
+          "max_output": 16384,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        },
+        {
+          "id": "glm-4.5-air",
+          "name": "GLM-4.5-Air",
+          "context_window": 131072,
+          "max_output": 98304,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm-air"
+        },
+        {
+          "id": "glm-4.5",
+          "name": "GLM-4.5",
+          "context_window": 131072,
+          "max_output": 98304,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        },
+        {
+          "id": "glm-4.5-flash",
+          "name": "GLM-4.5-Flash",
+          "context_window": 131072,
+          "max_output": 98304,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm-flash"
+        },
+        {
+          "id": "glm-4.7",
+          "name": "GLM-4.7",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "glm-5",
+          "name": "GLM-5",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.6v-flash",
+          "name": "GLM-4.6V-Flash",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.6v",
+          "name": "GLM-4.6V",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.6",
+          "name": "GLM-4.6",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.5v",
+          "name": "GLM-4.5V",
+          "context_window": 64000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.5-air",
+          "name": "GLM-4.5-Air",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.5",
+          "name": "GLM-4.5",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.5-flash",
+          "name": "GLM-4.5-Flash",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.7",
+          "name": "GLM-4.7",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "llama",
+      "provider_name": "Llama",
+      "api_url": "https://api.llama.com/compat/v1/",
+      "env_vars": [
+        "LLAMA_API_KEY"
+      ],
+      "doc_url": "https://llama.developer.meta.com/docs/models",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "llama-3.3-8b-instruct",
+          "name": "Llama-3.3-8B-Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "llama-4-maverick-17b-128e-instruct-fp8",
+          "name": "Llama-4-Maverick-17B-128E-Instruct-FP8",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "llama-3.3-70b-instruct",
+          "name": "Llama-3.3-70B-Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "llama-4-scout-17b-16e-instruct-fp8",
+          "name": "Llama-4-Scout-17B-16E-Instruct-FP8",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "groq-llama-4-maverick-17b-128e-instruct",
+          "name": "Groq-Llama-4-Maverick-17B-128E-Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "cerebras-llama-4-scout-17b-16e-instruct",
+          "name": "Cerebras-Llama-4-Scout-17B-16E-Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "llama"
+        },
+        {
+          "id": "cerebras-llama-4-maverick-17b-128e-instruct",
+          "name": "Cerebras-Llama-4-Maverick-17B-128E-Instruct",
+          "context_window": 128000,
+          "max_output": 4096,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "llama"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "llama-3.3-8b-instruct",
+          "name": "Llama-3.3-8B-Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "llama-4-maverick-17b-128e-instruct-fp8",
+          "name": "Llama-4-Maverick-17B-128E-Instruct-FP8",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "llama-3.3-70b-instruct",
+          "name": "Llama-3.3-70B-Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "llama-4-scout-17b-16e-instruct-fp8",
+          "name": "Llama-4-Scout-17B-16E-Instruct-FP8",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "groq-llama-4-maverick-17b-128e-instruct",
+          "name": "Groq-Llama-4-Maverick-17B-128E-Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "cerebras-llama-4-scout-17b-16e-instruct",
+          "name": "Cerebras-Llama-4-Scout-17B-16E-Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "cerebras-llama-4-maverick-17b-128e-instruct",
+          "name": "Cerebras-Llama-4-Maverick-17B-128E-Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        }
+      ]
+    },
+    {
+      "provider_id": "modelscope",
+      "provider_name": "ModelScope",
+      "api_url": "https://api-inference.modelscope.cn/v1",
+      "env_vars": [
+        "MODELSCOPE_API_KEY"
+      ],
+      "doc_url": "https://modelscope.cn/docs/model-service/API-Inference/intro",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "ZhipuAI/GLM-4.5",
+          "name": "GLM-4.5",
+          "context_window": 131072,
+          "max_output": 98304,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        },
+        {
+          "id": "ZhipuAI/GLM-4.6",
+          "name": "GLM-4.6",
+          "context_window": 202752,
+          "max_output": 98304,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        },
+        {
+          "id": "Qwen/Qwen3-30B-A3B-Thinking-2507",
+          "name": "Qwen3 30B A3B Thinking 2507",
+          "context_window": 262144,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "Qwen/Qwen3-235B-A22B-Instruct-2507",
+          "name": "Qwen3 235B A22B Instruct 2507",
+          "context_window": 262144,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+          "name": "Qwen3 Coder 30B A3B Instruct",
+          "context_window": 262144,
+          "max_output": 65536,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+          "name": "Qwen3 30B A3B Instruct 2507",
+          "context_window": 262144,
+          "max_output": 16384,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "qwen"
+        },
+        {
+          "id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+          "name": "Qwen3-235B-A22B-Thinking-2507",
+          "context_window": 262144,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "qwen"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "ZhipuAI/GLM-4.5",
+          "name": "GLM-4.5",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "ZhipuAI/GLM-4.6",
+          "name": "GLM-4.6",
+          "context_window": 202752,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "Qwen/Qwen3-30B-A3B-Thinking-2507",
+          "name": "Qwen3 30B A3B Thinking 2507",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "Qwen/Qwen3-235B-A22B-Instruct-2507",
+          "name": "Qwen3 235B A22B Instruct 2507",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "Qwen/Qwen3-Coder-30B-A3B-Instruct",
+          "name": "Qwen3 Coder 30B A3B Instruct",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "Qwen/Qwen3-30B-A3B-Instruct-2507",
+          "name": "Qwen3 30B A3B Instruct 2507",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "Qwen/Qwen3-235B-A22B-Thinking-2507",
+          "name": "Qwen3-235B-A22B-Thinking-2507",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "cloudflare-workers-ai",
+      "provider_name": "Cloudflare Workers AI",
+      "api_url": "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/v1",
+      "env_vars": [
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_API_KEY"
+      ],
+      "doc_url": "https://developers.cloudflare.com/workers-ai/models/",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "@cf/facebook/bart-large-cnn",
+          "name": "BART Large CNN",
+          "context_window": 128000,
+          "max_output": 16384,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "bart"
+        },
+        {
+          "id": "@cf/myshell-ai/melotts",
+          "name": "MyShell MeloTTS",
+          "context_window": 128000,
+          "max_output": 16384,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "melotts"
+        },
+        {
+          "id": "@cf/pipecat-ai/smart-turn-v2",
+          "name": "Pipecat Smart Turn v2",
+          "context_window": 128000,
+          "max_output": 16384,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "smart-turn"
+        },
+        {
+          "id": "@cf/deepgram/aura-2-es",
+          "name": "Deepgram Aura 2 (ES)",
+          "context_window": 128000,
+          "max_output": 16384,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "aura"
+        },
+        {
+          "id": "@cf/deepgram/aura-2-en",
+          "name": "Deepgram Aura 2 (EN)",
+          "context_window": 128000,
+          "max_output": 16384,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "aura"
+        },
+        {
+          "id": "@cf/deepgram/nova-3",
+          "name": "Deepgram Nova 3",
+          "context_window": 128000,
+          "max_output": 16384,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "nova"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "@cf/facebook/bart-large-cnn",
+          "name": "BART Large CNN",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "@cf/myshell-ai/melotts",
+          "name": "MyShell MeloTTS",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "@cf/pipecat-ai/smart-turn-v2",
+          "name": "Pipecat Smart Turn v2",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "@cf/deepgram/aura-2-es",
+          "name": "Deepgram Aura 2 (ES)",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "@cf/deepgram/aura-2-en",
+          "name": "Deepgram Aura 2 (EN)",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "@cf/deepgram/nova-3",
+          "name": "Deepgram Nova 3",
+          "context_window": 128000,
+          "tool_call": false,
+          "reasoning": false
+        }
+      ]
+    },
+    {
+      "provider_id": "zenmux",
+      "provider_name": "ZenMux",
+      "api_url": "https://zenmux.ai/api/anthropic/v1",
+      "env_vars": [
+        "ZENMUX_API_KEY"
+      ],
+      "doc_url": "https://docs.zenmux.ai",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "stepfun/step-3.5-flash-free",
+          "name": "Step 3.5 Flash (Free)",
+          "context_window": 256000,
+          "max_output": 64000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": ""
+        },
+        {
+          "id": "xiaomi/mimo-v2-flash-free",
+          "name": "MiMo-V2-Flash Free",
+          "context_window": 262000,
+          "max_output": 64000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": ""
+        },
+        {
+          "id": "z-ai/glm-4.6v-flash-free",
+          "name": "GLM 4.6V Flash (Free)",
+          "context_window": 200000,
+          "max_output": 64000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": ""
+        },
+        {
+          "id": "z-ai/glm-4.7-flash-free",
+          "name": "GLM 4.7 Flash (Free)",
+          "context_window": 200000,
+          "max_output": 64000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": ""
+        },
+        {
+          "id": "kuaishou/kat-coder-pro-v1-free",
+          "name": "KAT-Coder-Pro-V1 Free",
+          "context_window": 256000,
+          "max_output": 64000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": ""
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "stepfun/step-3.5-flash-free",
+          "name": "Step 3.5 Flash (Free)",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "xiaomi/mimo-v2-flash-free",
+          "name": "MiMo-V2-Flash Free",
+          "context_window": 262000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "z-ai/glm-4.6v-flash-free",
+          "name": "GLM 4.6V Flash (Free)",
+          "context_window": 200000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "z-ai/glm-4.7-flash-free",
+          "name": "GLM 4.7 Flash (Free)",
+          "context_window": 200000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "kuaishou/kat-coder-pro-v1-free",
+          "name": "KAT-Coder-Pro-V1 Free",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": false
+        }
+      ]
+    },
+    {
+      "provider_id": "minimax-cn-coding-plan",
+      "provider_name": "MiniMax Coding Plan (minimaxi.com)",
+      "api_url": "https://api.minimaxi.com/anthropic/v1",
+      "env_vars": [
+        "MINIMAX_API_KEY"
+      ],
+      "doc_url": "https://platform.minimaxi.com/docs/coding-plan/intro",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "MiniMax-M2",
+          "name": "MiniMax-M2",
+          "context_window": 196608,
+          "max_output": 128000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "minimax"
+        },
+        {
+          "id": "MiniMax-M2.5-highspeed",
+          "name": "MiniMax-M2.5-highspeed",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "minimax"
+        },
+        {
+          "id": "MiniMax-M2.1",
+          "name": "MiniMax-M2.1",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "minimax"
+        },
+        {
+          "id": "MiniMax-M2.5",
+          "name": "MiniMax-M2.5",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "minimax"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "MiniMax-M2",
+          "name": "MiniMax-M2",
+          "context_window": 196608,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "MiniMax-M2.5-highspeed",
+          "name": "MiniMax-M2.5-highspeed",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "MiniMax-M2.1",
+          "name": "MiniMax-M2.1",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "MiniMax-M2.5",
+          "name": "MiniMax-M2.5",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "minimax-coding-plan",
+      "provider_name": "MiniMax Coding Plan (minimax.io)",
+      "api_url": "https://api.minimax.io/anthropic/v1",
+      "env_vars": [
+        "MINIMAX_API_KEY"
+      ],
+      "doc_url": "https://platform.minimax.io/docs/coding-plan/intro",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "MiniMax-M2",
+          "name": "MiniMax-M2",
+          "context_window": 196608,
+          "max_output": 128000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "minimax"
+        },
+        {
+          "id": "MiniMax-M2.5-highspeed",
+          "name": "MiniMax-M2.5-highspeed",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "minimax"
+        },
+        {
+          "id": "MiniMax-M2.1",
+          "name": "MiniMax-M2.1",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "minimax"
+        },
+        {
+          "id": "MiniMax-M2.5",
+          "name": "MiniMax-M2.5",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "minimax"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "MiniMax-M2",
+          "name": "MiniMax-M2",
+          "context_window": 196608,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "MiniMax-M2.5-highspeed",
+          "name": "MiniMax-M2.5-highspeed",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "MiniMax-M2.1",
+          "name": "MiniMax-M2.1",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "MiniMax-M2.5",
+          "name": "MiniMax-M2.5",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "siliconflow-cn",
+      "provider_name": "SiliconFlow (China)",
+      "api_url": "https://api.siliconflow.cn/v1",
+      "env_vars": [
+        "SILICONFLOW_CN_API_KEY"
+      ],
+      "doc_url": "https://cloud.siliconflow.com/models",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "tencent/Hunyuan-MT-7B",
+          "name": "tencent/Hunyuan-MT-7B",
+          "context_window": 33000,
+          "max_output": 33000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "hunyuan"
+        },
+        {
+          "id": "PaddlePaddle/PaddleOCR-VL-1.5",
+          "name": "PaddlePaddle/PaddleOCR-VL-1.5",
+          "context_window": 16384,
+          "max_output": 16384,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "PaddlePaddle/PaddleOCR-VL",
+          "name": "PaddlePaddle/PaddleOCR-VL",
+          "context_window": 16384,
+          "max_output": 16384,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "deepseek-ai/DeepSeek-OCR",
+          "name": "deepseek-ai/DeepSeek-OCR",
+          "context_window": 8192,
+          "max_output": 8192,
+          "tool_call": false,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "tencent/Hunyuan-MT-7B",
+          "name": "tencent/Hunyuan-MT-7B",
+          "context_window": 33000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "PaddlePaddle/PaddleOCR-VL-1.5",
+          "name": "PaddlePaddle/PaddleOCR-VL-1.5",
+          "context_window": 16384,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "PaddlePaddle/PaddleOCR-VL",
+          "name": "PaddlePaddle/PaddleOCR-VL",
+          "context_window": 16384,
+          "tool_call": false,
+          "reasoning": false
+        },
+        {
+          "id": "deepseek-ai/DeepSeek-OCR",
+          "name": "deepseek-ai/DeepSeek-OCR",
+          "context_window": 8192,
+          "tool_call": false,
+          "reasoning": false
+        }
+      ]
+    },
+    {
+      "provider_id": "cortecs",
+      "provider_name": "Cortecs",
+      "api_url": "https://api.cortecs.ai/v1",
+      "env_vars": [
+        "CORTECS_API_KEY"
+      ],
+      "doc_url": "https://api.cortecs.ai/v1/models",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "devstral-2512",
+          "name": "Devstral 2 2512",
+          "context_window": 262000,
+          "max_output": 262000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "devstral-small-2512",
+          "name": "Devstral Small 2 2512",
+          "context_window": 262000,
+          "max_output": 262000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        },
+        {
+          "id": "llama-3.1-405b-instruct",
+          "name": "Llama 3.1 405B Instruct",
+          "context_window": 128000,
+          "max_output": 128000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "llama"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "devstral-2512",
+          "name": "Devstral 2 2512",
+          "context_window": 262000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "gpt-oss-120b",
+          "name": "GPT Oss 120b",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "devstral-small-2512",
+          "name": "Devstral Small 2 2512",
+          "context_window": 262000,
+          "tool_call": true,
+          "reasoning": false
+        },
+        {
+          "id": "llama-3.1-405b-instruct",
+          "name": "Llama 3.1 405B Instruct",
+          "context_window": 128000,
+          "tool_call": true,
+          "reasoning": false
+        }
+      ]
+    },
+    {
+      "provider_id": "aihubmix",
+      "provider_name": "AIHubMix",
+      "api_url": "https://aihubmix.com/v1",
+      "env_vars": [
+        "AIHUBMIX_API_KEY"
+      ],
+      "doc_url": "https://docs.aihubmix.com",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "coding-minimax-m2.1-free",
+          "name": "Coding MiniMax M2.1 Free",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "minimax"
+        },
+        {
+          "id": "coding-glm-4.7-free",
+          "name": "Coding GLM 4.7 Free",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "coding-minimax-m2.1-free",
+          "name": "Coding MiniMax M2.1 Free",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "coding-glm-4.7-free",
+          "name": "Coding GLM 4.7 Free",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "alibaba-cn",
+      "provider_name": "Alibaba (China)",
+      "api_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "env_vars": [
+        "DASHSCOPE_API_KEY"
+      ],
+      "doc_url": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "deepseek-r1-distill-llama-8b",
+          "name": "DeepSeek R1 Distill Llama 8B",
+          "context_window": 32768,
+          "max_output": 16384,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "deepseek-thinking"
+        },
+        {
+          "id": "deepseek-r1-distill-qwen-1-5b",
+          "name": "DeepSeek R1 Distill Qwen 1.5B",
+          "context_window": 32768,
+          "max_output": 16384,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "qwen"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "deepseek-r1-distill-llama-8b",
+          "name": "DeepSeek R1 Distill Llama 8B",
+          "context_window": 32768,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "deepseek-r1-distill-qwen-1-5b",
+          "name": "DeepSeek R1 Distill Qwen 1.5B",
+          "context_window": 32768,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "kimi-for-coding",
+      "provider_name": "Kimi For Coding",
+      "api_url": "https://api.kimi.com/coding/v1",
+      "env_vars": [
+        "KIMI_API_KEY"
+      ],
+      "doc_url": "https://www.kimi.com/coding/docs/en/third-party-agents.html",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "k2p5",
+          "name": "Kimi K2.5",
+          "context_window": 262144,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "kimi-thinking"
+        },
+        {
+          "id": "kimi-k2-thinking",
+          "name": "Kimi K2 Thinking",
+          "context_window": 262144,
+          "max_output": 32768,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "kimi-thinking"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "k2p5",
+          "name": "Kimi K2.5",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "kimi-k2-thinking",
+          "name": "Kimi K2 Thinking",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "nova",
+      "provider_name": "Nova",
+      "api_url": "https://api.nova.amazon.com/v1",
+      "env_vars": [
+        "NOVA_API_KEY"
+      ],
+      "doc_url": "https://nova.amazon.com/dev/documentation",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "nova-2-lite-v1",
+          "name": "Nova 2 Lite",
+          "context_window": 1000000,
+          "max_output": 64000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "nova-lite"
+        },
+        {
+          "id": "nova-2-pro-v1",
+          "name": "Nova 2 Pro",
+          "context_window": 1000000,
+          "max_output": 64000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": false,
+          "family": "nova-pro"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "nova-2-lite-v1",
+          "name": "Nova 2 Lite",
+          "context_window": 1000000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "nova-2-pro-v1",
+          "name": "Nova 2 Pro",
+          "context_window": 1000000,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "zai",
+      "provider_name": "Z.AI",
+      "api_url": "https://api.z.ai/api/paas/v4",
+      "env_vars": [
+        "ZHIPU_API_KEY"
+      ],
+      "doc_url": "https://docs.z.ai/guides/overview/pricing",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "glm-4.5-flash",
+          "name": "GLM-4.5-Flash",
+          "context_window": 131072,
+          "max_output": 98304,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm-flash"
+        },
+        {
+          "id": "glm-4.7-flash",
+          "name": "GLM-4.7-Flash",
+          "context_window": 200000,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm-flash"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "glm-4.5-flash",
+          "name": "GLM-4.5-Flash",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.7-flash",
+          "name": "GLM-4.7-Flash",
+          "context_window": 200000,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "zhipuai",
+      "provider_name": "Zhipu AI",
+      "api_url": "https://open.bigmodel.cn/api/paas/v4",
+      "env_vars": [
+        "ZHIPU_API_KEY"
+      ],
+      "doc_url": "https://docs.z.ai/guides/overview/pricing",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "glm-4.7-flash",
+          "name": "GLM-4.7-Flash",
+          "context_window": 200000,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm-flash"
+        },
+        {
+          "id": "glm-4.5-flash",
+          "name": "GLM-4.5-Flash",
+          "context_window": 131072,
+          "max_output": 98304,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm-flash"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "glm-4.7-flash",
+          "name": "GLM-4.7-Flash",
+          "context_window": 200000,
+          "tool_call": true,
+          "reasoning": true
+        },
+        {
+          "id": "glm-4.5-flash",
+          "name": "GLM-4.5-Flash",
+          "context_window": 131072,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "friendli",
+      "provider_name": "Friendli",
+      "api_url": "https://api.friendli.ai/serverless/v1",
+      "env_vars": [
+        "FRIENDLI_TOKEN"
+      ],
+      "doc_url": "https://friendli.ai/docs/guides/serverless_endpoints/introduction",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "LGAI-EXAONE/K-EXAONE-236B-A23B",
+          "name": "K EXAONE 236B A23B",
+          "context_window": 262144,
+          "max_output": 262144,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "exaone"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "LGAI-EXAONE/K-EXAONE-236B-A23B",
+          "name": "K EXAONE 236B A23B",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "huggingface",
+      "provider_name": "Hugging Face",
+      "api_url": "https://router.huggingface.co/v1",
+      "env_vars": [
+        "HF_TOKEN"
+      ],
+      "doc_url": "https://huggingface.co/docs/inference-providers",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "zai-org/GLM-4.7-Flash",
+          "name": "GLM-4.7-Flash",
+          "context_window": 200000,
+          "max_output": 128000,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "zai-org/GLM-4.7-Flash",
+          "name": "GLM-4.7-Flash",
+          "context_window": 200000,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "jiekou",
+      "provider_name": "Jiekou.AI",
+      "api_url": "https://api.jiekou.ai/openai",
+      "env_vars": [
+        "JIEKOU_API_KEY"
+      ],
+      "doc_url": "https://docs.jiekou.ai/docs/support/quickstart?utm_source=github_models.dev",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "xiaomimimo/mimo-v2-flash",
+          "name": "XiaomiMiMo/MiMo-V2-Flash",
+          "context_window": 262144,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "mimo"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "xiaomimimo/mimo-v2-flash",
+          "name": "XiaomiMiMo/MiMo-V2-Flash",
+          "context_window": 262144,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "kuae-cloud-coding-plan",
+      "provider_name": "KUAE Cloud Coding Plan",
+      "api_url": "https://coding-plan-endpoint.kuaecloud.net/v1",
+      "env_vars": [
+        "KUAE_API_KEY"
+      ],
+      "doc_url": "https://docs.mthreads.com/kuaecloud/kuaecloud-doc-online/coding_plan/",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "GLM-4.7",
+          "name": "GLM-4.7",
+          "context_window": 204800,
+          "max_output": 131072,
+          "tool_call": true,
+          "reasoning": true,
+          "open_weights": true,
+          "family": "glm"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "GLM-4.7",
+          "name": "GLM-4.7",
+          "context_window": 204800,
+          "tool_call": true,
+          "reasoning": true
+        }
+      ]
+    },
+    {
+      "provider_id": "meganova",
+      "provider_name": "Meganova",
+      "api_url": "https://api.meganova.ai/v1",
+      "env_vars": [
+        "MEGANOVA_API_KEY"
+      ],
+      "doc_url": "https://docs.meganova.ai",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+          "name": "Mistral Small 3.2 24B Instruct",
+          "context_window": 32768,
+          "max_output": 8192,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": "mistral-small"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+          "name": "Mistral Small 3.2 24B Instruct",
+          "context_window": 32768,
+          "tool_call": true,
+          "reasoning": false
+        }
+      ]
+    },
+    {
+      "provider_id": "novita-ai",
+      "provider_name": "NovitaAI",
+      "api_url": "https://api.novita.ai/openai",
+      "env_vars": [
+        "NOVITA_API_KEY"
+      ],
+      "doc_url": "https://novita.ai/docs/guides/introduction",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "kwaipilot/kat-coder",
+          "name": "KAT-Coder-Pro V1(Free)",
+          "context_window": 256000,
+          "max_output": 32000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": true,
+          "family": ""
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "kwaipilot/kat-coder",
+          "name": "KAT-Coder-Pro V1(Free)",
+          "context_window": 256000,
+          "tool_call": true,
+          "reasoning": false
+        }
+      ]
+    },
+    {
+      "provider_id": "siliconflow",
+      "provider_name": "SiliconFlow",
+      "api_url": "https://api.siliconflow.com/v1",
+      "env_vars": [
+        "SILICONFLOW_API_KEY"
+      ],
+      "doc_url": "https://cloud.siliconflow.com/models",
+      "is_new_provider": true,
+      "new_models": [
+        {
+          "id": "tencent/Hunyuan-MT-7B",
+          "name": "tencent/Hunyuan-MT-7B",
+          "context_window": 33000,
+          "max_output": 33000,
+          "tool_call": true,
+          "reasoning": false,
+          "open_weights": false,
+          "family": "hunyuan"
+        }
+      ],
+      "all_free_models": [
+        {
+          "id": "tencent/Hunyuan-MT-7B",
+          "name": "tencent/Hunyuan-MT-7B",
+          "context_window": 33000,
+          "tool_call": true,
+          "reasoning": false
+        }
+      ]
+    }
+  ]
+}

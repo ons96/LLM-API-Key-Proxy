@@ -30,7 +30,20 @@ ALL_BENCHMARKS = [
     "vals_ai",
 ]
 
-FREE_PROVIDERS = ["groq", "cerebras", "google", "opencode", "g4f"]
+FREE_PROVIDERS = [
+    "groq",
+    "cerebras",
+    "google",
+    "opencode",
+    "g4f",
+    "openai",
+    "grok",
+    "qwen",
+    "deepseek",
+    "mistral",
+]
+
+MODEL_BLOCKLIST_PATTERNS = ["mini-swe-agent"]
 
 # Comprehensive mapping to LiteLLM provider/model format
 LITELLM_MAP = {
@@ -57,20 +70,31 @@ LITELLM_MAP = {
     "claude 3.5 haiku": ("anthropic", "claude-3-5-haiku"),
     "claude 3 opus": ("anthropic", "claude-3-opus"),
     "claude code": ("anthropic", "claude-code"),
-    # GPT-5 Series
+    "gpt-5.2 codex": ("openai", "gpt-5-2-codex"),
+    "gpt-5.2 (codex)": ("openai", "gpt-5-2-codex"),
+    "codex": ("openai", "gpt-5-2-codex"),
     "gpt-5.2 (2025-12-11) (high reasoning)": ("openai", "gpt-5-2"),
+    "gpt-5-2 (high reasoning)": ("openai", "gpt-5-2"),
     "gpt-5.2 (2025-12-11)": ("openai", "gpt-5-2"),
     "gpt-5.2 high": ("openai", "gpt-5-2"),
-    "gpt-5.2 no thinking": ("openai", "gpt-5-2"),
     "gpt-5.2": ("openai", "gpt-5-2"),
-    "gpt-5.1 codex max xhigh": ("openai", "gpt-5-1"),
-    "gpt-5.1 codex max": ("openai", "gpt-5-1"),
-    "gpt-5.1 codex": ("openai", "gpt-5-1"),
+    "gpt-5.1 codex max xhigh": ("openai", "gpt-5-1-codex"),
+    "gpt-5.1 codex max": ("openai", "gpt-5-1-codex"),
+    "gpt-5.1 codex": ("openai", "gpt-5-1-codex"),
+    "gpt-5.1 (2025-11-13) (medium reasoning)": ("openai", "gpt-5-1"),
+    "gpt-5.1-codex (medium reasoning)": ("openai", "gpt-5-1"),
     "gpt-5.1 no thinking": ("openai", "gpt-5-1"),
     "gpt-5.1": ("openai", "gpt-5-1"),
+    "gpt-5 (2025-08-07) (medium reasoning)": ("openai", "gpt-5"),
     "gpt-5": ("openai", "gpt-5"),
     "gpt-4-1": ("openai", "gpt-4-1"),
     "gpt-4o": ("openai", "gpt-4o"),
+    "o3-mini-high": ("openai", "o3-mini-high"),
+    "o3-mini (high)": ("openai", "o3-mini-high"),
+    "o3-mini": ("openai", "o3-mini"),
+    "o4-mini-high": ("openai", "o4-mini-high"),
+    "o4-mini (high)": ("openai", "o4-mini-high"),
+    "o4-mini": ("openai", "o4-mini"),
     # Gemini 3.x Series
     "gemini 3 pro preview (2025-11-18)": ("google", "gemini-3-pro"),
     "gemini 3 pro preview high": ("google", "gemini-3-pro"),
@@ -97,10 +121,13 @@ LITELLM_MAP = {
     "deepseek v3.2 exp thinking": ("deepseek", "deepseek-chat"),
     "deepseek v3.2 exp": ("deepseek", "deepseek-chat"),
     "deepseek v3.2": ("deepseek", "deepseek-chat"),
-    # Grok
+    "grok-3-mini-reasoning": ("grok", "grok-3-mini-reasoning"),
+    "grok-3-mini": ("grok", "grok-3-mini"),
+    "grok-3": ("grok", "grok-3"),
     "grok-4": ("grok", "grok-4"),
     "grok code fast": ("grok", "grok-code-fast"),
-    # Qwen
+    "qwen3-235b-a22b-instruct-reasoning": ("qwen", "qwen3-235b-a22b-reasoning"),
+    "qwen3-32b-instruct-reasoning": ("qwen", "qwen3-32b-reasoning"),
     "qwen 3 235b a22b instruct 2507": ("qwen", "qwen-plus"),
     "qwen 3 235b a22b thinking 2507": ("qwen", "qwen-plus"),
     "qwen 3 235b a22b instruct": ("qwen", "qwen-plus"),
@@ -135,37 +162,42 @@ PROVIDER_PREFIXES = {
 # Speed data (tokens per second) from artificial analysis and benchmark sources
 # Sources: LiveBench performance data, provider documentation, third-party benchmarks
 MODEL_SPEEDS = {
-    # OpenAI models - fastest providers
-    "openai/gpt-5-2": 187.0,  # GPT-5.2 - fastest model (3.8x faster than Claude)
-    "openai/gpt-5-1": 150.0,  # GPT-5.1 - very fast
-    "openai/gpt-5": 120.0,  # GPT-5 - fast
-    "openai/gpt-4-1": 100.0,  # GPT-4.1 - moderate
-    "openai/gpt-4o": 80.0,  # GPT-4o - moderate
-    # Anthropic models - slower but more intelligent
-    "anthropic/claude-opus-4-5-thinking": 49.0,  # Claude 4.5 Opus Thinking - slower but best coding
-    "anthropic/claude-opus-4-5": 49.0,  # Claude 4.5 Opus - slower but best coding
-    "anthropic/claude-sonnet-4-5-thinking": 52.0,  # Claude Sonnet 4.5 Thinking
-    "anthropic/claude-sonnet-4-5": 52.0,  # Claude Sonnet 4.5
-    "anthropic/claude-haiku-4-5": 65.0,  # Claude Haiku 4.5 - faster
-    "anthropic/claude-opus-4-1": 45.0,  # Claude 4.1 Opus
-    "anthropic/claude-sonnet-4-1": 48.0,  # Claude 4.1 Sonnet
-    "anthropic/claude-opus-4": 42.0,  # Claude 4 Opus
-    "anthropic/claude-sonnet-4": 45.0,  # Claude 4 Sonnet
-    "anthropic/claude-3-7-sonnet": 40.0,  # Claude 3.7 Sonnet
-    "anthropic/claude-3-5-sonnet": 38.0,  # Claude 3.5 Sonnet
-    "anthropic/claude-code": 45.0,  # Claude Code
-    # Google Gemini models - variable speeds
-    "google/gemini-3-pro": 75.0,  # Gemini 3 Pro - moderate
-    "google/gemini-3-flash": 120.0,  # Gemini 3 Flash - fast
-    "google/gemini-2-5-pro": 60.0,  # Gemini 2.5 Pro - moderate
-    "google/gemini-2-5-flash": 100.0,  # Gemini 2.5 Flash - fast
-    # DeepSeek - fast and cost-effective
-    "deepseek/deepseek-chat": 90.0,  # DeepSeek V3.2 - fast
-    # Grok - moderate speeds
-    "grok/grok-4": 70.0,  # Grok 4
-    "grok/grok-code-fast": 95.0,  # Grok Code Fast - optimized for speed
-    # Other providers
-    "mistral/devstral": 55.0,  # Devstral 2
+    "openai/gpt-5-2-codex": 200.0,
+    "openai/gpt-5-2": 187.0,
+    "openai/gpt-5-1-codex": 160.0,
+    "openai/gpt-5-1": 150.0,
+    "openai/gpt-5": 120.0,
+    "openai/o3-mini": 160.0,
+    "openai/o3-mini-high": 148.0,
+    "openai/o4-mini": 143.0,
+    "openai/o4-mini-high": 143.0,
+    "openai/gpt-4-1": 100.0,
+    "openai/gpt-4o": 80.0,
+    "anthropic/claude-opus-4-5-thinking": 49.0,
+    "anthropic/claude-opus-4-5": 49.0,
+    "anthropic/claude-sonnet-4-5-thinking": 52.0,
+    "anthropic/claude-sonnet-4-5": 52.0,
+    "anthropic/claude-haiku-4-5": 65.0,
+    "anthropic/claude-opus-4-1": 45.0,
+    "anthropic/claude-sonnet-4-1": 48.0,
+    "anthropic/claude-opus-4": 42.0,
+    "anthropic/claude-sonnet-4": 45.0,
+    "anthropic/claude-3-7-sonnet": 40.0,
+    "anthropic/claude-3-5-sonnet": 38.0,
+    "anthropic/claude-code": 45.0,
+    "google/gemini-3-pro": 75.0,
+    "google/gemini-3-flash": 120.0,
+    "google/gemini-2-5-pro": 60.0,
+    "google/gemini-2-5-flash": 100.0,
+    "deepseek/deepseek-chat": 90.0,
+    "grok/grok-4": 70.0,
+    "grok/grok-3-mini-reasoning": 69.0,
+    "grok/grok-3": 64.0,
+    "grok/grok-code-fast": 95.0,
+    "qwen/qwen3-235b-a22b-reasoning": 70.0,
+    "qwen/qwen3-32b-reasoning": 65.0,
+    "qwen/qwen-plus": 60.0,
+    "mistral/devstral": 55.0,
     "cerebras/glm-4-7b": 45.0,  # GLM 4.7
     "qwen/qwen-plus": 60.0,  # Qwen 3
     "moonshot/kimi-k2-thinking": 50.0,  # Kimi K2 Thinking
@@ -244,9 +276,21 @@ def get_provider_key_status():
         "opencode": "sk-free",
     }
 
+    g4f_accessible = [
+        "openai",
+        "anthropic",
+        "google",
+        "deepseek",
+        "mistral",
+        "qwen",
+        "grok",
+    ]
+
     status = {}
     for p, k in providers.items():
         if k and k.strip() and not k.startswith("your_") and k != "None":
+            status[p] = True
+        elif p in g4f_accessible:
             status[p] = True
         else:
             status[p] = False
@@ -312,10 +356,15 @@ def sync_rankings():
         "ts-bench": "ts_bench",
         "Vals": "vals_ai",
         "Agentic": "agentic_coding",
+        "artificial_analysis_csv": "agentic_coding",
     }
 
     for entry in live_entries:
-        litellm_id = get_litellm_id(entry["model"])
+        model_name = entry["model"]
+        if any(blocked in model_name.lower() for blocked in MODEL_BLOCKLIST_PATTERNS):
+            continue
+
+        litellm_id = get_litellm_id(model_name)
         if not litellm_id:
             continue
 
@@ -349,6 +398,7 @@ def sync_rankings():
                 bench_scores[k] = max(v)  # Max per benchmark category
 
         coding_benchmarks = [
+            "ts_bench",
             "livebench_coding",
             "aider",
             "swe_bench_verified",
@@ -358,9 +408,9 @@ def sync_rankings():
             "bigcodebench",
             "gso_bench",
             "vals_ai",
+            "agentic_coding",
         ]
 
-        # For agentic coding score, prioritize the highest individual benchmark
         available_scores = [
             bench_scores[f]
             for f in coding_benchmarks
@@ -368,7 +418,35 @@ def sync_rankings():
         ]
 
         if available_scores:
-            agentic_score = max(available_scores)
+            swe_bench_score = bench_scores.get("swe_bench", 0) or bench_scores.get(
+                "swe_bench_verified", 0
+            )
+            ts_bench_score = bench_scores.get("ts_bench", 0)
+            agentic_coding_score = bench_scores.get("agentic_coding", 0)
+
+            other_scores = [
+                bench_scores.get(f, 0)
+                for f in coding_benchmarks
+                if f
+                not in ["swe_bench", "swe_bench_verified", "ts_bench", "agentic_coding"]
+                and bench_scores.get(f, 0) > 0
+            ]
+
+            if swe_bench_score > 0:
+                agentic_score = swe_bench_score
+                if agentic_coding_score > 0:
+                    agentic_score = max(
+                        agentic_score,
+                        (swe_bench_score + agentic_coding_score * 0.2) / 1.2,
+                    )
+            elif ts_bench_score > 0:
+                agentic_score = ts_bench_score * 0.65
+            elif agentic_coding_score > 0:
+                agentic_score = agentic_coding_score * 0.85
+            elif other_scores:
+                agentic_score = max(other_scores)
+            else:
+                agentic_score = max(available_scores) if available_scores else 0.0
         else:
             agentic_score = 0.0
 
@@ -433,14 +511,26 @@ def sync_rankings():
         elif data["agentic_coding"] >= 30:
             best_for = ["coding-budget"]
 
-        updated_models.append(
-            {
-                "id": litellm_id,
-                "name": data["name"],
-                "scores": scores,
-                "best_for": best_for,
-            }
-        )
+        reasoning_effort = None
+        name_lower = data["name"].lower()
+        id_lower = litellm_id.lower()
+        if "high reasoning" in name_lower or "gemini-3-flash" in id_lower:
+            reasoning_effort = "high"
+        elif "medium reasoning" in name_lower:
+            reasoning_effort = "medium"
+        elif "thinking" in name_lower or "reasoning" in name_lower:
+            reasoning_effort = "high"
+
+        model_entry = {
+            "id": litellm_id,
+            "name": data["name"],
+            "scores": scores,
+            "best_for": best_for,
+        }
+        if reasoning_effort:
+            model_entry["reasoning_effort"] = reasoning_effort
+
+        updated_models.append(model_entry)
 
     logger.info(f"Sync complete. {len(updated_models)} models ranked.")
 
