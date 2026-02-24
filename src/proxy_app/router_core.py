@@ -620,7 +620,7 @@ class RouterCore:
         self.config_path = config_path
         self.config = self._load_config(self.config_path)
 
-        self.free_only_mode = self.config.get("free_only_mode", True)
+        self.free_only_mode = self.config.get("free_only_mode", False)
 
         self.provider_metrics: Dict[Tuple[str, str], ProviderMetrics] = {}
         self.metrics = (
