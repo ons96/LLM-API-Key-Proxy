@@ -245,14 +245,19 @@ providers:
   # G4F Free providers (no API key needed)
   g4f-groq:
     base_url: https://g4f.space/api/groq
+    free_tier_only: true
   g4f-ollama:
     base_url: https://g4f.space/api/ollama
+    free_tier_only: true
   g4f-pollinations:
     base_url: https://g4f.space/api/pollinations
+    free_tier_only: true
   g4f-nvidia:
     base_url: https://g4f.space/api/nvidia
+    free_tier_only: true
   g4f-gemini:
     base_url: https://g4f.space/api/gemini
+    free_tier_only: true
   
   # G4F hosted (requires API key - rate limits unknown)
   g4f-hosted:

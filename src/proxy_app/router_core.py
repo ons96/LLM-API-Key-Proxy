@@ -177,6 +177,9 @@ class SearchProvider:
             return False
         if free_only_mode and not self.config.free_tier_only:
             return False
+        # Free tier providers don't need API keys
+        if self.config.free_tier_only:
+            return True
         return self.api_key is not None
 
 
