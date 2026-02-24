@@ -1,176 +1,169 @@
-metadata:
-  generated_at: '2026-02-24'
-  sources:
-  - virtual_models_generated.yaml
 virtual_models:
   coding-elite:
-    description: Best agentic coding models (SWE-bench + LiveCodeBench weighted)
+    description: Best agentic coding models (Claude 4.5/4.6, Gemini 3, GPT-5)
     fallback_chain:
     - provider: g4f
-      model: claude-opus-4-5
-      priority: 1
-      reasoning_effort: high
-    - provider: gemini
-      model: gemini-3-flash
-      priority: 2
-      reasoning_effort: high
-    - provider: g4f
       model: claude-opus-4-6
-      priority: 3
-      reasoning_effort: None
+      priority: 1
+      role: expert
     - provider: g4f
-      model: minimax-m2-5
-      priority: 4
-      reasoning_effort: high
+      model: claude-opus-4-5
+      priority: 2
+      role: expert
     - provider: gemini
       model: gemini-3-pro
-      priority: 5
-      reasoning_effort: None
+      priority: 3
+      role: expert
     - provider: g4f
       model: gpt-5-2
-      priority: 6
-      reasoning_effort: high
+      priority: 4
+      role: expert
     - provider: cerebras
       model: glm-5
-      priority: 7
-      reasoning_effort: high
-    - provider: g4f
-      model: claude-sonnet-4-5
-      priority: 8
-      reasoning_effort: high
-    - provider: g4f
-      model: kimi-k2-5
-      priority: 9
-      reasoning_effort: None
-    - provider: together
-      model: deepseek-chat
-      priority: 10
-      reasoning_effort: high
+      priority: 5
+      role: expert
     - provider: g4f-gemini
       model: gemini-3-pro
-      priority: 11
-    - provider: g4f-nvidia
-      model: deepseek-v3
-      priority: 12
+      priority: 6
+      role: expert
+    - provider: g4f-ollama
+      model: gemini-3-flash-preview
+      priority: 7
+      role: expert
+    - provider: g4f-ollama
+      model: qwen3-coder-next
+      priority: 8
+      role: expert
+    - provider: g4f-gemini
+      model: gemini-3-pro
+      priority: 6
+    - provider: together
+      model: deepseek-chat
+      priority: 7
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
+
+  coding-elite-moe:
+    description: Merge of Experts for Elite Coding
+    moe_mode: true
+    max_experts: 3
+    aggregator_model: gemini/gemini-1.5-pro
+    fallback_chain:
+    - provider: g4f
+      model: claude-opus-4-6
+      priority: 1
+      role: expert
+    - provider: gemini
+      model: gemini-3-pro
+      priority: 2
+      role: expert
+    - provider: g4f
+      model: gpt-5-2
+      priority: 3
+      role: expert
+    - provider: cerebras
+      model: glm-5
+      priority: 4
+      role: expert
+    - provider: g4f-gemini
+      model: gemini-3-pro
+      priority: 5
+      role: expert
+    - provider: g4f-ollama
+      model: gemini-3-flash-preview
+      priority: 6
+      role: expert
+    - provider: g4f-ollama
+      model: qwen3-coder-next
+      priority: 7
+      role: expert
+    settings:
+      timeout_ms: 300000
+
   coding-smart:
     description: High-quality coding with balanced performance
     fallback_chain:
     - provider: gemini
-      model: gemini-3-flash
+      model: gemini-3-pro
       priority: 1
-      reasoning_effort: high
     - provider: g4f
       model: claude-opus-4-5
       priority: 2
-      reasoning_effort: high
-    - provider: g4f
-      model: claude-opus-4-6
-      priority: 3
-      reasoning_effort: None
     - provider: g4f
       model: gpt-5-2
-      priority: 4
-      reasoning_effort: high
+      priority: 3
     - provider: gemini
-      model: gemini-3-pro
-      priority: 5
-      reasoning_effort: None
+      model: gemini-3-flash
+      priority: 4
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
+
   coding-fast:
-    description: Fastest coding models (TPS priority with quality floor)
+    description: Fastest coding models (TPS priority)
     fallback_chain:
-    - provider: g4f
-      model: gpt-5-2
-      priority: 1
-      reasoning_effort: high
-    - provider: gemini
-      model: gemini-3-flash
-      priority: 2
-      reasoning_effort: high
-    - provider: gemini
-      model: gemini-3-pro
-      priority: 3
-      reasoning_effort: None
-    - provider: together
-      model: deepseek-chat
-      priority: 4
-      reasoning_effort: high
-    - provider: g4f-groq
+    - provider: cerebras
       model: llama-3.3-70b
-      priority: 5
-    - provider: g4f-pollinations
-      model: gpt-4o
-      priority: 6
+      priority: 1
+    - provider: g4f-groq
+      model: llama-3.3-70b-versatile
+      priority: 2
+    - provider: g4f-gemini
+      model: gemini-2.5-flash
+      priority: 3
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
+
   chat-smart:
-    description: Best intelligence-to-speed ratio (smart AND reasonably fast)
+    description: Best intelligence-to-speed ratio
     fallback_chain:
     - provider: gemini
       model: gemini-3-pro
       priority: 1
-      reasoning_effort: None
-    - provider: gemini
-      model: gemini-3-flash
-      priority: 2
-      reasoning_effort: None
     - provider: g4f
       model: gpt-5-xhigh
-      priority: 3
-      reasoning_effort: None
+      priority: 2
     - provider: together
       model: deepseek-v3
-      priority: 4
-      reasoning_effort: None
+      priority: 3
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
+
   chat-elite:
-    description: Most intelligent models regardless of speed (pure intelligence ranking)
+    description: Most intelligent models regardless of speed
     fallback_chain:
     - provider: gemini
       model: gemini-3-pro
       priority: 1
-      reasoning_effort: None
     - provider: g4f
       model: claude-opus-4-5-thinking-32k
       priority: 2
-      reasoning_effort: None
     - provider: g4f
       model: gpt-5-xhigh
       priority: 3
-      reasoning_effort: None
-    - provider: gemini
-      model: gemini-3-flash
-      priority: 4
-      reasoning_effort: None
     settings:
       timeout_ms: 300000
       retry_on_rate_limit: true
+
   chat-fast:
-    description: Fastest models that aren't stupid (TPS priority, min intelligence threshold)
+    description: Fastest models that work well
     fallback_chain:
-    - provider: gemini
-      model: gemini-3-flash
+    - provider: g4f-gemini
+      model: gemini-2.5-flash
       priority: 1
-      reasoning_effort: None
-    - provider: g4f
-      model: gpt-5-medium
+    - provider: g4f-groq
+      model: llama-3.1-8b-instant
       priority: 2
-      reasoning_effort: None
     - provider: together
       model: deepseek-v3
       priority: 3
-      reasoning_effort: None
     settings:
       timeout_ms: 15000
       retry_on_rate_limit: true
+
   chat-rp:
     description: Roleplay models
     fallback_chain:
@@ -183,6 +176,7 @@ virtual_models:
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
+
 providers:
   nvidia:
     base_url: https://integrate.api.nvidia.com/v1
