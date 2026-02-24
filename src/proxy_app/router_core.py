@@ -1743,25 +1743,30 @@ class RouterCore:
             except Exception as e:
                 last_error = e
                 error_category, _ = await self._classify_error(e)
+                error_str = str(e).lower()
+
+                logger.warning(
+                    f"[{request_id}] Candidate {candidate.provider}/{candidate.model} failed: {error_category} - {str(e)[:100]}"
+                )
 
                 if error_category == ErrorCategory.AUTH_ERROR:
+                    logger.warning(f"[{request_id}] Auth error - stopping fallback")
                     break
 
                 if error_category == ErrorCategory.INVALID_REQUEST:
                     # Fallback on "model not found" even if it's a 400 bad request
-                    if any(
-                        k in str(e).lower()
-                        for k in ["not found", "not supported", "model"]
-                    ):
-                        logger.warning(
-                            f"[{request_id}] Model not found on {candidate.provider}, trying next..."
-                        )
+                    if any(k in error_str for k in ["not found", "not supported", "model"]):
+                        logger.warning(f"[{request_id}] Model not found error - trying next provider")
                         continue
+                    logger.warning(f"[{request_id}] Invalid request (not model related) - stopping fallback")
                     break
 
-                logger.warning(
-                    f"[{request_id}] Candidate {candidate.provider}/{candidate.model} failed, trying next"
-                )
+                if error_category == ErrorCategory.TRANSIENT:
+                    logger.warning(f"[{request_id}] Transient error (500/timeout) - trying next provider")
+                    continue
+
+                # For PROVIDER_ERROR and anything else, also continue
+                logger.warning(f"[{request_id}] Provider error - trying next provider")
                 continue
 
         # All candidates failed - apply 5s timeout before final error
