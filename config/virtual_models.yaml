@@ -46,6 +46,12 @@ virtual_models:
       model: deepseek-chat
       priority: 10
       reasoning_effort: high
+    - provider: g4f-gemini
+      model: gemini-3-pro
+      priority: 11
+    - provider: g4f-nvidia
+      model: deepseek-v3
+      priority: 12
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
@@ -94,6 +100,12 @@ virtual_models:
       model: deepseek-chat
       priority: 4
       reasoning_effort: high
+    - provider: g4f-groq
+      model: llama-3.3-70b
+      priority: 5
+    - provider: g4f-pollinations
+      model: gpt-4o
+      priority: 6
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
@@ -222,3 +234,18 @@ providers:
     rate_limits:
       rpm: 10
       daily: 100
+  g4f-groq:
+    base_url: https://g4f.space/api/groq
+    api_key_env: None
+  g4f-ollama:
+    base_url: https://g4f.space/api/ollama
+    api_key_env: None
+  g4f-pollinations:
+    base_url: https://g4f.space/api/pollinations
+    api_key_env: None
+  g4f-nvidia:
+    base_url: https://g4f.space/api/nvidia
+    api_key_env: None
+  g4f-gemini:
+    base_url: https://g4f.space/api/gemini
+    api_key_env: None
