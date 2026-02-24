@@ -1744,18 +1744,20 @@ class RouterCore:
                 last_error = e
                 error_category, _ = await self._classify_error(e)
 
-                if error_category in [
-                    ErrorCategory.INVALID_REQUEST,
-                    ErrorCategory.AUTH_ERROR,
-                ]:
-                    # Don't retry on invalid requests or auth errors
+                if error_category == ErrorCategory.AUTH_ERROR:
                     break
 
-                    elif error_category == ErrorCategory.INVALID_REQUEST:
-                        # Fallback on "model not found" even if it's a bad request
-                        if any(k in str(e).lower() for k in ["not found", "not supported", "model"]):
-                            continue
-                        break
+                if error_category == ErrorCategory.INVALID_REQUEST:
+                    # Fallback on "model not found" even if it's a 400 bad request
+                    if any(
+                        k in str(e).lower()
+                        for k in ["not found", "not supported", "model"]
+                    ):
+                        logger.warning(
+                            f"[{request_id}] Model not found on {candidate.provider}, trying next..."
+                        )
+                        continue
+                    break
 
                 logger.warning(
                     f"[{request_id}] Candidate {candidate.provider}/{candidate.model} failed, trying next"
