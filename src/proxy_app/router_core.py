@@ -986,10 +986,10 @@ class RouterCore:
         ):
             return ErrorCategory.AUTH_ERROR, None
 
-        # Transient errors
+        # Transient errors (including 500 - server errors should retry)
         if any(
             keyword in error_str
-            for keyword in ["timeout", "connection", "503", "502", "504"]
+            for keyword in ["timeout", "connection", "503", "502", "504", "500"]
         ):
             return ErrorCategory.TRANSIENT, None
 
@@ -997,14 +997,14 @@ class RouterCore:
         if any(keyword in error_str for keyword in ["bad request", "invalid", "400"]):
             return ErrorCategory.INVALID_REQUEST, None
 
-        # Missing model errors - should try next provider
+        # Missing model errors - should try next provider (check lowercase for truncated errors)
         if any(
-            keyword in error_str
-            for keyword in ["model not found", "not found", "404", "not supported"]
+            keyword in error_str.lower()
+            for keyword in ["model not found", "does not exist", "does not ex", "not found", "404", "not supported", "unsupported model"]
         ):
             return ErrorCategory.PROVIDER_ERROR, None
 
-        # Default to provider error
+        # Default to provider error (fall through to try next provider)
         return ErrorCategory.PROVIDER_ERROR, None
 
     def _extract_requirements(self, request: Dict[str, Any]) -> CapabilityRequirements:
