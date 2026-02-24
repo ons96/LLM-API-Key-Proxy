@@ -1,31 +1,41 @@
 virtual_models:
   coding-elite:
-    description: Best agentic coding models (known working)
+    description: Best agentic coding models - REAL working models from g4f.space
     fallback_chain:
-    - provider: groq
+    # g4f.space Groq (free, best for coding)
+    - provider: g4f-groq
       model: llama-3.3-70b-versatile
       priority: 1
-    - provider: groq
-      model: llama-3.1-70b-versatile
+    - provider: g4f-groq
+      model: llama-4-maverick-17b-128e-instruct
       priority: 2
-    - provider: groq
-      model: llama-3.1-8b-instant
+    - provider: g4f-groq
+      model: llama-4-scout-17b-16e-instruct
       priority: 3
-    - provider: gemini
-      model: gemini-1.5-pro
+    # g4f.space Gemini (free)
+    - provider: g4f-gemini
+      model: gemini-3-pro
       priority: 4
-    - provider: gemini
-      model: gemini-1.5-flash
+    - provider: g4f-gemini
+      model: gemini-2.5-pro
       priority: 5
-    - provider: openai
-      model: gpt-4o
+    - provider: g4f-gemini
+      model: gemini-2.5-flash
       priority: 6
-    - provider: openai
-      model: gpt-4o-mini
+    # g4f.space Nvidia (free, deepseek models)
+    - provider: g4f-nvidia
+      model: deepseek-ai/deepseek-r1-distill-llama-8b
       priority: 7
-    - provider: together
-      model: deepseek-ai/DeepSeek-V3
+    - provider: g4f-nvidia
+      model: deepseek-ai/deepseek-coder-6.7b-instruct
       priority: 8
+    # g4f.space Pollinations (free)
+    - provider: g4f-pollinations
+      model: deepseek
+      priority: 9
+    - provider: g4f-pollinations
+      model: glm
+      priority: 10
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
@@ -33,17 +43,17 @@ virtual_models:
   coding-smart:
     description: High-quality coding with balanced performance
     fallback_chain:
-    - provider: groq
+    - provider: g4f-groq
       model: llama-3.3-70b-versatile
       priority: 1
-    - provider: gemini
-      model: gemini-1.5-flash
+    - provider: g4f-gemini
+      model: gemini-2.5-flash
       priority: 2
-    - provider: openai
-      model: gpt-4o-mini
+    - provider: g4f-nvidia
+      model: deepseek-ai/deepseek-r1-distill-qwen-14b
       priority: 3
-    - provider: together
-      model: deepseek-ai/DeepSeek-V3
+    - provider: g4f-pollinations
+      model: deepseek
       priority: 4
     settings:
       timeout_ms: 120000
@@ -52,17 +62,17 @@ virtual_models:
   coding-fast:
     description: Fastest coding models (TPS priority)
     fallback_chain:
-    - provider: groq
+    - provider: g4f-groq
       model: llama-3.1-8b-instant
       priority: 1
-    - provider: groq
-      model: llama-3-8b-instant
+    - provider: g4f-gemini
+      model: gemini-2.5-flash
       priority: 2
-    - provider: gemini
-      model: gemini-1.5-flash
+    - provider: g4f-pollinations
+      model: qwen-coder
       priority: 3
-    - provider: openai
-      model: gpt-4o-mini
+    - provider: g4f-pollinations
+      model: claude-fast
       priority: 4
     settings:
       timeout_ms: 30000
@@ -71,18 +81,21 @@ virtual_models:
   chat-smart:
     description: Best intelligence-to-speed ratio
     fallback_chain:
-    - provider: groq
-      model: llama-3.3-70b-versatile
+    - provider: g4f-gemini
+      model: gemini-3-pro
       priority: 1
-    - provider: gemini
-      model: gemini-1.5-pro
+    - provider: g4f-gemini
+      model: gemini-2.5-pro
       priority: 2
-    - provider: openai
-      model: gpt-4o
+    - provider: g4f-groq
+      model: llama-4-maverick-17b-128e-instruct
       priority: 3
-    - provider: together
-      model: deepseek-ai/DeepSeek-V3
+    - provider: g4f-groq
+      model: llama-3.3-70b-versatile
       priority: 4
+    - provider: g4f-pollinations
+      model: claude
+      priority: 5
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
@@ -90,17 +103,17 @@ virtual_models:
   chat-elite:
     description: Most intelligent models regardless of speed
     fallback_chain:
-    - provider: groq
-      model: llama-3.3-70b-versatile
+    - provider: g4f-gemini
+      model: gemini-3-pro
       priority: 1
-    - provider: gemini
-      model: gemini-1.5-pro
+    - provider: g4f-gemini
+      model: gemini-2.5-pro
       priority: 2
-    - provider: openai
-      model: gpt-4o
+    - provider: g4f-groq
+      model: llama-4-maverick-17b-128e-instruct
       priority: 3
-    - provider: together
-      model: deepseek-ai/DeepSeek-V3
+    - provider: g4f-pollinations
+      model: claude
       priority: 4
     settings:
       timeout_ms: 300000
@@ -109,15 +122,18 @@ virtual_models:
   chat-fast:
     description: Fastest models that work well
     fallback_chain:
-    - provider: groq
+    - provider: g4f-groq
       model: llama-3.1-8b-instant
       priority: 1
-    - provider: gemini
-      model: gemini-1.5-flash
+    - provider: g4f-gemini
+      model: gemini-2.5-flash
       priority: 2
-    - provider: openai
-      model: gpt-4o-mini
+    - provider: g4f-pollinations
+      model: nova-fast
       priority: 3
+    - provider: g4f-pollinations
+      model: perplexity-fast
+      priority: 4
     settings:
       timeout_ms: 15000
       retry_on_rate_limit: true
@@ -125,12 +141,15 @@ virtual_models:
   chat-rp:
     description: Roleplay models
     fallback_chain:
-    - provider: groq
+    - provider: g4f-groq
       model: llama-3.1-8b-instant
       priority: 1
-    - provider: groq
-      model: llama-3-8b-instant
+    - provider: g4f-groq
+      model: kimi-k2-instruct
       priority: 2
+    - provider: g4f-pollinations
+      model: kimi
+      priority: 3
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
@@ -174,6 +193,7 @@ virtual_models:
       retry_on_rate_limit: true
 
 providers:
+  # Direct API providers
   nvidia:
     base_url: https://integrate.api.nvidia.com/v1
     api_key_env: NVIDIA_API_KEY
@@ -218,12 +238,8 @@ providers:
     api_key_env: MISTRAL_API_KEY
     rate_limits:
       rpm: 10
-  g4f:
-    base_url: https://g4f.dev/v1
-    api_key_env: G4F_API_KEY
-    rate_limits:
-      rpm: 10
-      daily: 100
+  
+  # G4F Free providers (no API key needed)
   g4f-groq:
     base_url: https://g4f.space/api/groq
     api_key_env: None
@@ -239,3 +255,8 @@ providers:
   g4f-gemini:
     base_url: https://g4f.space/api/gemini
     api_key_env: None
+  
+  # G4F hosted (requires API key - rate limits unknown)
+  g4f-hosted:
+    base_url: https://g4f.space/v1
+    api_key_env: G4F_API_KEY
