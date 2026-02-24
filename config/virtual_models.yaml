@@ -135,10 +135,43 @@ virtual_models:
       timeout_ms: 30000
       retry_on_rate_limit: true
 
-  # NOTE: MoE (Merge of Experts) is temporarily disabled due to async serialization issues
-  # The fallback chain is working correctly - MoE will be re-enabled after fixing the async generator issue
-  # coding-moe and chat-moe models are disabled for now
-  # To re-enable, set moe_mode: true in the config
+  # =============================================================================
+  # MERGE OF EXPERTS (MoE) - Multi-LLM with Judge
+  # =============================================================================
+  coding-moe:
+    description: Merge of Experts - Multiple LLMs with judge evaluation
+    moe_mode: true
+    max_experts: 3
+    aggregator_model: groq/llama-3.3-70b-versatile
+    fallback_chain:
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 1
+    - provider: gemini
+      model: gemini-1.5-flash
+      priority: 2
+    - provider: openai
+      model: gpt-4o-mini
+      priority: 3
+    settings:
+      timeout_ms: 120000
+      retry_on_rate_limit: true
+
+  chat-moe:
+    description: Merge of Experts for chat
+    moe_mode: true
+    max_experts: 2
+    aggregator_model: groq/llama-3.1-8b-instant
+    fallback_chain:
+    - provider: groq
+      model: llama-3.1-8b-instant
+      priority: 1
+    - provider: gemini
+      model: gemini-1.5-flash
+      priority: 2
+    settings:
+      timeout_ms: 60000
+      retry_on_rate_limit: true
 
 providers:
   nvidia:

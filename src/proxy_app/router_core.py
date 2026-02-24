@@ -1355,7 +1355,7 @@ class RouterCore:
                     {
                         "provider": candidate.provider,
                         "model": candidate.model,
-                        "role": candidate.role,
+                        "role": getattr(candidate, 'role', None),
                         "output": result["choices"][0]["message"]["content"]
                         if result.get("choices")
                         else "",
@@ -1367,7 +1367,7 @@ class RouterCore:
                     {
                         "provider": candidate.provider,
                         "model": candidate.model,
-                        "role": candidate.role,
+                        "role": getattr(candidate, 'role', None),
                         "error": str(e),
                     }
                 )
