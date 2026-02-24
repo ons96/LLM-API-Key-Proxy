@@ -135,6 +135,65 @@ virtual_models:
       timeout_ms: 30000
       retry_on_rate_limit: true
 
+  # =============================================================================
+  # MERGE OF EXPERTS (MoE) - Multi-LLM with Judge
+  # =============================================================================
+  coding-moe:
+    description: Merge of Experts - Multiple LLMs with judge evaluation
+    moe_mode: true
+    max_experts: 3
+    aggregator_model: groq/llama-3.3-70b-versatile
+    fallback_chain:
+    # Expert 1: Best coding model
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 1
+      role: expert
+    # Expert 2: Fast but smart
+    - provider: gemini
+      model: gemini-1.5-pro
+      priority: 2
+      role: expert
+    # Expert 3: Alternative
+    - provider: openai
+      model: gpt-4o
+      priority: 3
+      role: expert
+    # Expert 4: Fallback
+    - provider: together
+      model: deepseek-ai/DeepSeek-V3
+      priority: 4
+      role: expert
+    settings:
+      timeout_ms: 300000
+      retry_on_rate_limit: true
+
+  chat-moe:
+    description: Merge of Experts for chat - Multiple LLMs with judge evaluation
+    moe_mode: true
+    max_experts: 3
+    aggregator_model: groq/llama-3.3-70b-versatile
+    fallback_chain:
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 1
+      role: expert
+    - provider: gemini
+      model: gemini-1.5-pro
+      priority: 2
+      role: expert
+    - provider: openai
+      model: gpt-4o
+      priority: 3
+      role: expert
+    - provider: together
+      model: deepseek-ai/DeepSeek-V3
+      priority: 4
+      role: expert
+    settings:
+      timeout_ms: 300000
+      retry_on_rate_limit: true
+
 providers:
   nvidia:
     base_url: https://integrate.api.nvidia.com/v1
