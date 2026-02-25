@@ -1,5 +1,13 @@
 # LLM API Proxy with Virtual Models
 
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![GitHub stars](https://img.shields.io/github/stars/ons96/LLM-API-Key-Proxy.svg)](https://github.com/ons96/LLM-API-Key-Proxy/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/ons96/LLM-API-Key-Proxy.svg)](https://github.com/ons96/LLM-API-Key-Proxy/issues)
+[![GitHub forks](https://img.shields.io/github/forks/ons96/LLM-API-Key-Proxy.svg)](https://github.com/ons96/LLM-API-Key-Proxy/network)
+
+> A lightweight LLM API proxy with automatic fallback and virtual model support
+
 ## Core Feature: Agentic Coding with Automatic Fallback
 
 **WORKING VIRTUAL MODEL:** Use `coding-elite` for agentic coding tasks with automatic fallback between free providers.
@@ -308,3 +316,73 @@ Run the self-verification script to ensure all components are wired correctly:
 ```bash
 python verify_installation.py
 ```
+
+## 📝 Examples
+
+### Example 1: Using with OpenAI Python Client
+
+```python
+from openai import OpenAI
+
+# Configure client to use the proxy
+client = OpenAI(
+    base_url="http://localhost:8000/v1",
+    api_key="not-needed"  # API key not required for free providers
+)
+
+# Use virtual model with automatic fallback
+response = client.chat.completions.create(
+    model="coding-elite",  # Automatically falls back between providers
+    messages=[
+        {"role": "user", "content": "Write a Python function to sort a list"}
+    ]
+)
+
+print(response.choices[0].message.content)
+```
+
+### Example 2: Using with LangChain
+
+```python
+from langchain_openai import ChatOpenAI
+
+# Configure LangChain to use the proxy
+llm = ChatOpenAI(
+    base_url="http://localhost:8000/v1",
+    api_key="not-needed",
+    model="chat-smart"
+)
+
+response = llm.invoke("Explain quantum computing in simple terms")
+print(response.content)
+```
+
+### Example 3: Curl Request
+
+```bash
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "coding-elite",
+    "messages": [
+      {"role": "user", "content": "Write a hello world in Python"}
+    ]
+  }'
+```
+
+### Example 4: Checking Provider Health
+
+```bash
+# Get real-time stats and health status
+curl http://localhost:8000/stats
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
