@@ -720,14 +720,7 @@ def get_embedding_batcher(request: Request) -> EmbeddingBatcher:
     return request.app.state.embedding_batcher
 
 
-async def verify_api_key(auth: str = Depends(api_key_header)):
-    """Dependency to verify the proxy API key."""
-    # If PROXY_API_KEY is not set or empty, skip verification (open access)
-    if not PROXY_API_KEY:
-        return auth
-    if not auth or auth != f"Bearer {PROXY_API_KEY}":
-        raise HTTPException(status_code=401, detail="Invalid or missing API Key")
-    return auth
+async def verify_api_key(auth: str = Depends(api_key_header)) -> str:
 
 
 async def streaming_response_wrapper(
@@ -907,8 +900,7 @@ async def responses_endpoint(
     request: Request,
     client: RotatingClient = Depends(get_rotating_client),
     _=Depends(verify_api_key),
-):
-    """
+) -> Response:
     OpenAI Responses API compatibility layer.
     Translates Requests API format to Chat Completions format.
     """
@@ -984,8 +976,7 @@ async def chat_completions(
     request: Request,
     client: RotatingClient = Depends(get_rotating_client),
     _=Depends(verify_api_key),
-):
-    """
+) -> Response:
     OpenAI-compatible endpoint powered by the RouterWrapper.
     Handles virtual models, fallbacks, and standard requests.
     """
@@ -1114,17 +1105,7 @@ def read_root():
 
 
 @app.get("/health")
-async def health_check(request: Request):
-    client = request.app.state.rotating_client
-    providers_up = bool(client.all_credentials)
-    return {
-        "status": "healthy" if providers_up else "degraded",
-        "providers_configured": providers_up,
-        "uptime_seconds": int(time.time() - request.app.state._start_time)
-        if hasattr(request.app.state, "_start_time")
-        else None,
-    }
-
+async def health_check(request: Request) -> dict[str, Any]:
 
 @app.get("/v1/models")
 async def list_models(
@@ -1132,8 +1113,7 @@ async def list_models(
     client: RotatingClient = Depends(get_rotating_client),
     _=Depends(verify_api_key),
     enriched: bool = True,
-):
-    """
+) -> dict[str, Any]:
     Returns a list of available models in the OpenAI-compatible format.
 
     Query Parameters:
