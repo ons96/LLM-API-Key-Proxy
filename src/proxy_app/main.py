@@ -1012,9 +1012,6 @@ async def chat_completions(
         raise HTTPException(status_code=500, detail=f"Router Error: {str(e)}")
 
 
-# Legacy endpoint logic preserved below for reference but bypassed by return above
-# To fully replace, we should comment out or remove the old logic.
-# For now, I will effectively replace the entire function body with the router call.
 
 
 @app.post("/v1/embeddings")
