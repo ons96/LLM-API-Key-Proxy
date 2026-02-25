@@ -1,5 +1,11 @@
 # LLM API Proxy with Virtual Models
 
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/ons96/LLM-API-Key-Proxy)](https://github.com/ons96/LLM-API-Key-Proxy/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/ons96/LLM-API-Key-Proxy)](https://github.com/ons96/LLM-API-Key-Proxy/network)
+[![Last Commit](https://img.shields.io/github/last-commit/ons96/LLM-API-Key-Proxy)](https://github.com/ons96/LLM-API-Key-Proxy/commits/main)
+
 ## Core Feature: Agentic Coding with Automatic Fallback
 
 **WORKING VIRTUAL MODEL:** Use `coding-elite` for agentic coding tasks with automatic fallback between free providers.
