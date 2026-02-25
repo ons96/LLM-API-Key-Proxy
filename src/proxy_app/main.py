@@ -1,3 +1,31 @@
+"""
+LLM API Proxy - Main Entry Point
+
+A FastAPI-based gateway that routes LLM API requests through multiple
+providers with automatic fallback and credential rotation.
+
+Features:
+- Virtual models with automatic fallback chains
+- Multi-provider support (Groq, Gemini, G4F, etc.)
+- Free-tier operation by default
+- OAuth credential management for CLI-based providers
+- Request logging and telemetry
+
+Usage:
+    python main.py                           # Interactive TUI launcher
+    python main.py --host 0.0.0.0 --port 8000  # Direct server start
+    python main.py --add-credential          # OAuth credential tool
+    python main.py --enable-request-logging  # With debug logging
+
+Environment Variables:
+    PROXY_API_KEY: Authentication key for the proxy (optional)
+    GROQ_API_KEY_N: Groq API keys (N=1,2,3...)
+    GEMINI_API_KEY_N: Gemini API keys (optional)
+    LOG_LEVEL: Logging verbosity (default: INFO)
+
+See AGENTS.md and docs/ for more documentation.
+"""
+
 import time
 
 # Phase 1: Minimal imports for arg parsing and TUI

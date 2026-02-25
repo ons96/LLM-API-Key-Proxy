@@ -1,3 +1,21 @@
+"""
+Provider URL Construction
+
+Handles construction of provider-specific API endpoint URLs.
+Maps provider names to their base URLs and constructs full endpoints
+for chat completions, embeddings, and other API operations.
+
+Supports:
+- Hardcoded provider URL map for known providers
+- Custom OpenAI-compatible providers via {PROVIDER}_API_BASE env vars
+- Provider-specific endpoint path variations
+
+Example:
+    get_provider_endpoint('groq', 'llama-3.3-70b', '/v1/chat/completions')
+    # Returns: 'https://api.groq.com/openai/v1/chat/completions'
+
+"""
+
 import os
 from typing import Optional
 

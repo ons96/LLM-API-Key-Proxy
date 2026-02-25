@@ -1,3 +1,24 @@
+"""
+Rotator Library - LLM Provider Abstraction Layer
+
+Provides a unified interface for interacting with multiple LLM providers
+with automatic credential rotation, usage tracking, and rate limit handling.
+
+Key Components:
+    RotatingClient: Main client for making LLM requests with automatic failover
+    PROVIDER_PLUGINS: Registry of available provider adapters
+    ModelInfoService: Service for retrieving model metadata
+
+Providers are auto-discovered from the providers/ package and registered
+in PROVIDER_PLUGINS dict on import.
+
+Example:
+    from rotator_library import RotatingClient
+    client = RotatingClient()
+    response = await client.chat_completions(...)
+
+"""
+
 from typing import TYPE_CHECKING, Dict, Type
 
 from .client import RotatingClient
