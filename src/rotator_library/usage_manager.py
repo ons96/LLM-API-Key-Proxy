@@ -1,3 +1,23 @@
+"""
+Usage Manager - Credential Usage Tracking and Rate Limiting
+
+Manages usage statistics and cooldowns for API keys with asyncio-safe locking,
+asynchronous file I/O, and weighted random credential rotation.
+
+Key Features:
+- Per-credential usage tracking with configurable windows
+- Automatic cooldown after rate limits
+- Weighted random rotation for load balancing
+- Persistent state storage (JSON files)
+- Model quota groups for shared limits
+
+Usage Windows:
+- Rate limit windows (short, e.g., 60 seconds)
+- Daily quotas (long, e.g., 24 hours)
+- Provider-specific custom windows
+
+"""
+
 import json
 import os
 import time

@@ -1,3 +1,21 @@
+"""
+Credential Management Tool
+
+Interactive CLI tool for managing OAuth credentials for LLM providers.
+Supports adding, listing, and removing credentials for providers that
+require OAuth authentication (Gemini CLI, Qwen Code, iFlow, etc.).
+
+Usage:
+    python main.py --add-credential
+
+Features:
+- Interactive credential addition with provider selection
+- OAuth token refresh support
+- Credential listing and validation
+- Integration with .env file for API keys
+
+"""
+
 # src/rotator_library/credential_tool.py
 
 import asyncio
