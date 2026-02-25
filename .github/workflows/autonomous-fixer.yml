@@ -1,0 +1,67 @@
+name: 🤖 Autonomous AI Fixer
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue to fix'
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  solve:
+    if: contains(github.event.comment.body, '/fix') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- ATTEMPT 1: KILO GATEWAY GLM-5 ---
+      - name: 🛠️ Attempt 1 (Kilo: GLM-5)
+        id: try_kilo_glm
+        continue-on-error: true
+        uses: anomalyco/opencode/github@latest
+        env:
+          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+        with:
+          model: kilocode/glm-5-free
+          args: "fix issue #${{ github.event.issue.number || github.event.inputs.issue_number }}"
+
+      # --- ATTEMPT 2: KILO GATEWAY MINIMAX M2.5 ---
+      - name: 🔄 Attempt 2 (Kilo: MiniMax M2.5)
+        if: steps.try_kilo_glm.outcome == 'failure'
+        id: try_kilo_minimax
+        continue-on-error: true
+        uses: anomalyco/opencode/github@latest
+        env:
+          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+        with:
+          model: kilocode/minimax-m2.5-free
+          args: "fix issue #${{ github.event.issue.number || github.event.inputs.issue_number }}"
+
+      # --- ATTEMPT 3: OPENCODE ZEN MINIMAX M2.5 ---
+      - name: 🚨 Attempt 3 (Zen: MiniMax M2.5)
+        if: steps.try_kilo_minimax.outcome == 'failure'
+        uses: anomalyco/opencode/github@latest
+        env:
+          OPENCODE_API_KEY: ${{ secrets.ZEN_API_KEY }}
+        with:
+          model: opencode/minimax-m2.5-free
+          args: "fix issue #${{ github.event.issue.number || github.event.inputs.issue_number }}"
+
+      # --- FINAL STEP: AUTOMATIC MERGE ---
+      - name: ✅ Enable Auto-Merge
+        if: success()
+        run: |
+          # Finds the PR linked to this specific issue
+          PR_URL=$(gh pr list --search "fixes #${{ github.event.issue.number || github.event.inputs.issue_number }}" --limit 1 --json url --jq '.[0].url')
+          if [ -n "$PR_URL" ]; then
+            gh pr merge --auto --squash "$PR_URL"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
