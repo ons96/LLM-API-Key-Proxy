@@ -31,15 +31,17 @@ jobs:
         
     - name: Run leaderboard scrapers
       run: |
-        # Copy the working scraper from llm-leaderboard
-        python -c "
-import sys
-sys.path.insert(0, '/home/owens/CodingProjects/llm-leaderboard')
-from llm_aggregated_leaderboard import main
-import sys
-sys.argv = ['scraper', '--output-json', 'config/scraped_leaderboard_data.json']
-main()
-" || echo "Note: Running scrapers from local copy"
+        # Fixed Python execution logic
+        python3 -c "
+        import sys
+        sys.path.insert(0, '/home/owens/CodingProjects/llm-leaderboard')
+        try:
+            from llm_aggregated_leaderboard import main
+            sys.argv = ['scraper', '--output-json', 'config/scraped_leaderboard_data.json']
+            main()
+        except ImportError:
+            print('Note: Running scrapers from local copy')
+        "
         
         # Fallback: run if we have the scraper in our repo
         if [ -f "src/rotator_library/llm_aggregated_leaderboard.py" ]; then
@@ -139,3 +141,4 @@ main()
         git config --local user.name "GitHub Action"
         git add config/model_rankings.yaml config/models_dev_data.json
         git diff --staged --quiet || (git commit -m "Update model rankings - $(date -u +%Y-%m-%d)" && git push)
+        
