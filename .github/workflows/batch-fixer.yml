@@ -38,7 +38,10 @@ jobs:
           echo "count=$COUNT" >> $GITHUB_OUTPUT
           
           MATRIX=$(echo "$ISSUES" | jq '{include: .[] | {issue: .}}')
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          # Use multiline syntax for matrix
+          echo 'matrix<<EOF' >> $GITHUB_OUTPUT
+          echo "$MATRIX" >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
 
   fix-issue:
     needs: collect-issues
