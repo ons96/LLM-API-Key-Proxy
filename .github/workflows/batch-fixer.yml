@@ -40,6 +40,7 @@ jobs:
           
           COUNT=$(echo "$ISSUES" | jq 'length')
           echo "count=$COUNT" >> $GITHUB_OUTPUT
+          echo "DEBUG: count value is $COUNT"
           
           MATRIX=$(echo "$ISSUES" | jq '{include: .[] | {issue: .}}')
           # Use multiline syntax for matrix
@@ -49,7 +50,7 @@ jobs:
 
   fix-issue:
     needs: collect-issues
-    if: needs.collect-issues.outputs.count != '0'
+    if: needs.collect-issues.outputs.count > 0
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
