@@ -3,7 +3,7 @@ name: Batch AI Issue Fixer
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */4 * * *'
+    - cron: '*/30 * * * *'
 
 jobs:
   collect-issues:
@@ -19,6 +19,16 @@ jobs:
             --state open \
             --json number \
             --jq '[.[].number]')
+          
+          # Filter out issues that already have an open PR
+          FILTERED_ISSUES=[]
+          for issue_num in $(echo "$ISSUES" | jq -r '.[]'); do
+            pr_count=$(gh pr list --head "fix/issue-$issue_num" --state open --json number --jq 'length' 2>/dev/null || echo "0")
+            if [ "$pr_count" -eq "0" ]; then
+              FILTERED_ISSUES=$(echo "$FILTERED_ISSUES $issue_num" | tr ' ' '\n' | jq -s '.')
+            fi
+          done
+          ISSUES=$FILTERED_ISSUES
           
           COUNT=$(echo "$ISSUES" | jq 'length')
           echo "count=$COUNT" >> $GITHUB_OUTPUT
