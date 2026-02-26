@@ -1,70 +1,99 @@
-name: 🤖 Autonomous AI Fixer
+name: AI Agent Issue Fixer
+
 on:
   issue_comment:
     types: [created]
   workflow_dispatch:
     inputs:
       issue_number:
-        description: 'Issue to fix'
+        description: 'Issue number to fix'
         required: true
+        type: string
 
 permissions:
   contents: write
-  pull-requests: write
   issues: write
+  pull-requests: write
 
 jobs:
-  solve:
-    if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/fix')) || 
-      github.event_name == 'workflow_dispatch'
+  fix-issue:
     runs-on: ubuntu-latest
+
+    # Only run on issue_comment if the comment contains /fix or /opencode
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' &&
+       contains(github.event.comment.body, '/fix'))
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # --- ATTEMPT 1: KILO GATEWAY GLM-5 ---
-      - name: 🛠️ Attempt 1 (Kilo: GLM-5)
-        id: try_kilo_glm
-        continue-on-error: true
-        uses: anomalyco/opencode/github@latest
+      # Resolve the issue number from whichever trigger fired.
+      # We do this in env FIRST so the # character never touches YAML parsing.
+      - name: Resolve issue number
+        id: resolve
         env:
-          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
-        with:
-          model: kilocode/glm-5-free
-          args: fix issue #${{ github.event.issue.number || inputs.issue_number }}
-
-      # --- ATTEMPT 2: KILO GATEWAY MINIMAX M2.5 ---
-      - name: 🔄 Attempt 2 (Kilo: MiniMax M2.5)
-        if: steps.try_kilo_glm.outcome == 'failure'
-        id: try_kilo_minimax
-        continue-on-error: true
-        uses: anomalyco/opencode/github@latest
-        env:
-          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
-        with:
-          model: kilocode/minimax-m2.5-free
-          args: fix issue #${{ github.event.issue.number || inputs.issue_number }}
-
-      # --- ATTEMPT 3: OPENCODE ZEN MINIMAX M2.5 ---
-      - name: 🚨 Attempt 3 (Zen: MiniMax M2.5)
-        if: steps.try_kilo_minimax.outcome == 'failure'
-        uses: anomalyco/opencode/github@latest
-        env:
-          OPENCODE_API_KEY: ${{ secrets.ZEN_API_KEY }}
-        with:
-          model: opencode/minimax-m2.5-free
-          args: fix issue #${{ github.event.issue.number || inputs.issue_number }}
-
-      # --- FINAL STEP: AUTOMATIC MERGE ---
-      - name: ✅ Enable Auto-Merge
-        if: success()
+          COMMENT_ISSUE: ${{ github.event.issue.number }}
+          DISPATCH_ISSUE: ${{ inputs.issue_number }}
         run: |
-          ISSUE_NUM="${{ github.event.issue.number || inputs.issue_number }}"
-          PR_URL=$(gh pr list --search "fixes #$ISSUE_NUM" --limit 1 --json url --jq '.[0].url')
-          if [ -n "$PR_URL" ]; then
-            gh pr merge --auto --squash "$PR_URL"
+          if [ -n "$COMMENT_ISSUE" ]; then
+            echo "issue_number=$COMMENT_ISSUE" >> "$GITHUB_OUTPUT"
           else
-            echo "No PR found linking to issue #$ISSUE_NUM"
+            echo "issue_number=$DISPATCH_ISSUE" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Run OpenCode Agent
+        uses: opencode-ai/opencode-action@v1
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          model: 'anthropic/claude-sonnet-4-5'
+          prompt: >
+            Fix issue number ${{ steps.resolve.outputs.issue_number }}
+            in this repository. Investigate the root cause, implement
+            a fix, commit the changes to a new branch, and open a
+            pull request referencing the issue.
+
+      # Auto-merge the PR if all checks pass (requires branch protection
+      # rules to allow auto-merge, or use merge-queue).
+      - name: Enable auto-merge on new PR
+        if: success()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUM: ${{ steps.resolve.outputs.issue_number }}
+        run: |
+          set -euo pipefail
+
+          echo "Looking for PR linked to issue #${ISSUE_NUM}..."
+
+          # Poll up to 3 minutes for OpenCode to open the PR
+          PR_URL=""
+          for i in $(seq 1 18); do
+            PR_URL=$(gh pr list \
+              --state open \
+              --json number,headRefName,url \
+              --jq \
+                ".[] | select(.headRefName | test("${ISSUE_NUM}")) | .url" \
+              | head -n 1)
+
+            if [ -n "$PR_URL" ]; then
+              echo "Found PR: $PR_URL"
+              break
+            fi
+
+            echo "Waiting for PR... attempt $i/18"
+            sleep 10
+          done
+
+          if [ -z "$PR_URL" ]; then
+            echo "No PR found for issue #${ISSUE_NUM} after 3 minutes. Skipping auto-merge."
+            exit 0
+          fi
+
+          gh pr merge "$PR_URL" \
+            --auto \
+            --squash \
+            --delete-branch
