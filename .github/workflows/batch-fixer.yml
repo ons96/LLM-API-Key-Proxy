@@ -6,321 +6,82 @@ on:
     - cron: '*/30 * * * *'
 
 jobs:
-  collect-issues:
+  fix-issues:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
-    outputs:
-      count: ${{ steps.issues.outputs.count }}
-      matrix: ${{ steps.issues.outputs.matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Collect open issues
-        id: issues
+
+      - name: Collect and fix issues
         run: |
-          ISSUES=$(gh issue list \
-            --state open \
-            --json number \
-            --jq '[.[].number]')
-          
-          # Filter out issues that already have an open PR
-          FILTERED_ISSUES=[]
-          for issue_num in $(echo "$ISSUES" | jq -r '.[]'); do
-            pr_count=$(gh pr list --head "fix/issue-$issue_num" --state open --json number --jq 'length' 2>/dev/null || echo "0")
-            if [ "$pr_count" -eq "0" ]; then
-              FILTERED_ISSUES=$(echo "$FILTERED_ISSUES $issue_num" | tr ' ' '\n' | jq -s '.')
-            fi
-          done
-          # For now, just use all issues without filtering
-          ISSUES=$(gh issue list \
-            --state open \
-            --json number \
-            --jq '[.[].number]')
-          
+          # Get list of open issues
+          ISSUES=$(gh issue list --state open --json number --jq '[.[].number]')
           COUNT=$(echo "$ISSUES" | jq 'length')
-          echo "count=$COUNT" >> $GITHUB_OUTPUT
-          echo "DEBUG: count value is $COUNT"
+          echo "Found $COUNT open issues"
           
-          MATRIX=$(echo "$ISSUES" | jq '{include: .[] | {issue: .}}')
-          # Use multiline syntax for matrix
-          echo 'matrix<<EOF' >> $GITHUB_OUTPUT
-          echo "$MATRIX" >> $GITHUB_OUTPUT
-          echo 'EOF' >> $GITHUB_OUTPUT
-
-  fix-issue:
-    needs: collect-issues
-
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      max-parallel: 20
-      matrix:
-        issue: ${{ fromJson(needs.collect-issues.outputs.matrix).include[*].issue }}
-    env:
-      ISSUE_NUM: ${{ matrix.issue }}
-      GH_TOKEN: ${{ github.token }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build prompt
-        run: |
-          set -euo pipefail
-          {
-            echo "You are an expert software engineer."
-            echo "Fix GitHub issue #${ISSUE_NUM} in this repository."
-            echo "Title: $(gh issue view "$ISSUE_NUM" --json title --jq '.title')"
-            echo ""
-            echo "Description:"
-            gh issue view "$ISSUE_NUM" --json body --jq '.body' | head -c 1500
-            echo ""
-            echo "Instructions:"
-            echo "1. Identify the root cause."
-            echo "2. Implement the minimal correct fix."
-            echo "3. Write clean, well-commented code."
-            echo "4. Explain what you changed and why."
-          } > prompt.txt
-
-      - name: Build JSON payload
-        run: |
-          python3 - << 'PYEOF'
-          import json
-          with open('prompt.txt') as f:
-              content = f.read()
-          payload = {
-              "max_tokens": 8192,
-              "messages": [{"role": "user", "content": content}]
-          }
-          with open('base_payload.json', 'w') as f:
-              json.dump(payload, f)
-          PYEOF
-
-      - name: Try Kilo Kimi K2.5 free
-        id: m1
-        continue-on-error: true
-        env:
-          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
-        run: |
-          set -euo pipefail
-          PAYLOAD=$(python3 -c "
-          import json
-          with open('base_payload.json') as f: p = json.load(f)
-          p['model'] = 'moonshotai/kimi-k2.5:free'
-          print(json.dumps(p))
-          ")
-          RESP=$(curl -sf --max-time 180 \
-            -X POST "https://api.kilo.ai/v1/chat/completions" \
-            -H "Authorization: Bearer $KILOCODE_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD")
-          echo "$RESP" | jq -r '.choices[0].message.content' > agent_output.txt
-          echo "SUCCESS via Kilo Kimi K2.5"
-
-      - name: Try Kilo Step 3.5 Flash free
-        id: m2
-        if: steps.m1.outcome == 'failure'
-        continue-on-error: true
-        env:
-          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
-        run: |
-          set -euo pipefail
-          PAYLOAD=$(python3 -c "
-          import json
-          with open('base_payload.json') as f: p = json.load(f)
-          p['model'] = 'stepfun/step-3.5-flash:free'
-          print(json.dumps(p))
-          ")
-          RESP=$(curl -sf --max-time 180 \
-            -X POST "https://api.kilo.ai/v1/chat/completions" \
-            -H "Authorization: Bearer $KILOCODE_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD")
-          echo "$RESP" | jq -r '.choices[0].message.content' > agent_output.txt
-          echo "SUCCESS via Kilo Step 3.5 Flash"
-
-      - name: Try Kilo MiniMax M2.5 free
-        id: m3
-        if: steps.m1.outcome == 'failure' && steps.m2.outcome == 'failure'
-        continue-on-error: true
-        env:
-          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
-        run: |
-          set -euo pipefail
-          PAYLOAD=$(python3 -c "
-          import json
-          with open('base_payload.json') as f: p = json.load(f)
-          p['model'] = 'minimax/minimax-m2.5:free'
-          print(json.dumps(p))
-          ")
-          RESP=$(curl -sf --max-time 180 \
-            -X POST "https://api.kilo.ai/v1/chat/completions" \
-            -H "Authorization: Bearer $KILOCODE_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD")
-          echo "$RESP" | jq -r '.choices[0].message.content' > agent_output.txt
-          echo "SUCCESS via Kilo MiniMax M2.5"
-
-      - name: Try Zen MiniMax M2.5 free
-        id: m4
-        if: >
-          steps.m1.outcome == 'failure' &&
-          steps.m2.outcome == 'failure' &&
-          steps.m3.outcome == 'failure'
-        continue-on-error: true
-        env:
-          ZEN_API_KEY: ${{ secrets.ZEN_API_KEY }}
-        run: |
-          set -euo pipefail
-          PAYLOAD=$(python3 -c "
-          import json
-          with open('base_payload.json') as f: p = json.load(f)
-          p['model'] = 'opencode/minimax-m2.5-free'
-          print(json.dumps(p))
-          ")
-          RESP=$(curl -sf --max-time 180 \
-            -X POST "https://opencode.ai/zen/v1/chat/completions" \
-            -H "Authorization: Bearer $ZEN_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD")
-          echo "$RESP" | jq -r '.choices[0].message.content' > agent_output.txt
-          echo "SUCCESS via Zen MiniMax M2.5"
-
-      - name: Try Kilo GLM 4.7 free
-        id: m5
-        if: >
-          steps.m1.outcome == 'failure' &&
-          steps.m2.outcome == 'failure' &&
-          steps.m3.outcome == 'failure' &&
-          steps.m4.outcome == 'failure'
-        continue-on-error: true
-        env:
-          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
-        run: |
-          set -euo pipefail
-          PAYLOAD=$(python3 -c "
-          import json
-          with open('base_payload.json') as f: p = json.load(f)
-          p['model'] = 'z.ai/glm-4.7:free'
-          print(json.dumps(p))
-          ")
-          RESP=$(curl -sf --max-time 180 \
-            -X POST "https://api.kilo.ai/v1/chat/completions" \
-            -H "Authorization: Bearer $KILOCODE_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD")
-          echo "$RESP" | jq -r '.choices[0].message.content' > agent_output.txt
-          echo "SUCCESS via Kilo GLM 4.7"
-
-      - name: Try Kilo Trinity Large Preview free
-        id: m6
-        if: >
-          steps.m1.outcome == 'failure' &&
-          steps.m2.outcome == 'failure' &&
-          steps.m3.outcome == 'failure' &&
-          steps.m4.outcome == 'failure' &&
-          steps.m5.outcome == 'failure'
-        continue-on-error: true
-        env:
-          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
-        run: |
-          set -euo pipefail
-          PAYLOAD=$(python3 -c "
-          import json
-          with open('base_payload.json') as f: p = json.load(f)
-          p['model'] = 'arceeai/trinity-large-preview:free'
-          print(json.dumps(p))
-          ")
-          RESP=$(curl -sf --max-time 180 \
-            -X POST "https://api.kilo.ai/v1/chat/completions" \
-            -H "Authorization: Bearer $KILOCODE_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD")
-          echo "$RESP" | jq -r '.choices[0].message.content' > agent_output.txt
-          echo "SUCCESS via Kilo Trinity Large Preview"
-
-      - name: Abort if all models failed
-        if: >
-          steps.m1.outcome == 'failure' &&
-          steps.m2.outcome == 'failure' &&
-          steps.m3.outcome == 'failure' &&
-          steps.m4.outcome == 'failure' &&
-          steps.m5.outcome == 'failure' &&
-          steps.m6.outcome == 'failure'
-        run: |
-          echo "All free LLMs exhausted for issue #${ISSUE_NUM}. Will retry on next cron run."
-          exit 1
-
-      - name: Commit patch and open PR
-        if: >
-          steps.m1.outcome == 'success' ||
-          steps.m2.outcome == 'success' ||
-          steps.m3.outcome == 'success' ||
-          steps.m4.outcome == 'success' ||
-          steps.m5.outcome == 'success' ||
-          steps.m6.outcome == 'success'
-        run: |
-          set -euo pipefail
-          BRANCH="fix/issue-${ISSUE_NUM}"
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git checkout -b "$BRANCH" 2>/dev/null || git checkout "$BRANCH"
-
-          mkdir -p .github/agent-patches
-          cp agent_output.txt ".github/agent-patches/issue-${ISSUE_NUM}.md"
-
-          git add -A
-          if git diff --staged --quiet; then
-            echo "Nothing to commit for issue #${ISSUE_NUM}."
-            exit 0
-          fi
-
-          git commit -m "fix: AI agent patch for issue #${ISSUE_NUM}"
-          git push origin "$BRANCH" --force-with-lease
-
-          EXISTING=$(gh pr list --head "$BRANCH" \
-            --json number --jq '.[0].number' 2>/dev/null || true)
-          if [ -z "$EXISTING" ]; then
-            cat > pr_body.md << 'EOF'
-            Closes #${ISSUE_NUM}
-
-            Auto-generated by Batch AI Issue Fixer.
-            See `.github/agent-patches/issue-${ISSUE_NUM}.md` for AI reasoning.
+          # Process each issue
+          for issue_num in $(echo "$ISSUES" | jq -r '.[]'); do
+            echo "Processing issue #$issue_num"
+            
+            # Build prompt
+            cat > prompt.txt << EOF
+            You are an expert software engineer.
+            Fix GitHub issue #${issue_num} in this repository.
+            Title: $(gh issue view "$issue_num" --json title --jq '.title')
+            
+            Description:
+            $(gh issue view "$issue_num" --json body --jq '.body' | head -c 1500)
+            
+            Instructions:
+            1. Identify the root cause.
+            2. Implement the minimal correct fix.
+            3. Write clean code.
+            4. Explain what you changed and why.
             EOF
-
-            gh pr create \
-              --title "fix: resolve issue #${ISSUE_NUM}" \
-              --body-file pr_body.md \
-              --head "$BRANCH" \
-              --base main
-          else
-            echo "PR #$EXISTING already exists. Skipping."
-          fi
-
-      - name: Enable auto-merge
-        if: >
-          steps.m1.outcome == 'success' ||
-          steps.m2.outcome == 'success' ||
-          steps.m3.outcome == 'success' ||
-          steps.m4.outcome == 'success' ||
-          steps.m5.outcome == 'success' ||
-          steps.m6.outcome == 'success'
-        run: |
-          set -euo pipefail
-          BRANCH="fix/issue-${ISSUE_NUM}"
-          PR_URL=""
-          for i in $(seq 1 12); do
-            PR_URL=$(gh pr list \
-              --state open \
-              --json headRefName,url \
-              --jq ".[] | select(.headRefName==\"${BRANCH}\") | .url" \
-              | head -n 1)
-            [ -n "$PR_URL" ] && break
-            sleep 10
+            
+            # Call AI API (Kilo Kimi K2.5 free)
+            PAYLOAD=$(python3 -c "
+            import json
+            with open('prompt.txt') as f: content = f.read()
+            payload = {
+                'model': 'moonshotai/kimi-k2.5:free',
+                'max_tokens': 8192,
+                'messages': [{'role': 'user', 'content': content}]
+            }
+            print(json.dumps(payload))
+            ")
+            
+            RESP=$(curl -sf --max-time 180 \
+              -X POST "https://api.kilo.ai/v1/chat/completions" \
+              -H "Authorization: Bearer $KILOCODE_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD") || echo "API call failed"
+            
+            if [ -n "$RESP" ]; then
+              echo "$RESP" | jq -r '.choices[0].message.content' > agent_output.txt
+              
+              # Create branch and PR
+              BRANCH="fix/issue-${issue_num}"
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git checkout -b "$BRANCH" 2>/dev/null || git checkout "$BRANCH"
+              
+              mkdir -p .github/agent-patches
+              cp agent_output.txt ".github/agent-patches/issue-${issue_num}.md"
+              
+              git add -A
+              if ! git diff --staged --quiet; then
+                git commit -m "fix: AI agent patch for issue #${issue_num}" || true
+                git push origin "$BRANCH" --force-with-lease || true
+                
+                # Create PR
+                gh pr create --title "fix: resolve issue #${issue_num}" \
+                  --body "Closes #${issue_num}" \
+                  --head "$BRANCH" --base main || true
+              fi
+            fi
+            
+            echo "Finished issue #$issue_num"
           done
-          if [ -n "$PR_URL" ]; then
-            gh pr merge "$PR_URL" --auto --squash --delete-branch
-          fi
