@@ -32,7 +32,11 @@ jobs:
               FILTERED_ISSUES=$(echo "$FILTERED_ISSUES $issue_num" | tr ' ' '\n' | jq -s '.')
             fi
           done
-          ISSUES=$FILTERED_ISSUES
+          # For now, just use all issues without filtering
+          ISSUES=$(gh issue list \
+            --state open \
+            --json number \
+            --jq '[.[].number]')
           
           COUNT=$(echo "$ISSUES" | jq 'length')
           echo "count=$COUNT" >> $GITHUB_OUTPUT
