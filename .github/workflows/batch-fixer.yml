@@ -50,7 +50,7 @@ jobs:
 
   fix-issue:
     needs: collect-issues
-    if: needs.collect-issues.outputs.count > 0
+    if: needs.collect-issues.outputs.count != ''
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
