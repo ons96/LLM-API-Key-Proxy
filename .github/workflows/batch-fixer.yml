@@ -39,7 +39,7 @@ jobs:
             2. Implement the minimal correct fix.
             3. Write clean code.
             4. Explain what you changed and why.
-            EOF
+
 
             # Get issue details separately
             ISSUE_TITLE=$(gh issue view "$issue_num" --json title --jq '.title')
