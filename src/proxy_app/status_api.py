@@ -8,14 +8,9 @@ FastAPI endpoints for accessing provider health status information.
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from typing import Dict, Any, List
-import csv
-import io
 import logging
 
 from rotator_library.provider_status_tracker import ProviderStatusTracker
-
-# Module-level status tracker instance
-status_tracker = ProviderStatusTracker()
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -83,6 +78,8 @@ async def get_single_provider_status(
 
         return provider_data
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get status for {provider_name}: {e}")
         raise HTTPException(
@@ -167,6 +164,8 @@ async def get_single_provider_history(
 
         return history
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get history for {provider_name}: {e}")
         raise HTTPException(
@@ -199,82 +198,5 @@ async def export_provider_status_csv(
             },
         )
     except Exception as e:
-        logger.error(f"Failed to export provider status to CSV: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to export provider status: {e}"
-        )
-
-
-@router.get("/health")
-async def health_check_endpoint(
-    request: Request, tracker: ProviderStatusTracker = Depends(get_status_tracker)
-) -> Dict[str, Any]:
-    """
-    Health check endpoint for the status tracker itself.
-
-    Returns:
-        JSON with tracker status and basic info
-    """
-    try:
-        return {
-            "status": "healthy",
-            "providers_monitored": len(tracker.providers_to_monitor),
-            "check_interval_minutes": tracker.check_interval_minutes,
-            "running": tracker.running,
-        }
-    except Exception as e:
-        logger.error(f"Status tracker health check failed: {e}")
-        return {"status": "degraded", "error": str(e)}
-
-
-# Integration function for router logic
-def get_healthiest_provider(tracker: ProviderStatusTracker) -> str:
-    """
-    Get the healthiest provider for routing decisions.
-
-    Args:
-        tracker: ProviderStatusTracker instance
-
-    Returns:
-        Name of the healthiest provider, or None if no healthy providers available
-    """
-    try:
-        best_provider_info = tracker.get_best_provider()
-        return best_provider_info.get("best_provider")
-    except Exception as e:
-        logger.error(f"Failed to get healthiest provider: {e}")
-        return None
-
-
-# Function to initialize the status tracker
-def initialize_status_tracker(app) -> ProviderStatusTracker:
-    """
-    Initialize the provider status tracker and add it to the app state.
-
-    Args:
-        app: FastAPI application instance
-
-    Returns:
-        Initialized ProviderStatusTracker instance
-    """
-    try:
-        # Create tracker instance
-        tracker = ProviderStatusTracker(
-            check_interval_minutes=5,  # Default: 5 minutes
-            max_consecutive_failures=3,  # Default: 3 failures before marking as down
-            degraded_latency_threshold_ms=1000,  # Default: 1000ms for degraded status
-        )
-
-        # Add to app state
-        app.state.provider_status_tracker = tracker
-
-        # Start the tracker
-        tracker.start()
-
-        logger.info("Provider status tracker initialized and started")
-
-        return tracker
-
-    except Exception as e:
-        logger.error(f"Failed to initialize provider status tracker: {e}")
-        raise
+        logger.error(f"Failed to export CSV: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to export CSV: {e}")
