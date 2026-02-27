@@ -1,3 +1,4 @@
+=== FILE: src/rotator_library/scoring_engine.py ===
 """Dynamic Model Scoring Engine
 
 Calculates real-time scores for models based on agentic coding performance,
@@ -627,3 +628,112 @@ class DynamicScoringEngine:
             return SkipCondition.DOWN.value
         
         return None
+=== END FILE ===
+=== FILE: config/scoring_config.yaml ===
+# Scoring Configuration
+# Defines formulas and weights for dynamic provider/model ranking
+# Part of Phase 2.2: Scoring Algorithm
+
+scoring:
+  virtual_models:
+    name: "Virtual Models (coding-elite, chat-smart, etc.)"
+    description: "Virtual models use Agentic(70%) + TPS(30%), Availability is yes/no filter"
+    weights:
+      agentic_score: 0.70
+      tps_score: 0.30
+      availability_score: 0.0
+    use_case: "For agentic coding and general chat - quality first, then speed"
+
+  specific_models:
+    name: "Specific Models (user-specified like gemini-3-pro)"
+    description: "Specific models use TPS(70%) + Agentic(30%), Availability is yes/no filter"
+    weights:
+      tps_score: 0.70
+      agentic_score: 0.30
+      availability_score: 0.0
+    use_case: "Fastest provider first for user-specified models"
+
+  roleplay:
+    name: "Roleplay Models (chat-rp)"
+    description: "Roleplay models prioritize response time (TPS) heavily"
+    weights:
+      tps_score: 0.80
+      agentic_score: 0.20
+      availability_score: 0.0
+    use_case: "For NSFW RP - max fallbacks with lowest latency priority"
+
+  availability:
+    description: "Availability is yes/no filter, not a scoring factor"
+    consecutive_failures_threshold: 5
+    failure_rate_threshold: 0.50
+    health_check_interval_seconds: 300
+    # Skip conditions - models matching these are excluded from ranking
+    skip_conditions:
+      rate_limited:
+        name: "Rate Limited"
+        description: "Provider is currently rate limited (429 response)"
+        reset: "Based on provider reset window (usually 1 minute)"
+        score_impact: "excluded"
+
+      usage_limit:
+        name: "Usage Limit Exceeded"
+        description: "Daily or monthly quota exhausted"
+        reset: "Daily at midnight UTC, monthly at month start"
+        score_impact: "excluded"
+
+      unhealthy:
+        name: "Unhealthy Provider"
+        description: "Health check failed or consecutive failures > 5"
+        reset: "On successful API call or health check"
+        score_impact: "excluded"
+
+      down:
+        name: "Provider Down"
+        description: "Provider API unreachable (failure rate > 50%)"
+        reset: "On successful connection"
+        score_impact: "excluded"
+
+  tps:
+    description: "Tokens per second normalization"
+    max_observed_tps: 3000
+    measurement_window_minutes: 60
+    normalization: "linear_scale_to_0_100"
+
+  agentic:
+    description: "Agentic coding scores from SWE-bench benchmarks"
+    source_file: config/model_rankings.yaml
+    score_range: 0-100
+
+  hallucination:
+    description: "Hallucination rate penalty"
+    score_range: 0-100
+    # Penalty is subtracted from total score
+    # 0% hallucination = 0 penalty, 100% hallucination = max penalty
+    max_penalty_weight: 0.20
+
+  thresholds:
+    # Minimum scores for models to be considered viable
+    # Models below threshold are flagged but still usable
+    coding-elite: 75.0
+    coding-smart: 65.0
+    coding-fast: 40.0
+    chat-elite: 0.0
+    chat-smart: 0.0
+    chat-fast: 0.0
+    chat-rp: 0.0
+
+# Weight calculation formula:
+# total_score = (agentic_weight * agentic_score) + 
+#               (tps_weight * tps_score) + 
+#               (intelligence_weight * intelligence_score) -
+#               (hallucination_weight * hallucination_penalty)
+#
+# Where:
+# - agentic_score: SWE-bench agentic coding benchmark (0-100)
+# - intelligence_score: General intelligence benchmark (0-100) 
+# - tps_score: Normalized tokens per second (0-100)
+# - hallucination_penalty: Rate * penalty_weight (0-100)
+#
+# Availability is a binary filter - available models are scored,
+# unavailable models are excluded from ranking entirely.
+=== END FILE ===

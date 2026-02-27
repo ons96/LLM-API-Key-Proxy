@@ -1,5 +1,6 @@
 # Scoring Configuration
 # Defines formulas and weights for dynamic provider/model ranking
+# Part of Phase 2.2: Scoring Algorithm
 
 scoring:
   virtual_models:
@@ -34,34 +35,72 @@ scoring:
     consecutive_failures_threshold: 5
     failure_rate_threshold: 0.50
     health_check_interval_seconds: 300
+    # Skip conditions - models matching these are excluded from ranking
+    skip_conditions:
+      rate_limited:
+        name: "Rate Limited"
+        description: "Provider is currently rate limited (429 response)"
+        reset: "Based on provider reset window (usually 1 minute)"
+        score_impact: "excluded"
+
+      usage_limit:
+        name: "Usage Limit Exceeded"
+        description: "Daily or monthly quota exhausted"
+        reset: "Daily at midnight UTC, monthly at month start"
+        score_impact: "excluded"
+
+      unhealthy:
+        name: "Unhealthy Provider"
+        description: "Health check failed or consecutive failures > 5"
+        reset: "On successful API call or health check"
+        score_impact: "excluded"
+
+      down:
+        name: "Provider Down"
+        description: "Provider API unreachable (failure rate > 50%)"
+        reset: "On successful connection"
+        score_impact: "excluded"
 
   tps:
     description: "Tokens per second normalization"
     max_observed_tps: 3000
     measurement_window_minutes: 60
+    normalization: "linear_scale_to_0_100"
 
   agentic:
     description: "Agentic coding scores from SWE-bench benchmarks"
     source_file: config/model_rankings.yaml
+    score_range: 0-100
 
-# Auto-skip conditions (score = 0, excluded from ranking)
-skip_conditions:
-  rate_limited:
-    name: "Rate Limited"
-    description: "Provider is currently rate limited (429 response)"
-    reset: "Based on provider reset window (usually 1 minute)"
+  hallucination:
+    description: "Hallucination rate penalty"
+    score_range: 0-100
+    # Penalty is subtracted from total score
+    # 0% hallucination = 0 penalty, 100% hallucination = max penalty
+    max_penalty_weight: 0.20
 
-  usage_limit:
-    name: "Usage Limit Exceeded"
-    description: "Daily or monthly quota exhausted"
-    reset: "Daily at midnight UTC, monthly at month start"
+  thresholds:
+    # Minimum scores for models to be considered viable
+    # Models below threshold are flagged but still usable
+    coding-elite: 75.0
+    coding-smart: 65.0
+    coding-fast: 40.0
+    chat-elite: 0.0
+    chat-smart: 0.0
+    chat-fast: 0.0
+    chat-rp: 0.0
 
-  unhealthy:
-    name: "Unhealthy Provider"
-    description: "Health check failed or consecutive failures > 5"
-    reset: "On successful API call or health check"
-
-  down:
-    name: "Provider Down"
-    description: "Provider API unreachable (5+ consecutive failures)"
-    reset: "On successful connection"
+# Weight calculation formula:
+# total_score = (agentic_weight * agentic_score) + 
+#               (tps_weight * tps_score) + 
+#               (intelligence_weight * intelligence_score) -
+#               (hallucination_weight * hallucination_penalty)
+#
+# Where:
+# - agentic_score: SWE-bench agentic coding benchmark (0-100)
+# - intelligence_score: General intelligence benchmark (0-100) 
+# - tps_score: Normalized tokens per second (0-100)
+# - hallucination_penalty: Rate * penalty_weight (0-100)
+#
+# Availability is a binary filter - available models are scored,
+# unavailable models are excluded from ranking entirely.
