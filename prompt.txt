@@ -1,9 +1,9 @@
 You are an expert software engineer.
-Fix GitHub issue #121 in this repository.
-Title: Quick Wins: Add .env.example comments for each variable
+Fix GitHub issue #120 in this repository.
+Title: Phase 7.2: Create ADR template
 
 Description:
-From Quick Wins section. Add helpful comments to .env.example for each variable.
+Part of Phase 7.2 Developer Documentation. Create Architecture Decision Record template.
 
 Instructions:
 1. Identify the root cause.
