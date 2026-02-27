@@ -1,0 +1,33 @@
+# Logging Configuration
+# Configure log levels for different components of the proxy application.
+# Log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+log_levels:
+  # Root logger level - applies to all loggers not explicitly configured
+  root: INFO
+  
+  # Specific logger levels - override root for specific components
+  loggers:
+    # Proxy Application Components
+    proxy_app: INFO
+    proxy_app.request_logger: INFO
+    proxy_app.detailed_logger: DEBUG
+    proxy_app.router_core: INFO
+    proxy_app.enhanced_proxy: INFO
+    proxy_app.batch_manager: INFO
+    proxy_app.health_checker: INFO
+    
+    # Rotator Library Components
+    rotator_library: INFO
+    rotator_library.failure_logger: INFO
+    rotator_library.credential_manager: WARNING
+    rotator_library.provider_factory: INFO
+    rotator_library.leaderboard_updater: INFO
+    rotator_library.live_scraper: INFO
+    
+    # Third-party Libraries (reduce noise)
+    httpx: WARNING
+    httpcore: WARNING
+    uvicorn: INFO
+    fastapi: INFO
+    urllib3: WARNING
