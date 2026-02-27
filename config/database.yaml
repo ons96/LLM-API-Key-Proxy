@@ -1,0 +1,19 @@
+database:
+  # Connection URL - SQLite for development, PostgreSQL for production
+  # SQLite: sqlite:///path/to/db.sqlite
+  # PostgreSQL: postgresql://user:password@host:port/database
+  url: ${DATABASE_URL:-sqlite:///data/rotator_library.db}
+  
+  # Connection pool settings (PostgreSQL only)
+  pool_size: ${DB_POOL_SIZE:-5}
+  max_overflow: ${DB_MAX_OVERFLOW:-10}
+  pool_timeout: ${DB_POOL_TIMEOUT:-30}
+  pool_recycle: ${DB_POOL_RECYCLE:-1800}
+  
+  # SQLite-specific settings
+  sqlite:
+    check_same_thread: false
+  
+  # PostgreSQL-specific settings
+  postgresql:
+    ssl_mode: ${DB_SSL_MODE:-prefer}
