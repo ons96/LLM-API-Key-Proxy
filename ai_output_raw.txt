@@ -1,3 +1,4 @@
+=== FILE: src/rotator_library/providers/provider_cache.py ===
 # src/rotator_library/providers/provider_cache.py
 """
 Shared cache utility for providers.
@@ -867,3 +868,4 @@ class ProviderCache:
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """Async context manager exit."""
         await self.shutdown()
+=== END FILE ===
