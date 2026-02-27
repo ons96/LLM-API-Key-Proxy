@@ -1,3 +1,4 @@
+=== FILE: src/proxy_app/router_core.py ===
 import logging
 import os
 from typing import Dict, Optional, Any, List
@@ -238,3 +239,4 @@ def resolve_virtual_model(
     except Exception as e:
         logger.error(f"Unexpected error in resolve_virtual_model: {e}", exc_info=True)
         return model_name
+=== END FILE ===
