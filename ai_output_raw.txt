@@ -1,0 +1,12 @@
+I'll analyze the codebase to understand how to implement support for Together AI free tier. Let me first explore the existing provider implementations and configuration files.
+=== FILE: src/rotator_library/providers/groq_provider.py ===
+=== END FILE ===
+
+=== FILE: src/rotator_library/providers/cerebras_provider.py ===
+=== END FILE ===
+
+=== FILE: config/providers_database.yaml ===
+=== END FILE ===
+
+=== FILE: config/model_rankings.yaml ===
+=== END FILE ===
