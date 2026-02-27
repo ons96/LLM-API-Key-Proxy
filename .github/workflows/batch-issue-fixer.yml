@@ -63,8 +63,22 @@ jobs:
           MODELS_CONFIG="${MODELS_CONFIG}corethink:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}"
           MODELS_CONFIG=$(printf "%b" "$MODELS_CONFIG")
 
+          gh label create "ai-fix-pending" --color "0075ca" --description "AI fix PR is open" 2>/dev/null || true
+
           for issue_num in $(echo "$BATCH" | tr ',' ' '); do
             echo "=== Processing issue #$issue_num ==="
+
+            ISSUE_STATE=$(gh issue view "$issue_num" --json state --jq '.state' 2>/dev/null || echo "unknown")
+            if [ "$ISSUE_STATE" != "open" ]; then
+              echo "Issue #$issue_num is already closed/resolved, skipping"
+              continue
+            fi
+
+            EXISTING_PR=$(gh pr list --head "fix/issue-${issue_num}" --state open --json number --jq 'length' 2>/dev/null || echo "0")
+            if [ "${EXISTING_PR:-0}" -gt 0 ] 2>/dev/null; then
+              echo "PR already exists for issue #$issue_num, skipping"
+              continue
+            fi
 
             ISSUE_TITLE=$(gh issue view "$issue_num" --json title --jq '.title' 2>/dev/null || echo "Unknown")
             ISSUE_BODY=$(gh issue view "$issue_num" --json body --jq '.body' 2>/dev/null | head -c 2000 || echo "")
@@ -182,13 +196,19 @@ jobs:
             git commit -m "fix: resolve issue #${issue_num} - ${SAFE_TITLE}"
             git push origin "$BRANCH" --force-with-lease || true
 
-            gh pr create \
+            PR_URL=$(gh pr create \
               --title "fix: issue #${issue_num} - ${SAFE_TITLE}" \
               --body "Closes #${issue_num}
 
           AI-generated fix using Kilo Gateway free models." \
               --head "$BRANCH" \
-              --base main || true
+              --base main 2>/dev/null || true)
+
+            if [ -n "$PR_URL" ]; then
+              gh issue comment "$issue_num" --body "🤖 AI fix submitted: $PR_URL — merges automatically when checks pass." || true
+              gh issue edit "$issue_num" --add-label "ai-fix-pending" || true
+              gh pr merge "$PR_URL" --auto --squash --delete-branch || true
+            fi
 
             git checkout main 2>/dev/null || true
             echo "=== Done with issue #$issue_num ==="
