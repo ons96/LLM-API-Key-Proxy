@@ -1,3 +1,4 @@
+--- src/rotator_library/score_engine.py ---
 """
 Scoring engine for dynamic provider/model ranking.
 Combines agentic coding scores and TPS into unified scores.
@@ -53,87 +54,6 @@ class ScoringEngine:
                 return score / 100.0
 
         return 0.5
-
-    def coding_score(self, provider: str, model: str) -> float:
-        """
-        Calculate coding-specific score for a provider+model combination.
-        
-        Part of Phase 2.2 Scoring Algorithm.
-        
-        This function evaluates how suitable a provider+model combination is
-        for coding tasks based on:
-        - Agentic coding capabilities (SWE-bench scores) - primary factor
-        - Provider availability (yes/no filter)
-        - Recent coding task performance metrics
-        
-        Args:
-            provider: The provider identifier (e.g., 'groq', 'openai')
-            model: The model identifier (e.g., 'llama-3.3-70b')
-            
-        Returns:
-            float: Score between 0.0 and 1.0, where:
-                - 0.0 = unavailable or unsuitable for coding
-                - 1.0 = optimal for coding tasks
-        """
-        # Availability is a hard filter
-        if not self.is_provider_available(provider, model):
-            return 0.0
-        
-        # Base score from agentic coding benchmarks (SWE-bench)
-        base_score = self.get_agentic_score(model)
-        
-        # Try to adjust based on recent coding-specific performance
-        try:
-            since = datetime.now() - timedelta(minutes=60)
-            conn = self.telemetry._connect()
-            cursor = conn.cursor()
-            
-            # Look for coding-like requests (heuristic: longer prompts/responses)
-            cursor.execute(
-                """
-                SELECT 
-                    COUNT(*) as total_calls,
-                    SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful_calls,
-                    AVG(CASE WHEN success = 1 THEN tokens_per_second ELSE NULL END) as avg_tps
-                FROM api_calls
-                WHERE provider = ? 
-                  AND model = ? 
-                  AND timestamp >= ?
-                  AND (prompt_length > 800 OR response_length > 400)
-                """,
-                (provider, model, since)
-            )
-            
-            row = cursor.fetchone()
-            conn.close()
-            
-            if row and row[0] > 5:  # Need sufficient sample size
-                total_calls, successful_calls, avg_tps = row
-                success_rate = successful_calls / total_calls if total_calls > 0 else 0.5
-                
-                # Calculate TPS factor (normalized to 0-1, assuming 3000 max)
-                tps_factor = min((avg_tps or 1500) / 3000.0, 1.0)
-                
-                # Blend scores: 60% agentic capability, 25% reliability, 15% speed
-                adjusted_score = (
-                    (base_score * 0.60) + 
-                    (success_rate * 0.25) + 
-                    (tps_factor * 0.15)
-                )
-                
-                logger.debug(
-                    f"Coding score for {provider}/{model}: "
-                    f"Base={base_score:.3f}, SuccessRate={success_rate:.3f}, "
-                    f"TPSFactor={tps_factor:.3f}, Final={adjusted_score:.3f}"
-                )
-                
-                return min(adjusted_score, 1.0)
-                
-        except Exception as e:
-            logger.debug(f"Could not adjust coding score for {provider}/{model}: {e}")
-        
-        # Fallback to base agentic score if telemetry unavailable
-        return base_score
 
     def get_average_tps(self, provider: str, model: str, minutes: int = 60) -> float:
         """Get average TPS from telemetry data."""
@@ -279,24 +199,4 @@ class ScoringEngine:
         providers: List[str],
     ) -> List[Dict[str, Any]]:
         """
-        Rank providers for a specific model.
-        Returns sorted list of {provider, model, score}
-        """
-        candidates = []
 
-        for provider in providers:
-            score = self.calculate_specific_model_score(provider, model)
-
-            if score > 0:  # Only include available providers
-                candidates.append(
-                    {
-                        "provider": provider,
-                        "model": model,
-                        "score": score,
-                    }
-                )
-
-        ranked = sorted(candidates, key=lambda x: x["score"], reverse=True)
-
-        logger.info(f"Ranked {len(ranked)} providers for {model}")
-        return ranked
