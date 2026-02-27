@@ -1,3 +1,4 @@
+=== FILE: src/rotator_library/fetch_artificial_analysis_data.py ===
 import requests
 import pandas as pd
 import json
@@ -295,3 +296,4 @@ if __name__ == "__main__":
             print(f"Failed to fetch data from API. Existing CSV file '{output_csv_path}' (if any) will not be overwritten. Timestamp not updated.")
 
     print("Script finished.")
+=== END FILE ===
