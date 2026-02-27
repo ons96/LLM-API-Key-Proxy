@@ -1,39 +1,88 @@
-aliases:
-  coding:
-    description: Aggregated Leaderboard Top Coding Models
-    strategy: chain_fallback
-    candidates:
-    - provider: g4f
-      model: claude-opus-4-5
-    - provider: gemini
-      model: gemini-3-flash
-    - provider: g4f
-      model: claude-opus-4-6
-    - provider: gemini
-      model: gemini-3-pro
-    - provider: cerebras
-      model: glm-5
-    - provider: together
-      model: deepseek-chat
-  smart:
-    description: Highest Agentic Coding Score
-    strategy: chain_fallback
-    candidates:
-    - provider: gemini
-      model: gemini-3-flash
-    - provider: g4f
-      model: claude-opus-4-5
-    - provider: g4f
-      model: gpt-5-2
-    - provider: gemini
-      model: gemini-3-pro
-  fast:
-    description: Highest TPS (Quality > 40)
-    strategy: chain_fallback
-    candidates:
-    - provider: g4f
-      model: gpt-5-2
-    - provider: gemini
-      model: gemini-3-flash
-    - provider: gemini
-      model: gemini-3-pro
+# Model Aliases Configuration
+# Maps alias names to canonical model identifiers for simplified access
+
+# Global aliases - can be referenced without provider prefix
+# Format: alias: canonical_model_id
+global:
+  # OpenAI shortcuts
+  "gpt-4": "openai/gpt-4-turbo-preview"
+  "gpt-4o": "openai/gpt-4o-2024-08-06"
+  "gpt-4o-mini": "openai/gpt-4o-mini-2024-07-18"
+  "gpt-3.5": "openai/gpt-3.5-turbo-0125"
+  "gpt-3.5-turbo": "openai/gpt-3.5-turbo-0125"
+  
+  # Anthropic shortcuts
+  "claude-3": "anthropic/claude-3-opus-20240229"
+  "claude-3-opus": "anthropic/claude-3-opus-20240229"
+  "claude-3.5": "anthropic/claude-3-5-sonnet-20241022"
+  "claude-3.5-sonnet": "anthropic/claude-3-5-sonnet-20241022"
+  "claude-3-haiku": "anthropic/claude-3-haiku-20240307"
+  
+  # Meta/Llama shortcuts
+  "llama-3.1-405b": "meta-llama/llama-3.1-405b-instruct"
+  "llama-3.1-70b": "meta-llama/llama-3.1-70b-instruct"
+  "llama-3.1-8b": "meta-llama/llama-3.1-8b-instruct"
+  
+  # Google shortcuts
+  "gemini-pro": "google/gemini-1.5-pro-latest"
+  "gemini-flash": "google/gemini-1.5-flash-latest"
+  "gemini-ultra": "google/gemini-1.0-ultra-latest"
+  
+  # Cohere shortcuts
+  "command-r": "cohere/command-r"
+  "command-r-plus": "cohere/command-r-plus"
+  
+  # DeepSeek shortcuts
+  "deepseek-chat": "deepseek/deepseek-chat"
+  "deepseek-coder": "deepseek/deepseek-coder"
+  
+  # Convenience aliases for latest/fast models
+  "latest": "openai/gpt-4o"
+  "fast": "groq/llama-3.1-8b-instant"
+  "cheap": "openai/gpt-4o-mini"
+  "reasoning": "anthropic/claude-3-5-sonnet-20241022"
+
+# Provider-specific aliases
+# These aliases only work within the context of a specific provider
+# Format: provider_name: {alias: canonical_model_id}
+providers:
+  openai:
+    "gpt-4": "gpt-4-turbo-preview"
+    "gpt-4-turbo": "gpt-4-turbo-2024-04-09"
+    "gpt-3.5-turbo": "gpt-3.5-turbo-0125"
+    "gpt-4o": "gpt-4o-2024-08-06"
+    
+  anthropic:
+    "claude-opus": "claude-3-opus-20240229"
+    "claude-sonnet": "claude-3-5-sonnet-20241022"
+    "claude-haiku": "claude-3-haiku-20240307"
+    "claude-3-opus": "claude-3-opus-20240229"
+    "claude-3.5-sonnet": "claude-3-5-sonnet-20241022"
+    
+  groq:
+    "llama-3.1-8b": "llama-3.1-8b-instant"
+    "llama-3.1-70b": "llama-3.1-70b-versatile"
+    "llama-3.1-405b": "llama-3.1-405b-reasoning"
+    "mixtral": "mixtral-8x7b-32768"
+    "gemma-2": "gemma-2-9b-it"
+    
+  google:
+    "gemini-pro": "gemini-1.5-pro-latest"
+    "gemini-flash": "gemini-1.5-flash-latest"
+    "gemini-1.5-pro": "gemini-1.5-pro-latest"
+    "gemini-1.5-flash": "gemini-1.5-flash-latest"
+    
+  cohere:
+    "command-r": "command-r-08-2024"
+    "command-r-plus": "command-r-plus-08-2024"
+
+# Resolution settings
+settings:
+  # Maximum recursion depth for alias resolution (prevents circular references)
+  max_recursion_depth: 5
+  # Whether to allow aliases to reference other aliases (chaining)
+  allow_chaining: true
+  # Case sensitivity for alias matching
+  case_sensitive: false
+  # Whether to log alias resolutions (useful for debugging)
+  log_resolutions: true
