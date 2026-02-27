@@ -1,0 +1,575 @@
+=== FILE: docs/docker-deployment.md ===
+# Docker Deployment Guide
+
+This guide covers containerizing and deploying the Mirro-Proxy application using Docker and Docker Compose.
+
+## Prerequisites
+
+- Docker Engine 20.10+
+- Docker Compose v2.0+ (recommended)
+- Existing `requirements.txt` in project root with all Python dependencies
+
+## Quick Start
+
+1. Copy the example Docker files to the project root:
+   ```bash
+   cp docs/examples/Dockerfile .
+   cp docs/examples/docker-compose.yml .
+   ```
+
+2. Create a `requirements.txt` if you haven't already:
+   ```txt
+   fastapi>=0.104.0
+   uvicorn[standard]>=0.24.0
+   litellm>=1.0.0
+   rich>=13.0.0
+   pydantic>=2.0.0
+   colorlog>=6.0.0
+   python-dotenv>=1.0.0
+   pyyaml>=6.0
+   ```
+
+3. Build and run:
+   ```bash
+   docker-compose up --build -d
+   ```
+
+## Dockerfile Configuration
+
+The Dockerfile uses a multi-stage approach for optimization:
+
+- **Base Image**: `python:3.11-slim` for balance of size and compatibility
+- **Port**: Exposes 8000
+- **Non-root user**: Runs as `appuser` for security (optional, see Production section)
+- **Volumes**: Expects `config/` and `.env` to be mounted
+
+### Key Features
+
+1. **Layer Caching**: Copies `requirements.txt` before source code to leverage Docker layer caching
+2. **PYTHONPATH**: Set to `/app/src` to ensure imports work correctly
+3. **Health Checks**: Built-in healthcheck using the application's status endpoint
+
+## Docker Compose Setup
+
+The provided `docker-compose.yml` includes:
+
+- **Environment Management**: Loads variables from `.env` file
+- **Configuration Mounting**: Read-only mount of `config/` directory
+- **Port Mapping**: Maps host port 8000 to container port 8000
+- **Restart Policy**: `unless-stopped` for production stability
+- **Health Checks**: Monitors application availability
+
+### Environment Variables
+
+Required environment variables (via `.env` file or `environment` section):
+
+- `PROXY_API_KEY`: Authentication key for the proxy (required)
+- Provider-specific keys (e.g., `OPENAI_API_KEY`, `GEMINI_API_KEY`, etc.) depending on your configured providers
+
+### Volume Mounts
+
+1. **config/**: Mount your configuration directory (read-only recommended)
+   - Contains: `aliases.yaml`, `model_rankings.yaml`, `providers_database.yaml`, etc.
+   
+2. **.env**: Mount your environment file (read-only recommended)
+   - Contains API keys and sensitive configuration
+
+## Building the Image
+
+### Development Build
+```bash
+docker build -t mirro-proxy:latest .
+```
+
+### Production Build
+```bash
+docker build -t mirro-proxy:latest --no-cache .
+```
+
+## Running the Container
+
+### Using Docker Run (Simple)
+```bash
+docker run -d \
+  --name mirro-proxy \
+  -p 8000:8000 \
+  -v $(pwd)/config:/app/config:ro \
+  -v $(pwd)/.env:/app/.env:ro \
+  -e PROXY_API_KEY=your-secret-key \
+  mirro-proxy:latest
+```
+
+### Using Docker Compose (Recommended)
+```bash
+# Start in detached mode
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
+```
+
+## Production Deployment
+
+### Security Hardening
+
+1. **Non-root User**: Uncomment the user creation in Dockerfile:
+   ```dockerfile
+   RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+   USER appuser
+   ```
+
+2. **Read-only Filesystem**: Add to docker-compose:
+   ```yaml
+   services:
+     proxy:
+       read_only: true
+       tmpfs:
+         - /tmp
+   ```
+
+3. **Resource Limits**:
+   ```yaml
+   deploy:
+     resources:
+       limits:
+         cpus: '2'
+         memory: 2G
+       reservations:
+         cpus: '1'
+         memory: 512M
+   ```
+
+### Health Monitoring
+
+The container includes a healthcheck that pings the `/health` endpoint every 30 seconds. Monitor container health with:
+```bash
+docker ps
+# or
+docker-compose ps
+```
+
+### Scaling
+
+For high availability, use Docker Swarm or Kubernetes:
+
+```bash
+# Docker Swarm example
+docker stack deploy -c docker-compose.yml mirro-proxy
+```
+
+## Configuration Management
+
+### External Configuration
+
+Mount configuration files as volumes rather than copying into the image:
+
+```yaml
+volumes:
+  - ./config:/app/config:ro
+  - ./custom_config.yaml:/app/config/custom_config.yaml:ro
+```
+
+### Environment-specific Settings
+
+Use Docker Compose overrides for different environments:
+
+**docker-compose.prod.yml**:
+```yaml
+version: '3.8'
+services:
+  proxy:
+    restart: always
+    deploy:
+      replicas: 2
+```
+
+Run with:
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+## Troubleshooting
+
+### Container exits immediately
+
+Check logs:
+```bash
+docker-compose logs proxy
+```
+
+Common causes:
+- Missing `PROXY_API_KEY` environment variable
+- Missing config files in mounted volume
+- Port 8000 already in use on host
+
+### Permission Denied on Config Files
+
+Ensure the config files are readable:
+```bash
+chmod -R 755 config/
+```
+
+### Module Not Found Errors
+
+Ensure `PYTHONPATH` is set correctly in Dockerfile and `src/` directory is properly copied.
+
+### Memory Issues
+
+For large model operations, increase container memory:
+```yaml
+deploy:
+  resources:
+    limits:
+      memory: 4G
+```
+
+## Updating
+
+To update the application:
+
+1. Pull latest code changes
+2. Rebuild image:
+   ```bash
+   docker-compose up --build -d
+   ```
+3. Or for zero-downtime (Swarm mode):
+   ```bash
+   docker service update --force mirro-proxy_proxy
+   ```
+
+## Networking
+
+The container exposes port 8000. To use with reverse proxy (nginx/traefik):
+
+```yaml
+# docker-compose with nginx
+version: '3.8'
+services:
+  proxy:
+    build: .
+    expose:
+      - "8000"
+    networks:
+      - backend
+      
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    networks:
+      - backend
+    depends_on:
+      - proxy
+
+networks:
+  backend:
+    driver: bridge
+```
+=== END FILE ===
+
+=== FILE: docs/examples/Dockerfile ===
+# Multi-stage build for Mirro-Proxy
+FROM python:3.11-slim as builder
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONFAULTHANDLER=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+# Production stage
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONFAULTHANDLER=1 \
+    PYTHONPATH=/app/src \
+    PATH=/root/.local/bin:$PATH
+
+# Install runtime dependencies if needed (e.g., for SSL)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy installed packages from builder
+COPY --from=builder /root/.local /root/.local
+
+# Copy application code
+COPY src/ ./src/
+COPY config/ ./config/
+
+# Create non-root user (optional - uncomment for production)
+# RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+# USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Run the application
+CMD ["uvicorn", "proxy_app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
+=== END FILE ===
+
+=== FILE: docs/examples/docker-compose.yml ===
+version: '3.8'
+
+services:
+  proxy:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: mirro-proxy:latest
+    container_name: mirro-proxy
+    ports:
+      - "8000:8000"
+    environment:
+      - PROXY_API_KEY=${PROXY_API_KEY}
+      # Add any additional environment variables here or use env_file
+    env_file:
+      - ../.env
+    volumes:
+      # Mount configuration directory (read-only)
+      - ../config:/app/config:ro
+      # Mount environment file separately if needed for hot-reloading
+      - ../.env:/app/.env:ro
+    restart: unless-stopped
+    networks:
+      - proxy-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    # Resource limits (uncomment for production)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2'
+    #       memory: 2G
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 256M
+    # Security options (uncomment for production)
+    # security_opt:
+    #   - no-new-privileges:true
+    # read_only: true
+    # tmpfs:
+    #   - /tmp:noexec,nosuid,size=100m
+
+networks:
+  proxy-network:
+    driver: bridge
+
+# Optional: Add monitoring with prometheus (uncomment if needed)
+#   prometheus:
+#     image: prom/prometheus:latest
+#     volumes:
+#       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+#     ports:
+#       - "9090:9090"
+#     networks:
+#       - proxy-network
+=== END FILE ===
+
+=== FILE: docs/examples/.dockerignore ===
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment (except examples)
+.env
+*.env
+!example.env
+
+# Documentation
+docs/
+*.md
+
+# Tests
+tests/
+test/
+*_test.py
+pytest_cache/
+.coverage
+htmlcov/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+=== END FILE ===
+
+=== FILE: docs/examples/nginx-proxy.conf ===
+# Example nginx configuration for Mirro-Proxy Docker deployment
+# Place this in your nginx configuration directory (e.g., /etc/nginx/conf.d/)
+
+upstream mirro_proxy {
+    server localhost:8000;
+    keepalive 32;
+}
+
+server {
+    listen 80;
+    server_name your-domain.com;
+    
+    # Redirect HTTP to HTTPS in production
+    # return 301 https://$server_name$request_uri;
+
+    location / {
+        proxy_pass http://mirro_proxy;
+        proxy_http_version 1.1;
+        
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        
+        # Timeouts for long-running LLM requests
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
+        
+        # Buffer settings for streaming responses
+        proxy_buffering off;
+        proxy_cache off;
+        
+        # WebSocket support (if needed for future features)
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    # Health check endpoint
+    location /health {
+        proxy_pass http://mirro_proxy/health;
+        access_log off;
+        allow all;
+    }
+}
+
+# HTTPS Server (uncomment and configure for production)
+# server {
+#     listen 443 ssl http2;
+#     server_name your-domain.com;
+#     
+#     ssl_certificate /path/to/cert.pem;
+#     ssl_certificate_key /path/to/key.pem;
+#     
+#     location / {
+#         proxy_pass http://mirro_proxy;
+#         proxy_http_version 1.1;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#         
+#         proxy_connect_timeout 60s;
+#         proxy_send_timeout 300s;
+#         proxy_read_timeout 300s;
+#         proxy_buffering off;
+#     }
+# }
+=== END FILE ===
+
+=== FILE: config/docker-config.yaml ===
+# Docker-specific configuration overrides
+# This file contains settings optimized for containerized deployments
+
+# Server settings optimized for Docker networking
+server:
+  host: "0.0.0.0"  # Listen on all interfaces
+  port: 8000
+  workers: 1  # Use 1 worker per container (scale via Docker Compose/Swarm)
+  
+# Logging configuration for containerized environments
+logging:
+  level: "INFO"
+  format: "json"  # JSON format for better integration with Docker logging drivers
+  access_log: true
+  
+# Health check settings
+health:
+  enabled: true
+  endpoint: "/health"
+  interval: 30
+  
+# Request settings optimized for container resource limits
+limits:
+  max_request_size: "100MB"
+  timeout: 300  # 5 minutes for long LLM requests
+  
+# Rate limiting (adjust based on container resources)
+rate_limiting:
+  enabled: true
+  requests_per_minute: 60
+  
+# Provider failover settings for containerized environments
+providers:
+  retry_attempts: 3
+  cooldown_period: 60
+  health_check_interval: 300
+=== END FILE ===
