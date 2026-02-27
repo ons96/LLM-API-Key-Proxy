@@ -1,385 +1,273 @@
+```python
 """
-Enhanced Proxy Module
-
-This module provides complete multi-provider routing functionality as a drop-in enhancement
-to the existing proxy. It maintains full OpenAI compatibility while adding virtual models,
-MoE support, web-search augmentation, and $0-only guarantees.
+Enhanced Proxy Application - Main FastAPI Application
 """
-
-import os
-import sys
-import asyncio
-import logging
 import time
-import uuid
-from pathlib import Path
-from typing import Dict, Any, AsyncGenerator, Union, List
+import logging
+from typing import AsyncGenerator, Optional, List, Dict, Any
+from contextlib import asynccontextmanager
 
-# Add parent directory to path for imports
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+from fastapi import FastAPI, Request, HTTPException, Depends, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.security import APIKeyHeader
+import json
 
-# Import existing infrastructure
-from proxy_app.main import (
-    app,
-    lifespan,
-    RotatingClient,
-    EmbeddingBatcher,
-    get_rotating_client,
-    get_embedding_batcher,
-    verify_api_key,
-    ModelCard,
-    ModelList,
+from .router_wrapper import initialize_router, get_router
+from .health_checker import HealthChecker
+from .detailed_logger import DetailedLogger
+from .batch_manager import EmbeddingBatcher
+from .request_logger import log_request_to_console
+from .model_ranker import ModelRanker
+from ..rotator_library import RotatingClient
+from ..rotator_library.credential_manager import CredentialManager
+from ..rotator_library.background_refresher import BackgroundRefresher
+
+# Initialize detailed logger
+detailed_logger = DetailedLogger()
+
+# Proxy API key security
+proxy_api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
+
+
+async def verify_proxy_api_key(api_key: Optional[str] = Depends(proxy_api_key_header)):
+    """Verify the proxy API key if configured."""
+    from dotenv import load_dotenv
+    import os
+    load_dotenv()
+    
+    proxy_api_key = os.getenv("PROXY_API_KEY")
+    if proxy_api_key and api_key != proxy_api_key:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return api_key
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler."""
+    # Startup
+    print("🚀 Starting Enhanced Proxy...")
+    
+    # Initialize router
+    initialize_router()
+    
+    # Initialize health checker
+    app.state.health_checker = HealthChecker()
+    
+    # Start background tasks
+    background_refresher = BackgroundRefresher()
+    asyncio.create_task(background_refresher.run_periodic_refresh())
+    
+    yield
+    
+    # Shutdown
+    print("🛑 Shutting down Enhanced Proxy...")
+
+
+# Create FastAPI app
+app = FastAPI(
+    title="Mirro Proxy API",
+    description="Unified API for multiple LLM providers with automatic failover",
+    version="2.0.0",
+    lifespan=lifespan
 )
-from proxy_app.router_integration import RouterIntegration
 
-logger = logging.getLogger(__name__)
-
-# Initialize router integration
-_router_integration = None
-
-
-def initialize_router_integration(
-    rotating_client: RotatingClient = None,
-) -> RouterIntegration:
-    """Initialize the router integration."""
-    global _router_integration
-
-    config_path = Path(__file__).parent.parent.parent / "config" / "router_config.yaml"
-
-    if _router_integration is None:
-        _router_integration = RouterIntegration(
-            rotating_client=rotating_client, config_path=str(config_path)
-        )
-        logger.info("Router integration initialized")
-
-    return _router_integration
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-# Store original endpoints for reference
-_original_chat_completions = None
-_original_models_endpoint = None
-
-
-def preserve_original_endpoints() -> None:
-    """Store references to original endpoints for fallback."""
-    global _original_chat_completions, _original_models_endpoint
-
-    # These will be set during enhancement
-    pass
-
-
-# Enhanced model list endpoint
-@app.get("/v1/models")
-async def enhanced_models_list(request: Request) -> ModelList:
-    """Enhanced models endpoint that includes virtual router models."""
-    try:
-        # Initialize router if not done
-        if _router_integration is None:
-            rotating_client = get_rotating_client(request)
-            initialize_router_integration(rotating_client)
-
-        # Get models from router
-        router_models = _router_integration.get_models()
-
-        # Convert to OpenAI format
-        models_data = [
-            ModelCard(
-                id=model["id"],
-                created=model.get("created", int(time.time())),
-                owned_by=model.get("owned_by", "unknown"),
-            )
-            for model in router_models
-        ]
-
-        return ModelList(data=models_data)
-
-    except Exception as e:
-        logger.error(f"Enhanced models endpoint failed: {e}")
-        # Fallback to showing a basic model list
-        current_time = int(time.time())
-        return ModelList(
-            data=[
-                ModelCard(
-                    id="router/best-coding", created=current_time, owned_by="router"
-                ),
-                ModelCard(
-                    id="router/best-reasoning", created=current_time, owned_by="router"
-                ),
-                ModelCard(
-                    id="router/best-research", created=current_time, owned_by="router"
-                ),
-                ModelCard(
-                    id="router/best-chat", created=current_time, owned_by="router"
-                ),
-                ModelCard(
-                    id="router/best-coding-moe", created=current_time, owned_by="router"
-                ),
-            ]
-        )
-
-
-# Enhanced health endpoint showing router status
 @app.get("/health")
-@app.get("/v1/health")
-async def enhanced_health_check(request: Request) -> Dict[str, Any]:
-    """Enhanced health check showing router and provider status."""
-    try:
-        if _router_integration is None:
-            rotating_client = get_rotating_client(request)
-            initialize_router_integration(rotating_client)
-
-        # Get router health
-        router_health = _router_integration.get_health()
-
-        # Get basic proxy health
-        basic_health = {"status": "healthy", "router": router_health}
-
-        return basic_health
-
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return {"status": "degraded", "error": str(e)}
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy", "version": "2.0.0"}
 
 
-# Enhanced chat completions endpoint
+@app.get("/v1/models")
+async def list_models(api_key: Optional[str] = Depends(verify_proxy_api_key)):
+    """List available models (virtual + real)."""
+    router = get_router()
+    
+    # Get virtual models from config
+    virtual_models = router.get_virtual_models()
+    
+    # Get real models from providers
+    real_models = router.get_available_models()
+    
+    # Combine and format
+    models = []
+    
+    # Add virtual models
+    for vm_id, vm_config in virtual_models.items():
+        models.append({
+            "id": vm_id,
+            "object": "model",
+            "created": int(time.time()),
+            "owned_by": "mirro-proxy",
+            "virtual": True,
+        })
+    
+    # Add real models
+    for model in real_models:
+        models.append({
+            "id": model.get("id", "unknown"),
+            "object": "model",
+            "created": model.get("created", int(time.time())),
+            "owned_by": model.get("owned_by", "unknown"),
+            "virtual": False,
+        })
+    
+    return {"object": "list", "data": models}
+
+
 @app.post("/v1/chat/completions")
-async def enhanced_chat_completions(
-    request: Request, auth: str = Depends(verify_api_key)
-) -> Union[Dict[str, Any], AsyncGenerator[str, None]]:
-    """Enhanced chat completions with multi-provider routing."""
-
-    request_id = f"req_{uuid.uuid4().hex[:16]}"
-    start_time = time.time()
-
+async def chat_completions(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    api_key: Optional[str] = Depends(verify_proxy_api_key)
+):
+    """
+    Handle chat completion requests.
+    Supports both virtual models and direct provider models.
+    """
     try:
-        # Parse request
-        request_data = await request.json()
-        model = request_data.get("model", "")
-
-        logger.info(f"[{request_id}] Chat completion request for model: {model}")
-
-        # Initialize router if not done
-        if _router_integration is None:
-            rotating_client = get_rotating_client(request)
-            initialize_router_integration(rotating_client)
-
-        # Route through enhanced system
-        response = await _router_integration.chat_completions(
-            request_data=request_data, raw_request=request, enable_logging=True
-        )
-
-        # Handle streaming
-        if request_data.get("stream", False):
-            return StreamingResponse(
-                _wrap_streaming_response(response, request_id, start_time),
-                media_type="text/plain",
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    
+    model = body.get("model")
+    if not model:
+        raise HTTPException(status_code=400, detail="Missing 'model' field")
+    
+    router = get_router()
+    
+    # Check if it's a virtual model
+    virtual_model_config = router.get_virtual_model_config(model)
+    
+    if virtual_model_config:
+        # Handle virtual model - resolve to actual provider model
+        actual_model, provider = router.resolve_virtual_model(model)
+        
+        if not actual_model or not provider:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Unable to resolve virtual model '{model}' to a provider"
             )
-        else:
-            duration_ms = (time.time() - start_time) * 1000
-            logger.info(f"[{request_id}] Request completed in {duration_ms:.1f}ms")
-            return response
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        duration_ms = (time.time() - start_time) * 1000
-        logger.error(f"[{request_id}] Request failed after {duration_ms:.1f}ms: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-async def _wrap_streaming_response(
-    response_stream: AsyncGenerator[Dict[str, Any], None],
-    request_id: str,
-    start_time: float,
-) -> AsyncGenerator[str, None]:
-    """Wrap streaming response with proper SSE formatting."""
-
-    chunk_count = 0
-    try:
-        async for chunk in response_stream:
-            # Ensure chunk is properly formatted
-            if isinstance(chunk, dict):
-                # Check if it's already a properly formatted chunk
-                if "id" in chunk and "choices" in chunk:
-                    # Standard LiteLLM chunk format
-                    yield f"data: {chunk}\\n\\n"
-                    chunk_count += 1
-                elif "error" in chunk:
-                    # Error chunk
-                    yield f"data: {chunk}\\n\\n"
-                else:
-                    # Raw content, wrap it
-                    wrapped_chunk = {
-                        "id": f"router-{request_id}-{chunk_count}",
-                        "object": "chat.completion.chunk",
-                        "created": int(time.time()),
-                        "model": chunk.get("model", "unknown"),
-                        "choices": [
-                            {
-                                "index": 0,
-                                "delta": chunk.get("delta", {"content": ""}),
-                                "finish_reason": chunk.get("finish_reason"),
-                            }
-                        ],
-                    }
-                    yield f"data: {wrapped_chunk}\\n\\n"
-                    chunk_count += 1
-            else:
-                # String or other type, convert to string
-                yield f"data: {chunk}\\n\\n"
-                chunk_count += 1
-
-        # Send done signal
-        yield "data: [DONE]\\n\\n"
-
-        duration_ms = (time.time() - start_time) * 1000
-        logger.info(
-            f"[{request_id}] Stream completed in {duration_ms:.1f}ms ({chunk_count} chunks)"
-        )
-
-    except Exception as e:
-        duration_ms = (time.time() - start_time) * 1000
-        logger.error(f"[{request_id}] Stream failed after {duration_ms:.1f}ms: {e}")
-        yield f'data: {{"error": "{str(e)}"}}\\n\\n'
-        yield "data: [DONE]\\n\\n"
-
-
-# Router status endpoint
-@app.get("/v1/router/status")
-async def router_status(request: Request) -> Dict[str, Any]:
-    """Get detailed router status including provider health."""
-    try:
-        if _router_integration is None:
-            rotating_client = get_rotating_client(request)
-            initialize_router_integration(rotating_client)
-
-        health = _router_integration.get_health()
-
-        # Add runtime info
-        health.update(
-            {
-                "free_only_mode": _router_integration.free_only_mode,
-                "timestamp": time.time(),
-                "uptime_seconds": time.time() - time.time(),  # Placeholder
-            }
-        )
-
-        return health
-
-    except Exception as e:
-        logger.error(f"Router status failed: {e}")
-        return {"error": str(e)}
-
-
-# Router metrics endpoint
-@app.get("/v1/router/metrics")
-async def router_metrics(request: Request) -> Dict[str, Any]:
-    """Get router performance metrics."""
-    try:
-        if _router_integration is None:
-            rotating_client = get_rotating_client(request)
-            initialize_router_integration(rotating_client)
-
-        # Get router health (contains metrics)
-        health = _router_integration.get_health()
-
-        # Summarize metrics
-        provider_stats = {}
-        for provider, models in health.get("providers", {}).items():
-            provider_stats[provider] = {
-                "total_models": len(models),
-                "healthy_models": sum(
-                    1 for m in models.values() if m.get("status") == "healthy"
-                ),
-                "avg_success_rate": sum(
-                    m.get("success_rate", 0) for m in models.values()
+        
+        # Update body with actual model
+        body["model"] = actual_model
+        
+        # Log the routing
+        detailed_logger.log_routing(model, actual_model, provider)
+        
+        # Execute with the resolved provider
+        try:
+            result = await router.execute_with_provider(
+                provider=provider,
+                model=actual_model,
+                messages=body.get("messages", []),
+                params=body
+            )
+        except Exception as e:
+            # Try fallback providers
+            fallback_providers = virtual_model_config.get("fallback_providers", [])
+            result = None
+            last_error = None
+            
+            for fallback_provider in fallback_providers:
+                try:
+                    fallback_model = virtual_model_config.get("model_mapping", {}).get(fallback_provider)
+                    if fallback_model:
+                        body["model"] = fallback_model
+                        result = await router.execute_with_provider(
+                            provider=fallback_provider,
+                            model=fallback_model,
+                            messages=body.get("messages", []),
+                            params=body
+                        )
+                        detailed_logger.log_routing(model, fallback_model, fallback_provider)
+                        break
+                except Exception as fallback_error:
+                    last_error = fallback_error
+                    continue
+            
+            if result is None:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"All providers failed for virtual model '{model}'. Last error: {last_error}"
                 )
-                / len(models)
-                if models
-                else 0,
-                "avg_latency": sum(m.get("ewma_latency_ms", 0) for m in models.values())
-                / len(models)
-                if models
-                else 0,
-            }
+    else:
+        # Direct model - use router's automatic selection
+        try:
+            result = await router.execute_chat_completion(
+                model=model,
+                messages=body.get("messages", []),
+                params=body
+            )
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=str(e))
+    
+    # Handle streaming
+    if body.get("stream", False):
+        async def generate():
+            if isinstance(result, str):
+                # Already a serialized JSON string
+                yield f"data: {result}\n\n"
+            else:
+                # Dict - serialize
+                yield f"data: {json.dumps(result)}\n\n"
+            yield "data: [DONE]\n\n"
+        
+        return StreamingResponse(generate(), media_type="text/event-stream")
+    
+    return JSONResponse(content=result)
 
-        return {
-            "providers": provider_stats,
-            "search_providers": health.get("search_providers", {}),
-            "timestamp": time.time(),
-        }
 
-    except Exception as e:
-        logger.error(f"Router metrics failed: {e}")
-        return {"error": str(e)}
-
-
-# Configuration refresh endpoint
-@app.post("/v1/router/refresh")
-async def refresh_router_config(request: Request) -> Dict[str, Any]:
-    """Refresh router configuration."""
+@app.post("/v1/embeddings")
+async def embeddings(
+    request: Request,
+    api_key: Optional[str] = Depends(verify_proxy_api_key)
+):
+    """Handle embedding requests."""
     try:
-        if _router_integration is None:
-            return {"error": "Router not initialized"}
-
-        _router_integration.refresh_configuration()
-        return {"status": "refreshed"}
-
-    except Exception as e:
-        logger.error(f"Router refresh failed: {e}")
-        return {"error": str(e)}
-
-
-# Dynamic search endpoint for testing
-@app.post("/v1/search")
-async def perform_search(request: Request) -> Dict[str, Any]:
-    """Perform web search using configured search providers."""
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    
+    model = body.get("model")
+    input_text = body.get("input")
+    
+    if not model:
+        raise HTTPException(status_code=400, detail="Missing 'model' field")
+    if not input_text:
+        raise HTTPException(status_code=400, detail="Missing 'input' field")
+    
+    router = get_router()
+    
+    # Batch embeddings if multiple inputs
+    if isinstance(input_text, list):
+        batcher = EmbeddingBatcher()
+        results = await batcher.batch_embed(router, model, input_text)
+        return JSONResponse(content={
+            "object": "list",
+            "data": results,
+            "model": model
+        })
+    
+    # Single embedding
     try:
-        request_data = await request.json()
-        query = request_data.get("query", "")
-        max_results = request_data.get("max_results", 5)
-
-        if not query:
-            raise HTTPException(status_code=400, detail="Query is required")
-
-        # This is simplified - real implementation would use router's search providers
-        # For now, return a placeholder response
-        return {
-            "query": query,
-            "results": [
-                {
-                    "title": "Example search result",
-                    "url": "https://example.com",
-                    "description": "This is a placeholder for search results",
-                }
-            ],
-            "status": "placeholder",
-            "message": "Search functionality will be implemented with real providers",
-        }
-
-    except HTTPException:
-        raise
+        result = await router.execute_embedding(model, input_text)
     except Exception as e:
-        logger.error(f"Search failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Search error: {str(e)}")
+        raise HTTPException(status_code=502, detail=str(e))
+    
+    return JSONResponse(content=result)
 
 
-def enhance_proxy() -> None:
-    """Apply enhancements to the existing proxy."""
-    logger.info("LLM Proxy enhanced with multi-provider router")
-    logger.info("Virtual models available:")
-    logger.info("  - router/best-coding")
-    logger.info("  - router/best-reasoning")
-    logger.info("  - router/best-research")
-    logger.info("  - router/best-chat")
-    logger.info("  - router/best-coding-moe")
-    logger.info(f"FREE_ONLY_MODE: {os.getenv('FREE_ONLY_MODE', 'true')}")
-
-    # Note: The actual endpoints are defined above with enhanced_* prefixes
-    # The existing main.py endpoints will co-exist with these enhanced versions
-    # The enhanced versions handle virtual models and fall back appropriately
-
-
-if __name__ == "__main__":
-    enhance_proxy()
-    print("Enhanced proxy module loaded. Use the main server from proxy_app.main")
+# Import asyncio for background tasks
+import asyncio
+```
