@@ -1,3 +1,8 @@
+You are an expert Python/FastAPI software engineer.
+Repository layout (partial): config/aliases.yaml config/chat_model_rankings.yaml config/model_rankings.yaml config/providers_database.yaml config/router_config.yaml config/scoring_config.yaml config/virtual_models.yaml config/virtual_models_backup.yaml config/virtual_models_generated.yaml src/proxy_app/__init__.py src/proxy_app/batch_manager.py src/proxy_app/build.py src/proxy_app/config_exceptions.py src/proxy_app/config_watcher.py src/proxy_app/detailed_logger.py src/proxy_app/enhanced_proxy.py src/proxy_app/health_checker.py src/proxy_app/launcher_tui.py src/proxy_app/main.py src/proxy_app/model_ranker.py src/proxy_app/provider_adapter.py src/proxy_app/provider_urls.py src/proxy_app/rate_limiter.py src/proxy_app/request_logger.py src/proxy_app/router_core.py src/proxy_app/router_integration.py src/proxy_app/router_wrapper.py src/proxy_app/settings_tool.py src/proxy_app/status_api.py src/rotator_library/__init__.py src/rotator_library/background_refresher.py src/rotator_library/client.py src/rotator_library/cooldown_manager.py src/rotator_library/credential_manager.py src/rotator_library/credential_tool.py src/rotator_library/error_handler.py src/rotator_library/failure_logger.py src/rotator_library/fetch_artificial_analysis_data.py src/rotator_library/leaderboard_updater.py src/rotator_library/live_scraper.py src/rotator_library/llm_aggregated_leaderboard.py src/rotator_library/model_definitions.py src/rotator_library/model_info_service.py src/rotator_library/models_dev_discovery.py src/rotator_library/provider_factory.py src/rotator_library/provider_priority_manager.py src/rotator_library/provider_status_tracker.py src/rotator_library/providers/__init__.py src/rotator_library/providers/agentrouter_provider.py src/rotator_library/providers/antigravity_auth_base.py src/rotator_library/providers/antigravity_provider.py src/rotator_library/providers/cerebras_provider.py src/rotator_library/providers/chutes_provider.py src/rotator_library/providers/cohere_provider.py src/rotator_library/providers/g4f_provider.py src/rotator_library/providers/gemini_auth_base.py src/rotator_library/providers/gemini_cli_provider.py src/rotator_library/providers/gemini_provider.py src/rotator_library/providers/google_oauth_base.py src/rotator_library/providers/groq_provider.py 
+
+Relevant file contents:
+--- src/proxy_app/main.py ---
 import time
 
 # Phase 1: Minimal imports for arg parsing and TUI
@@ -198,163 +203,15 @@ class EnrichedModelCard(BaseModel):
     supported_output_modalities: List[str] = Field(default_factory=lambda: ["text"])
     capabilities: Optional[ModelCapabilities] = None
     # Debug info (optional)
-    source_provider: Optional[str] = None
 
+GitHub Issue #104: Phase 6.1: Add healthcheck to Dockerfile
 
-class HealthResponse(BaseModel):
-    """Health check response model."""
-    status: str
-    timestamp: float
-    version: str = "2.0.0"
-    uptime: Optional[float] = None
+Description: Part of Phase 6.1 Containerization.
 
-
-# --- FastAPI App Initialization ---
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan manager."""
-    # Startup
-    print(f"  → Initializing model info service...")
-    init_model_info_service()
-    
-    print(f"  → Initializing health checker...")
-    app.state.health_checker = HealthChecker()
-    
-    print(f"  → Initializing router...")
-    await initialize_router()
-    
-    print(f"✅ Startup complete in {time.time() - _start_time:.2f}s")
-    yield
-    
-    # Shutdown
-    print("  → Shutting down gracefully...")
-
-
-app = FastAPI(
-    title="Mirro-Proxy API",
-    description="Unified API proxy with intelligent routing",
-    version="2.0.0",
-    lifespan=lifespan
-)
-
-# CORS Middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Security
-api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
-
-async def verify_api_key(authorization: Optional[str] = Depends(api_key_header)):
-    """Verify proxy API key if set."""
-    if not proxy_api_key:
-        return True
-    
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Missing API key")
-    
-    # Handle Bearer token format
-    if authorization.startswith("Bearer "):
-        token = authorization[7:]
-    else:
-        token = authorization
-    
-    if token != proxy_api_key:
-        raise HTTPException(status_code=403, detail="Invalid API key")
-    
-    return True
-
-
-# --- Health Check Endpoint ---
-@app.get("/health", response_model=HealthResponse, tags=["Health"])
-async def health_check():
-    """
-    Health check endpoint for Docker and load balancers.
-    Returns 200 OK when the service is healthy.
-    """
-    try:
-        # Check if router is initialized
-        router = get_router()
-        if router is None:
-            raise HTTPException(status_code=503, detail="Router not initialized")
-        
-        return HealthResponse(
-            status="healthy",
-            timestamp=time.time(),
-            uptime=time.time() - _start_time if '_start_time' in globals() else 0
-        )
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Unhealthy: {str(e)}")
-
-
-# --- Proxy Endpoints ---
-@app.post("/v1/chat/completions", dependencies=[Depends(verify_api_key)])
-async def chat_completions(request: Request):
-    """OpenAI-compatible chat completions endpoint."""
-    body = await request.json()
-    router = get_router()
-    
-    if not router:
-        raise HTTPException(status_code=503, detail="Router not available")
-    
-    # Route to appropriate provider via router
-    try:
-        response = await router.route_chat_completion(body)
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Routing failed: {str(e)}")
-
-
-@app.post("/v1/embeddings", dependencies=[Depends(verify_api_key)])
-async def embeddings(request: EmbeddingRequest):
-    """OpenAI-compatible embeddings endpoint."""
-    router = get_router()
-    
-    if not router:
-        raise HTTPException(status_code=503, detail="Router not available")
-    
-    try:
-        response = await router.route_embedding(request.dict())
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Embedding failed: {str(e)}")
-
-
-@app.get("/v1/models", response_model=Dict[str, List[ModelCard]], dependencies=[Depends(verify_api_key)])
-async def list_models():
-    """List available models."""
-    router = get_router()
-    
-    if not router:
-        raise HTTPException(status_code=503, detail="Router not available")
-    
-    try:
-        models = await router.get_available_models()
-        return {"data": [ModelCard(id=m) for m in models]}
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Failed to list models: {str(e)}")
-
-
-# --- Main Entry Point ---
-if __name__ == "__main__":
-    import uvicorn
-    
-    print(f"\n🚀 Starting Mirro-Proxy Server")
-    print(f"   Host: {args.host}")
-    print(f"   Port: {args.port}")
-    print(f"   API Key: {key_display}")
-    print(f"   Plugins: {_plugin_count} providers loaded")
-    print(f"   Request Logging: {'Enabled' if args.enable_request_logging else 'Disabled'}")
-    print(f"   Health Check: http://{args.host}:{args.port}/health\n")
-    
-    uvicorn.run(
-        "main:app",
-        host=args.host,
-        port=args.port,
-        reload=False,
-        access_log=args.enable_request_logging
-    )
+Task: Implement the changes needed to resolve this issue.
+For each file to create or modify, output a block in this EXACT format:
+=== FILE: path/to/file.py ===
+<complete new file contents>
+=== END FILE ===
+Only allowed path prefixes: src/, config/, docs/
+Output ONLY file blocks. No prose outside blocks.
