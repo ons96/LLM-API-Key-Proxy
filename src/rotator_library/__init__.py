@@ -1,39 +1,32 @@
-from typing import TYPE_CHECKING, Dict, Type
+"""
+Rotator Library - API Key rotation and model management.
+"""
 
 from .client import RotatingClient
-
-# For type checkers (Pylint, mypy), import PROVIDER_PLUGINS statically
-# At runtime, it's lazy-loaded via __getattr__
-if TYPE_CHECKING:
-    from .providers import PROVIDER_PLUGINS
-    from .providers.provider_interface import ProviderInterface
-    from .model_info_service import ModelInfoService, ModelInfo, ModelMetadata
+from .credential_manager import CredentialManager
+from .provider_factory import ProviderFactory
+from .background_refresher import BackgroundRefresher
+from .model_info_service import ModelInfoService, init_model_info_service
+from .benchmark_fetcher import (
+    BenchmarkFetcher,
+    BenchmarkEntry,
+    BenchmarkCache,
+    fetch_latest_benchmarks,
+    ArtificialAnalysisFetcher,
+    LMSYSArenaFetcher,
+)
 
 __all__ = [
     "RotatingClient",
-    "PROVIDER_PLUGINS",
+    "CredentialManager", 
+    "ProviderFactory",
+    "BackgroundRefresher",
     "ModelInfoService",
-    "ModelInfo",
-    "ModelMetadata",
+    "init_model_info_service",
+    "BenchmarkFetcher",
+    "BenchmarkEntry", 
+    "BenchmarkCache",
+    "fetch_latest_benchmarks",
+    "ArtificialAnalysisFetcher",
+    "LMSYSArenaFetcher",
 ]
-
-
-def __getattr__(name):
-    """Lazy-load PROVIDER_PLUGINS and ModelInfoService to speed up module import."""
-    if name == "PROVIDER_PLUGINS":
-        from .providers import PROVIDER_PLUGINS
-
-        return PROVIDER_PLUGINS
-    if name == "ModelInfoService":
-        from .model_info_service import ModelInfoService
-
-        return ModelInfoService
-    if name == "ModelInfo":
-        from .model_info_service import ModelInfo
-
-        return ModelInfo
-    if name == "ModelMetadata":
-        from .model_info_service import ModelMetadata
-
-        return ModelMetadata
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

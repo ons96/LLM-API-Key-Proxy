@@ -1,0 +1,31 @@
+# Benchmark Data Sources Configuration
+# Phase 2.1 Data Collection Pipeline
+
+sources:
+  - name: artificial_analysis
+    enabled: true
+    url: https://api.artificialanalysis.ai/v1/models
+    refresh_interval_minutes: 60
+    timeout_seconds: 30
+    retry_attempts: 3
+    priority: 100
+    headers:
+      Accept: application/json
+      User-Agent: Mirro-Proxy/1.0
+
+  - name: lmsys_arena
+    enabled: true
+    url: https://chat.lmsys.org/api/leaderboard
+    refresh_interval_minutes: 120
+    timeout_seconds: 30
+    retry_attempts: 3
+    priority: 90
+    headers:
+      Accept: application/json
+      User-Agent: Mirro-Proxy/1.0
+
+  - name: static
+    enabled: true
+    url: config/static_benchmarks.yaml
+    refresh_interval_minutes: 1440  # Daily
+    priority: 50
