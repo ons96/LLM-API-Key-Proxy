@@ -54,7 +54,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          MODELS="moonshotai/kimi-k2.5:free minimax/minimax-m2.5:free arcee-ai/trinity-large-preview:free stepfun/step-3.5-flash:free corethink:free"
+          MODELS_CONFIG="moonshotai/kimi-k2.5:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}
+minimax/minimax-m2.5:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}
+minimax-m2.5-free|https://opencode.ai/zen/v1/chat/completions|opencode
+arcee-ai/trinity-large-preview:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}
+stepfun/step-3.5-flash:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}
+corethink:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}"
 
           for issue_num in $(echo "$BATCH" | tr ',' ' '); do
             echo "=== Processing issue #$issue_num ==="
@@ -104,26 +109,30 @@ jobs:
 
             AI_OUTPUT=""
             PROMPT_CONTENT=$(cat prompt.txt)
-            for model in $MODELS; do
-              echo "Trying model: $model for issue #$issue_num"
+            while IFS= read -r model_entry; do
+              [ -z "$model_entry" ] && continue
+              MODEL=$(echo "$model_entry" | cut -d'|' -f1)
+              ENDPOINT=$(echo "$model_entry" | cut -d'|' -f2)
+              AUTH_KEY=$(echo "$model_entry" | cut -d'|' -f3)
+              echo "Trying model: $MODEL for issue #$issue_num"
               PAYLOAD=$(jq -n \
-                --arg model "$model" \
+                --arg model "$MODEL" \
                 --arg content "$PROMPT_CONTENT" \
                 '{model: $model, max_tokens: 8192, messages: [{role: "user", content: $content}]}')
 
               RESP=$(curl -sf --max-time 120 \
-                -X POST "https://api.kilo.ai/api/gateway/chat/completions" \
-                -H "Authorization: Bearer ${KILOCODE_API_KEY:-free}" \
+                -X POST "$ENDPOINT" \
+                -H "Authorization: Bearer $AUTH_KEY" \
                 -H "Content-Type: application/json" \
                 -d "$PAYLOAD" 2>&1) || true
 
               AI_OUTPUT=$(echo "$RESP" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
               if [ -n "$AI_OUTPUT" ]; then
-                echo "Model $model succeeded for issue #$issue_num"
+                echo "Model $MODEL succeeded for issue #$issue_num"
                 break
               fi
-              echo "Model $model failed, trying next..."
-            done
+              echo "Model $MODEL failed, trying next..."
+            done <<< "$MODELS_CONFIG"
 
             if [ -z "$AI_OUTPUT" ]; then
               echo "All models failed for issue #$issue_num, skipping"
