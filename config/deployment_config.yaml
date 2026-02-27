@@ -1,0 +1,71 @@
+# Automated Deployment Configuration for CI/CD Pipeline
+# Supports: Kubernetes, Docker Compose, and bare-metal deployments
+
+deployment:
+  environments:
+    production:
+      health_checks:
+        readiness:
+          enabled: true
+          path: /health/ready
+          initial_delay_seconds: 5
+          period_seconds: 10
+          timeout_seconds: 5
+          failure_threshold: 3
+        liveness:
+          enabled: true
+          path: /health/live
+          period_seconds: 30
+          timeout_seconds: 5
+          failure_threshold: 3
+      
+      shutdown:
+        graceful_timeout_seconds: 30
+        force_terminate_after_seconds: 35
+      
+      required_env_vars:
+        - PROXY_API_KEY
+      
+      verification:
+        endpoints:
+          - path: /models
+            method: GET
+            expected_status: 200
+            timeout_seconds: 10
+          - path: /health
+            method: GET
+            expected_status: 200
+            timeout_seconds: 5
+    
+    staging:
+      health_checks:
+        readiness:
+          enabled: true
+          path: /health/ready
+          initial_delay_seconds: 2
+          period_seconds: 5
+          timeout_seconds: 3
+          failure_threshold: 2
+      
+      shutdown:
+        graceful_timeout_seconds: 10
+      
+      required_env_vars:
+        - PROXY_API_KEY
+      
+      verification:
+        endpoints:
+          - path: /health
+            method: GET
+            expected_status: 200
+            timeout_seconds: 5
+
+  rollout:
+    strategy: rolling_update
+    max_unavailable: 0
+    max_surge: 1
+  
+  metadata:
+    app_name: mirro-proxy
+    version_source: env  # Options: env, file, git
+    version_env_var: APP_VERSION
