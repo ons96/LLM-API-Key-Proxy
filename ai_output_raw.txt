@@ -1,0 +1,194 @@
+=== FILE: Dockerfile ===
+# syntax=docker/dockerfile:1
+
+###################
+# Stage 1: Builder
+###################
+FROM python:3.11-slim AS builder
+
+# Prevent Python from writing pyc files and buffering stdout
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /build
+
+# Install system build dependencies for compiled Python packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    python3-dev \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency definitions first for better layer caching
+COPY requirements.txt .
+
+# Install dependencies to local user directory
+# Uses BuildKit cache mount for faster rebuilds during development
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --user --no-cache-dir -r requirements.txt
+
+###################
+# Stage 2: Runtime
+###################
+FROM python:3.11-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src \
+    PATH=/root/.local/bin:$PATH \
+    # Ensure rich/console output works properly in container
+    TERM=xterm-256color
+
+WORKDIR /app
+
+# Create non-root user for security
+RUN useradd -m -u 1000 appuser
+
+# Copy installed Python packages from builder
+COPY --from=builder /root/.local /home/appuser/.local
+RUN chown -R appuser:appuser /home/appuser/.local
+
+# Copy application code
+COPY --chown=appuser:appuser src/ ./src/
+COPY --chown=appuser:appuser config/ ./config/
+
+# Create directory for potential logs/temp files
+RUN mkdir -p /app/logs && chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose the application port
+EXPOSE 8000
+
+# Health check using the status API (adjust path if needed)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+# Run the application
+ENTRYPOINT ["python", "src/proxy_app/main.py"]
+CMD ["--host", "0.0.0.0", "--port", "8000"]
+=== END FILE ===
+
+=== FILE: .dockerignore ===
+# Git
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment files (should be mounted or passed at runtime)
+.env
+*.env
+!.env.example
+
+# Documentation
+docs/
+*.md
+
+# Docker files themselves
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Logs
+logs/
+*.log
+=== END FILE ===
+
+=== FILE: docs/containerization.md ===
+# Containerization Guide
+
+## Building the Image
+
+The Dockerfile uses a multi-stage build to minimize the final image size:
+
+```bash
+docker build -t proxy-app:latest .
+```
+
+## Running the Container
+
+### Basic Usage
+
+```bash
+docker run -p 8000:8000 \
+  -e PROXY_API_KEY=your_secret_key \
+  proxy-app:latest
+```
+
+### With Environment Files
+
+Mount your environment files instead of baking them into the image:
+
+```bash
+docker run -p 8000:8000 \
+  -v $(pwd)/.env:/app/.env:ro \
+  -v $(pwd)/config:/app/config:ro \
+  proxy-app:latest
+```
+
+### Using Docker Compose
+
+```yaml
+version: '3.8'
+
+services:
+  proxy:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+```
+
+## Multi-Stage Build Benefits
+
+1. **Smaller Image Size**: Only runtime dependencies are included in the final image
+2. **Security**: Build tools (gcc, etc.) are not present in the runtime image
+3. **Non-root User**: Application runs as `appuser` (UID 1000) for security
+4. **Layer Caching**: Dependencies are cached separately from application code
+5. **BuildKit Cache**: Pip cache is mounted during build for faster rebuilds
+=== END FILE ===
