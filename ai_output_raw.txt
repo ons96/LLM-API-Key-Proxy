@@ -1,0 +1,606 @@
+=== FILE: src/proxy_app/redis_client.py ===
+"""
+Redis Client Wrapper for Response Caching
+
+Provides async Redis operations with connection pooling, automatic serialization,
+and graceful error handling for the proxy application.
+"""
+
+import json
+import logging
+import os
+import time
+from datetime import timedelta
+from typing import Any, Dict, List, Optional, Union
+
+try:
+    import redis.asyncio as aioredis
+    from redis.asyncio import Redis
+    from redis.asyncio.connection import ConnectionPool
+    from redis.exceptions import RedisError, ConnectionError as RedisConnectionError
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
+    Redis = Any
+    RedisError = Exception
+    RedisConnectionError = Exception
+
+logger = logging.getLogger(__name__)
+
+
+class RedisCache:
+    """
+    Async Redis cache wrapper with JSON serialization and connection pooling.
+    """
+    
+    def __init__(
+        self,
+        host: str = "localhost",
+        port: int = 6379,
+        db: int = 0,
+        password: Optional[str] = None,
+        username: Optional[str] = None,
+        key_prefix: str = "proxy:",
+        default_ttl: int = 3600,
+        socket_timeout: int = 5,
+        socket_connect_timeout: int = 5,
+        health_check_interval: int = 30,
+        max_connections: int = 50,
+        ssl: bool = False,
+        ssl_cert_reqs: Optional[str] = None,
+    ):
+        """
+        Initialize Redis cache wrapper.
+        
+        Args:
+            host: Redis server hostname
+            port: Redis server port
+            db: Redis database number (0-15)
+            password: Redis password (optional)
+            username: Redis username for ACL (optional)
+            key_prefix: Namespace prefix for all keys
+            default_ttl: Default TTL in seconds for cached items
+            socket_timeout: Socket read timeout in seconds
+            socket_connect_timeout: Connection timeout in seconds
+            health_check_interval: Health check interval in seconds
+            max_connections: Maximum connections in pool
+            ssl: Enable SSL/TLS connection
+            ssl_cert_reqs: SSL certificate requirements (None, 'optional', 'required')
+        """
+        if not REDIS_AVAILABLE:
+            raise ImportError(
+                "redis package is required. Install with: pip install redis[hiredis]"
+            )
+            
+        self.key_prefix = key_prefix
+        self.default_ttl = default_ttl
+        self._pool: Optional[ConnectionPool] = None
+        self._redis: Optional[Redis] = None
+        self._config = {
+            "host": host,
+            "port": port,
+            "db": db,
+            "password": password,
+            "username": username,
+            "socket_timeout": socket_timeout,
+            "socket_connect_timeout": socket_connect_timeout,
+            "health_check_interval": health_check_interval,
+            "max_connections": max_connections,
+            "ssl": ssl,
+            "ssl_cert_reqs": ssl_cert_reqs,
+        }
+        self._connected = False
+        
+    async def connect(self) -> bool:
+        """
+        Initialize Redis connection pool and verify connectivity.
+        
+        Returns:
+            True if connected successfully, False otherwise
+        """
+        try:
+            self._pool = ConnectionPool(
+                host=self._config["host"],
+                port=self._config["port"],
+                db=self._config["db"],
+                password=self._config["password"],
+                username=self._config["username"],
+                socket_timeout=self._config["socket_timeout"],
+                socket_connect_timeout=self._config["socket_connect_timeout"],
+                health_check_interval=self._config["health_check_interval"],
+                max_connections=self._config["max_connections"],
+                ssl=self._config["ssl"],
+                ssl_cert_reqs=self._config["ssl_cert_reqs"],
+                decode_responses=True,
+            )
+            self._redis = Redis(connection_pool=self._pool)
+            await self._redis.ping()
+            self._connected = True
+            logger.info(
+                f"Redis cache connected to {self._config['host']}:{self._config['port']} "
+                f"(db={self._config['db']}, prefix='{self.key_prefix}')"
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Failed to connect to Redis: {e}")
+            self._redis = None
+            self._pool = None
+            self._connected = False
+            return False
+            
+    async def close(self) -> None:
+        """Close Redis connection pool and cleanup resources."""
+        if self._pool:
+            try:
+                await self._pool.disconnect()
+                logger.info("Redis cache connection closed")
+            except Exception as e:
+                logger.error(f"Error closing Redis connection: {e}")
+            finally:
+                self._pool = None
+                self._redis = None
+                self._connected = False
+                
+    def is_connected(self) -> bool:
+        """Check if Redis connection is active."""
+        return self._connected and self._redis is not None
+        
+    def _make_key(self, key: str) -> str:
+        """
+        Construct full key with prefix.
+        
+        Args:
+            key: Original key
+            
+        Returns:
+            Prefixed key
+        """
+        if not isinstance(key, str):
+            key = str(key)
+        return f"{self.key_prefix}{key}"
+        
+    async def get(self, key: str) -> Optional[Any]:
+        """
+        Retrieve and deserialize value from cache.
+        
+        Args:
+            key: Cache key
+            
+        Returns:
+            Deserialized value or None if not found/error
+        """
+        if not self._redis:
+            return None
+            
+        try:
+            full_key = self._make_key(key)
+            data = await self._redis.get(full_key)
+            if data is None:
+                return None
+            return json.loads(data)
+        except RedisError as e:
+            logger.warning(f"Redis get error for key '{key}': {e}")
+            return None
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error for key '{key}': {e}")
+            return None
+            
+    async def set(
+        self,
+        key: str,
+        value: Any,
+        ttl: Optional[Union[int, timedelta]] = None,
+        nx: bool = False,
+        xx: bool = False,
+    ) -> bool:
+        """
+        Serialize and store value in cache.
+        
+        Args:
+            key: Cache key
+            value: Value to cache (JSON serializable)
+            ttl: Time-to-live in seconds or timedelta (None uses default)
+            nx: Only set if key does not exist (Set if Not Exists)
+            xx: Only set if key exists
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self._redis:
+            return False
+            
+        try:
+            full_key = self._make_key(key)
+            serialized = json.dumps(value, default=str)
+            
+            if ttl is None:
+                ttl = self.default_ttl
+            elif isinstance(ttl, timedelta):
+                ttl = int(ttl.total_seconds())
+                
+            result = await self._redis.set(
+                full_key,
+                serialized,
+                ex=ttl if ttl > 0 else None,
+                nx=nx,
+                xx=xx,
+            )
+            return result is True
+        except RedisError as e:
+            logger.warning(f"Redis set error for key '{key}': {e}")
+            return False
+        except (TypeError, ValueError) as e:
+            logger.error(f"JSON encode error for key '{key}': {e}")
+            return False
+            
+    async def delete(self, key: str) -> bool:
+        """
+        Delete key from cache.
+        
+        Args:
+            key: Cache key
+            
+        Returns:
+            True if key was deleted, False otherwise
+        """
+        if not self._redis:
+            return False
+            
+        try:
+            full_key = self._make_key(key)
+            result = await self._redis.delete(full_key)
+            return result > 0
+        except RedisError as e:
+            logger.warning(f"Redis delete error for key '{key}': {e}")
+            return False
+            
+    async def exists(self, key: str) -> bool:
+        """
+        Check if key exists in cache.
+        
+        Args:
+            key: Cache key
+            
+        Returns:
+            True if exists, False otherwise
+        """
+        if not self._redis:
+            return False
+            
+        try:
+            full_key = self._make_key(key)
+            result = await self._redis.exists(full_key)
+            return result > 0
+        except RedisError as e:
+            logger.warning(f"Redis exists error for key '{key}': {e}")
+            return False
+            
+    async def ttl(self, key: str) -> int:
+        """
+        Get remaining TTL for key in seconds.
+        
+        Args:
+            key: Cache key
+            
+        Returns:
+            TTL in seconds, -1 if no expiry, -2 if not found, -3 on error
+        """
+        if not self._redis:
+            return -3
+            
+        try:
+            full_key = self._make_key(key)
+            return await self._redis.ttl(full_key)
+        except RedisError as e:
+            logger.warning(f"Redis ttl error for key '{key}': {e}")
+            return -3
+            
+    async def expire(self, key: str, ttl: Union[int, timedelta]) -> bool:
+        """
+        Set/Update TTL for existing key.
+        
+        Args:
+            key: Cache key
+            ttl: New TTL in seconds or timedelta
+            
+        Returns:
+            True if TTL was set, False otherwise
+        """
+        if not self._redis:
+            return False
+            
+        try:
+            full_key = self._make_key(key)
+            if isinstance(ttl, timedelta):
+                ttl = int(ttl.total_seconds())
+            result = await self._redis.expire(full_key, ttl)
+            return result is True
+        except RedisError as e:
+            logger.warning(f"Redis expire error for key '{key}': {e}")
+            return False
+            
+    async def keys(self, pattern: str = "*") -> List[str]:
+        """
+        Find keys matching pattern (use with caution in production).
+        
+        Args:
+            pattern: Key pattern to match
+            
+        Returns:
+            List of matching keys (without prefix)
+        """
+        if not self._redis:
+            return []
+            
+        try:
+            full_pattern = self._make_key(pattern)
+            keys = await self._redis.keys(full_pattern)
+            # Remove prefix from returned keys
+            prefix_len = len(self.key_prefix)
+            return [k[prefix_len:] if k.startswith(self.key_prefix) else k for k in keys]
+        except RedisError as e:
+            logger.warning(f"Redis keys error for pattern '{pattern}': {e}")
+            return []
+            
+    async def clear(self, pattern: str = "*") -> int:
+        """
+        Delete all keys matching pattern.
+        
+        Args:
+            pattern: Key pattern to match (default: all keys with prefix)
+            
+        Returns:
+            Number of keys deleted
+        """
+        if not self._redis:
+            return 0
+            
+        try:
+            keys = await self.keys(pattern)
+            if not keys:
+                return 0
+                
+            full_keys = [self._make_key(k) for k in keys]
+            result = await self._redis.delete(*full_keys)
+            return result
+        except RedisError as e:
+            logger.warning(f"Redis clear error for pattern '{pattern}': {e}")
+            return 0
+            
+    async def health_check(self) -> Dict[str, Any]:
+        """
+        Perform comprehensive health check.
+        
+        Returns:
+            Dict with status, latency, and server info
+        """
+        if not self._redis:
+            return {
+                "status": "disconnected",
+                "healthy": False,
+                "error": "Redis client not initialized"
+            }
+            
+        try:
+            start_time = time.time()
+            await self._redis.ping()
+            latency = time.time() - start_time
+            
+            info = await self._redis.info()
+            return {
+                "status": "connected",
+                "healthy": True,
+                "latency_ms": round(latency * 1000, 2),
+                "version": info.get("redis_version"),
+                "used_memory": info.get("used_memory_human"),
+                "used_memory_rss": info.get("used_memory_rss_human"),
+                "connected_clients": info.get("connected_clients"),
+                "total_connections_received": info.get("total_connections_received"),
+                "total_commands_processed": info.get("total_commands_processed"),
+                "keyspace_hits": info.get("keyspace_hits"),
+                "keyspace_misses": info.get("keyspace_misses"),
+            }
+        except RedisConnectionError as e:
+            logger.error(f"Redis health check failed - connection error: {e}")
+            return {
+                "status": "connection_error",
+                "healthy": False,
+                "error": str(e)
+            }
+        except Exception as e:
+            logger.error(f"Redis health check failed: {e}")
+            return {
+                "status": "error",
+                "healthy": False,
+                "error": str(e)
+            }
+            
+    async def get_stats(self) -> Dict[str, Any]:
+        """
+        Get cache statistics.
+        
+        Returns:
+            Dict with cache stats
+        """
+        health = await self.health_check()
+        if not health["healthy"]:
+            return {"healthy": False, "error": health.get("error")}
+            
+        try:
+            # Count keys with our prefix
+            keys = await self.keys("*")
+            return {
+                "healthy": True,
+                "key_count": len(keys),
+                "key_prefix": self.key_prefix,
+                "default_ttl": self.default_ttl,
+                "connection": {
+                    "host": self._config["host"],
+                    "port": self._config["port"],
+                    "db": self._config["db"],
+                },
+                "server": {
+                    "version": health.get("version"),
+                    "used_memory": health.get("used_memory"),
+                    "connected_clients": health.get("connected_clients"),
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error getting cache stats: {e}")
+            return {"healthy": False, "error": str(e)}
+            
+    async def __aenter__(self) -> "RedisCache":
+        """Async context manager entry."""
+        await self.connect()
+        return self
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Async context manager exit."""
+        await self.close()
+
+
+# Global singleton instance
+_cache_instance: Optional[RedisCache] = None
+
+
+def get_cache(config: Optional[Dict[str, Any]] = None) -> RedisCache:
+    """
+    Get or create global Redis cache instance.
+    
+    Args:
+        config: Configuration dict. If None and instance exists, returns existing.
+                If None and no instance, creates from environment variables.
+                
+    Returns:
+        RedisCache instance
+    """
+    global _cache_instance
+    
+    if _cache_instance is not None and config is None:
+        return _cache_instance
+        
+    if config is None:
+        # Build config from environment variables
+        ssl_cert_reqs = os.getenv("REDIS_SSL_CERT_REQS")
+        config = {
+            "host": os.getenv("REDIS_HOST", "localhost"),
+            "port": int(os.getenv("REDIS_PORT", "6379")),
+            "db": int(os.getenv("REDIS_DB", "0")),
+            "password": os.getenv("REDIS_PASSWORD"),
+            "username": os.getenv("REDIS_USERNAME"),
+            "key_prefix": os.getenv("REDIS_KEY_PREFIX", "proxy:"),
+            "default_ttl": int(os.getenv("REDIS_DEFAULT_TTL", "3600")),
+            "socket_timeout": int(os.getenv("REDIS_SOCKET_TIMEOUT", "5")),
+            "socket_connect_timeout": int(os.getenv("REDIS_SOCKET_CONNECT_TIMEOUT", "5")),
+            "max_connections": int(os.getenv("REDIS_MAX_CONNECTIONS", "50")),
+            "ssl": os.getenv("REDIS_SSL", "false").lower() == "true",
+            "ssl_cert_reqs": ssl_cert_reqs if ssl_cert_reqs else None,
+        }
+        
+    _cache_instance = RedisCache(**config)
+    return _cache_instance
+
+
+async def close_cache() -> None:
+    """Close global cache instance if exists."""
+    global _cache_instance
+    if _cache_instance:
+        await _cache_instance.close()
+        _cache_instance = None
+
+
+def create_cache_key(*args, **kwargs) -> str:
+    """
+    Create a consistent cache key from arguments.
+    
+    Args:
+        *args: Positional arguments to include in key
+        **kwargs: Keyword arguments to include in key
+        
+    Returns:
+        MD5 hash string to use as cache key
+    """
+    import hashlib
+    
+    # Create deterministic string representation
+    key_parts = [str(a) for a in args]
+    key_parts.extend(f"{k}={v}" for k, v in sorted(kwargs.items()))
+    key_string = "|".join(key_parts)
+    
+    # Create hash
+    return hashlib.md5(key_string.encode()).hexdigest()
+=== END FILE ===
+
+=== FILE: config/router_config.yaml ===
+# Router Configuration
+# Phase 4.1: Response Caching Configuration
+
+redis:
+  # Enable/disable Redis caching
+  enabled: true
+  
+  # Connection settings
+  host: localhost
+  port: 6379
+  db: 0
+  
+  # Authentication (set via env vars in production: REDIS_PASSWORD, REDIS_USERNAME)
+  password: null
+  username: null
+  
+  # Connection pool settings
+  max_connections: 50
+  socket_timeout: 5
+  socket_connect_timeout: 5
+  health_check_interval: 30
+  
+  # SSL/TLS settings (for Redis Cloud, AWS ElastiCache, etc.)
+  ssl: false
+  ssl_cert_reqs: null  # null, 'optional', or 'required'
+  
+  # Key namespace prefix (useful for multi-tenant setups)
+  key_prefix: "proxy:"
+  
+  # Default TTL for cached responses (seconds)
+  default_ttl: 3600  # 1 hour
+  
+  # Endpoint-specific cache configuration
+  endpoints:
+    chat_completions:
+      enabled: true
+      ttl: 7200  # 2 hours
+      # Fields to consider when generating cache key
+      # (model, messages content, temperature, etc.)
+      key_fields:
+        - model
+        - messages
+        - temperature
+        - max_tokens
+        - top_p
+        - frequency_penalty
+        - presence_penalty
+      # Don't cache if user field present (privacy)
+      respect_user_field: true
+      
+    completions:
+      enabled: true
+      ttl: 3600
+      key_fields:
+        - model
+        - prompt
+        - temperature
+        - max_tokens
+        
+    embeddings:
+      enabled: true
+      ttl: 86400  # 24 hours (embeddings rarely change)
+      key_fields:
+        - model
+        - input
+        
+    models:
+      enabled: true
+      ttl: 300    # 5 minutes (refresh model list frequently)
+      
+  # Cache invalidation settings
+  invalidation:
