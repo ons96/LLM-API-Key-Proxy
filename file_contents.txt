@@ -1,3 +1,4 @@
+--- src/proxy_app/main.py ---
 import time
 
 # Phase 1: Minimal imports for arg parsing and TUI
@@ -133,9 +134,6 @@ with _console.status("[dim]Initializing proxy core...", spinner="dots"):
     # [NEW] Import HealthChecker
     from proxy_app.health_checker import HealthChecker
 
-    # [NEW] Import Correlation ID Middleware
-    from proxy_app.middleware_correlation import CorrelationIDMiddleware
-
 print("  → Discovering provider plugins...")
 # Provider lazy loading happens during import, so time it here
 _provider_start = time.time()
@@ -201,4 +199,4 @@ class EnrichedModelCard(BaseModel):
     supported_output_modalities: List[str] = Field(default_factory=lambda: ["text"])
     capabilities: Optional[ModelCapabilities] = None
     # Debug info (optional)
-    # (We may add more fields later)
+
