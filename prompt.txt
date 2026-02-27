@@ -1,9 +1,9 @@
 You are an expert software engineer.
-Fix GitHub issue #128 in this repository.
-Title: Bugs: Verify free-only mode enforcement
+Fix GitHub issue #127 in this repository.
+Title: Phase 7.2: Document provider adapter architecture
 
 Description:
-From BUGS.md: Verify that FREE_ONLY_MODE properly rejects non-free providers.
+Part of Phase 7.2 Developer Documentation.
 
 Instructions:
 1. Identify the root cause.
