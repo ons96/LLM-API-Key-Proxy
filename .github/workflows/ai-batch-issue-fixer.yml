@@ -1,4 +1,4 @@
-name: Batch AI Issue Fixer
+name: AI Batch Issue Fixer
 
 on:
   workflow_dispatch:
