@@ -1,3 +1,4 @@
+--- src/rotator_library/smart_scheduler.py ---
 """Smart Scheduler for Dynamic Ranking Updates
 
 Resource-efficient recalculation that triggers only during gateway inactivity.
@@ -20,7 +21,6 @@ class SchedulerConfig:
     max_recalc_frequency: int = 3600  # Max once per hour even with activity
     min_recalc_interval: int = 300  # Minimum 5 minutes between recalcs
     provider_refresh_interval: int = 21600  # 6 hours for provider refresh
-    benchmark_update_interval: int = 86400  # 24 hours for benchmark updates
 
 
 class SmartScheduler:
@@ -31,7 +31,6 @@ class SmartScheduler:
     - Batches multiple triggers into single recalculation
     - Respects minimum intervals to prevent spam
     - Ultra-lightweight: <20MB RAM, <50ms CPU per recalc
-    - Supports periodic benchmark updates
     """
     
     def __init__(self, config: SchedulerConfig = None):
@@ -39,24 +38,19 @@ class SmartScheduler:
         self.last_request_time: float = time.time()
         self.last_recalc_time: float = 0
         self.last_provider_refresh: float = 0
-        self.last_benchmark_update: float = 0
         self.pending_recalc: bool = False
         self.pending_provider_refresh: bool = False
-        self.pending_benchmark_update: bool = False
         self._task: Optional[asyncio.Task] = None
         self._recalc_callback: Optional[Callable] = None
         self._provider_refresh_callback: Optional[Callable] = None
-        self._benchmark_update_callback: Optional[Callable] = None
         self._running: bool = False
         
     def set_callbacks(self, 
                       recalc_callback: Callable,
-                      provider_refresh_callback: Callable,
-                      benchmark_update_callback: Callable = None):
-        """Set callback functions for recalculation, provider refresh, and benchmark updates."""
+                      provider_refresh_callback: Callable):
+        """Set callback functions for recalculation and refresh."""
         self._recalc_callback = recalc_callback
         self._provider_refresh_callback = provider_refresh_callback
-        self._benchmark_update_callback = benchmark_update_callback
         
     def record_activity(self):
         """Record that a request was processed."""
@@ -77,17 +71,6 @@ class SmartScheduler:
             
         self.pending_recalc = True
         logger.info(f"Recalculation queued (reason: {reason})")
-        
-    def trigger_benchmark_update(self, reason: str = "manual"):
-        """Trigger a benchmark data update."""
-        time_since_last = time.time() - self.last_benchmark_update
-        
-        if time_since_last < self.config.benchmark_update_interval:
-            logger.debug(f"Benchmark update ignored ({time_since_last:.0f}s < {self.config.benchmark_update_interval}s)")
-            return
-            
-        self.pending_benchmark_update = True
-        logger.info(f"Benchmark update queued (reason: {reason})")
         
     async def start(self):
         """Start the scheduler background task."""
@@ -160,21 +143,9 @@ class SmartScheduler:
                     self.pending_provider_refresh = False
                 except Exception as e:
                     logger.error(f"Provider refresh failed: {e}")
-                    
-        # 3. Update benchmark data if needed
-        if self.pending_benchmark_update and self._benchmark_update_callback:
-            time_since_benchmark = now - self.last_benchmark_update
-            
-            if time_since_benchmark >= self.config.benchmark_update_interval:
-                logger.info("Executing benchmark data update (inactive period)")
-                try:
-                    await self._benchmark_update_callback()
-                    self.last_benchmark_update = now
-                    self.pending_benchmark_update = False
-                except Exception as e:
-                    logger.error(f"Benchmark update failed: {e}")
 
 
 def get_scheduler(config: SchedulerConfig = None) -> SmartScheduler:
     """Factory function to get scheduler instance."""
     return SmartScheduler(config)
+
