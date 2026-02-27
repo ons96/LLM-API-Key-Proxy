@@ -1,0 +1,495 @@
+=== FILE: src/proxy_app/streaming_metrics.py ===
+"""
+Streaming metrics collection for Phase 4.2 improvements.
+Tracks time-to-first-token, throughput, and chunk-level metrics.
+"""
+
+import time
+import json
+import asyncio
+import uuid
+from dataclasses import dataclass, field
+from typing import Optional, Dict, Any, AsyncGenerator, Callable, Union
+from datetime import datetime
+
+
+@dataclass
+class StreamingMetrics:
+    """Metrics collected during a streaming response."""
+    request_id: str
+    model: str
+    start_time: float
+    first_token_time: Optional[float] = None
+    end_time: Optional[float] = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_chunks: int = 0
+    error_count: int = 0
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    @property
+    def time_to_first_token_ms(self) -> Optional[float]:
+        """Time from request start to first token in milliseconds."""
+        if self.first_token_time:
+            return (self.first_token_time - self.start_time) * 1000
+        return None
+    
+    @property
+    def total_duration_ms(self) -> Optional[float]:
+        """Total duration of the stream in milliseconds."""
+        if self.end_time:
+            return (self.end_time - self.start_time) * 1000
+        return None
+    
+    @property
+    def tokens_per_second(self) -> Optional[float]:
+        """Calculate tokens per second throughput."""
+        duration = self.total_duration_ms
+        if duration and duration > 0:
+            return (self.output_tokens / duration) * 1000
+        return None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert metrics to dictionary for logging."""
+        return {
+            "request_id": self.request_id,
+            "model": self.model,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "total_chunks": self.total_chunks,
+            "error_count": self.error_count,
+            "time_to_first_token_ms": self.time_to_first_token_ms,
+            "total_duration_ms": self.total_duration_ms,
+            "tokens_per_second": self.tokens_per_second,
+            "metadata": self.metadata,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+
+class StreamingMetricsCollector:
+    """Collects metrics for streaming responses."""
+    
+    def __init__(self, request_id: str, model: str, metadata: Optional[Dict] = None):
+        self.metrics = StreamingMetrics(
+            request_id=request_id,
+            model=model,
+            start_time=time.time(),
+            metadata=metadata or {}
+        )
+        self._first_token = True
+        self._active = True
+    
+    def record_first_token(self):
+        """Record the time of the first token."""
+        if self._first_token and self._active:
+            self.metrics.first_token_time = time.time()
+            self._first_token = False
+    
+    def record_chunk(self, chunk_data: Optional[Union[Dict, str, bytes]] = None):
+        """Record a chunk being sent and extract token info if available."""
+        if not self._active:
+            return
+            
+        self.metrics.total_chunks += 1
+        
+        # Parse chunk if it's bytes or string
+        parsed_data = None
+        if isinstance(chunk_data, (bytes, str)):
+            parsed_data = self._parse_chunk(chunk_data)
+        elif isinstance(chunk_data, dict):
+            parsed_data = chunk_data
+            
+        if parsed_data:
+            self._extract_usage_info(parsed_data)
+    
+    def _parse_chunk(self, chunk: Union[bytes, str]) -> Optional[Dict]:
+        """Parse SSE formatted chunk to extract JSON data."""
+        try:
+            if isinstance(chunk, bytes):
+                text = chunk.decode('utf-8')
+            else:
+                text = chunk
+                
+            # Handle SSE format: data: {...}\n\n
+            if text.startswith('data: '):
+                text = text[6:]
+                
+            text = text.strip()
+            if text == '[DONE]' or not text:
+                return None
+                
+            return json.loads(text)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return None
+    
+    def _extract_usage_info(self, data: Dict):
+        """Extract token usage from chunk data."""
+        # Handle usage field in chunk (some providers send this in the last chunk)
+        if "usage" in data and data["usage"]:
+            usage = data["usage"]
+            if isinstance(usage, dict):
+                self.metrics.output_tokens = usage.get("completion_tokens", self.metrics.output_tokens)
+                self.metrics.input_tokens = usage.get("prompt_tokens", self.metrics.input_tokens)
+        
+        # Count content in delta
+        if "choices" in data and data["choices"]:
+            for choice in data["choices"]:
+                delta = choice.get("delta", {})
+                if delta and "content" in delta and delta["content"]:
+                    # Estimate tokens: ~4 chars per token for English text
+                    content = delta["content"]
+                    self.metrics.output_tokens += max(1, len(content) // 4)
+    
+    def record_error(self, error: Optional[Exception] = None):
+        """Record an error during streaming."""
+        if self._active:
+            self.metrics.error_count += 1
+            if error:
+                self.metrics.metadata["last_error"] = f"{type(error).__name__}: {str(error)}"
+    
+    def finalize(self) -> StreamingMetrics:
+        """Finalize metrics collection and return the metrics."""
+        if self._active:
+            self.metrics.end_time = time.time()
+            self._active = False
+        return self.metrics
+    
+    async def wrap_generator(
+        self, 
+        generator: AsyncGenerator[Union[str, bytes], None],
+        log_callback: Optional[Callable[[StreamingMetrics], None]] = None
+    ) -> AsyncGenerator[Union[str, bytes], None]:
+        """
+        Wrap an async generator to collect metrics.
+        
+        Args:
+            generator: The async generator yielding stream chunks
+            log_callback: Optional callback to call with final metrics when done
+            
+        Yields:
+            Chunks from the original generator
+        """
+        try:
+            async for chunk in generator:
+                # Record first token timing on first chunk
+                if self.metrics.total_chunks == 0:
+                    self.record_first_token()
+                
+                self.record_chunk(chunk)
+                yield chunk
+                
+        except Exception as e:
+            self.record_error(e)
+            raise
+        finally:
+            metrics = self.finalize()
+            if log_callback:
+                try:
+                    log_callback(metrics)
+                except Exception:
+                    # Don't let logging errors break the response
+                    pass
+
+
+class StreamingMetricsMiddleware:
+    """Middleware-style wrapper for streaming endpoints."""
+    
+    def __init__(self, detailed_logger=None):
+        self.logger = detailed_logger
+    
+    async def wrap_streaming_response(
+        self,
+        request_id: str,
+        model: str,
+        generator: AsyncGenerator[Union[str, bytes], None],
+        metadata: Optional[Dict] = None
+    ) -> AsyncGenerator[Union[str, bytes], None]:
+        """Wrap a streaming generator with metrics collection."""
+        collector = StreamingMetricsCollector(
+            request_id=request_id,
+            model=model,
+            metadata=metadata
+        )
+        
+        callback = None
+        if self.logger and hasattr(self.logger, 'log_streaming_metrics'):
+            callback = self.logger.log_streaming_metrics
+            
+        async for chunk in collector.wrap_generator(generator, callback):
+            yield chunk
+=== END FILE ===
+
+=== FILE: src/proxy_app/detailed_logger.py ===
+"""
+Detailed logging infrastructure for proxy requests and streaming metrics.
+"""
+
+import json
+import logging
+import os
+from datetime import datetime
+from typing import Any, Dict, Optional
+from pathlib import Path
+
+from proxy_app.streaming_metrics import StreamingMetrics
+
+
+class DetailedLogger:
+    """Handles detailed logging of requests, responses, and streaming metrics."""
+    
+    def __init__(self, log_dir: Optional[Path] = None, enable_console: bool = True):
+        self.logger = logging.getLogger("proxy_app.detailed_logger")
+        self.logger.setLevel(logging.INFO)
+        
+        # Clear existing handlers to avoid duplicates on re-init
+        self.logger.handlers = []
+        
+        if enable_console:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+        
+        # File logging setup
+        self.log_dir = log_dir or Path(os.getenv("PROXY_LOG_DIR", "logs"))
+        self._file_handler = None
+        
+        if self.log_dir:
+            try:
+                self.log_dir.mkdir(parents=True, exist_ok=True)
+                # We'll use rotating file handlers per day
+                self._setup_file_logging()
+            except Exception as e:
+                self.logger.warning(f"Could not setup file logging: {e}")
+    
+    def _setup_file_logging(self):
+        """Setup file logging with daily rotation."""
+        date_str = datetime.utcnow().strftime("%Y-%m-%d")
+        log_file = self.log_dir / f"proxy_{date_str}.jsonl"
+        
+        # Use a file handler for structured logs
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.INFO)
+        # Simple formatter for file - we'll write JSON directly
+        file_handler.setFormatter(logging.Formatter('%(message)s'))
+        self.logger.addHandler(file_handler)
+        self._file_handler = file_handler
+    
+    def _write_structured_log(self, data: Dict[str, Any]):
+        """Write a structured log entry."""
+        log_entry = json.dumps(data, default=str)
+        
+        if self._file_handler:
+            # Write to file directly as JSON
+            with open(self._file_handler.baseFilename, "a") as f:
+                f.write(log_entry + "\n")
+        
+        # Also log to console at debug level
+        self.logger.debug(log_entry)
+    
+    def log_request_start(
+        self, 
+        request_id: str, 
+        endpoint: str, 
+        model: str,
+        stream: bool = False,
+        **kwargs
+    ):
+        """Log the start of a request."""
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "request_id": request_id,
+            "event_type": "request_start",
+            "endpoint": endpoint,
+            "model": model,
+            "stream": stream,
+            **kwargs
+        }
+        self._write_structured_log(log_data)
+        
+        if stream:
+            self.logger.info(f"[{request_id[:8]}] Streaming request started for model: {model}")
+    
+    def log_request_end(
+        self, 
+        request_id: str, 
+        model: str,
+        status_code: int = 200,
+        error: Optional[str] = None,
+        **kwargs
+    ):
+        """Log the end of a request."""
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "request_id": request_id,
+            "event_type": "request_end",
+            "model": model,
+            "status_code": status_code,
+            "error": error,
+            **kwargs
+        }
+        self._write_structured_log(log_data)
+    
+    def log_streaming_metrics(self, metrics: StreamingMetrics):
+        """
+        Log metrics collected from a streaming response.
+        This is the callback used by StreamingMetricsCollector.
+        """
+        metrics_dict = metrics.to_dict()
+        
+        # Structured log entry
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "request_id": metrics.request_id,
+            "event_type": "streaming_metrics",
+            "metrics": metrics_dict
+        }
+        self._write_structured_log(log_data)
+        
+        # Human-readable console summary
+        ttft = metrics.time_to_first_token_ms
+        tps = metrics.tokens_per_second
+        duration = metrics.total_duration_ms
+        
+        summary_parts = [
+            f"[{metrics.request_id[:8]}] Stream complete",
+            f"Model: {metrics.model}",
+            f"Chunks: {metrics.total_chunks}",
+        ]
+        
+        if ttft is not None:
+            summary_parts.append(f"TTFT: {ttft:.1f}ms")
+        if tps is not None:
+            summary_parts.append(f"TPS: {tps:.1f}")
+        if duration is not None:
+            summary_parts.append(f"Duration: {duration:.1f}ms")
+        if metrics.output_tokens > 0:
+            summary_parts.append(f"Tokens: {metrics.output_tokens}")
+        if metrics.error_count > 0:
+            summary_parts.append(f"Errors: {metrics.error_count}")
+            
+        self.logger.info(" | ".join(summary_parts))
+    
+    def log_provider_error(
+        self, 
+        request_id: str, 
+        provider: str, 
+        error: Exception,
+        model: Optional[str] = None
+    ):
+        """Log provider-specific errors."""
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "request_id": request_id,
+            "event_type": "provider_error",
+            "provider": provider,
+            "model": model,
+            "error_type": type(error).__name__,
+            "error_message": str(error),
+        }
+        self._write_structured_log(log_data)
+        self.logger.error(
+            f"[{request_id[:8]}] Provider error ({provider}): {type(error).__name__}: {str(error)}"
+        )
+    
+    def log_router_decision(
+        self,
+        request_id: str,
+        model: str,
+        selected_provider: str,
+        available_providers: int,
+        routing_reason: Optional[str] = None
+    ):
+        """Log routing decisions."""
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "request_id": request_id,
+            "event_type": "router_decision",
+            "model": model,
+            "selected_provider": selected_provider,
+            "available_providers": available_providers,
+            "routing_reason": routing_reason,
+        }
+        self._write_structured_log(log_data)
+=== END FILE ===
+
+=== FILE: src/proxy_app/main.py ===
+import time
+
+# Phase 1: Minimal imports for arg parsing and TUI
+import asyncio
+import os
+from pathlib import Path
+import sys
+import argparse
+import logging
+import uuid
+
+# --- Argument Parsing (BEFORE heavy imports) ---
+parser = argparse.ArgumentParser(description="API Key Proxy Server")
+parser.add_argument(
+    "--host", type=str, default="0.0.0.0", help="Host to bind the server to."
+)
+parser.add_argument("--port", type=int, default=8000, help="Port to run the server on.")
+parser.add_argument(
+    "--enable-request-logging", action="store_true", help="Enable request logging."
+)
+parser.add_argument(
+    "--add-credential",
+    action="store_true",
+    help="Launch the interactive tool to add a new OAuth credential.",
+)
+args, _ = parser.parse_known_args()
+
+# Add the 'src' directory to the Python path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+# Check if we should launch TUI (no arguments = TUI mode)
+if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        # TUI MODE - Load ONLY what's needed for the launcher (fast path!)
+        from proxy_app.launcher_tui import run_launcher_tui
+
+        run_launcher_tui()
+        # Launcher modifies sys.argv and returns, or exits if user chose Exit
+        # If we get here, user chose "Run Proxy" and sys.argv is modified
+        # Re-parse arguments with modified sys.argv
+        args = parser.parse_args()
+
+    # Check if credential tool mode (also doesn't need heavy proxy imports)
+    if args.add_credential:
+        from rotator_library.credential_tool import run_credential_tool
+
+        run_credential_tool()
+        sys.exit(0)
+
+
+# If we get here, we're ACTUALLY running the proxy - NOW show startup messages and start timer
+_start_time = time.time()
+
+# Load all .env files from root folder (main .env first, then any additional *.env files)
+from dotenv import load_dotenv
+from glob import glob
+
+# Get the application root directory (EXE dir if frozen, else CWD)
+# Inlined here to avoid triggering heavy rotator_library imports before loading screen
+if getattr(sys, "frozen", False):
+    _root_dir = Path(sys.executable).parent
+else:
+    _root_dir = Path.cwd()
+
+# Load main .env first
+load_dotenv(_root_dir / ".env")
+
+# Load any additional .env files (e.g., antigravity_all_combined.env, gemini_cli_all_combined.env)
+_env_files_found = list(_root_dir.glob("*.env"))
+for _env_file in sorted(_root_dir.glob("*.env")):
+    if _env_file.name != ".env":  # Skip main .env (already loaded)
+        load_dotenv(_env_file, override=False)  # Don't override existing values
+
+# Log discovered .env files for deployment verification
+if _env_files_found:
+    _env_names = [_ef.name for _ef in _env_files_found]
+    print(f"📁 Loaded {len

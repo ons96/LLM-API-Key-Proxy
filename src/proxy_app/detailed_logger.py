@@ -1,153 +1,193 @@
+"""
+Detailed logging infrastructure for proxy requests and streaming metrics.
+"""
+
 import json
-import time
-import uuid
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, Optional
 import logging
+import os
+from datetime import datetime
+from typing import Any, Dict, Optional
+from pathlib import Path
 
-from rotator_library.utils.resilient_io import (
-    safe_write_json,
-    safe_log_write,
-    safe_mkdir,
-)
-from rotator_library.utils.paths import get_logs_dir
-
-logger = logging.getLogger(__name__)
-
-
-def _get_detailed_logs_dir() -> Path:
-    """Get the detailed logs directory, creating it if needed."""
-    logs_dir = get_logs_dir()
-    detailed_dir = logs_dir / "detailed_logs"
-    detailed_dir.mkdir(parents=True, exist_ok=True)
-    return detailed_dir
+from proxy_app.streaming_metrics import StreamingMetrics
 
 
 class DetailedLogger:
-    """
-    Logs comprehensive details of each API transaction to a unique, timestamped directory.
-
-    Uses fire-and-forget logging - if disk writes fail, logs are dropped (not buffered)
-    to prevent memory issues, especially with streaming responses.
-    """
-
-    def __init__(self) -> None:
-        """
-        Initializes the logger for a single request, creating a unique directory to store all related log files.
-        """
-        self.start_time = time.time()
-        self.request_id = str(uuid.uuid4())
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.log_dir = _get_detailed_logs_dir() / f"{timestamp}_{self.request_id}"
-        self.streaming = False
-        self._dir_available = safe_mkdir(self.log_dir, logger)
-
-    def _write_json(self, filename: str, data: Dict[str, Any]) -> None:
-        """Helper to write data to a JSON file in the log directory."""
-        if not self._dir_available:
-            # Try to create directory again in case it was recreated
-            self._dir_available = safe_mkdir(self.log_dir, logger)
-            if not self._dir_available:
-                return
-
-        safe_write_json(
-            self.log_dir / filename,
-            data,
-            logger,
-            atomic=False,
-            indent=4,
-            ensure_ascii=False,
-        )
-
-    def log_request(self, headers: Dict[str, Any], body: Dict[str, Any]) -> None:
-        """Logs the initial request details."""
-        self.streaming = body.get("stream", False)
-        request_data = {
-            "request_id": self.request_id,
-            "timestamp_utc": datetime.utcnow().isoformat(),
-            "headers": dict(headers),
-            "body": body,
-        }
-        self._write_json("request.json", request_data)
-
-    def log_stream_chunk(self, chunk: Dict[str, Any]) -> None:
-        """Logs an individual chunk from a streaming response to a JSON Lines file."""
-        if not self._dir_available:
-            return
-
-        log_entry = {"timestamp_utc": datetime.utcnow().isoformat(), "chunk": chunk}
-        content = json.dumps(log_entry, ensure_ascii=False) + "\n"
-        safe_log_write(self.log_dir / "streaming_chunks.jsonl", content, logger)
-
-    def log_final_response(
-        self, status_code: int, headers: Optional[Dict[str, Any]], body: Dict[str, Any]
-    ) -> None:
-        """Logs the complete final response, either from a non-streaming call or after reassembling a stream."""
-        end_time = time.time()
-        duration_ms = (end_time - self.start_time) * 1000
-
-        response_data = {
-            "request_id": self.request_id,
-            "timestamp_utc": datetime.utcnow().isoformat(),
-            "status_code": status_code,
-            "duration_ms": round(duration_ms),
-            "headers": dict(headers) if headers else None,
-            "body": body,
-        }
-        self._write_json("final_response.json", response_data)
-        self._log_metadata(response_data)
-
-    def _extract_reasoning(self, response_body: Dict[str, Any]) -> Optional[str]:
-        """Recursively searches for and extracts 'reasoning' fields from the response body."""
-        if not isinstance(response_body, dict):
-            return None
-
-        if "reasoning" in response_body:
-            return response_body["reasoning"]
-
-        if "choices" in response_body and response_body["choices"]:
-            message = response_body["choices"][0].get("message", {})
-            if "reasoning" in message:
-                return message["reasoning"]
-            if "reasoning_content" in message:
-                return message["reasoning_content"]
-
-        return None
-
-    def _log_metadata(self, response_data: Dict[str, Any]) -> None:
-        """Logs a summary of the transaction for quick analysis."""
-        usage = response_data.get("body", {}).get("usage") or {}
-        model = response_data.get("body", {}).get("model", "N/A")
-        finish_reason = "N/A"
-        if (
-            "choices" in response_data.get("body", {})
-            and response_data["body"]["choices"]
-        ):
-            finish_reason = response_data["body"]["choices"][0].get(
-                "finish_reason", "N/A"
+    """Handles detailed logging of requests, responses, and streaming metrics."""
+    
+    def __init__(self, log_dir: Optional[Path] = None, enable_console: bool = True):
+        self.logger = logging.getLogger("proxy_app.detailed_logger")
+        self.logger.setLevel(logging.INFO)
+        
+        # Clear existing handlers to avoid duplicates on re-init
+        self.logger.handlers = []
+        
+        if enable_console:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
             )
-
-        metadata = {
-            "request_id": self.request_id,
-            "timestamp_utc": response_data["timestamp_utc"],
-            "duration_ms": response_data["duration_ms"],
-            "status_code": response_data["status_code"],
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+        
+        # File logging setup
+        self.log_dir = log_dir or Path(os.getenv("PROXY_LOG_DIR", "logs"))
+        self._file_handler = None
+        
+        if self.log_dir:
+            try:
+                self.log_dir.mkdir(parents=True, exist_ok=True)
+                # We'll use rotating file handlers per day
+                self._setup_file_logging()
+            except Exception as e:
+                self.logger.warning(f"Could not setup file logging: {e}")
+    
+    def _setup_file_logging(self):
+        """Setup file logging with daily rotation."""
+        date_str = datetime.utcnow().strftime("%Y-%m-%d")
+        log_file = self.log_dir / f"proxy_{date_str}.jsonl"
+        
+        # Use a file handler for structured logs
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.INFO)
+        # Simple formatter for file - we'll write JSON directly
+        file_handler.setFormatter(logging.Formatter('%(message)s'))
+        self.logger.addHandler(file_handler)
+        self._file_handler = file_handler
+    
+    def _write_structured_log(self, data: Dict[str, Any]):
+        """Write a structured log entry."""
+        log_entry = json.dumps(data, default=str)
+        
+        if self._file_handler:
+            # Write to file directly as JSON
+            with open(self._file_handler.baseFilename, "a") as f:
+                f.write(log_entry + "\n")
+        
+        # Also log to console at debug level
+        self.logger.debug(log_entry)
+    
+    def log_request_start(
+        self, 
+        request_id: str, 
+        endpoint: str, 
+        model: str,
+        stream: bool = False,
+        **kwargs
+    ):
+        """Log the start of a request."""
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "request_id": request_id,
+            "event_type": "request_start",
+            "endpoint": endpoint,
             "model": model,
-            "streaming": self.streaming,
-            "usage": {
-                "prompt_tokens": usage.get("prompt_tokens"),
-                "completion_tokens": usage.get("completion_tokens"),
-                "total_tokens": usage.get("total_tokens"),
-            },
-            "finish_reason": finish_reason,
-            "reasoning_found": False,
-            "reasoning_content": None,
+            "stream": stream,
+            **kwargs
         }
-
-        reasoning = self._extract_reasoning(response_data.get("body", {}))
-        if reasoning:
-            metadata["reasoning_found"] = True
-            metadata["reasoning_content"] = reasoning
-
-        self._write_json("metadata.json", metadata)
+        self._write_structured_log(log_data)
+        
+        if stream:
+            self.logger.info(f"[{request_id[:8]}] Streaming request started for model: {model}")
+    
+    def log_request_end(
+        self, 
+        request_id: str, 
+        model: str,
+        status_code: int = 200,
+        error: Optional[str] = None,
+        **kwargs
+    ):
+        """Log the end of a request."""
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "request_id": request_id,
+            "event_type": "request_end",
+            "model": model,
+            "status_code": status_code,
+            "error": error,
+            **kwargs
+        }
+        self._write_structured_log(log_data)
+    
+    def log_streaming_metrics(self, metrics: StreamingMetrics):
+        """
+        Log metrics collected from a streaming response.
+        This is the callback used by StreamingMetricsCollector.
+        """
+        metrics_dict = metrics.to_dict()
+        
+        # Structured log entry
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "request_id": metrics.request_id,
+            "event_type": "streaming_metrics",
+            "metrics": metrics_dict
+        }
+        self._write_structured_log(log_data)
+        
+        # Human-readable console summary
+        ttft = metrics.time_to_first_token_ms
+        tps = metrics.tokens_per_second
+        duration = metrics.total_duration_ms
+        
+        summary_parts = [
+            f"[{metrics.request_id[:8]}] Stream complete",
+            f"Model: {metrics.model}",
+            f"Chunks: {metrics.total_chunks}",
+        ]
+        
+        if ttft is not None:
+            summary_parts.append(f"TTFT: {ttft:.1f}ms")
+        if tps is not None:
+            summary_parts.append(f"TPS: {tps:.1f}")
+        if duration is not None:
+            summary_parts.append(f"Duration: {duration:.1f}ms")
+        if metrics.output_tokens > 0:
+            summary_parts.append(f"Tokens: {metrics.output_tokens}")
+        if metrics.error_count > 0:
+            summary_parts.append(f"Errors: {metrics.error_count}")
+            
+        self.logger.info(" | ".join(summary_parts))
+    
+    def log_provider_error(
+        self, 
+        request_id: str, 
+        provider: str, 
+        error: Exception,
+        model: Optional[str] = None
+    ):
+        """Log provider-specific errors."""
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "request_id": request_id,
+            "event_type": "provider_error",
+            "provider": provider,
+            "model": model,
+            "error_type": type(error).__name__,
+            "error_message": str(error),
+        }
+        self._write_structured_log(log_data)
+        self.logger.error(
+            f"[{request_id[:8]}] Provider error ({provider}): {type(error).__name__}: {str(error)}"
+        )
+    
+    def log_router_decision(
+        self,
+        request_id: str,
+        model: str,
+        selected_provider: str,
+        available_providers: int,
+        routing_reason: Optional[str] = None
+    ):
+        """Log routing decisions."""
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "request_id": request_id,
+            "event_type": "router_decision",
+            "model": model,
+            "selected_provider": selected_provider,
+            "available_providers": available_providers,
+            "routing_reason": routing_reason,
+        }
+        self._write_structured_log(log_data)
