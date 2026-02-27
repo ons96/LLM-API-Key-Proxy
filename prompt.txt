@@ -1,6 +1,11 @@
+You are an expert Python/FastAPI software engineer.
+Repository layout (partial): config/aliases.yaml config/chat_model_rankings.yaml config/model_rankings.yaml config/providers_database.yaml config/router_config.yaml config/scoring_config.yaml config/virtual_models.yaml config/virtual_models_backup.yaml config/virtual_models_generated.yaml src/proxy_app/__init__.py src/proxy_app/batch_manager.py src/proxy_app/build.py src/proxy_app/config_exceptions.py src/proxy_app/config_watcher.py src/proxy_app/detailed_logger.py src/proxy_app/enhanced_proxy.py src/proxy_app/health_checker.py src/proxy_app/launcher_tui.py src/proxy_app/main.py src/proxy_app/model_ranker.py src/proxy_app/provider_adapter.py src/proxy_app/provider_urls.py src/proxy_app/rate_limiter.py src/proxy_app/request_logger.py src/proxy_app/router_core.py src/proxy_app/router_integration.py src/proxy_app/router_wrapper.py src/proxy_app/settings_tool.py src/proxy_app/status_api.py src/rotator_library/__init__.py src/rotator_library/background_refresher.py src/rotator_library/client.py src/rotator_library/cooldown_manager.py src/rotator_library/credential_manager.py src/rotator_library/credential_tool.py src/rotator_library/error_handler.py src/rotator_library/failure_logger.py src/rotator_library/fetch_artificial_analysis_data.py src/rotator_library/leaderboard_updater.py src/rotator_library/live_scraper.py src/rotator_library/llm_aggregated_leaderboard.py src/rotator_library/model_definitions.py src/rotator_library/model_info_service.py src/rotator_library/models_dev_discovery.py src/rotator_library/provider_factory.py src/rotator_library/provider_priority_manager.py src/rotator_library/provider_status_tracker.py src/rotator_library/providers/__init__.py src/rotator_library/providers/agentrouter_provider.py src/rotator_library/providers/antigravity_auth_base.py src/rotator_library/providers/antigravity_provider.py src/rotator_library/providers/cerebras_provider.py src/rotator_library/providers/chutes_provider.py src/rotator_library/providers/cohere_provider.py src/rotator_library/providers/g4f_provider.py src/rotator_library/providers/gemini_auth_base.py src/rotator_library/providers/gemini_cli_provider.py src/rotator_library/providers/gemini_provider.py src/rotator_library/providers/google_oauth_base.py src/rotator_library/providers/groq_provider.py 
+
+Relevant file contents:
+--- src/rotator_library/score_engine.py ---
 """
 Scoring engine for dynamic provider/model ranking.
-Combines agentic coding scores, TPS, and cost efficiency into unified scores.
+Combines agentic coding scores and TPS into unified scores.
 Availability is used as a yes/no filter, not a scoring factor.
 """
 
@@ -16,8 +21,8 @@ logger = logging.getLogger(__name__)
 class ScoringEngine:
     """
     Ranks provider+model combinations using:
-    - Virtual models: Agentic(70%) + TPS(30%) + Cost Efficiency(optional)
-    - Specific models: TPS(70%) + Quality(30%) + Cost Efficiency(optional)
+    - Virtual models: Agentic(70%) + TPS(30%)
+    - Specific models: TPS(70%) + Quality(30%)
     - Availability is a yes/no filter (excluded providers)
     """
 
@@ -25,7 +30,6 @@ class ScoringEngine:
         self.telemetry = telemetry or get_telemetry_manager()
         self.agentic_scores = self._load_agentic_scores()
         self.max_observed_tps = 3000  # Will be updated from telemetry
-        self.max_reference_cost_per_1k = 0.30  # Reference for cost normalization (e.g., GPT-4 pricing)
 
     def _load_agentic_scores(self) -> Dict[str, float]:
         """Load SWE-bench agentic coding scores for models."""
@@ -45,37 +49,6 @@ class ScoringEngine:
             "codestral": 63.5,
         }
 
-    def _get_pricing(self, provider: str, model: str) -> Optional[Dict[str, float]]:
-        """Get pricing data for provider/model from telemetry database."""
-        try:
-            conn = self.telemetry._connect()
-            cursor = conn.cursor()
-            
-            cursor.execute(
-                """
-                SELECT input_cost_per_1k, output_cost_per_1k
-                FROM provider_pricing
-                WHERE provider = ? AND model = ?
-                ORDER BY timestamp DESC
-                LIMIT 1
-                """,
-                (provider, model)
-            )
-            
-            row = cursor.fetchone()
-            conn.close()
-            
-            if row:
-                return {
-                    "input_cost_per_1k": row[0] or 0.0,
-                    "output_cost_per_1k": row[1] or 0.0
-                }
-            return None
-            
-        except Exception as e:
-            logger.debug(f"No pricing data available for {provider}/{model}: {e}")
-            return None
-
     def get_agentic_score(self, model: str) -> float:
         """Get agentic coding score for a model (normalized 0-1)."""
         model_lower = model.lower().strip()
@@ -85,54 +58,6 @@ class ScoringEngine:
                 return score / 100.0
 
         return 0.5
-
-    def cost_efficiency_score(self, provider: str, model: str) -> float:
-        """
-        Calculate cost efficiency score for a provider+model combination.
-        
-        Score is based on blended token cost (25% input, 75% output) normalized
-        against reference maximum pricing. Higher score = more cost efficient.
-        
-        Formula:
-        - Blended cost = (input_cost * 0.25) + (output_cost * 0.75)
-        - Efficiency = 1.0 - (blended_cost / max_reference_cost)
-        
-        Free tiers (cost=0) receive maximum score of 1.0.
-        Unknown pricing returns neutral score of 0.5.
-        
-        Args:
-            provider: Provider identifier
-            model: Model identifier
-            
-        Returns:
-            float: Cost efficiency score between 0.0 and 1.0
-        """
-        pricing = self._get_pricing(provider, model)
-        
-        if not pricing:
-            # Return neutral score if no pricing data available
-            logger.debug(f"No pricing data for {provider}/{model}, using neutral score 0.5")
-            return 0.5
-        
-        input_cost = pricing.get("input_cost_per_1k", 0.0)
-        output_cost = pricing.get("output_cost_per_1k", 0.0)
-        
-        # Handle free tiers (zero cost)
-        if input_cost == 0 and output_cost == 0:
-            return 1.0
-        
-        # Weighted blend: agentic coding typically generates more output than input
-        # Typical ratio is approximately 1:3 (input:output) for coding tasks
-        blended_cost = (input_cost * 0.25) + (output_cost * 0.75)
-        
-        if blended_cost <= 0:
-            return 1.0
-        
-        # Normalize against reference max cost
-        # Cost of max_reference_cost -> score 0.0, Cost of 0.0 -> score 1.0
-        efficiency = 1.0 - (blended_cost / self.max_reference_cost_per_1k)
-        
-        return max(0.0, min(1.0, efficiency))
 
     def get_average_tps(self, provider: str, model: str, minutes: int = 60) -> float:
         """Get average TPS from telemetry data."""
@@ -278,25 +203,15 @@ class ScoringEngine:
         providers: List[str],
     ) -> List[Dict[str, Any]]:
         """
-        Rank providers for a specific model request.
-        Returns sorted list of {provider, model, score}
-        """
-        candidates = []
 
-        for provider in providers:
-            score = self.calculate_specific_model_score(provider, model)
+GitHub Issue #48: Phase 2.2: Implement cost_efficiency_score() function
 
-            if score > 0:  # Only include available providers
-                candidates.append(
-                    {
-                        "provider": provider,
-                        "model": model,
-                        "score": score,
-                        "tps_score": min(self.get_average_tps(provider, model, minutes=60) / 3000.0, 1.0),
-                    }
-                )
+Description: Part of Phase 2.2 Scoring Algorithm.
 
-        ranked = sorted(candidates, key=lambda x: x["score"], reverse=True)
-
-        logger.info(f"Ranked {len(ranked)} providers for {model}")
-        return ranked
+Task: Implement the changes needed to resolve this issue.
+For each file to create or modify, output a block in this EXACT format:
+=== FILE: path/to/file.py ===
+<complete new file contents>
+=== END FILE ===
+Only allowed path prefixes: src/, config/, docs/
+Output ONLY file blocks. No prose outside blocks.
