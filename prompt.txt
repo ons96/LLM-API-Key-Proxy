@@ -1,9 +1,9 @@
 You are an expert software engineer.
-Fix GitHub issue #130 in this repository.
-Title: Phase 7.2: Write debugging guide for developers
+Fix GitHub issue #129 in this repository.
+Title: Quick Wins: Add pre-commit hooks configuration
 
 Description:
-Part of Phase 7.2 Developer Documentation.
+From Quick Wins section.
 
 Instructions:
 1. Identify the root cause.
