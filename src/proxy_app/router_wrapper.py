@@ -1,97 +1,86 @@
+```python
 """
-Router Wrapper for FastAPI Integration
-
-This module provides a clean wrapper to integrate the router with the existing FastAPI endpoints.
+Router Wrapper - Manages routing logic for virtual and real models
 """
-
+import os
+import yaml
 import logging
-import time
-import asyncio
-from typing import Dict, Any, AsyncGenerator, Union
-from fastapi import HTTPException, Request
+from typing import Optional, Dict, Any, List, Tuple
+from pathlib import Path
 
-from .router_integration import RouterIntegration
+from ..rotator_library import RotatingClient
+from ..rotator_library.credential_manager import CredentialManager
 
 logger = logging.getLogger(__name__)
 
+# Global router instance
+_router_instance = None
+_virtual_models_cache = None
 
-class RouterWrapper:
-    """Wrapper class to handle router integration with existing endpoints."""
+
+def initialize_router():
+    """Initialize the router with configuration."""
+    global _router_instance, _virtual_models_cache
     
-    def __init__(self, rotating_client: Any = None):
-        self.router_integration = RouterIntegration(rotating_client)
-        self._initialized = True
-        logger.info("RouterWrapper initialized with router integration")
+    # Load virtual models config
+    config_path = Path(__file__).parent.parent.parent / "config" / "virtual_models.yaml"
+    if config_path.exists():
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+            _virtual_models_cache = config.get('virtual_models', {})
     
-    async def handle_chat_completions(self, 
-                                    request_data: Dict[str, Any], 
-                                    raw_request: Request) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
-        """Handle chat completions with router integration."""
-        
-        # Check if we should use legacy path (when no virtual models are specified)
-        model_id = request_data.get("model", "")
-        
-        # Always use router for virtual models
-        if model_id.startswith("router/"):
-            logger.info(f"Virtual model requested: {model_id}")
-            return await self.router_integration.chat_completions(request_data, raw_request)
-        
-        # For specific provider/model combinations, still use router
-        if "/" in model_id:
-            provider = model_id.split("/", 1)[0]
-            if provider in ["groq", "gemini", "g4f"]:
-                logger.info(f"Routed model requested: {model_id}")
-                return await self.router_integration.chat_completions(request_data, raw_request)
-        
-        # For generic models, use router as well (it will handle provider selection)
-        logger.info(f"Model requested via router: {model_id}")
-        return await self.router_integration.chat_completions(request_data, raw_request)
+    # Initialize rotating client
+    credential_manager = CredentialManager()
+    _router_instance = RotatingClient(credential_manager=credential_manager)
     
-    def get_models(self) -> Dict[str, Any]:
-        """Get available models."""
-        return self.router_integration.get_models()
+    logger.info(f"Router initialized with {len(_virtual_models_cache)} virtual models")
+
+
+def get_router() -> 'RotatingClient':
+    """Get the router instance."""
+    if _router_instance is None:
+        initialize_router()
+    return _router_instance
+
+
+def get_virtual_models() -> Dict[str, Any]:
+    """Get all virtual models configuration."""
+    global _virtual_models_cache
+    if _virtual_models_cache is None:
+        initialize_router()
+    return _virtual_models_cache
+
+
+def get_virtual_model_config(model_name: str) -> Optional[Dict[str, Any]]:
+    """Get configuration for a specific virtual model."""
+    virtual_models = get_virtual_models()
+    return virtual_models.get(model_name)
+
+
+def resolve_virtual_model(virtual_model_name: str) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Resolve a virtual model to an actual provider model.
     
-    def get_health(self) -> Dict[str, Any]:
-        """Get health status."""
-        return self.router_integration.get_health()
+    Returns:
+        Tuple of (actual_model_name, provider_name) or (None, None) if unavailable
+    """
+    config = get_virtual_model_config(virtual_model_name)
+    if not config:
+        return None, None
     
-    @property 
-    def free_only_mode(self) -> bool:
-        """Get FREE_ONLY_MODE status."""
-        return self.router_integration.free_only_mode
-
-
-# Global instance
-_router_wrapper = None
-
-
-def initialize_router(rotating_client: Any = None):
-    """Initialize the global router wrapper."""
-    global _router_wrapper
-    _router_wrapper = RouterWrapper(rotating_client)
-    logger.info("Global router wrapper initialized")
-
-
-def get_router() -> RouterWrapper:
-    """Get the global router wrapper instance."""
-    if _router_wrapper is None:
-        raise RuntimeError("Router not initialized. Call initialize_router() first.")
-    return _router_wrapper
-
-
-# Compatibility functions for direct integration
-async def chat_completions_with_router(
-    request_data: Dict[str, Any],
-    raw_request: Request,
-    rotating_client: Any = None
-) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
-    """Compatibility function for chat completions with router."""
+    # Get preferred provider
+    preferred_provider = config.get('preferred_provider')
+    model_mapping = config.get('model_mapping', {})
     
-    # Initialize router if not already done
-    try:
-        router = get_router()
-    except RuntimeError:
-        initialize_router(rotating_client)
-        router = get_router()
+    if preferred_provider and preferred_provider in model_mapping:
+        actual_model = model_mapping[preferred_provider]
+        return actual_model, preferred_provider
     
-    return await router.handle_chat_completions(request_data, raw_request)
+    # Fallback to first available
+    if model_mapping:
+        first_provider = list(model_mapping.keys())[0]
+        actual_model = model_mapping[first_provider]
+        return actual_model, first_provider
+    
+    return None, None
+```
