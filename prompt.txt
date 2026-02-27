@@ -1,0 +1,598 @@
+You are an expert Python/FastAPI software engineer.
+Repository layout (partial): config/aliases.yaml config/chat_model_rankings.yaml config/model_rankings.yaml config/providers_database.yaml config/router_config.yaml config/scoring_config.yaml config/virtual_models.yaml config/virtual_models_backup.yaml config/virtual_models_generated.yaml src/proxy_app/__init__.py src/proxy_app/batch_manager.py src/proxy_app/build.py src/proxy_app/config_exceptions.py src/proxy_app/config_watcher.py src/proxy_app/detailed_logger.py src/proxy_app/enhanced_proxy.py src/proxy_app/health_checker.py src/proxy_app/launcher_tui.py src/proxy_app/main.py src/proxy_app/model_ranker.py src/proxy_app/provider_adapter.py src/proxy_app/provider_urls.py src/proxy_app/rate_limiter.py src/proxy_app/request_logger.py src/proxy_app/router_core.py src/proxy_app/router_integration.py src/proxy_app/router_wrapper.py src/proxy_app/settings_tool.py src/proxy_app/status_api.py src/rotator_library/__init__.py src/rotator_library/background_refresher.py src/rotator_library/client.py src/rotator_library/cooldown_manager.py src/rotator_library/credential_manager.py src/rotator_library/credential_tool.py src/rotator_library/error_handler.py src/rotator_library/failure_logger.py src/rotator_library/fetch_artificial_analysis_data.py src/rotator_library/leaderboard_updater.py src/rotator_library/live_scraper.py src/rotator_library/llm_aggregated_leaderboard.py src/rotator_library/model_definitions.py src/rotator_library/model_info_service.py src/rotator_library/models_dev_discovery.py src/rotator_library/provider_factory.py src/rotator_library/provider_priority_manager.py src/rotator_library/provider_status_tracker.py src/rotator_library/providers/__init__.py src/rotator_library/providers/agentrouter_provider.py src/rotator_library/providers/antigravity_auth_base.py src/rotator_library/providers/antigravity_provider.py src/rotator_library/providers/cerebras_provider.py src/rotator_library/providers/chutes_provider.py src/rotator_library/providers/cohere_provider.py src/rotator_library/providers/g4f_provider.py src/rotator_library/providers/gemini_auth_base.py src/rotator_library/providers/gemini_cli_provider.py src/rotator_library/providers/gemini_provider.py src/rotator_library/providers/google_oauth_base.py src/rotator_library/providers/groq_provider.py 
+
+Relevant file contents:
+--- src/rotator_library/models_dev_discovery.py ---
+"""
+models.dev Auto-Discovery Module
+
+Fetches free LLM providers/models from https://models.dev/api.json,
+compares against existing router_config.yaml, and reports new discoveries.
+Can optionally update the config with newly found free providers.
+"""
+
+import json
+import logging
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+import httpx
+import yaml
+
+logger = logging.getLogger(__name__)
+
+MODELS_DEV_API_URL = "https://models.dev/api.json"
+
+SKIP_PROVIDERS = frozenset(
+    {
+        "lmstudio",
+        "ollama-cloud",
+        "github-copilot",
+        "gitlab",
+        "opencode",
+        "privatemode-ai",
+    }
+)
+
+CONFIG_ROOT = Path(__file__).resolve().parent.parent.parent / "config"
+ROUTER_CONFIG_PATH = CONFIG_ROOT / "router_config.yaml"
+DISCOVERY_CACHE_PATH = CONFIG_ROOT / "discovered_models.json"
+
+
+def _is_free_model(model: Dict[str, Any]) -> bool:
+    cost = model.get("cost", {})
+    return cost.get("input", 1) == 0 and cost.get("output", 1) == 0
+
+
+def _is_text_model(model: Dict[str, Any]) -> bool:
+    modalities = model.get("modalities", {})
+    return "text" in modalities.get("input", []) and "text" in modalities.get(
+        "output", []
+    )
+
+
+def _is_usable_model(model: Dict[str, Any]) -> bool:
+    if model.get("status") == "deprecated":
+        return False
+    if not _is_free_model(model):
+        return False
+    if not _is_text_model(model):
+        return False
+    return True
+
+
+def _has_remote_api(provider: Dict[str, Any]) -> bool:
+    api = provider.get("api", "")
+    if not api:
+        return False
+    if "127.0.0.1" in api or "localhost" in api:
+        return False
+    return True
+
+
+def _load_router_config() -> Dict[str, Any]:
+    if not ROUTER_CONFIG_PATH.exists():
+        return {}
+    with open(ROUTER_CONFIG_PATH) as f:
+        return yaml.safe_load(f) or {}
+
+
+def _get_configured_providers(config: Dict[str, Any]) -> Set[str]:
+    providers = config.get("providers", {})
+    return set(providers.keys())
+
+
+def _get_configured_models(config: Dict[str, Any]) -> Set[str]:
+    models: Set[str] = set()
+    providers = config.get("providers", {})
+    for provider_cfg in providers.values():
+        if isinstance(provider_cfg, dict):
+            for m in provider_cfg.get("free_tier_models", []):
+                models.add(str(m).lower())
+    return models
+
+
+async def fetch_models_dev_data(timeout: float = 60.0) -> Dict[str, Any]:
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.get(MODELS_DEV_API_URL)
+        response.raise_for_status()
+        return response.json()
+
+
+def discover_free_providers(
+    api_data: Dict[str, Any],
+    existing_config: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    if existing_config is None:
+        existing_config = _load_router_config()
+
+    configured_providers = _get_configured_providers(existing_config)
+    configured_models = _get_configured_models(existing_config)
+
+    discoveries: List[Dict[str, Any]] = []
+
+    for provider_id, provider_data in api_data.items():
+        if provider_id in SKIP_PROVIDERS:
+            continue
+
+        if not _has_remote_api(provider_data):
+            continue
+
+        free_text_models = {}
+        for model_id, model_data in provider_data.get("models", {}).items():
+            if _is_usable_model(model_data):
+                free_text_models[model_id] = model_data
+
+        if not free_text_models:
+            continue
+
+        is_new_provider = provider_id not in configured_providers
+
+        new_models = {}
+        for model_id, model_data in free_text_models.items():
+            model_lower = model_id.lower()
+            if model_lower not in configured_models:
+                new_models[model_id] = model_data
+
+        if not new_models and not is_new_provider:
+            continue
+
+        discovery = {
+            "provider_id": provider_id,
+            "provider_name": provider_data.get("name", provider_id),
+            "api_url": provider_data.get("api", ""),
+            "env_vars": provider_data.get("env", []),
+            "doc_url": provider_data.get("doc", ""),
+            "is_new_provider": is_new_provider,
+            "new_models": [],
+            "all_free_models": [],
+        }
+
+        for model_id, model_data in new_models.items():
+            discovery["new_models"].append(
+                {
+                    "id": model_id,
+                    "name": model_data.get("name", model_id),
+                    "context_window": model_data.get("limit", {}).get("context", 0),
+                    "max_output": model_data.get("limit", {}).get("output", 0),
+                    "tool_call": model_data.get("tool_call", False),
+                    "reasoning": model_data.get("reasoning", False),
+                    "open_weights": model_data.get("open_weights", False),
+                    "family": model_data.get("family", ""),
+                }
+            )
+
+        for model_id, model_data in free_text_models.items():
+            discovery["all_free_models"].append(
+                {
+                    "id": model_id,
+                    "name": model_data.get("name", model_id),
+                    "context_window": model_data.get("limit", {}).get("context", 0),
+                    "tool_call": model_data.get("tool_call", False),
+                    "reasoning": model_data.get("reasoning", False),
+                }
+            )
+
+        discoveries.append(discovery)
+
+    discoveries.sort(key=lambda d: (-len(d["new_models"]), d["provider_id"]))
+    return discoveries
+
+
+def generate_config_entries(
+    discoveries: List[Dict[str, Any]],
+) -> Dict[str, Dict[str, Any]]:
+    entries: Dict[str, Dict[str, Any]] = {}
+
+    for discovery in discoveries:
+        if not discovery["new_models"]:
+            continue
+
+        pid = discovery["provider_id"]
+        env_vars = discovery["env_vars"]
+
+        entry: Dict[str, Any] = {
+            "enabled": False,
+            "free_tier_models": [m["id"] for m in discovery["new_models"]],
+        }
+
+        if env_vars:
+            entry["env_var"] = env_vars[0]
+
+        if discovery["api_url"]:
+            entry["api_base"] = discovery["api_url"]
+
+--- config/virtual_models.yaml ---
+# Global settings
+free_only_mode: false
+
+virtual_models:
+  # =============================================================================
+  # CODING ELITE (Best Agentic Coding - benchmark-based ordering)
+  # =============================================================================
+  coding-elite:
+    description: "Best agentic coding models (benchmark-based)"
+    fallback_chain:
+    # Tier 1: Best via g4f (free, uses g4f library)
+    - provider: g4f
+      model: claude-opus-4-5
+      priority: 1
+    - provider: g4f
+      model: claude-opus-4-6
+      priority: 2
+    - provider: g4f
+      model: claude-sonnet-4-5
+      priority: 3
+    - provider: g4f
+      model: gpt-5-2
+      priority: 4
+    - provider: g4f
+      model: gemini-3-flash
+      priority: 5
+    - provider: g4f
+      model: minimax-m2-5
+      priority: 6
+    # Tier 2: Direct API fallbacks
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 7
+    - provider: gemini
+      model: gemini-2.5-flash
+      priority: 8
+    - provider: together
+      model: deepseek-chat
+      priority: 9
+    settings:
+      timeout_ms: 180000
+      retry_on_rate_limit: true
+
+  coding-smart:
+    description: "High-quality coding with balanced performance"
+    fallback_chain:
+    - provider: g4f
+      model: gemini-3-flash
+      priority: 1
+    - provider: g4f
+      model: claude-opus-4-5
+      priority: 2
+    - provider: g4f
+      model: gpt-5-2
+      priority: 3
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 4
+    - provider: together
+      model: deepseek-chat
+      priority: 5
+    settings:
+      timeout_ms: 120000
+      retry_on_rate_limit: true
+
+  coding-fast:
+    description: "Fastest coding models"
+    fallback_chain:
+    - provider: groq
+      model: llama-3.1-8b-instant
+      priority: 1
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 2
+    - provider: g4f
+      model: gemini-2.5-flash
+      priority: 3
+    - provider: gemini
+      model: gemini-2.5-flash
+      priority: 4
+    settings:
+      timeout_ms: 30000
+      retry_on_rate_limit: true
+
+  chat-smart:
+    description: "Best intelligence-to-speed ratio"
+    fallback_chain:
+    - provider: g4f
+      model: gemini-3-pro
+      priority: 1
+    - provider: g4f
+      model: gemini-3-flash
+      priority: 2
+    - provider: g4f
+      model: gpt-5-xhigh
+      priority: 3
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 4
+    settings:
+      timeout_ms: 120000
+      retry_on_rate_limit: true
+
+  chat-elite:
+    description: "Most intelligent models"
+    fallback_chain:
+    - provider: g4f
+      model: gemini-3-pro
+      priority: 1
+    - provider: g4f
+      model: claude-opus-4-5-thinking-32k
+      priority: 2
+    - provider: g4f
+      model: gpt-5-xhigh
+      priority: 3
+    - provider: g4f
+      model: gemini-3-flash
+      priority: 4
+    settings:
+      timeout_ms: 300000
+      retry_on_rate_limit: true
+
+  chat-fast:
+    description: "Fastest models"
+    fallback_chain:
+    - provider: groq
+      model: llama-3.1-8b-instant
+      priority: 1
+    - provider: gemini
+      model: gemini-2.5-flash
+      priority: 2
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 3
+    settings:
+      timeout_ms: 15000
+      retry_on_rate_limit: true
+
+  chat-rp:
+    description: "Roleplay models"
+    fallback_chain:
+    - provider: g4f
+      model: mn-violet-lotus-12b
+      priority: 1
+    - provider: g4f
+      model: cydonia-24b-v4.1
+      priority: 2
+    - provider: groq
+      model: llama-3.1-8b-instant
+      priority: 3
+    settings:
+      timeout_ms: 30000
+      retry_on_rate_limit: true
+
+providers:
+  groq:
+    base_url: https://api.groq.com/openai/v1
+    api_key_env: GROQ_API_KEY
+    rate_limits:
+      rpm: 30
+      daily: 14400
+  gemini:
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key_env: GEMINI_API_KEY
+    rate_limits:
+      rpm: 15
+      daily: 1500
+  together:
+    base_url: https://api.together.xyz/v1
+    api_key_env: TOGETHER_API_KEY
+    rate_limits:
+      rpm: 60
+  g4f:
+    base_url: https://g4f.space/v1
+    api_key_env: G4F_API_KEY
+    rate_limits:
+      rpm: 10
+
+--- config/virtual_models_generated.yaml ---
+metadata:
+  generated_at: '2026-02-20T00:01:51.139135'
+  sources:
+  - model_rankings.yaml
+  - chat_model_rankings.yaml
+  - UGI Leaderboard
+virtual_models:
+  coding-elite:
+    description: Best agentic coding models (SWE-bench + LiveCodeBench weighted)
+    fallback_chain:
+    - provider: g4f
+      model: claude-opus-4-5
+      priority: 1
+      reasoning_effort: high
+    - provider: gemini
+      model: gemini-3-flash
+      priority: 2
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-opus-4-6
+      priority: 3
+      reasoning_effort: None
+    - provider: g4f
+      model: minimax-m2-5
+      priority: 4
+      reasoning_effort: high
+    - provider: gemini
+      model: gemini-3-pro
+      priority: 5
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-2
+      priority: 6
+      reasoning_effort: high
+    - provider: cerebras
+      model: glm-5
+      priority: 7
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-sonnet-4-5
+      priority: 8
+      reasoning_effort: high
+    - provider: g4f
+      model: kimi-k2-5
+      priority: 9
+      reasoning_effort: None
+    - provider: together
+      model: deepseek-chat
+      priority: 10
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-opus-4
+      priority: 11
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-2-codex
+      priority: 12
+      reasoning_effort: None
+    - provider: g4f
+      model: claude-haiku-4-5
+      priority: 13
+      reasoning_effort: high
+    - provider: g4f
+      model: gpt-5-1
+      priority: 14
+      reasoning_effort: medium
+    - provider: g4f
+      model: gpt-5
+      priority: 15
+      reasoning_effort: medium
+    - provider: g4f
+      model: claude-sonnet-4
+      priority: 16
+      reasoning_effort: None
+    - provider: g4f
+      model: kimi-k2-thinking
+      priority: 17
+      reasoning_effort: high
+    settings:
+      timeout_ms: 180000
+      retry_on_rate_limit: true
+  coding-smart:
+    description: High-quality coding with balanced performance
+    fallback_chain:
+    - provider: gemini
+      model: gemini-3-flash
+      priority: 1
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-opus-4-5
+      priority: 2
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-opus-4-6
+      priority: 3
+      reasoning_effort: None
+    - provider: g4f
+      model: minimax-m2-5
+      priority: 4
+      reasoning_effort: high
+    - provider: g4f
+      model: gpt-5-2
+      priority: 5
+      reasoning_effort: high
+    - provider: gemini
+      model: gemini-3-pro
+      priority: 6
+      reasoning_effort: None
+    - provider: cerebras
+      model: glm-5
+      priority: 7
+      reasoning_effort: high
+    - provider: g4f
+      model: claude-sonnet-4-5
+      priority: 8
+      reasoning_effort: high
+    - provider: together
+      model: deepseek-chat
+      priority: 9
+      reasoning_effort: high
+    - provider: g4f
+      model: kimi-k2-5
+      priority: 10
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-2-codex
+      priority: 11
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-1
+      priority: 12
+      reasoning_effort: medium
+    - provider: g4f
+      model: claude-opus-4
+      priority: 13
+      reasoning_effort: None
+    - provider: g4f
+      model: claude-haiku-4-5
+      priority: 14
+      reasoning_effort: high
+    - provider: g4f
+      model: gpt-5
+      priority: 15
+      reasoning_effort: medium
+    - provider: g4f
+      model: claude-sonnet-4
+      priority: 16
+      reasoning_effort: None
+    - provider: g4f
+      model: kimi-k2-thinking
+      priority: 17
+      reasoning_effort: high
+    - provider: g4f
+      model: minimax-m2
+      priority: 18
+      reasoning_effort: None
+    - provider: together
+      model: devstral
+      priority: 19
+      reasoning_effort: None
+    - provider: gemini
+      model: gemini-2-5-pro
+      priority: 20
+      reasoning_effort: None
+    - provider: cerebras
+      model: glm-4-6b
+      priority: 21
+      reasoning_effort: None
+    - provider: together
+      model: qwen3-coder-480b-a35b-instruct
+      priority: 22
+      reasoning_effort: None
+    - provider: cerebras
+      model: glm-4-5
+      priority: 23
+      reasoning_effort: None
+    settings:
+      timeout_ms: 120000
+      retry_on_rate_limit: true
+  coding-fast:
+    description: Fastest coding models (TPS priority with quality floor)
+    fallback_chain:
+    - provider: g4f
+      model: gpt-5-2
+      priority: 1
+      reasoning_effort: high
+    - provider: gemini
+      model: gemini-3-flash
+      priority: 2
+      reasoning_effort: high
+    - provider: g4f
+      model: gpt-5-2-codex
+      priority: 3
+      reasoning_effort: None
+    - provider: gemini
+      model: gemini-3-pro
+      priority: 4
+      reasoning_effort: None
+    - provider: g4f
+      model: gpt-5-1
+
+GitHub Issue #93: Phase 5.1: Research Replicate free models
+
+Description: Part of Phase 5.1 Free Tier Providers.
+
+Task: Implement the changes needed to resolve this issue.
+For each file to create or modify, output a block in this EXACT format:
+=== FILE: path/to/file.py ===
+<complete new file contents>
+=== END FILE ===
+Only allowed path prefixes: src/, config/, docs/
+Output ONLY file blocks. No prose outside blocks.
