@@ -1,39 +1,31 @@
-from typing import TYPE_CHECKING, Dict, Type
+import logging
 
-from .client import RotatingClient
+# Configure the main library logger
+logger = logging.getLogger("rotator_library")
+logger.setLevel(logging.INFO)
 
-# For type checkers (Pylint, mypy), import PROVIDER_PLUGINS statically
-# At runtime, it's lazy-loaded via __getattr__
-if TYPE_CHECKING:
-    from .providers import PROVIDER_PLUGINS
-    from .providers.provider_interface import ProviderInterface
-    from .model_info_service import ModelInfoService, ModelInfo, ModelMetadata
+# Add NullHandler to prevent "no handlers" warning
+logger.addHandler(logging.NullHandler())
 
-__all__ = [
-    "RotatingClient",
-    "PROVIDER_PLUGINS",
-    "ModelInfoService",
-    "ModelInfo",
-    "ModelMetadata",
-]
-
-
-def __getattr__(name):
-    """Lazy-load PROVIDER_PLUGINS and ModelInfoService to speed up module import."""
-    if name == "PROVIDER_PLUGINS":
-        from .providers import PROVIDER_PLUGINS
-
-        return PROVIDER_PLUGINS
-    if name == "ModelInfoService":
-        from .model_info_service import ModelInfoService
-
-        return ModelInfoService
-    if name == "ModelInfo":
-        from .model_info_service import ModelInfo
-
-        return ModelInfo
-    if name == "ModelMetadata":
-        from .model_info_service import ModelMetadata
-
-        return ModelMetadata
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+# Import public API
+from .failure_logger import (
+    configure_failure_logger,
+    get_failure_logger,
+    log_failure,
+    main_lib_logger,
+)
+from .error_handler import (
+    NoAvailableKeysError,
+    PreRequestCallbackError,
+    CredentialNeedsReauthError,
+    EmptyResponseError,
+    ABNORMAL_ERROR_TYPES,
+    NORMAL_ERROR_TYPES,
+    is_abnormal_error,
+    extract_retry_after_from_body,
+)
+from .client import Client
+from .provider_factory import ProviderFactory
+from .model_definitions import ModelDefinitions
+from .model_info_service import ModelInfoService
+from .utils.paths import get_logs_dir, get_cache_dir, get_temp_dir, get_config_dir
