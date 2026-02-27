@@ -1,3 +1,4 @@
+=== FILE: src/proxy_app/batch_manager.py ===
 import asyncio
 import time
 from typing import List, Dict, Any, Optional, Union
@@ -101,3 +102,86 @@ class EmbeddingBatcher:
     async def flush(self):
         """Flush any pending requests."""
         pass
+=== END FILE ===
+
+=== FILE: src/proxy_app/main.py ===
+import time
+
+# Phase 1: Minimal imports for arg parsing and TUI
+import asyncio
+import os
+from pathlib import Path
+import sys
+import argparse
+import logging
+
+# --- Argument Parsing (BEFORE heavy imports) ---
+parser = argparse.ArgumentParser(description="API Key Proxy Server")
+parser.add_argument(
+    "--host", type=str, default="0.0.0.0", help="Host to bind the server to."
+)
+parser.add_argument("--port", type=int, default=8000, help="Port to run the server on.")
+parser.add_argument(
+    "--enable-request-logging", action="store_true", help="Enable request logging."
+)
+parser.add_argument(
+    "--add-credential",
+    action="store_true",
+    help="Launch the interactive tool to add a new OAuth credential.",
+)
+args, _ = parser.parse_known_args()
+
+# Add the 'src' directory to the Python path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+# Check if we should launch TUI (no arguments = TUI mode)
+if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        # TUI MODE - Load ONLY what's needed for the launcher (fast path!)
+        from proxy_app.launcher_tui import run_launcher_tui
+
+        run_launcher_tui()
+        # Launcher modifies sys.argv and returns, or exits if user chose Exit
+        # If we get here, user chose "Run Proxy" and sys.argv is modified
+        # Re-parse arguments with modified sys.argv
+        args = parser.parse_args()
+
+    # Check if credential tool mode (also doesn't need heavy proxy imports)
+    if args.add_credential:
+        from rotator_library.credential_tool import run_credential_tool
+
+        run_credential_tool()
+        sys.exit(0)
+
+
+# If we get here, we're ACTUALLY running the proxy - NOW show startup messages and start timer
+_start_time = time.time()
+
+# Load all .env files from root folder (main .env first, then any additional *.env files)
+from dotenv import load_dotenv
+from glob import glob
+
+# Get the application root directory (EXE dir if frozen, else CWD)
+# Inlined here to avoid triggering heavy rotator_library imports before loading screen
+if getattr(sys, "frozen", False):
+    _root_dir = Path(sys.executable).parent
+else:
+    _root_dir = Path.cwd()
+
+# Load main .env first
+load_dotenv(_root_dir / ".env")
+
+# Load any additional .env files (e.g., antigravity_all_combined.env, gemini_cli_all_combined.env)
+_env_files_found = list(_root_dir.glob("*.env"))
+for _env_file in sorted(_root_dir.glob("*.env")):
+    if _env_file.name != ".env":  # Skip main .env (already loaded)
+        load_dotenv(_env_file, override=False)  # Don't override existing values
+
+# Log discovered .env files for deployment verification
+if _env_files_found:
+    _env_names = [_ef.name for _ef in _env_files_found]
+    print(f"📁 Loaded {len(_env_files_found)} .env file(s): {', '.join(_env_names)}")
+
+# Get proxy API key for display
+proxy_api_key = os.getenv("PROXY_API_KEY")
+if proxy

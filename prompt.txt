@@ -1,0 +1,217 @@
+You are an expert Python/FastAPI software engineer.
+Repository layout (partial): config/aliases.yaml config/chat_model_rankings.yaml config/model_rankings.yaml config/providers_database.yaml config/router_config.yaml config/scoring_config.yaml config/virtual_models.yaml config/virtual_models_backup.yaml config/virtual_models_generated.yaml src/proxy_app/__init__.py src/proxy_app/batch_manager.py src/proxy_app/build.py src/proxy_app/config_exceptions.py src/proxy_app/config_watcher.py src/proxy_app/detailed_logger.py src/proxy_app/enhanced_proxy.py src/proxy_app/health_checker.py src/proxy_app/launcher_tui.py src/proxy_app/main.py src/proxy_app/model_ranker.py src/proxy_app/provider_adapter.py src/proxy_app/provider_urls.py src/proxy_app/rate_limiter.py src/proxy_app/request_logger.py src/proxy_app/router_core.py src/proxy_app/router_integration.py src/proxy_app/router_wrapper.py src/proxy_app/settings_tool.py src/proxy_app/status_api.py src/rotator_library/__init__.py src/rotator_library/background_refresher.py src/rotator_library/client.py src/rotator_library/cooldown_manager.py src/rotator_library/credential_manager.py src/rotator_library/credential_tool.py src/rotator_library/error_handler.py src/rotator_library/failure_logger.py src/rotator_library/fetch_artificial_analysis_data.py src/rotator_library/leaderboard_updater.py src/rotator_library/live_scraper.py src/rotator_library/llm_aggregated_leaderboard.py src/rotator_library/model_definitions.py src/rotator_library/model_info_service.py src/rotator_library/models_dev_discovery.py src/rotator_library/provider_factory.py src/rotator_library/provider_priority_manager.py src/rotator_library/provider_status_tracker.py src/rotator_library/providers/__init__.py src/rotator_library/providers/agentrouter_provider.py src/rotator_library/providers/antigravity_auth_base.py src/rotator_library/providers/antigravity_provider.py src/rotator_library/providers/cerebras_provider.py src/rotator_library/providers/chutes_provider.py src/rotator_library/providers/cohere_provider.py src/rotator_library/providers/g4f_provider.py src/rotator_library/providers/gemini_auth_base.py src/rotator_library/providers/gemini_cli_provider.py src/rotator_library/providers/gemini_provider.py src/rotator_library/providers/google_oauth_base.py src/rotator_library/providers/groq_provider.py 
+
+Relevant file contents:
+--- src/proxy_app/main.py ---
+import time
+
+# Phase 1: Minimal imports for arg parsing and TUI
+import asyncio
+import os
+from pathlib import Path
+import sys
+import argparse
+import logging
+
+# --- Argument Parsing (BEFORE heavy imports) ---
+parser = argparse.ArgumentParser(description="API Key Proxy Server")
+parser.add_argument(
+    "--host", type=str, default="0.0.0.0", help="Host to bind the server to."
+)
+parser.add_argument("--port", type=int, default=8000, help="Port to run the server on.")
+parser.add_argument(
+    "--enable-request-logging", action="store_true", help="Enable request logging."
+)
+parser.add_argument(
+    "--add-credential",
+    action="store_true",
+    help="Launch the interactive tool to add a new OAuth credential.",
+)
+args, _ = parser.parse_known_args()
+
+# Add the 'src' directory to the Python path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+# Check if we should launch TUI (no arguments = TUI mode)
+if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        # TUI MODE - Load ONLY what's needed for the launcher (fast path!)
+        from proxy_app.launcher_tui import run_launcher_tui
+
+        run_launcher_tui()
+        # Launcher modifies sys.argv and returns, or exits if user chose Exit
+        # If we get here, user chose "Run Proxy" and sys.argv is modified
+        # Re-parse arguments with modified sys.argv
+        args = parser.parse_args()
+
+    # Check if credential tool mode (also doesn't need heavy proxy imports)
+    if args.add_credential:
+        from rotator_library.credential_tool import run_credential_tool
+
+        run_credential_tool()
+        sys.exit(0)
+
+
+# If we get here, we're ACTUALLY running the proxy - NOW show startup messages and start timer
+_start_time = time.time()
+
+# Load all .env files from root folder (main .env first, then any additional *.env files)
+from dotenv import load_dotenv
+from glob import glob
+
+# Get the application root directory (EXE dir if frozen, else CWD)
+# Inlined here to avoid triggering heavy rotator_library imports before loading screen
+if getattr(sys, "frozen", False):
+    _root_dir = Path(sys.executable).parent
+else:
+    _root_dir = Path.cwd()
+
+# Load main .env first
+load_dotenv(_root_dir / ".env")
+
+# Load any additional .env files (e.g., antigravity_all_combined.env, gemini_cli_all_combined.env)
+_env_files_found = list(_root_dir.glob("*.env"))
+for _env_file in sorted(_root_dir.glob("*.env")):
+    if _env_file.name != ".env":  # Skip main .env (already loaded)
+        load_dotenv(_env_file, override=False)  # Don't override existing values
+
+# Log discovered .env files for deployment verification
+if _env_files_found:
+    _env_names = [_ef.name for _ef in _env_files_found]
+    print(f"📁 Loaded {len(_env_files_found)} .env file(s): {', '.join(_env_names)}")
+
+# Get proxy API key for display
+proxy_api_key = os.getenv("PROXY_API_KEY")
+if proxy_api_key:
+    # Mask the API key for security - only show first/last 4 chars
+    masked_key = (
+        f"{proxy_api_key[:4]}...{proxy_api_key[-4:]}"
+        if len(proxy_api_key) > 8
+        else "****"
+    )
+    key_display = f"✓ {masked_key}"
+else:
+    key_display = "✗ Not Set (INSECURE - anyone can access!)"
+
+# Phase 2: Load Rich for loading spinner (lightweight)
+from rich.console import Console
+
+_console = Console()
+
+# Phase 3: Heavy dependencies with granular loading messages
+print("  → Loading FastAPI framework...")
+with _console.status("[dim]Loading FastAPI framework...", spinner="dots"):
+    from contextlib import asynccontextmanager
+    from fastapi import FastAPI, Request, HTTPException, Depends
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import StreamingResponse, JSONResponse
+    from fastapi.security import APIKeyHeader
+
+print("  → Loading core dependencies...")
+with _console.status("[dim]Loading core dependencies...", spinner="dots"):
+    import colorlog
+    import json
+    from typing import AsyncGenerator, Any, List, Optional, Union, Dict
+    from pydantic import BaseModel, Field
+
+    # --- Early Log Level Configuration ---
+    logging.getLogger("LiteLLM").setLevel(logging.WARNING)
+
+print("  → Loading LiteLLM library...")
+with _console.status("[dim]Loading LiteLLM library...", spinner="dots"):
+    import litellm
+
+# Phase 4: Application imports with granular loading messages
+print("  → Initializing proxy core...")
+with _console.status("[dim]Initializing proxy core...", spinner="dots"):
+    from rotator_library import RotatingClient
+    from rotator_library.credential_manager import CredentialManager
+    from rotator_library.background_refresher import BackgroundRefresher
+    from rotator_library.model_info_service import init_model_info_service
+    from proxy_app.request_logger import log_request_to_console
+    from proxy_app.batch_manager import EmbeddingBatcher
+    from proxy_app.detailed_logger import DetailedLogger
+
+    # [NEW] Import RouterWrapper
+    from proxy_app.router_wrapper import initialize_router, get_router
+
+    # [NEW] Import HealthChecker
+    from proxy_app.health_checker import HealthChecker
+
+print("  → Discovering provider plugins...")
+# Provider lazy loading happens during import, so time it here
+_provider_start = time.time()
+with _console.status("[dim]Discovering provider plugins...", spinner="dots"):
+    from rotator_library import (
+        PROVIDER_PLUGINS,
+    )  # This triggers lazy load via __getattr__
+_provider_time = time.time() - _provider_start
+
+# Get count after import (without timing to avoid double-counting)
+_plugin_count = len(PROVIDER_PLUGINS)
+
+
+# --- Pydantic Models ---
+class EmbeddingRequest(BaseModel):
+    model: str
+    input: Union[str, List[str]]
+    input_type: Optional[str] = None
+    dimensions: Optional[int] = None
+    user: Optional[str] = None
+
+
+class ModelCard(BaseModel):
+    """Basic model card for minimal response."""
+
+    id: str
+    object: str = "model"
+    created: int = Field(default_factory=lambda: int(time.time()))
+    owned_by: str = "Mirro-Proxy"
+
+
+class ModelCapabilities(BaseModel):
+    """Model capability flags."""
+
+    tool_choice: bool = False
+    function_calling: bool = False
+    reasoning: bool = False
+    vision: bool = False
+    system_messages: bool = True
+    prompt_caching: bool = False
+    assistant_prefill: bool = False
+
+
+class EnrichedModelCard(BaseModel):
+    """Extended model card with pricing and capabilities."""
+
+    id: str
+    object: str = "model"
+    created: int = Field(default_factory=lambda: int(time.time()))
+    owned_by: str = "unknown"
+    # Pricing (optional - may not be available for all models)
+    input_cost_per_token: Optional[float] = None
+    output_cost_per_token: Optional[float] = None
+    cache_read_input_token_cost: Optional[float] = None
+    cache_creation_input_token_cost: Optional[float] = None
+    # Limits (optional)
+    max_input_tokens: Optional[int] = None
+    max_output_tokens: Optional[int] = None
+    context_window: Optional[int] = None
+    # Capabilities
+    mode: str = "chat"
+    supported_modalities: List[str] = Field(default_factory=lambda: ["text"])
+    supported_output_modalities: List[str] = Field(default_factory=lambda: ["text"])
+    capabilities: Optional[ModelCapabilities] = None
+    # Debug info (optional)
+
+GitHub Issue #73: Phase 4.3: Implement /v1/embeddings endpoint
+
+Description: Part of Phase 4.3 Additional Endpoints.
+
+Task: Implement the changes needed to resolve this issue.
+For each file to create or modify, output a block in this EXACT format:
+=== FILE: path/to/file.py ===
+<complete new file contents>
+=== END FILE ===
+Only allowed path prefixes: src/, config/, docs/
+Output ONLY file blocks. No prose outside blocks.
