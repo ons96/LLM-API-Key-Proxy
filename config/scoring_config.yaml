@@ -44,6 +44,14 @@ scoring:
     description: "Agentic coding scores from SWE-bench benchmarks"
     source_file: config/model_rankings.yaml
 
+  cache:
+    description: "Scoring result caching to reduce repeated calculations"
+    enabled: true
+    ttl_seconds: 300
+    max_entries: 10000
+    invalidate_on_ranking_change: true
+    background_refresh: false
+
 # Auto-skip conditions (score = 0, excluded from ranking)
 skip_conditions:
   rate_limited:
