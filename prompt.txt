@@ -1,9 +1,9 @@
 You are an expert software engineer.
-Fix GitHub issue #124 in this repository.
-Title: Phase 7.2: Write contributing guidelines
+Fix GitHub issue #123 in this repository.
+Title: Quick Wins: Add type hints to all public functions
 
 Description:
-Part of Phase 7.2 Developer Documentation.
+From Quick Wins section.
 
 Instructions:
 1. Identify the root cause.
