@@ -1,0 +1,998 @@
+Looking at this issue, I need to implement a research API for pricing data as part of Phase 2.1 Data Collection Pipeline. This involves creating modules to collect, store, and serve pricing data from various LLM providers.
+
+Let me create the necessary files:
+=== FILE: src/rotator_library/pricing_data.py ===
+#!/usr/bin/env python3
+"""
+Pricing Data Module
+
+Handles collection, storage, and retrieval of LLM provider pricing data.
+Part of Phase 2.1 Data Collection Pipeline.
+"""
+
+from dataclasses import dataclass, field, asdict
+from datetime import datetime
+from typing import Dict, List, Optional, Any
+import logging
+import threading
+import yaml
+import os
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ModelPricing:
+    """Pricing information for a specific model."""
+    provider: str
+    model_name: str
+    input_price_per_million: float  # Price per 1M input tokens
+    output_price_per_million: float  # Price per 1M output tokens
+    currency: str = "USD"
+    context_window: int = 0  # Context window size in tokens
+    updated_at: datetime = field(default_factory=datetime.utcnow)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        data = asdict(self)
+        data['updated_at'] = self.updated_at.isoformat()
+        return data
+
+
+class PricingDatabase:
+    """
+    Thread-safe pricing data storage and retrieval.
+    """
+    
+    def __init__(self):
+        self._lock = threading.RLock()
+        self._pricing: Dict[str, Dict[str, ModelPricing]] = {}  # provider -> model -> pricing
+        self._last_updated: Optional[datetime] = None
+        self._source: str = "memory"
+        
+    def add_pricing(self, pricing: ModelPricing) -> None:
+        """Add or update pricing for a model."""
+        with self._lock:
+            provider = pricing.provider.lower()
+            model = pricing.model_name.lower()
+            
+            if provider not in self._pricing:
+                self._pricing[provider] = {}
+                
+            self._pricing[provider][model] = pricing
+            self._last_updated = datetime.utcnow()
+            logger.debug(f"Added/updated pricing for {provider}/{model}")
+    
+    def add_batch(self, pricing_list: List[ModelPricing]) -> None:
+        """Add multiple pricing entries at once."""
+        with self._lock:
+            for pricing in pricing_list:
+                self.add_pricing(pricing)
+    
+    def get_pricing(self, provider: str, model: str) -> Optional[ModelPricing]:
+        """Get pricing for a specific provider and model."""
+        with self._lock:
+            provider = provider.lower()
+            model = model.lower()
+            
+            if provider in self._pricing and model in self._pricing[provider]:
+                return self._pricing[provider][model]
+            return None
+    
+    def get_provider_pricing(self, provider: str) -> List[ModelPricing]:
+        """Get all pricing data for a specific provider."""
+        with self._lock:
+            provider = provider.lower()
+            if provider in self._pricing:
+                return list(self._pricing[provider].values())
+            return []
+    
+    def get_all_pricing(self) -> Dict[str, List[ModelPricing]]:
+        """Get all pricing data grouped by provider."""
+        with self._lock:
+            return {provider: list(models.values()) 
+                    for provider, models in self._pricing.items()}
+    
+    def get_all_as_list(self) -> List[ModelPricing]:
+        """Get all pricing data as a flat list."""
+        with self._lock:
+            all_pricing = []
+            for models in self._pricing.values():
+                all_pricing.extend(models.values())
+            return all_pricing
+    
+    def search_by_model(self, model_pattern: str) -> List[ModelPricing]:
+        """Search for models matching a pattern (case-insensitive)."""
+        with self._lock:
+            pattern = model_pattern.lower()
+            results = []
+            for models in self._pricing.values():
+                for pricing in models.values():
+                    if pattern in pricing.model_name.lower():
+                        results.append(pricing)
+            return results
+    
+    def get_cheapest_models(self, limit: int = 10, input_only: bool = False) -> List[ModelPricing]:
+        """Get the cheapest models by output price (or input if input_only=True)."""
+        with self._lock:
+            all_pricing = self.get_all_as_list()
+            
+            if not all_pricing:
+                return []
+            
+            if input_only:
+                sorted_pricing = sorted(all_pricing, key=lambda x: x.input_price_per_million)
+            else:
+                sorted_pricing = sorted(all_pricing, key=lambda x: x.output_price_per_million)
+            
+            return sorted_pricing[:limit]
+    
+    def get_providers(self) -> List[str]:
+        """Get list of all providers with pricing data."""
+        with self._lock:
+            return list(self._pricing.keys())
+    
+    def get_model_count(self) -> int:
+        """Get total number of models with pricing data."""
+        with self._lock:
+            return sum(len(models) for models in self._pricing.values())
+    
+    def clear(self) -> None:
+        """Clear all pricing data."""
+        with self._lock:
+            self._pricing.clear()
+            self._last_updated = None
+    
+    def get_last_updated(self) -> Optional[datetime]:
+        """Get timestamp of last update."""
+        with self._lock:
+            return self._last_updated
+    
+    def set_source(self, source: str) -> None:
+        """Set the source of pricing data."""
+        with self._lock:
+            self._source = source
+    
+    def get_source(self) -> str:
+        """Get the source of pricing data."""
+        with self._lock:
+            return self._source
+
+
+class PricingCollector:
+    """
+    Collects pricing data from various sources.
+    """
+    
+    def __init__(self, pricing_db: Optional[PricingDatabase] = None):
+        self.pricing_db = pricing_db or PricingDatabase()
+        self._load_default_pricing()
+    
+    def _load_default_pricing(self) -> None:
+        """Load default pricing data from embedded knowledge."""
+        # Common provider pricing (as of 2024)
+        default_pricing = [
+            # OpenAI
+            ModelPricing(provider="openai", model_name="gpt-4o", 
+                        input_price_per_million=5.0, output_price_per_million=15.0,
+                        context_window=128000),
+            ModelPricing(provider="openai", model_name="gpt-4o-mini",
+                        input_price_per_million=0.15, output_price_per_million=0.60,
+                        context_window=128000),
+            ModelPricing(provider="openai", model_name="gpt-4-turbo",
+                        input_price_per_million=10.0, output_price_per_million=30.0,
+                        context_window=128000),
+            ModelPricing(provider="openai", model_name="gpt-3.5-turbo",
+                        input_price_per_million=0.50, output_price_per_million=1.50,
+                        context_window=16385),
+            
+            # Anthropic
+            ModelPricing(provider="anthropic", model_name="claude-3-5-sonnet",
+                        input_price_per_million=3.0, output_price_per_million=15.0,
+                        context_window=200000),
+            ModelPricing(provider="anthropic", model_name="claude-3-opus",
+                        input_price_per_million=15.0, output_price_per_million=75.0,
+                        context_window=200000),
+            ModelPricing(provider="anthropic", model_name="claude-3-haiku",
+                        input_price_per_million=0.25, output_price_per_million=1.25,
+                        context_window=200000),
+            
+            # Google
+            ModelPricing(provider="google", model_name="gemini-1.5-pro",
+                        input_price_per_million=1.25, output_price_per_million=5.0,
+                        context_window=2000000),
+            ModelPricing(provider="google", model_name="gemini-1.5-flash",
+                        input_price_per_million=0.075, output_price_per_million=0.30,
+                        context_window=1000000),
+            ModelPricing(provider="google", model_name="gemini-1.5-flash-8b",
+                        input_price_per_million=0.0375, output_price_per_million=0.15,
+                        context_window=1000000),
+            
+            # Meta
+            ModelPricing(provider="meta", model_name="llama-3.1-405b",
+                        input_price_per_million=3.5, output_price_per_million=3.5,
+                        context_window=128000),
+            ModelPricing(provider="meta", model_name="llama-3.1-70b",
+                        input_price_per_million=0.88, output_price_per_million=0.88,
+                        context_window=128000),
+            ModelPricing(provider="meta", model_name="llama-3.1-8b",
+                        input_price_per_million=0.22, output_price_per_million=0.22,
+                        context_window=128000),
+            
+            # Mistral
+            ModelPricing(provider="mistral", model_name="mistral-large",
+                        input_price_per_million=2.0, output_price_per_million=6.0,
+                        context_window=128000),
+            ModelPricing(provider="mistral", model_name="mistral-small",
+                        input_price_per_million=0.20, output_price_per_million=0.60,
+                        context_window=128000),
+            
+            # Cohere
+            ModelPricing(provider="cohere", model_name="command-r-plus",
+                        input_price_per_million=3.0, output_price_per_million=15.0,
+                        context_window=128000),
+            ModelPricing(provider="cohere", model_name="command-r",
+                        input_price_per_million=0.50, output_price_per_million=1.50,
+                        context_window=128000),
+            
+            # Groq
+            ModelPricing(provider="groq", model_name="llama-3.1-70b-versatile",
+                        input_price_per_million=0.59, output_price_per_million=0.79,
+                        context_window=8192),
+            ModelPricing(provider="groq", model_name="mixtral-8x7b-32768",
+                        input_price_per_million=0.24, output_price_per_million=0.24,
+                        context_window=32768),
+            
+            # Cerebras
+            ModelPricing(provider="cerebras", model_name="llama-3.1-70b",
+                        input_price_per_million=0.10, output_price_per_million=0.10,
+                        context_window=128000),
+            
+            # xAI
+            ModelPricing(provider="xai", model_name="grok-beta",
+                        input_price_per_million=5.0, output_price_per_million=15.0,
+                        context_window=131072),
+            
+            # Perplexity
+            ModelPricing(provider="perplexity", model_name="llama-3.1-sonar-large",
+                        input_price_per_million=1.0, output_price_per_million=1.0,
+                        context_window=127072),
+            ModelPricing(provider="perplexity", model_name="llama-3.1-sonar-small",
+                        input_price_per_million=0.20, output_price_per_million=0.20,
+                        context_window=127072),
+            
+            # DeepSeek
+            ModelPricing(provider="deepseek", model_name="deepseek-chat",
+                        input_price_per_million=0.14, output_price_per_million=0.28,
+                        context_window=64000),
+            ModelPricing(provider="deepseek", model_name="deepseek-coder",
+                        input_price_per_million=0.14, output_price_per_million=0.28,
+                        context_window=64000),
+        ]
+        
+        self.pricing_db.add_batch(default_pricing)
+        self.pricing_db.set_source("default")
+        logger.info(f"Loaded {len(default_pricing)} default pricing entries")
+    
+    def load_from_config(self, config_path: str) -> int:
+        """Load pricing data from a YAML config file."""
+        if not os.path.exists(config_path):
+            logger.warning(f"Pricing config not found: {config_path}")
+            return 0
+        
+        try:
+            with open(config_path, 'r') as f:
+                data = yaml.safe_load(f)
+            
+            if not data or 'pricing' not in data:
+                logger.warning(f"No pricing data in config: {config_path}")
+                return 0
+            
+            pricing_list = []
+            for entry in data['pricing']:
+                pricing = ModelPricing(
+                    provider=entry.get('provider', ''),
+                    model_name=entry.get('model', entry.get('model_name', '')),
+                    input_price_per_million=entry.get('input_price_per_million', 0),
+                    output_price_per_million=entry.get('output_price_per_million', 0),
+                    currency=entry.get('currency', 'USD'),
+                    context_window=entry.get('context_window', 0),
+                    metadata=entry.get('metadata', {})
+                )
+                pricing_list.append(pricing)
+            
+            self.pricing_db.add_batch(pricing_list)
+            self.pricing_db.set_source(config_path)
+            logger.info(f"Loaded {len(pricing_list)} pricing entries from {config_path}")
+            return len(pricing_list)
+            
+        except Exception as e:
+            logger.error(f"Failed to load pricing config: {e}")
+            return 0
+    
+    def add_custom_pricing(self, provider: str, model: str, 
+                          input_price: float, output_price: float,
+                          context_window: int = 0, currency: str = "USD") -> None:
+        """Add custom pricing for a model."""
+        pricing = ModelPricing(
+            provider=provider,
+            model_name=model,
+            input_price_per_million=input_price,
+            output_price_per_million=output_price,
+            context_window=context_window,
+            currency=currency
+        )
+        self.pricing_db.add_pricing(pricing)
+        logger.info(f"Added custom pricing for {provider}/{model}")
+    
+    def refresh(self) -> None:
+        """Refresh pricing data from configured sources."""
+        # This can be extended to fetch from external APIs
+        logger.info("Pricing data refresh triggered")
+
+
+# Global instance for easy access
+_global_pricing_collector: Optional[PricingCollector] = None
+_global_pricing_db: Optional[PricingDatabase] = None
+
+
+def get_pricing_collector() -> PricingCollector:
+    """Get or create the global pricing collector instance."""
+    global _global_pricing_collector
+    if _global_pricing_collector is None:
+        _global_pricing_collector = PricingCollector()
+    return _global_pricing_collector
+
+
+def get_pricing_database() -> PricingDatabase:
+    """Get or create the global pricing database instance."""
+    global _global_pricing_db
+    if _global_pricing_db is None:
+        collector = get_pricing_collector()
+        _global_pricing_db = collector.pricing_db
+    return _global_pricing_db
+=== END FILE ===
+
+=== FILE: src/proxy_app/pricing_api.py ===
+#!/usr/bin/env python3
+"""
+Pricing API Module
+
+FastAPI endpoints for accessing LLM provider pricing information.
+Part of Phase 2.1 Data Collection Pipeline.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
+from typing import Dict, Any, List, Optional
+import csv
+import io
+import logging
+from datetime import datetime
+
+from rotator_library.pricing_data import (
+    PricingDatabase,
+    PricingCollector,
+    ModelPricing,
+    get_pricing_database,
+    get_pricing_collector
+)
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Create router for pricing API endpoints
+router = APIRouter(prefix="/api/pricing", tags=["pricing"])
+
+
+def get_pricing_db(request: Request) -> PricingDatabase:
+    """Dependency to get the pricing database from app state."""
+    if hasattr(request.app.state, "pricing_database"):
+        return request.app.state.pricing_database
+    # Fallback to global instance
+    return get_pricing_database()
+
+
+@router.get("/")
+async def get_all_pricing(
+    request: Request, db: PricingDatabase = Depends(get_pricing_db)
+) -> Dict[str, Any]:
+    """
+    Get all pricing data for all providers.
+
+    Returns:
+        JSON with all pricing information
+    """
+    try:
+        all_pricing = db.get_all_as_list()
+        
+        # Group by provider
+        providers = {}
+        for pricing in all_pricing:
+            provider = pricing.provider
+            if provider not in providers:
+                providers[provider] = []
+            providers[provider].append(pricing.to_dict())
+        
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "source": db.get_source(),
+            "total_models": db.get_model_count(),
+            "providers": providers,
+            "last_updated": db.get_last_updated().isoformat() if db.get_last_updated() else None
+        }
+    except Exception as e:
+        logger.error(f"Failed to get all pricing: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get pricing: {e}")
+
+
+@router.get("/providers")
+async def get_pricing_providers(
+    request: Request, db: PricingDatabase = Depends(get_pricing_db)
+) -> Dict[str, Any]:
+    """
+    Get list of all providers with pricing data.
+
+    Returns:
+        JSON with provider list and model counts
+    """
+    try:
+        providers = db.get_providers()
+        provider_info = []
+        
+        for provider in providers:
+            pricing_list = db.get_provider_pricing(provider)
+            provider_info.append({
+                "name": provider,
+                "model_count": len(pricing_list),
+                "cheapest_input": min(p.input_price_per_million for p in pricing_list) if pricing_list else 0,
+                "cheapest_output": min(p.output_price_per_million for p in pricing_list) if pricing_list else 0
+            })
+        
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "providers": provider_info,
+            "total_providers": len(providers)
+        }
+    except Exception as e:
+        logger.error(f"Failed to get providers: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get providers: {e}")
+
+
+@router.get("/provider/{provider_name}")
+async def get_provider_pricing(
+    request: Request,
+    provider_name: str,
+    db: PricingDatabase = Depends(get_pricing_db)
+) -> Dict[str, Any]:
+    """
+    Get pricing for a specific provider.
+
+    Args:
+        provider_name: Name of the provider
+
+    Returns:
+        JSON with provider pricing details
+    """
+    try:
+        provider_name = provider_name.lower()
+        pricing_list = db.get_provider_pricing(provider_name)
+        
+        if not pricing_list:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"No pricing data found for provider '{provider_name}'"
+            )
+        
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "provider": provider_name,
+            "model_count": len(pricing_list),
+            "models": [p.to_dict() for p in pricing_list]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get pricing for {provider_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get provider pricing: {e}")
+
+
+@router.get("/model/{model_name}")
+async def get_model_pricing(
+    request: Request,
+    model_name: str,
+    db: PricingDatabase = Depends(get_pricing_db)
+) -> Dict[str, Any]:
+    """
+    Search for pricing by model name.
+
+    Args:
+        model_name: Model name or search pattern
+
+    Returns:
+        JSON with matching model pricing
+    """
+    try:
+        # Try exact match first
+        all_pricing = db.get_all_as_list()
+        exact_match = None
+        for pricing in all_pricing:
+            if pricing.model_name.lower() == model_name.lower():
+                exact_match = pricing
+                break
+        
+        if exact_match:
+            return {
+                "timestamp": datetime.utcnow().isoformat(),
+                "match_type": "exact",
+                "model": exact_match.to_dict()
+            }
+        
+        # Fall back to search
+        matches = db.search_by_model(model_name)
+        
+        if not matches:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No models found matching '{model_name}'"
+            )
+        
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "match_type": "search",
+            "query": model_name,
+            "count": len(matches),
+            "models": [p.to_dict() for p in matches]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to search for model {model_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to search model: {e}")
+
+
+@router.get("/cheapest")
+async def get_cheapest_models(
+    request: Request,
+    limit: int = 10,
+    input_only: bool = False,
+    db: PricingDatabase = Depends(get_pricing_db)
+) -> Dict[str, Any]:
+    """
+    Get the cheapest models by price.
+
+    Args:
+        limit: Maximum number of models to return (default: 10)
+        input_only: Sort by input price instead of output price
+
+    Returns:
+        JSON with cheapest models
+    """
+    try:
+        if limit <= 0:
+            limit = 10
+        if limit > 100:
+            limit = 100
+            
+        cheapest = db.get_cheapest_models(limit=limit, input_only=input_only)
+        
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "sort_by": "input" if input_only else "output",
+            "count": len(cheapest),
+            "models": [p.to_dict() for p in cheapest]
+        }
+    except Exception as e:
+        logger.error(f"Failed to get cheapest models: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get cheapest models: {e}")
+
+
+@router.get("/compare")
+async def compare_models(
+    request: Request,
+    models: str = "",  # Comma-separated list of model names
+    db: PricingDatabase = Depends(get_pricing_db)
+) -> Dict[str, Any]:
+    """
+    Compare pricing for multiple models.
+
+    Args:
+        models: Comma-separated list of model names to compare
+
+    Returns:
+        JSON with comparison data
+    """
+    try:
+        if not models:
+            raise HTTPException(status_code=400, detail="No models specified")
+        
+        model_list = [m.strip() for m in models.split(",")]
+        all_pricing = db.get_all_as_list()
+        
+        matches = []
+        for pricing in all_pricing:
+            if pricing.model_name.lower() in [m.lower() for m in model_list]:
+                matches.append(pricing)
+        
+        if not matches:
+            raise HTTPException(
+                status_code=404,
+                detail="No matching models found"
+            )
+        
+        # Sort by output price
+        matches.sort(key=lambda x: x.output_price_per_million)
+        
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "count": len(matches),
+            "models": [p.to_dict() for p in matches]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to compare models: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to compare models: {e}")
+
+
+@router.get("/export/csv")
+async def export_pricing_csv(
+    request: Request, db: PricingDatabase = Depends(get_pricing_db)
+) -> StreamingResponse:
+    """
+    Export all pricing data to CSV format.
+
+    Returns:
+        CSV file with pricing data
+    """
+    try:
+        all_pricing = db.get_all_as_list()
+        
+        # Create CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Header
+        writer.writerow([
+            "provider", "model", "input_price_per_million", 
+            "output_price_per_million", "currency", "context_window", "updated_at"
+        ])
+        
+        # Data
+        for pricing in all_pricing:
+            writer.writerow([
+                pricing.provider,
+                pricing.model_name,
+                pricing.input_price_per_million,
+                pricing.output_price_per_million,
+                pricing.currency,
+                pricing.context_window,
+                pricing.updated_at.isoformat()
+            ])
+        
+        output.seek(0)
+        
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": "attachment; filename=pricing_data.csv",
+                "Content-Type": "text/csv",
+            }
+        )
+    except Exception as e:
+        logger.error(f"Failed to export pricing CSV: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to export pricing: {e}")
+
+
+@router.post("/refresh")
+async def refresh_pricing(
+    request: Request,
+    db: PricingDatabase = Depends(get_pricing_db)
+) -> Dict[str, Any]:
+    """
+    Trigger a refresh of pricing data.
+
+    Returns:
+        JSON with refresh status
+    """
+    try:
+        collector = get_pricing_collector()
+        collector.refresh()
+        
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "success",
+            "message": "Pricing data refresh triggered",
+            "total_models": db.get_model_count()
+        }
+    except Exception as e:
+        logger.error(f"Failed to refresh pricing: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to refresh pricing: {e}")
+=== END FILE ===
+
+=== FILE: config/pricing_config.yaml ===
+# Pricing Data Configuration
+# Part of Phase 2.1 Data Collection Pipeline
+
+# Data source configuration
+data_source:
+  # Sources to collect pricing from
+  sources:
+    - name: "default"
+      enabled: true
+      type: "embedded"
+    
+    - name: "config_file"
+      enabled: true
+      type: "yaml"
+      path: "config/pricing_data.yaml"
+    
+    - name: "api"
+      enabled: false
+      type: "api"
+      endpoint: "https://api.example.com/pricing"
+      refresh_interval: 3600  # seconds
+
+# Update settings
+update_settings:
+  auto_refresh: false
+  refresh_interval: 86400  # 24 hours in seconds
+  cache_ttl: 3600  # 1 hour
+
+# API settings
+api_settings:
+  default_limit: 10
+  max_limit: 100
+  enable_comparison: true
+  enable_export: true
+
+# Pricing data (can be loaded from separate file)
+pricing: []
+# Example format:
+# - provider: "openai"
+#   model: "gpt-4o"
+#   input_price_per_million: 5.0
+#   output_price_per_million: 15.0
+#   currency: "USD"
+#   context_window: 128000
+=== END FILE ===
+
+=== FILE: config/pricing_data.yaml ===
+# Detailed Pricing Data
+# This file can be updated manually or by automated scrapers
+# Part of Phase 2.1 Data Collection Pipeline
+
+pricing:
+  # OpenAI Models
+  - provider: "openai"
+    model: "gpt-4o"
+    input_price_per_million: 5.00
+    output_price_per_million: 15.00
+    currency: "USD"
+    context_window: 128000
+    metadata:
+      description: "GPT-4 Omni - Latest flagship model"
+      
+  - provider: "openai"
+    model: "gpt-4o-mini"
+    input_price_per_million: 0.15
+    output_price_per_million: 0.60
+    currency: "USD"
+    context_window: 128000
+    metadata:
+      description: "Fast and affordable small model"
+      
+  - provider: "openai"
+    model: "gpt-4-turbo"
+    input_price_per_million: 10.00
+    output_price_per_million: 30.00
+    currency: "USD"
+    context_window: 128000
+    metadata:
+      description: "Previous GPT-4 Turbo model"
+      
+  - provider: "openai"
+    model: "gpt-3.5-turbo"
+    input_price_per_million: 0.50
+    output_price_per_million: 1.50
+    currency: "USD"
+    context_window: 16385
+    metadata:
+      description: "Fast and affordable base model"
+
+  # Anthropic Models
+  - provider: "anthropic"
+    model: "claude-3-5-sonnet"
+    input_price_per_million: 3.00
+    output_price_per_million: 15.00
+    currency: "USD"
+    context_window: 200000
+    metadata:
+      description: "Latest Claude Sonnet model"
+      
+  - provider: "anthropic"
+    model: "claude-3-opus"
+    input_price_per_million: 15.00
+    output_price_per_million: 75.00
+    currency: "USD"
+    context_window: 200000
+    metadata:
+      description: "Most capable Claude model"
+      
+  - provider: "anthropic"
+    model: "claude-3-haiku"
+    input_price_per_million: 0.25
+    output_price_per_million: 1.25
+    currency: "USD"
+    context_window: 200000
+    metadata:
+      description: "Fast and efficient model"
+
+  # Google Models
+  - provider: "google"
+    model: "gemini-1.5-pro"
+    input_price_per_million: 1.25
+    output_price_per_million: 5.00
+    currency: "USD"
+    context_window: 2000000
+    metadata:
+      description: "Gemini 1.5 Pro with 2M context"
+      
+  - provider: "google"
+    model: "gemini-1.5-flash"
+    input_price_per_million: 0.075
+    output_price_per_million: 0.30
+    currency: "USD"
+    context_window: 1000000
+    metadata:
+      description: "Fast Gemini Flash model"
+      
+  - provider: "google"
+    model: "gemini-1.5-flash-8b"
+    input_price_per_million: 0.0375
+    output_price_per_million: 0.15
+    currency: "USD"
+    context_window: 1000000
+    metadata:
+      description: "Efficient 8B parameter model"
+
+  # Meta Models
+  - provider: "meta"
+    model: "llama-3.1-405b"
+    input_price_per_million: 3.50
+    output_price_per_million: 3.50
+    currency: "USD"
+    context_window: 128000
+    metadata:
+      description: "Meta's largest open model"
+      
+  - provider: "meta"
+    model: "llama-3.1-70b"
+    input_price_per_million: 0.88
+    output_price_per_million: 0.88
+    currency: "USD"
+    context_window: 128000
+    metadata:
+      description: "Meta's mid-size open model"
+      
+  - provider: "meta"
+    model: "llama-3.1-8b"
+    input_price_per_million: 0.22
+    output_price_per_million: 0.22
+    currency: "USD"
+    context_window: 128000
+    metadata:
+      description: "Meta's efficient open model"
+
+  # Mistral Models
+  - provider: "mistral"
+    model: "mistral-large"
+    input_price_per_million: 2.00
+    output_price_per_million: 6.00
+    currency: "USD"
+    context_window: 128000
+    metadata:
+      description: "Mistral's largest model"
+      
+  - provider: "mistral"
+    model: "mistral-small"
+    input_price_per_million: 0.20
+    output_price_per_million: 0.60
+    currency: "USD"
+    context_window: 128000
+    metadata:
+      description: "Mistral's efficient model"
+
+  # Cohere Models
+  - provider: "cohere"
+    model: "command-r-plus"
+    input_price_per_million: 3.00
+    output_price_per_million: 15.00
+    currency: "USD"
+    context_window: 128000
+    metadata:
+      description: "Cohere's most capable model"
+      
+  - provider: "cohere"
+    model: "command-r"
+    input_price_per_million: 0.50
+    output_price_per_million: 1.50
+    currency: "USD"
+    context_window: 128000
+    metadata:
+      description: "Cohere's efficient model"
+
+  # Groq Models
+  - provider: "groq"
+    model: "llama-3.1-70b-versatile"
+    input_price_per_million: 0.59
+    output_price_per_million: 0.79
+    currency: "USD"
+    context_window: 8192
+    metadata:
+      description: "Fast inference on Groq"
+      
+  - provider: "groq"
+    model: "mixtral-8x7b-32768"
+    input_price_per_million: 0.24
+    output_price_per_million: 0.24
+    currency: "USD"
+    context_window: 32768
+    metadata:
+      description: "Mixture of experts on Groq"
+
+  # Cerebras Models
+  - provider: "cerebras"
+    model: "llama-3.1-70b"
+    input_price_per_million: 0.10
+    output_price_per_million: 0.10
+    currency: "USD"
+    context_window: 128000
+    metadata:
+      description: "Ultra-fast inference on Cerebras"
+
+  # xAI Models
+  - provider: "xai"
+    model: "grok-beta"
+    input_price_per_million: 5.00
+    output_price_per_million: 15.00
+    currency: "USD"
+    context_window: 131072
+    metadata:
+      description: "xAI's beta model"
+
+  # Perplexity Models
+  - provider: "perplexity"
+    model: "llama-3.1-sonar-large"
+    input_price_per_million: 1.00
+    output_price_per_million: 1.00
+    currency: "USD"
+    context_window: 127072
+    metadata:
+      description: "Perplexity's large search model"
+      
+  - provider: "perplexity"
+    model: "llama-3.1-sonar-small"
+    input_price_per_million: 0.20
+    output_price_per_million: 0.20
+    currency: "USD"
+    context_window: 127072
+    metadata:
+      description: "Perplexity's efficient search model"
+
+  # DeepSeek Models
+  - provider: "deepseek"
+    model: "deepseek-chat"
+    input_price_per_million: 0.14
+    output_price_per_million: 0.28
+    currency: "USD"
+    context_window: 64000
+    metadata:
+      description: "DeepSeek's chat model"
+      
+  - provider: "deepseek"
+    model: "deepseek-coder"
+    input_price_per_million: 0.14
+    output_price

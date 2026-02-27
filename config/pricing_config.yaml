@@ -1,0 +1,44 @@
+# Pricing Data Configuration
+# Part of Phase 2.1 Data Collection Pipeline
+
+# Data source configuration
+data_source:
+  # Sources to collect pricing from
+  sources:
+    - name: "default"
+      enabled: true
+      type: "embedded"
+    
+    - name: "config_file"
+      enabled: true
+      type: "yaml"
+      path: "config/pricing_data.yaml"
+    
+    - name: "api"
+      enabled: false
+      type: "api"
+      endpoint: "https://api.example.com/pricing"
+      refresh_interval: 3600  # seconds
+
+# Update settings
+update_settings:
+  auto_refresh: false
+  refresh_interval: 86400  # 24 hours in seconds
+  cache_ttl: 3600  # 1 hour
+
+# API settings
+api_settings:
+  default_limit: 10
+  max_limit: 100
+  enable_comparison: true
+  enable_export: true
+
+# Pricing data (can be loaded from separate file)
+pricing: []
+# Example format:
+# - provider: "openai"
+#   model: "gpt-4o"
+#   input_price_per_million: 5.0
+#   output_price_per_million: 15.0
+#   currency: "USD"
+#   context_window: 128000
