@@ -12,6 +12,7 @@ from .providers.g4f_provider import G4FProvider
 from .providers.agentrouter_provider import AgentRouterProvider
 from .providers.cerebras_provider import CerebrasProvider
 from .providers.puter_provider import PuterProvider
+from .providers.replicate_provider import ReplicateProvider
 
 lib_logger = logging.getLogger("rotator_library")
 lib_logger.propagate = False
@@ -33,6 +34,7 @@ DIRECT_PROVIDER_MAP = {
     "agentrouter": AgentRouterProvider,
     "cerebras": CerebrasProvider,
     "puter": PuterProvider,
+    "replicate": ReplicateProvider,
 }
 
 # Combined provider map for compatibility
@@ -114,6 +116,16 @@ def get_provider_config(provider_name: str) -> Dict[str, Any]:
         )
         lib_logger.debug(f"Loaded Puter configuration: {list(config.keys())}")
 
+    elif provider_name == "replicate":
+        # Replicate provider for open-source models
+        config.update(
+            {
+                "api_base": os.getenv("REPLICATE_API_BASE", "https://api.replicate.com/v1"),
+                "default_tier_priority": 3,  # Medium priority for free tier
+            }
+        )
+        lib_logger.debug(f"Loaded Replicate configuration: {list(config.keys())}")
+
     return config
 
 
@@ -155,6 +167,10 @@ def validate_provider_config(provider_name: str) -> bool:
         # or with any of the optional API base URLs
         config = get_provider_config(provider_name)
         return True  # G4F is always configurable
+
+    if provider_name == "replicate":
+        # Replicate requires API key to be configured
+        return os.getenv("REPLICATE_API_KEY") is not None
 
     # For OAuth providers, validation is handled by their auth classes
     return provider_name in OAUTH_PROVIDER_MAP
