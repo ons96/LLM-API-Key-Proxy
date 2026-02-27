@@ -1,3 +1,4 @@
+--- src/proxy_app/main.py ---
 import time
 
 # Phase 1: Minimal imports for arg parsing and TUI
@@ -16,11 +17,6 @@ parser.add_argument(
 parser.add_argument("--port", type=int, default=8000, help="Port to run the server on.")
 parser.add_argument(
     "--enable-request-logging", action="store_true", help="Enable request logging."
-)
-parser.add_argument(
-    "--json-logging",
-    action="store_true",
-    help="Enable structured JSON logging with request IDs.",
 )
 parser.add_argument(
     "--add-credential",
@@ -109,23 +105,13 @@ with _console.status("[dim]Loading FastAPI framework...", spinner="dots"):
 
 print("  → Loading core dependencies...")
 with _console.status("[dim]Loading core dependencies...", spinner="dots"):
-    if args.json_logging:
-        # Skip colorlog if using JSON logging
-        import json
-    else:
-        import colorlog
+    import colorlog
     import json
     from typing import AsyncGenerator, Any, List, Optional, Union, Dict
     from pydantic import BaseModel, Field
 
     # --- Early Log Level Configuration ---
     logging.getLogger("LiteLLM").setLevel(logging.WARNING)
-
-    # Setup JSON logging early if enabled
-    if args.json_logging:
-        from proxy_app.json_logging import setup_json_logging, RequestIDMiddleware, get_request_id
-        setup_json_logging(level=logging.INFO, enable_json=True)
-        print("  → JSON structured logging enabled")
 
 print("  → Loading LiteLLM library...")
 with _console.status("[dim]Loading LiteLLM library...", spinner="dots"):
@@ -147,10 +133,6 @@ with _console.status("[dim]Initializing proxy core...", spinner="dots"):
 
     # [NEW] Import HealthChecker
     from proxy_app.health_checker import HealthChecker
-    
-    # Import JSON logging if not already imported
-    if not args.json_logging:
-        from proxy_app.json_logging import RequestIDMiddleware, get_request_id
 
 print("  → Discovering provider plugins...")
 # Provider lazy loading happens during import, so time it here
@@ -218,122 +200,3 @@ class EnrichedModelCard(BaseModel):
     capabilities: Optional[ModelCapabilities] = None
     # Debug info (optional)
 
-
-# --- FastAPI Application Setup ---
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan handler."""
-    # Startup
-    logger = logging.getLogger(__name__)
-    logger.info("Starting up proxy server...")
-    yield
-    # Shutdown
-    logger.info("Shutting down proxy server...")
-
-
-app = FastAPI(
-    title="Mirro-Proxy",
-    description="API Key Proxy Server with structured JSON logging",
-    version="1.2.0",
-    lifespan=lifespan,
-)
-
-# Add Request ID Middleware for structured logging
-app.add_middleware(RequestIDMiddleware)
-
-# CORS Middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# API Key security
-api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
-
-
-async def verify_api_key(request: Request):
-    """Verify proxy API key if configured."""
-    if not proxy_api_key:
-        return True
-    
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        token = auth_header[7:]
-    else:
-        token = auth_header
-    
-    if token != proxy_api_key:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-    return True
-
-
-@app.middleware("http")
-async def logging_middleware(request: Request, call_next):
-    """Middleware to log requests with request IDs."""
-    start_time = time.time()
-    request_id = get_request_id()
-    
-    # Log request
-    logger = logging.getLogger("proxy.request")
-    if hasattr(logger, "makeRecord"):
-        extra = {
-            "path": request.url.path,
-            "method": request.method,
-            "client_ip": request.client.host if request.client else None,
-        }
-        logger.info(f"Request started: {request.method} {request.url.path}", extra=extra)
-    
-    response = await call_next(request)
-    
-    # Log response
-    duration = (time.time() - start_time) * 1000
-    if hasattr(logger, "makeRecord"):
-        extra = {
-            "path": request.url.path,
-            "method": request.method,
-            "status_code": response.status_code,
-            "duration_ms": round(duration, 2),
-        }
-        logger.info(
-            f"Request completed: {request.method} {request.url.path} - {response.status_code}",
-            extra=extra,
-        )
-    
-    return response
-
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy", "request_id": get_request_id()}
-
-
-@app.get("/v1/models")
-async def list_models():
-    """List available models."""
-    logger = logging.getLogger(__name__)
-    logger.info("Listing available models")
-    # Implementation would return actual models
-    return {
-        "object": "list",
-        "data": [],
-        "request_id": get_request_id(),
-    }
-
-
-if __name__ == "__main__":
-    import uvicorn
-    
-    logger = logging.getLogger(__name__)
-    logger.info(f"Starting server on {args.host}:{args.port}")
-    
-    uvicorn.run(
-        "proxy_app.main:app",
-        host=args.host,
-        port=args.port,
-        reload=False,
-        access_log=not args.json_logging,  # Disable uvicorn access log if using JSON logging
-    )
