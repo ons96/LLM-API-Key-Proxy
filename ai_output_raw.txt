@@ -1,0 +1,168 @@
+=== FILE: config/router_config.yaml ===
+# Router Configuration
+# Phase 1.3: Security Hardening - Request Size Limits
+
+routing:
+  # Existing routing configuration
+  default_timeout: 30
+  max_retries: 3
+
+security:
+  request_size_limits:
+    enabled: true
+    max_content_length_bytes: 104857600      # 100 MB for general content
+    max_json_payload_bytes: 10485760         # 10 MB for JSON APIs
+    check_content_length: true               # Validate Content-Length header
+    reject_chunked_over_limit: true          # Reject requests without Content-Length if body > limit
+    exempt_routes:
+      - "/health"
+      - "/healthz"
+      - "/metrics"
+      - "/ready"
+      - "/alive"
+  
+  # Additional security settings placeholder
+  rate_limiting:
+    enabled: true
+
+providers:
+  # Existing provider configuration
+  default_provider: openai
+  
+model_rankings:
+  # Existing model ranking configuration
+  fallback_strategy: "next_best"
+=== END FILE ===
+
+=== FILE: src/proxy_app/config_exceptions.py ===
+"""
+Configuration and security exceptions for the proxy application.
+"""
+
+class ConfigurationError(Exception):
+    """Raised when there's an error in configuration loading or validation."""
+    pass
+
+
+class ConfigValidationError(ConfigurationError):
+    """Raised when configuration validation fails."""
+    def __init__(self, message: str, field: str = None):
+        self.field = field
+        super().__init__(message)
+
+
+class PayloadTooLargeError(Exception):
+    """
+    Raised when request payload exceeds configured size limits.
+    Maps to HTTP 413 Payload Too Large.
+    """
+    def __init__(self, content_length: int, max_allowed: int, content_type: str = None):
+        self.content_length = content_length
+        self.max_allowed = max_allowed
+        self.content_type = content_type
+        message = (
+            f"Request body size ({content_length} bytes) exceeds maximum allowed "
+            f"size ({max_allowed} bytes)"
+        )
+        if content_type:
+            message += f" for content type '{content_type}'"
+        super().__init__(message)
+=== END FILE ===
+
+=== FILE: src/proxy_app/size_limiter.py ===
+"""
+Request size limiting middleware and utilities.
+Implements Phase 1.3 Security Hardening requirements.
+"""
+import logging
+from typing import Optional, Dict, Any, Set
+from pathlib import Path
+
+import yaml
+from fastapi import Request, HTTPException
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import Response
+
+from .config_exceptions import PayloadTooLargeError
+
+logger = logging.getLogger(__name__)
+
+
+class SizeLimitConfig:
+    """Configuration for request size limits."""
+    
+    def __init__(self, config_path: Optional[Path] = None):
+        self.config_path = config_path or Path(__file__).parent.parent.parent / "config" / "router_config.yaml"
+        self.enabled: bool = True
+        self.max_content_length: int = 100 * 1024 * 1024  # 100MB default
+        self.max_json_payload: int = 10 * 1024 * 1024     # 10MB default
+        self.check_content_length: bool = True
+        self.reject_chunked_over_limit: bool = True
+        self.exempt_routes: Set[str] = {"/health", "/metrics", "/healthz", "/ready", "/alive"}
+        self._load_config()
+    
+    def _load_config(self):
+        """Load configuration from YAML file."""
+        try:
+            if self.config_path.exists():
+                with open(self.config_path, 'r') as f:
+                    config = yaml.safe_load(f)
+                
+                if config and 'security' in config and 'request_size_limits' in config['security']:
+                    size_config = config['security']['request_size_limits']
+                    self.enabled = size_config.get('enabled', True)
+                    self.max_content_length = size_config.get('max_content_length_bytes', 100 * 1024 * 1024)
+                    self.max_json_payload = size_config.get('max_json_payload_bytes', 10 * 1024 * 1024)
+                    self.check_content_length = size_config.get('check_content_length', True)
+                    self.reject_chunked_over_limit = size_config.get('reject_chunked_over_limit', True)
+                    
+                    # Load exempt routes
+                    exempt = size_config.get('exempt_routes', [])
+                    if exempt:
+                        self.exempt_routes.update(exempt)
+                    
+                    logger.info(f"Size limits loaded: max_content_length={self.max_content_length}, "
+                               f"max_json_payload={self.max_json_payload}")
+        except Exception as e:
+            logger.warning(f"Failed to load size limit config from {self.config_path}: {e}. Using defaults.")
+    
+    def is_exempt(self, path: str) -> bool:
+        """Check if a path is exempt from size limits."""
+        if path in self.exempt_routes:
+            return True
+        # Check prefix exemptions (e.g., /static/)
+        for exempt_path in self.exempt_routes:
+            if exempt_path.endswith('/') and path.startswith(exempt_path):
+                return True
+        return False
+    
+    def get_limit_for_content_type(self, content_type: Optional[str]) -> int:
+        """Get the appropriate size limit based on content type."""
+        if content_type and "application/json" in content_type:
+            return self.max_json_payload
+        return self.max_content_length
+
+
+class SizeLimitMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to enforce request size limits.
+    Returns HTTP 413 Payload Too Large if request exceeds configured limits.
+    """
+    
+    def __init__(self, app, config: Optional[SizeLimitConfig] = None):
+        super().__init__(app)
+        self.config = config or SizeLimitConfig()
+    
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        if not self.config.enabled:
+            return await call_next(request)
+        
+        # Skip check for exempt paths
+        if self.config.is_exempt(request.url.path):
+            return await call_next(request)
+        
+        try:
+            await self._check_request_size(request)
+        except PayloadTooLargeError as e:
+            logger.warning(
+                f"Size limit exceeded: {e} |
