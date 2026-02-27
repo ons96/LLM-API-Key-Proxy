@@ -1,0 +1,202 @@
+--- src/proxy_app/settings_tool.py ---
+"""
+Advanced settings configuration tool for the LLM API Key Proxy.
+Provides interactive configuration for custom providers, model definitions, and concurrency limits.
+"""
+
+import json
+import os
+from pathlib import Path
+from typing import Dict, Any, Optional, List
+from rich.console import Console
+from rich.prompt import Prompt, IntPrompt, Confirm
+from rich.panel import Panel
+from dotenv import set_key, unset_key
+
+from rotator_library.utils.paths import get_data_file
+
+console = Console()
+
+# Sentinel value for distinguishing "no pending change" from "pending change to None"
+_NOT_FOUND = object()
+
+# Import default OAuth port values from provider modules
+# These serve as the source of truth for default port values
+try:
+    from rotator_library.providers.gemini_auth_base import GeminiAuthBase
+
+    GEMINI_CLI_DEFAULT_OAUTH_PORT = GeminiAuthBase.CALLBACK_PORT
+except ImportError:
+    GEMINI_CLI_DEFAULT_OAUTH_PORT = 8085
+
+try:
+    from rotator_library.providers.antigravity_auth_base import AntigravityAuthBase
+
+    ANTIGRAVITY_DEFAULT_OAUTH_PORT = AntigravityAuthBase.CALLBACK_PORT
+except ImportError:
+    ANTIGRAVITY_DEFAULT_OAUTH_PORT = 51121
+
+try:
+    from rotator_library.providers.iflow_auth_base import (
+        CALLBACK_PORT as IFLOW_DEFAULT_OAUTH_PORT,
+    )
+except ImportError:
+    IFLOW_DEFAULT_OAUTH_PORT = 11451
+
+
+def clear_screen(subtitle: str = ""):
+    """
+    Cross-platform terminal clear with optional header.
+
+    Uses native OS commands instead of ANSI escape sequences:
+    - Windows (conhost & Windows Terminal): cls
+    - Unix-like systems (Linux, Mac): clear
+
+    Args:
+        subtitle: If provided, displays a header panel with this subtitle.
+                  If empty/None, just clears the screen.
+    """
+    os.system("cls" if os.name == "nt" else "clear")
+    if subtitle:
+        console.print(
+            Panel(
+                f"[bold cyan]{subtitle}[/bold cyan]",
+                title="--- API Key Proxy ---",
+            )
+        )
+
+
+class AdvancedSettings:
+    """Manages pending changes to .env"""
+
+    def __init__(self):
+        self.env_file = get_data_file(".env")
+        self.pending_changes = {}  # key -> value (None means delete)
+        self.load_current_settings()
+
+    def load_current_settings(self):
+        """Load current .env values into env vars"""
+        from dotenv import load_dotenv
+
+        load_dotenv(self.env_file, override=True)
+
+    def set(self, key: str, value: str):
+        """Stage a change"""
+        self.pending_changes[key] = value
+
+    def remove(self, key: str):
+        """Stage a removal"""
+        self.pending_changes[key] = None
+
+    def save(self):
+        """Write pending changes to .env"""
+        for key, value in self.pending_changes.items():
+            if value is None:
+                # Remove key
+                unset_key(str(self.env_file), key)
+            else:
+                # Set key
+                set_key(str(self.env_file), key, value)
+
+        self.pending_changes.clear()
+        self.load_current_settings()
+
+    def discard(self):
+        """Discard pending changes"""
+        self.pending_changes.clear()
+
+    def has_pending(self) -> bool:
+        """Check if there are pending changes"""
+        return bool(self.pending_changes)
+
+    def get_pending_value(self, key: str):
+        """Get pending value for a key. Returns sentinel _NOT_FOUND if no pending change."""
+        return self.pending_changes.get(key, _NOT_FOUND)
+
+    def get_original_value(self, key: str) -> Optional[str]:
+        """Get the current .env value (before pending changes)"""
+        return os.getenv(key)
+
+    def get_change_type(self, key: str) -> Optional[str]:
+        """Returns 'add', 'edit', 'remove', or None if no pending change"""
+        if key not in self.pending_changes:
+            return None
+        if self.pending_changes[key] is None:
+            return "remove"
+        elif os.getenv(key) is not None:
+            return "edit"
+        else:
+            return "add"
+
+    def get_pending_keys_by_pattern(
+        self, prefix: str = "", suffix: str = ""
+    ) -> List[str]:
+        """Get all pending change keys that match prefix and/or suffix"""
+        return [
+            k
+            for k in self.pending_changes.keys()
+            if k.startswith(prefix) and k.endswith(suffix)
+        ]
+
+    def get_changes_summary(self) -> Dict[str, List[tuple]]:
+        """Get categorized summary of all pending changes.
+        Returns dict with 'add', 'edit', 'remove' keys,
+        each containing list of (key, old_val, new_val) tuples.
+        """
+        summary: Dict[str, List[tuple]] = {"add": [], "edit": [], "remove": []}
+        for key, new_val in self.pending_changes.items():
+            old_val = os.getenv(key)
+            change_type = self.get_change_type(key)
+            if change_type:
+                summary[change_type].append((key, old_val, new_val))
+        # Sort each list alphabetically by key
+        for change_type in summary:
+            summary[change_type].sort(key=lambda x: x[0])
+        return summary
+
+    def get_pending_counts(self) -> Dict[str, int]:
+        """Get counts of pending changes by type"""
+        adds = len(
+            [
+                k
+                for k, v in self.pending_changes.items()
+                if v is not None and os.getenv(k) is None
+            ]
+        )
+        edits = len(
+            [
+                k
+                for k, v in self.pending_changes.items()
+                if v is not None and os.getenv(k) is not None
+            ]
+        )
+        removes = len([k for k, v in self.pending_changes.items() if v is None])
+        return {"add": adds, "edit": edits, "remove": removes}
+
+
+class CustomProviderManager:
+    """Manages custom provider API bases"""
+
+    def __init__(self, settings: AdvancedSettings):
+        self.settings = settings
+
+    def get_current_providers(self) -> Dict[str, str]:
+        """Get currently configured custom providers"""
+        from proxy_app.provider_urls import PROVIDER_URL_MAP
+
+        providers = {}
+        for key, value in os.environ.items():
+            if key.endswith("_API_BASE"):
+                provider = key.replace("_API_BASE", "").lower()
+                # Only include if NOT in hardcoded map
+                if provider not in PROVIDER_URL_MAP:
+                    providers[provider] = value
+        return providers
+
+    def add_provider(self, name: str, api_base: str):
+        """Add PROVIDER_API_BASE"""
+        key = f"{name.upper()}_API_BASE"
+        self.settings.set(key, api_base)
+
+    def edit_provider(self, name: str, api_base: str):
+

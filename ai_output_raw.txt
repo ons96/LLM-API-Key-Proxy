@@ -1,0 +1,54 @@
+=== FILE: src/proxy_app/redis_cache.py ===
+import redis
+from fastapi import FastAPI
+from typing import Optional, Any
+from datetime import timedelta
+
+class RedisCache:
+    def __init__(self, app: FastAPI, host: str = "localhost", port: int = 6379, db: int = 0):
+        self.redis_client = redis.Redis(host=host, port=port, db=db, decode_responses=True)
+        self.app = app
+        self.setup_cache_middleware()
+
+    def setup_cache_middleware(self):
+        """Set up middleware to cache responses"""
+        @self.app.middleware("http")
+        async def cache_middleware(request, call_next):
+            if request.method != "GET":
+                response = await call_next(request)
+                return response
+
+            cache_key = f"response:{request.url.path}:{request.query_string.decode()}"
+            cached_response = self.redis_client.get(cache_key)
+
+            if cached_response:
+                return Response(content=cached_response, media_type="application/json")
+
+            response = await call_next(request)
+            if response.status_code == 200:
+                self.redis_client.setex(
+                    cache_key,
+                    timedelta(minutes=10),
+                    response.body
+                )
+            return response
+
+    def set(self, key: str, value: Any, ttl: Optional[timedelta] = None):
+        """Set a key-value pair in Redis with optional TTL"""
+        if ttl:
+            self.redis_client.setex(key, ttl, value)
+        else:
+            self.redis_client.set(key, value)
+
+    def get(self, key: str) -> Optional[str]:
+        """Get a value from Redis"""
+        return self.redis_client.get(key)
+
+    def delete(self, key: str):
+        """Delete a key from Redis"""
+        self.redis_client.delete(key)
+
+    def clear(self):
+        """Clear all keys from Redis"""
+        self.redis_client.flushdb()
+=== END FILE ===
