@@ -1,0 +1,448 @@
+=== FILE: src/rotator_library/providers/openai_provider.py ===
+import os
+import httpx
+import logging
+from typing import List, Dict, Any, Optional
+from .provider_interface import ProviderInterface
+from ..model_definitions import ModelDefinitions
+
+lib_logger = logging.getLogger("rotator_library")
+lib_logger.propagate = False
+if not lib_logger.handlers:
+    lib_logger.addHandler(logging.NullHandler())
+
+
+class OpenAIProvider(ProviderInterface):
+    """
+    Provider implementation for the OpenAI API.
+    Supports direct integration with OpenAI's paid API including
+    cost calculation, organization management, and proper error handling.
+    """
+    
+    # Enable cost calculation for OpenAI (paid provider with known pricing)
+    skip_cost_calculation: bool = False
+    
+    def __init__(self):
+        self.provider_name = "openai"
+        self.api_base = "https://api.openai.com/v1"
+        
+        # Load organization and project IDs if available for enterprise features
+        self.organization = os.getenv("OPENAI_ORGANIZATION")
+        self.project = os.getenv("OPENAI_PROJECT")
+        
+        # Initialize model definitions loader for static config
+        self.model_definitions = ModelDefinitions()
+
+    async def get_models(self, api_key: str, client: httpx.AsyncClient) -> List[str]:
+        """
+        Fetches the list of available models from the OpenAI API.
+        Combines dynamic discovery with static model definitions for known pricing.
+        """
+        models = []
+        
+        # First, get static model definitions (includes pricing info)
+        static_models = self.model_definitions.get_all_provider_models(
+            self.provider_name
+        )
+        if static_models:
+            models.extend(static_models)
+            lib_logger.info(f"Loaded {len(static_models)} static OpenAI models")
+
+        # Dynamic discovery for additional/newer models not in static config
+        try:
+            response = await client.get(
+                f"{self.api_base}/models",
+                headers=self._get_headers(api_key),
+                timeout=30.0
+            )
+            response.raise_for_status()
+            
+            # Get existing model IDs for deduplication
+            existing_ids = {m.split("/")[-1] for m in static_models}
+            
+            dynamic_models = []
+            for model in response.json().get("data", []):
+                model_id = model["id"]
+                # Skip fine-tuned models (user-specific) and already known models
+                if model_id not in existing_ids and not model_id.startswith("ft:"):
+                    dynamic_models.append(f"{self.provider_name}/{model_id}")
+            
+            if dynamic_models:
+                models.extend(dynamic_models)
+                lib_logger.info(f"Discovered {len(dynamic_models)} additional OpenAI models dynamically")
+
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401:
+                lib_logger.error("OpenAI API key invalid or expired during model discovery")
+            elif e.response.status_code == 429:
+                lib_logger.warning("OpenAI rate limit exceeded during model discovery")
+            else:
+                lib_logger.error(f"OpenAI API error {e.response.status_code} during model discovery: {e}")
+        except httpx.RequestError as e:
+            lib_logger.error(f"Network error connecting to OpenAI API: {e}")
+        except Exception as e:
+            lib_logger.error(f"Unexpected error fetching OpenAI models: {e}")
+
+        return models
+
+    def get_model_options(self, model_name: str) -> Dict[str, Any]:
+        """
+        Get options for a specific OpenAI model including pricing and capabilities.
+        
+        Args:
+            model_name: Model name (with or without provider prefix)
+            
+        Returns:
+            Dictionary of model options including cost per token if available
+        """
+        # Extract model name without provider prefix if present
+        if "/" in model_name:
+            model_name = model_name.split("/")[-1]
+            
+        # Get from model definitions (includes pricing for OpenAI models)
+        options = self.model_definitions.get_model_options(self.provider_name, model_name)
+        
+        # Ensure we return a dict
+        if not options:
+            options = {}
+            
+        # Infer context window from model name if not specified
+        if "context_window" not in options:
+            if "gpt-4-turbo" in model_name or "gpt-4-0125" in model_name or "gpt-4-1106" in model_name:
+                options["context_window"] = 128000
+            elif "gpt-4o-mini" in model_name:
+                options["context_window"] = 128000
+            elif "gpt-4o" in model_name:
+                options["context_window"] = 128000
+            elif "gpt-4" in model_name:
+                if "32k" in model_name:
+                    options["context_window"] = 32768
+                else:
+                    options["context_window"] = 8192
+            elif "gpt-3.5-turbo" in model_name:
+                if "0125" in model_name or "1106" in model_name:
+                    options["context_window"] = 16385
+                elif "16k" in model_name:
+                    options["context_window"] = 16384
+                else:
+                    options["context_window"] = 4096
+                    
+        return options
+
+    def has_custom_logic(self) -> bool:
+        """
+        Returns False to use standard litellm flow with OpenAI-specific configuration.
+        Custom logic is handled via model definitions and options.
+        """
+        return False
+
+    async def get_auth_header(self, credential_identifier: str) -> Dict[str, str]:
+        """
+        Returns authentication headers for OpenAI API including organization
+        and project headers if configured via environment variables.
+        """
+        return self._get_headers(credential_identifier)
+    
+    def _get_headers(self, api_key: str) -> Dict[str, str]:
+        """
+        Build headers for OpenAI API requests.
+        Includes Organization and Project headers for enterprise features.
+        """
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # Add organization header if available (for enterprise/teams)
+        if self.organization:
+            headers["OpenAI-Organization"] = self.organization
+            
+        # Add project header if available (newer OpenAI API feature)
+        if self.project:
+            headers["OpenAI-Project"] = self.project
+            
+        return headers
+
+    def is_available(self, api_key: Optional[str] = None) -> bool:
+        """
+        Check if OpenAI provider is properly configured.
+        Requires OPENAI_API_KEY environment variable or passed api_key.
+        """
+        if api_key:
+            return True
+        return bool(os.getenv("OPENAI_API_KEY"))
+=== END FILE ===
+
+=== FILE: config/providers_database.yaml ===
+providers:
+  openai:
+    name: "OpenAI"
+    type: "paid"
+    api_base: "https://api.openai.com/v1"
+    description: "Official OpenAI API with full model support and cost tracking"
+    enabled: true
+    priority: 10
+    features:
+      - streaming
+      - function_calling
+      - vision
+      - json_mode
+      - tools
+      - parallel_tool_calls
+    
+    authentication:
+      type: "bearer"
+      env_key: "OPENAI_API_KEY"
+      optional_env:
+        - "OPENAI_ORGANIZATION"
+        - "OPENAI_PROJECT"
+    
+    models:
+      gpt-4o:
+        id: "gpt-4o"
+        name: "GPT-4o"
+        context_window: 128000
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.005
+        cost_per_1k_output: 0.015
+        capabilities:
+          - chat
+          - vision
+          - json_mode
+          - function_calling
+          - parallel_tool_calls
+      
+      gpt-4o-mini:
+        id: "gpt-4o-mini"
+        name: "GPT-4o Mini"
+        context_window: 128000
+        max_output_tokens: 16384
+        cost_per_1k_input: 0.00015
+        cost_per_1k_output: 0.0006
+        capabilities:
+          - chat
+          - vision
+          - json_mode
+          - function_calling
+          - parallel_tool_calls
+      
+      gpt-4-turbo:
+        id: "gpt-4-turbo"
+        name: "GPT-4 Turbo"
+        context_window: 128000
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.01
+        cost_per_1k_output: 0.03
+        capabilities:
+          - chat
+          - vision
+          - json_mode
+          - function_calling
+          - parallel_tool_calls
+      
+      gpt-4-turbo-2024-04-09:
+        id: "gpt-4-turbo-2024-04-09"
+        name: "GPT-4 Turbo 2024-04-09"
+        context_window: 128000
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.01
+        cost_per_1k_output: 0.03
+        capabilities:
+          - chat
+          - vision
+          - json_mode
+          - function_calling
+      
+      gpt-4-turbo-preview:
+        id: "gpt-4-turbo-preview"
+        name: "GPT-4 Turbo Preview"
+        context_window: 128000
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.01
+        cost_per_1k_output: 0.03
+        capabilities:
+          - chat
+          - vision
+          - json_mode
+          - function_calling
+      
+      gpt-4-0125-preview:
+        id: "gpt-4-0125-preview"
+        name: "GPT-4 0125 Preview"
+        context_window: 128000
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.01
+        cost_per_1k_output: 0.03
+        capabilities:
+          - chat
+          - json_mode
+          - function_calling
+      
+      gpt-4-1106-preview:
+        id: "gpt-4-1106-preview"
+        name: "GPT-4 1106 Preview"
+        context_window: 128000
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.01
+        cost_per_1k_output: 0.03
+        capabilities:
+          - chat
+          - json_mode
+          - function_calling
+      
+      gpt-4:
+        id: "gpt-4"
+        name: "GPT-4"
+        context_window: 8192
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.03
+        cost_per_1k_output: 0.06
+        capabilities:
+          - chat
+          - function_calling
+      
+      gpt-4-32k:
+        id: "gpt-4-32k"
+        name: "GPT-4 32K"
+        context_window: 32768
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.06
+        cost_per_1k_output: 0.12
+        capabilities:
+          - chat
+      
+      gpt-3.5-turbo:
+        id: "gpt-3.5-turbo"
+        name: "GPT-3.5 Turbo"
+        context_window: 16385
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.0005
+        cost_per_1k_output: 0.0015
+        capabilities:
+          - chat
+          - json_mode
+          - function_calling
+      
+      gpt-3.5-turbo-0125:
+        id: "gpt-3.5-turbo-0125"
+        name: "GPT-3.5 Turbo 0125"
+        context_window: 16385
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.0005
+        cost_per_1k_output: 0.0015
+        capabilities:
+          - chat
+          - json_mode
+          - function_calling
+      
+      gpt-3.5-turbo-1106:
+        id: "gpt-3.5-turbo-1106"
+        name: "GPT-3.5 Turbo 1106"
+        context_window: 16385
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.001
+        cost_per_1k_output: 0.002
+        capabilities:
+          - chat
+          - json_mode
+          - function_calling
+      
+      gpt-3.5-turbo-16k:
+        id: "gpt-3.5-turbo-16k"
+        name: "GPT-3.5 Turbo 16K"
+        context_window: 16384
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.003
+        cost_per_1k_output: 0.004
+        capabilities:
+          - chat
+
+    rate_limits:
+      # Default Tier 1 rate limits (can be overridden per key)
+      tpm: 10000  # tokens per minute
+      rpm: 500    # requests per minute
+      rpd: 10000  # requests per day
+    
+    timeouts:
+      default: 600
+      max_retries: 3
+      backoff_factor: 2.0
+    
+    error_handling:
+      retry_on:
+        - 429  # Rate limit
+        - 500  # Server error
+        - 502  # Bad gateway
+        - 503  # Service unavailable
+        - 504  # Gateway timeout
+      fail_fast_on:
+        - 401  # Invalid auth
+        - 403  # Permission denied
+=== END FILE ===
+
+=== FILE: src/rotator_library/provider_factory.py ===
+"""
+Provider Factory Module
+
+Factory for creating provider instances based on provider type.
+Registers built-in providers and supports dynamic provider creation.
+"""
+
+import os
+import logging
+from typing import Dict, Type, Optional
+
+from .providers.provider_interface import ProviderInterface
+from .providers.openai_provider import OpenAIProvider
+from .providers.openai_compatible_provider import OpenAICompatibleProvider
+from .providers.gemini_provider import GeminiProvider
+from .providers.groq_provider import GroqProvider
+from .providers.cohere_provider import CohereProvider
+from .providers.cerebras_provider import CerebrasProvider
+from .providers.chutes_provider import ChutesProvider
+from .providers.agentrouter_provider import AgentRouterProvider
+from .providers.g4f_provider import G4FProvider
+from .providers.antigravity_provider import AntigravityProvider
+from .providers.gemini_cli_provider import GeminiCLIProvider
+
+lib_logger = logging.getLogger("rotator_library")
+
+
+class ProviderFactory:
+    """
+    Factory class for creating provider instances.
+    Maintains a registry of available providers.
+    """
+    
+    _providers: Dict[str, Type[ProviderInterface]] = {}
+    _custom_providers: Dict[str, Type[ProviderInterface]] = {}
+    
+    @classmethod
+    def register_builtin_providers(cls):
+        """Register all built-in providers."""
+        # Paid/Official Providers
+        cls.register_provider("openai", OpenAIProvider)
+        cls.register_provider("gemini", GeminiProvider)
+        cls.register_provider("groq", GroqProvider)
+        cls.register_provider("cohere", CohereProvider)
+        cls.register_provider("cerebras", CerebrasProvider)
+        
+        # Custom/Community Providers
+        cls.register_provider("chutes", ChutesProvider)
+        cls.register_provider("agentrouter", AgentRouterProvider)
+        cls.register_provider("g4f", G4FProvider)
+        cls.register_provider("antigravity", AntigravityProvider)
+        cls.register_provider("gemini_cli", GeminiCLIProvider)
+        
+        # OpenAI-compatible generic provider (must be registered for specific env-based providers)
+        cls._custom_providers["openai_compatible"] = OpenAICompatibleProvider
+        
+        lib_logger.info("Registered built-in providers")
+    
+    @classmethod
+    def register_provider(cls, name: str, provider_class: Type[ProviderInterface]):
+        """
+        Register a provider class with the factory.
+        
+        Args:
+            name: Provider

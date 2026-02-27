@@ -1,202 +1,204 @@
 providers:
-  - id: openrouter
-    name: "OpenRouter"
-    signup_url: "https://openrouter.ai"
-    free_tier: true
-    free_models:
-      - id: "google/gemini-2.0-flash-exp:free"
-        context: 1000000
-        rpm: 10
-        daily_limit: 50
-      - id: "deepseek/deepseek-r1:free"
-        context: 65536
-        rpm: 10
-        daily_limit: 50
-    capabilities: [chat, code, vision]
-    last_verified: "2025-01-15"
+  openai:
+    name: "OpenAI"
+    type: "paid"
+    api_base: "https://api.openai.com/v1"
+    description: "Official OpenAI API with full model support and cost tracking"
+    enabled: true
+    priority: 10
+    features:
+      - streaming
+      - function_calling
+      - vision
+      - json_mode
+      - tools
+      - parallel_tool_calls
+    
+    authentication:
+      type: "bearer"
+      env_key: "OPENAI_API_KEY"
+      optional_env:
+        - "OPENAI_ORGANIZATION"
+        - "OPENAI_PROJECT"
+    
+    models:
+      gpt-4o:
+        id: "gpt-4o"
+        name: "GPT-4o"
+        context_window: 128000
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.005
+        cost_per_1k_output: 0.015
+        capabilities:
+          - chat
+          - vision
+          - json_mode
+          - function_calling
+          - parallel_tool_calls
+      
+      gpt-4o-mini:
+        id: "gpt-4o-mini"
+        name: "GPT-4o Mini"
+        context_window: 128000
+        max_output_tokens: 16384
+        cost_per_1k_input: 0.00015
+        cost_per_1k_output: 0.0006
+        capabilities:
+          - chat
+          - vision
+          - json_mode
+          - function_calling
+          - parallel_tool_calls
+      
+      gpt-4-turbo:
+        id: "gpt-4-turbo"
+        name: "GPT-4 Turbo"
+        context_window: 128000
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.01
+        cost_per_1k_output: 0.03
+        capabilities:
+          - chat
+          - vision
+          - json_mode
+          - function_calling
+          - parallel_tool_calls
+      
+      gpt-4-turbo-2024-04-09:
+        id: "gpt-4-turbo-2024-04-09"
+        name: "GPT-4 Turbo 2024-04-09"
+        context_window: 128000
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.01
+        cost_per_1k_output: 0.03
+        capabilities:
+          - chat
+          - vision
+          - json_mode
+          - function_calling
+      
+      gpt-4-turbo-preview:
+        id: "gpt-4-turbo-preview"
+        name: "GPT-4 Turbo Preview"
+        context_window: 128000
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.01
+        cost_per_1k_output: 0.03
+        capabilities:
+          - chat
+          - vision
+          - json_mode
+          - function_calling
+      
+      gpt-4-0125-preview:
+        id: "gpt-4-0125-preview"
+        name: "GPT-4 0125 Preview"
+        context_window: 128000
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.01
+        cost_per_1k_output: 0.03
+        capabilities:
+          - chat
+          - json_mode
+          - function_calling
+      
+      gpt-4-1106-preview:
+        id: "gpt-4-1106-preview"
+        name: "GPT-4 1106 Preview"
+        context_window: 128000
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.01
+        cost_per_1k_output: 0.03
+        capabilities:
+          - chat
+          - json_mode
+          - function_calling
+      
+      gpt-4:
+        id: "gpt-4"
+        name: "GPT-4"
+        context_window: 8192
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.03
+        cost_per_1k_output: 0.06
+        capabilities:
+          - chat
+          - function_calling
+      
+      gpt-4-32k:
+        id: "gpt-4-32k"
+        name: "GPT-4 32K"
+        context_window: 32768
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.06
+        cost_per_1k_output: 0.12
+        capabilities:
+          - chat
+      
+      gpt-3.5-turbo:
+        id: "gpt-3.5-turbo"
+        name: "GPT-3.5 Turbo"
+        context_window: 16385
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.0005
+        cost_per_1k_output: 0.0015
+        capabilities:
+          - chat
+          - json_mode
+          - function_calling
+      
+      gpt-3.5-turbo-0125:
+        id: "gpt-3.5-turbo-0125"
+        name: "GPT-3.5 Turbo 0125"
+        context_window: 16385
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.0005
+        cost_per_1k_output: 0.0015
+        capabilities:
+          - chat
+          - json_mode
+          - function_calling
+      
+      gpt-3.5-turbo-1106:
+        id: "gpt-3.5-turbo-1106"
+        name: "GPT-3.5 Turbo 1106"
+        context_window: 16385
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.001
+        cost_per_1k_output: 0.002
+        capabilities:
+          - chat
+          - json_mode
+          - function_calling
+      
+      gpt-3.5-turbo-16k:
+        id: "gpt-3.5-turbo-16k"
+        name: "GPT-3.5 Turbo 16K"
+        context_window: 16384
+        max_output_tokens: 4096
+        cost_per_1k_input: 0.003
+        cost_per_1k_output: 0.004
+        capabilities:
+          - chat
 
-  - id: google_ai_studio
-    name: "Google AI Studio"
-    signup_url: "https://aistudio.google.com"
-    free_tier: true
-    free_models:
-      - id: "gemini-1.5-pro"
-        context: 2000000
-        rpm: 2
-        daily_limit: 50
-      - id: "gemini-2-5-flash"
-        context: 1000000
-        rpm: 15
-        daily_limit: 1500
-    capabilities: [chat, code, vision]
-    last_verified: "2025-01-15"
-
-  - id: groq
-    name: "Groq"
-    signup_url: "https://console.groq.com"
-    free_tier: true
-    free_models:
-      - id: "llama-3.3-70b-versatile"
-        context: 131072
-        rpm: 30
-        daily_limit: 14400
-      - id: "llama-3.1-8b-instant"
-        context: 131072
-        rpm: 30
-        daily_limit: 14400
-    capabilities: [chat, code]
-    last_verified: "2025-01-15"
-
-  - id: cerebras
-    name: "Cerebras"
-    signup_url: "https://cloud.cerebras.ai"
-    free_tier: true
-    free_models:
-      - id: "llama-3.1-70b"
-        context: 8192
-        rpm: 30
-        daily_limit: 1000000 # Tokens?
-    capabilities: [chat, code]
-    last_verified: "2025-01-15"
-
-  - id: huggingface
-    name: "Hugging Face"
-    signup_url: "https://huggingface.co"
-    free_tier: true
-    free_models:
-      - id: "Qwen/Qwen2.5-72B-Instruct"
-        context: 32768
-        rpm: 10
-    capabilities: [chat, code]
-    last_verified: "2025-01-15"
-
-  - id: mistral
-    name: "Mistral AI"
-    signup_url: "https://console.mistral.ai"
-    free_tier: true
-    free_models:
-      - id: "mistral-large-latest"
-        context: 32000
-        rpm: 10 # Trial tier
-    capabilities: [chat, code]
-    last_verified: "2025-01-15"
-
-  - id: cohere
-    name: "Cohere"
-    signup_url: "https://dashboard.cohere.com"
-    free_tier: true
-    free_models:
-      - id: "command-r-plus"
-        context: 128000
-        rpm: 10 # Trial key limit
-    capabilities: [chat, code]
-    last_verified: "2025-01-15"
-
-  - id: github-models
-    name: "GitHub Models"
-    signup_url: "https://github.com/marketplace/models"
-    free_tier: true
-    note: "Free but rate-limited usage. Opt-in to paid required after quota."
-    free_models:
-      - id: "grok-3-vision-beta"
-        context: 131072
-        rpm: 5
-        daily_limit: 100
-      - id: "grok-3-mini"
-        context: 131072
-        rpm: 5
-        daily_limit: 100
-      - id: "deepseek-r1"
-        context: 65536
-        rpm: 5
-        daily_limit: 100
-      - id: "deepseek-v3"
-        context: 65536
-        rpm: 5
-        daily_limit: 100
-      - id: "phi-4"
-        context: 128000
-        rpm: 5
-        daily_limit: 100
-      - id: "llama-4-scout-17b"
-        context: 128000
-        rpm: 5
-        daily_limit: 100
-      - id: "meta-llama/Llama-3.3-70B-Instruct"
-        context: 131072
-        rpm: 5
-        daily_limit: 100
-      - id: "mistralai/Mistral-large-2411"
-        context: 128000
-        rpm: 5
-        daily_limit: 100
-    capabilities: [chat, code, vision]
-    last_verified: "2025-01-28"
-
-  - id: cloudflare
-    name: "Cloudflare Workers AI"
-    signup_url: "https://workers.cloudflare.com/workers-ai"
-    free_tier: true
-    note: "10,000 Neurons/day free. $0.011/1000 Neurons after that."
-    free_models:
-      - id: "@cf/meta/llama-3.3-70b-instruct"
-        context: 131072
-        rpm: 300
-        daily_limit: 10000
-      - id: "@cf/meta/llama-3.1-8b-instruct"
-        context: 131072
-        rpm: 300
-        daily_limit: 10000
-      - id: "@cf/mistral/mistral-large-2407"
-        context: 128000
-        rpm: 300
-        daily_limit: 10000
-      - id: "@cf/qwen/qwen2.5-72b-instruct"
-        context: 32768
-        rpm: 300
-        daily_limit: 10000
-      - id: "@cf/openchat/openchat-7b"
-        context: 8192
-        rpm: 300
-        daily_limit: 10000
-      - id: "@cf/tinyllama/tinyllama-1.1b-chat"
-        context: 2048
-        rpm: 300
-        daily_limit: 10000
-    capabilities: [chat, code, embeddings, image]
-    last_verified: "2025-01-28"
-
-  - id: opencode_zen
-    name: "OpenCode Zen"
-    signup_url: "https://opencode.ai/zen"
-    api_base: "https://opencode.ai/zen/v1"
-    free_tier: true
-    note: "Unlimited daily usage. Rate limits under heavy load. Free models for agentic coding."
-    free_models:
-      - id: "minimax/m2.1"
-        name: "MiniMax M2.1"
-        context: 32768
-        rpm: 30
-        note: "Free tier with rate limiting under load"
-      - id: "trinity/large-preview"
-        name: "Trinity Large Preview"
-        context: 32768
-        rpm: 30
-        note: "Free tier with rate limiting under load"
-      - id: "moonshot/kimi-k2.5"
-        name: "Kimi K2.5"
-        context: 65536
-        rpm: 30
-        note: "Free tier with rate limiting under load"
-      - id: "zhipu/glm-4.7"
-        name: "GLM 4.7"
-        context: 32768
-        rpm: 30
-        note: "Free tier with rate limiting under load"
-      - id: "bigcode/pickle"
-        name: "Big Pickle"
-        context: 8192
-        rpm: 30
-        note: "Free tier with rate limiting under load"
-    capabilities: [chat, code]
-    last_verified: "2025-01-31"
+    rate_limits:
+      # Default Tier 1 rate limits (can be overridden per key)
+      tpm: 10000  # tokens per minute
+      rpm: 500    # requests per minute
+      rpd: 10000  # requests per day
+    
+    timeouts:
+      default: 600
+      max_retries: 3
+      backoff_factor: 2.0
+    
+    error_handling:
+      retry_on:
+        - 429  # Rate limit
+        - 500  # Server error
+        - 502  # Bad gateway
+        - 503  # Service unavailable
+        - 504  # Gateway timeout
+      fail_fast_on:
+        - 401  # Invalid auth
+        - 403  # Permission denied
