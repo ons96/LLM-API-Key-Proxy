@@ -1,9 +1,9 @@
 You are an expert software engineer.
-Fix GitHub issue #125 in this repository.
-Title: Bugs: Test and fix G4F model ID handling for complex IDs
+Fix GitHub issue #124 in this repository.
+Title: Phase 7.2: Write contributing guidelines
 
 Description:
-From BUGS.md: Some complex G4F model IDs don't work correctly.
+Part of Phase 7.2 Developer Documentation.
 
 Instructions:
 1. Identify the root cause.
