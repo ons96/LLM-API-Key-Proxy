@@ -59,33 +59,14 @@ jobs:
 
           echo "=== Analyzing repo: $REPO ==="
 
-          # Step 1: Fetch file tree via GitHub API
-          FILE_TREE_JSON=$(gh api "repos/${REPO}/git/trees/HEAD?recursive=1" 2>/dev/null || echo '{"tree":[]}')
-
-          # Write filter script using printf (no heredoc)
-          printf '%s\n' 'import sys, json' > filter_tree.py
-          printf '%s\n' 'data = json.load(sys.stdin)' >> filter_tree.py
-          printf '%s\n' 'tree = data.get("tree", [])' >> filter_tree.py
-          printf '%s\n' 'skip_dirs = ["node_modules/", ".git/", "dist/", "build/", "__pycache__/", ".venv/", "venv/"]' >> filter_tree.py
-          printf '%s\n' 'skip_files = ["package-lock.json", "yarn.lock", "poetry.lock"]' >> filter_tree.py
-          printf '%s\n' 'skip_exts = {".png",".jpg",".jpeg",".gif",".ico",".woff",".woff2",".ttf",".zip",".tar",".gz",".exe",".pyc",".pdf",".svg",".eot",".lock"}' >> filter_tree.py
-          printf '%s\n' 'keep_exts = {".py",".ts",".tsx",".js",".jsx",".html",".css",".yaml",".yml",".json",".md",".sh",".toml",".txt",".dockerfile"}' >> filter_tree.py
-          printf '%s\n' 'keep_names = {"Dockerfile", ".env.example"}' >> filter_tree.py
-          printf '%s\n' 'results = []' >> filter_tree.py
-          printf '%s\n' 'for item in tree:' >> filter_tree.py
-          printf '%s\n' '    if item.get("type") != "blob": continue' >> filter_tree.py
-          printf '%s\n' '    path = item.get("path", "")' >> filter_tree.py
-          printf '%s\n' '    if any(path.startswith(d) or ("/" + d) in path for d in skip_dirs): continue' >> filter_tree.py
-          printf '%s\n' '    fname = path.split("/")[-1]' >> filter_tree.py
-          printf '%s\n' '    if fname in skip_files: continue' >> filter_tree.py
-          printf '%s\n' '    ext = fname[fname.rfind("."):] if "." in fname else ""' >> filter_tree.py
-          printf '%s\n' '    if fname.endswith(".min.js") or fname.endswith(".min.css"): continue' >> filter_tree.py
-          printf '%s\n' '    if ext in skip_exts: continue' >> filter_tree.py
-          printf '%s\n' '    if ext in keep_exts or fname in keep_names: results.append(path)' >> filter_tree.py
-          printf '%s\n' 'for p in results[:150]: print(p)' >> filter_tree.py
-
-          FILTERED_FILES=$(echo "$FILE_TREE_JSON" | python3 filter_tree.py)
-          echo "Files to fetch: $(echo "$FILTERED_FILES" | wc -l)"
+          # Step 1: Fetch file tree via GitHub API (extract paths directly with jq, no Python JSON parsing)
+          KEEP_EXTS="py|ts|tsx|js|jsx|html|css|yaml|yml|json|md|sh|toml|txt|dockerfile"
+          FILTERED_FILES=$(gh api "repos/${REPO}/git/trees/HEAD?recursive=1" \
+            --jq '.tree[] | select(.type == "blob") | .path' 2>/dev/null \
+            | grep -iE "\.(${KEEP_EXTS})$|^Dockerfile$|^\.env\.example$" \
+            | grep -viE "(node_modules|/\.git/|/dist/|/build/|/__pycache__/|/\.venv/|/venv/|\.min\.js$|\.min\.css$|package-lock\.json|yarn\.lock|poetry\.lock)" \
+            | head -150 || echo "")
+          echo "Files to fetch: $(echo "$FILTERED_FILES" | grep -c . || echo 0)"
 
           # Step 2: Fetch file contents
           CODEBASE=""
