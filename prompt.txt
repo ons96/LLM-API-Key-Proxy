@@ -1,0 +1,12 @@
+You are an expert software engineer.
+Fix GitHub issue #119 in this repository.
+Title: Phase 7.1: Write deployment guide for users
+
+Description:
+Part of Phase 7.1 User Documentation.
+
+Instructions:
+1. Identify the root cause.
+2. Implement the minimal correct fix.
+3. Write clean code.
+4. Explain what you changed and why.
