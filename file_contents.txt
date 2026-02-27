@@ -1,0 +1,208 @@
+--- src/rotator_library/providers/openrouter_provider.py ---
+import httpx
+import logging
+from typing import List
+from .provider_interface import ProviderInterface
+
+lib_logger = logging.getLogger('rotator_library')
+lib_logger.propagate = False # Ensure this logger doesn't propagate to root
+if not lib_logger.handlers:
+    lib_logger.addHandler(logging.NullHandler())
+
+class OpenRouterProvider(ProviderInterface):
+    """
+    Provider implementation for the OpenRouter API.
+    """
+    async def get_models(self, api_key: str, client: httpx.AsyncClient) -> List[str]:
+        """
+        Fetches the list of available models from the OpenRouter API.
+        """
+        try:
+            response = await client.get(
+                "https://openrouter.ai/api/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"}
+            )
+            response.raise_for_status()
+            return [f"openrouter/{model['id']}" for model in response.json().get("data", [])]
+        except httpx.RequestError as e:
+            lib_logger.error(f"Failed to fetch OpenRouter models: {e}")
+            return []
+
+--- src/rotator_library/providers/agentrouter_provider.py ---
+import httpx
+import logging
+from typing import List
+from .provider_interface import ProviderInterface
+
+lib_logger = logging.getLogger('rotator_library')
+lib_logger.propagate = False
+if not lib_logger.handlers:
+    lib_logger.addHandler(logging.NullHandler())
+
+
+class AgentRouterProvider(ProviderInterface):
+    """
+    Provider implementation for AgentRouter.org API.
+    
+    AgentRouter provides OpenAI-compatible API access to various models.
+    API Base: https://agentrouter.org/v1
+    
+    Available models (as of user's account):
+    - deepseek-v3.2, deepseek-v3, deepseek-r1
+    - glm-4.6, glm-4.5
+    
+    Note: Claude models may not be available outside of Claude Code.
+    """
+    
+    provider_name = "agentrouter"
+    provider_env_name = "agentrouter"
+    
+    # Medium priority - has credits but is janky third-party
+    default_tier_priority = 3
+    
+    async def get_models(self, api_key: str, client: httpx.AsyncClient) -> List[str]:
+        """
+        Fetches the list of available models from AgentRouter API.
+        Falls back to known models if API doesn't support model listing.
+        """
+        try:
+            response = await client.get(
+                "https://agentrouter.org/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=10.0
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            if "data" in data:
+                models = [f"agentrouter/{model['id']}" for model in data.get("data", [])]
+                if models:
+                    lib_logger.info(f"Discovered {len(models)} models from AgentRouter API")
+                    return models
+                    
+        except httpx.RequestError as e:
+            lib_logger.debug(f"Failed to fetch AgentRouter models: {e}")
+        except Exception as e:
+            lib_logger.debug(f"Error parsing AgentRouter models: {e}")
+        
+        # Fallback to known models based on user's account
+        static_models = [
+            "agentrouter/deepseek-v3.2",
+            "agentrouter/deepseek-v3",
+            "agentrouter/deepseek-r1",
+            "agentrouter/glm-4.6",
+            "agentrouter/glm-4.5",
+            # Claude models may not be available outside Claude Code
+            "agentrouter/claude-3.5-sonnet",
+            "agentrouter/claude-3-opus",
+            "agentrouter/gpt-5",
+            "agentrouter/gpt-4o",
+        ]
+        
+        lib_logger.info(f"Using fallback AgentRouter model list: {len(static_models)} models")
+        return static_models
+
+--- src/rotator_library/timeout_config.py ---
+# src/rotator_library/timeout_config.py
+"""
+Centralized timeout configuration for HTTP requests.
+
+All values can be overridden via environment variables:
+    TIMEOUT_CONNECT - Connection establishment timeout (default: 30s)
+    TIMEOUT_WRITE - Request body send timeout (default: 30s)
+    TIMEOUT_POOL - Connection pool acquisition timeout (default: 60s)
+    TIMEOUT_READ_STREAMING - Read timeout between chunks for streaming (default: 180s / 3 min)
+    TIMEOUT_READ_NON_STREAMING - Read timeout for non-streaming responses (default: 600s / 10 min)
+"""
+
+import os
+import logging
+import httpx
+
+lib_logger = logging.getLogger("rotator_library")
+
+
+class TimeoutConfig:
+    """
+    Centralized timeout configuration for HTTP requests.
+
+    All values can be overridden via environment variables.
+    """
+
+    # Default values (in seconds)
+    _CONNECT = 30.0
+    _WRITE = 30.0
+    _POOL = 60.0
+    _READ_STREAMING = 180.0  # 3 minutes between chunks
+    _READ_NON_STREAMING = 600.0  # 10 minutes for full response
+
+    @classmethod
+    def _get_env_float(cls, key: str, default: float) -> float:
+        """Get a float value from environment variable, or return default."""
+        value = os.environ.get(key)
+        if value is not None:
+            try:
+                return float(value)
+            except ValueError:
+                lib_logger.warning(
+                    f"Invalid value for {key}: {value}. Using default: {default}"
+                )
+        return default
+
+    @classmethod
+    def connect(cls) -> float:
+        """Connection establishment timeout."""
+        return cls._get_env_float("TIMEOUT_CONNECT", cls._CONNECT)
+
+    @classmethod
+    def write(cls) -> float:
+        """Request body send timeout."""
+        return cls._get_env_float("TIMEOUT_WRITE", cls._WRITE)
+
+    @classmethod
+    def pool(cls) -> float:
+        """Connection pool acquisition timeout."""
+        return cls._get_env_float("TIMEOUT_POOL", cls._POOL)
+
+    @classmethod
+    def read_streaming(cls) -> float:
+        """Read timeout between chunks for streaming requests."""
+        return cls._get_env_float("TIMEOUT_READ_STREAMING", cls._READ_STREAMING)
+
+    @classmethod
+    def read_non_streaming(cls) -> float:
+        """Read timeout for non-streaming responses."""
+        return cls._get_env_float("TIMEOUT_READ_NON_STREAMING", cls._READ_NON_STREAMING)
+
+    @classmethod
+    def streaming(cls) -> httpx.Timeout:
+        """
+        Timeout configuration for streaming LLM requests.
+
+        Uses a shorter read timeout (default 3 min) since we expect
+        periodic chunks. If no data arrives for this duration, the
+        connection is considered stalled.
+        """
+        return httpx.Timeout(
+            connect=cls.connect(),
+            read=cls.read_streaming(),
+            write=cls.write(),
+            pool=cls.pool(),
+        )
+
+    @classmethod
+    def non_streaming(cls) -> httpx.Timeout:
+        """
+        Timeout configuration for non-streaming LLM requests.
+
+        Uses a longer read timeout (default 10 min) since the server
+        may take significant time to generate the complete response
+        before sending anything back.
+        """
+        return httpx.Timeout(
+            connect=cls.connect(),
+            read=cls.read_non_streaming(),
+            write=cls.write(),
+            pool=cls.pool(),
+        )
+
