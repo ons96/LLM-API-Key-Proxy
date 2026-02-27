@@ -1,0 +1,235 @@
+
+name: AI Issue Generator
+
+on:
+  workflow_dispatch:
+    inputs:
+      repos:
+        description: 'Comma-separated list of owner/repo to scan (leave empty for all)'
+        required: false
+        default: ''
+  schedule:
+    - cron: '0 9 * * 1'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  generate-repo-list:
+    runs-on: ubuntu-latest
+    outputs:
+      repos: ${{ steps.set-repos.outputs.repos }}
+    steps:
+      - name: Set repo list
+        id: set-repos
+        run: |
+          INPUT_REPOS="${{ github.event.inputs.repos }}"
+          if [ -n "$INPUT_REPOS" ]; then
+            REPOS_JSON=$(echo "$INPUT_REPOS" | python3 -c "
+          import sys, json
+          raw = sys.stdin.read().strip()
+          repos = [r.strip() for r in raw.split(',') if r.strip()]
+          print(json.dumps(repos))
+          ")
+          else
+            REPOS_JSON='["ons96/LLM-API-Key-Proxy","ons96/gas-fees-dashboard","ons96/oracle-freetier-instance-creation","ons96/llm-leaderboard","ons96/agentic_gateway","ons96/free_research_agent","ons96/llm-provider-tracker","ons96/esimdb_scraper","ons96/flask_app","ons96/deep-research","ons96/edit","ons96/puter-free-chatbot","ons96/my-ai-chatbot","ons96/defi-risk-yield-scanner","ons96/credit_card_optimizer","ons96/kimovil-scraper","ons96/muckbrass_scraper","ons96/car-deal-finder","ons96/dashboard-light_scraper","ons96/Autonomous_LLM_Router","ons96/llm-leaderboard-aggregate","ons96/esimdb-colab-code","ons96/AI_RP_app","ons96/vincentric_scraper","ons96/ish_api_tools"]'
+          fi
+          echo "repos=$REPOS_JSON" >> "$GITHUB_OUTPUT"
+
+  analyze-repo:
+    needs: generate-repo-list
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix:
+        repo: ${{ fromJson(needs.generate-repo-list.outputs.repos) }}
+    env:
+      # GH_PAT must be set as a repo secret for private repos; falls back to GITHUB_TOKEN for public repos
+      GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+      KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+      REPO: ${{ matrix.repo }}
+    steps:
+      - name: Analyze repo and create issues
+        run: |
+          set -uo pipefail
+
+          MODELS_CONFIG="moonshotai/kimi-k2.5:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}
+minimax/minimax-m2.5:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}
+minimax-m2.5-free|https://opencode.ai/zen/v1/chat/completions|opencode
+arcee-ai/trinity-large-preview:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}
+stepfun/step-3.5-flash:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}
+corethink:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}"
+
+          echo "=== Analyzing repo: $REPO ==="
+
+          # Step 1: Fetch file tree
+          FILE_TREE_JSON=$(gh api "repos/${REPO}/git/trees/HEAD?recursive=1" 2>/dev/null || echo '{"tree":[]}')
+
+          FILTERED_FILES=$(echo "$FILE_TREE_JSON" | python3 -c "
+          import sys, json
+
+          data = json.load(sys.stdin)
+          tree = data.get('tree', [])
+
+          skip_dirs = ['node_modules/', '.git/', 'dist/', 'build/', '__pycache__/', '.venv/', 'venv/']
+          skip_files = ['package-lock.json', 'yarn.lock', 'poetry.lock']
+          skip_exts = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.woff', '.woff2', '.ttf',
+                       '.zip', '.tar', '.gz', '.exe', '.pyc', '.pdf', '.svg', '.eot',
+                       '.min.js', '.min.css', '.lock'}
+          keep_exts = {'.py', '.ts', '.tsx', '.js', '.jsx', '.html', '.css', '.yaml', '.yml',
+                       '.json', '.md', '.sh', '.toml', '.txt', '.dockerfile'}
+          keep_names = {'Dockerfile', '.env.example'}
+
+          results = []
+          for item in tree:
+              if item.get('type') != 'blob':
+                  continue
+              path = item.get('path', '')
+              if any(path.startswith(d) or ('/' + d) in path for d in skip_dirs):
+                  continue
+              fname = path.split('/')[-1]
+              if fname in skip_files:
+                  continue
+              ext = ''
+              if '.' in fname:
+                  ext = fname[fname.rfind('.'):]
+              if fname.endswith('.min.js') or fname.endswith('.min.css'):
+                  continue
+              if ext in skip_exts:
+                  continue
+              if ext in keep_exts or fname in keep_names:
+                  results.append(path)
+
+          for p in results[:150]:
+              print(p)
+          ")
+
+          echo "Files to fetch: $(echo "$FILTERED_FILES" | wc -l)"
+
+          # Step 2: Fetch file contents
+          CODEBASE=""
+          TOTAL_CHARS=0
+          MAX_CHARS=80000
+
+          while IFS= read -r FILE_PATH; do
+            [ -z "$FILE_PATH" ] && continue
+            [ "$TOTAL_CHARS" -ge "$MAX_CHARS" ] && break
+
+            CONTENT=$(gh api "repos/${REPO}/contents/${FILE_PATH}" --jq '.content' 2>/dev/null \
+              | base64 -d 2>/dev/null \
+              | head -c 3000 || echo "")
+
+            if [ -n "$CONTENT" ]; then
+              CODEBASE="${CODEBASE}--- ${FILE_PATH} ---
+${CONTENT}
+
+"
+              TOTAL_CHARS=${#CODEBASE}
+            fi
+          done <<< "$FILTERED_FILES"
+
+          echo "Total codebase chars: ${#CODEBASE}"
+
+          # Step 3: Get existing issues for deduplication
+          EXISTING_ISSUES=$(gh api "repos/${REPO}/issues?state=all&per_page=100" --jq '[.[].title]' 2>/dev/null || echo '[]')
+          echo "Existing issues fetched: $(echo "$EXISTING_ISSUES" | jq 'length')"
+
+          # Step 4: Build prompt and call LLM
+          printf '%s\n' "You are a senior software engineer performing a code review of the GitHub repository: ${REPO}" > prompt.txt
+          printf '%s\n' "" >> prompt.txt
+          printf '%s\n' "Here is the complete codebase:" >> prompt.txt
+          printf '%s\n' "$CODEBASE" >> prompt.txt
+          printf '%s\n' "" >> prompt.txt
+          printf '%s\n' "Analyze this codebase thoroughly and identify issues across these categories:" >> prompt.txt
+          printf '%s\n' "1. Bugs / logic errors" >> prompt.txt
+          printf '%s\n' "2. Security vulnerabilities (hardcoded secrets, unsafe inputs, missing auth, etc.)" >> prompt.txt
+          printf '%s\n' "3. Missing features or obvious TODOs" >> prompt.txt
+          printf '%s\n' "4. Code quality / refactoring opportunities" >> prompt.txt
+          printf '%s\n' "5. Missing tests" >> prompt.txt
+          printf '%s\n' "6. Documentation gaps" >> prompt.txt
+          printf '%s\n' "7. Best practice violations (error handling, logging, config management, etc.)" >> prompt.txt
+          printf '%s\n' "" >> prompt.txt
+          printf '%s\n' "For each issue found, output it in this EXACT format:" >> prompt.txt
+          printf '%s\n' "=== ISSUE START ===" >> prompt.txt
+          printf '%s\n' "TITLE: <concise issue title, max 80 chars>" >> prompt.txt
+          printf '%s\n' "LABELS: bug,enhancement,security,documentation,testing,refactoring (comma-separated, pick relevant ones)" >> prompt.txt
+          printf '%s\n' "BODY:" >> prompt.txt
+          printf '%s\n' "<detailed description: what the problem is, where in the code it occurs (file + line if possible), why it matters, and a suggested fix>" >> prompt.txt
+          printf '%s\n' "=== ISSUE END ===" >> prompt.txt
+          printf '%s\n' "" >> prompt.txt
+          printf '%s\n' "Generate between 3 and 15 issues. Focus on the most impactful ones. Do not generate trivial or duplicate issues." >> prompt.txt
+          printf '%s\n' "Output ONLY issue blocks. No prose outside blocks." >> prompt.txt
+
+          AI_OUTPUT=""
+          PROMPT_CONTENT=$(cat prompt.txt)
+          while IFS= read -r model_entry; do
+            [ -z "$model_entry" ] && continue
+            model_entry=$(echo "$model_entry" | xargs)
+            [ -z "$model_entry" ] && continue
+            MODEL=$(echo "$model_entry" | cut -d'|' -f1)
+            ENDPOINT=$(echo "$model_entry" | cut -d'|' -f2)
+            AUTH_KEY=$(echo "$model_entry" | cut -d'|' -f3)
+            echo "Trying model: $MODEL"
+            PAYLOAD=$(jq -n \
+              --arg model "$MODEL" \
+              --arg content "$PROMPT_CONTENT" \
+              '{model: $model, max_tokens: 8192, messages: [{role: "user", content: $content}]}')
+
+            RESP=$(curl -sf --max-time 180 \
+              -X POST "$ENDPOINT" \
+              -H "Authorization: Bearer $AUTH_KEY" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" 2>&1) || true
+
+            AI_OUTPUT=$(echo "$RESP" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
+            if [ -n "$AI_OUTPUT" ]; then
+              echo "Model $MODEL succeeded"
+              break
+            fi
+            echo "Model $MODEL failed, trying next..."
+          done <<< "$MODELS_CONFIG"
+
+          if [ -z "$AI_OUTPUT" ]; then
+            echo "All models failed for $REPO, skipping"
+            exit 0
+          fi
+
+          echo "$AI_OUTPUT" > ai_output_raw.txt
+
+          # Step 5: Parse LLM output
+          printf '%s\n' 'import sys, re, json' > parse_issues.py
+          printf '%s\n' 'with open("ai_output_raw.txt") as f: content = f.read()' >> parse_issues.py
+          printf '%s\n' 'blocks = re.findall(r"=== ISSUE START ===(.*?)=== ISSUE END ===", content, re.DOTALL)' >> parse_issues.py
+          printf '%s\n' 'for block in blocks:' >> parse_issues.py
+          printf '%s\n' '    title_m = re.search(r"TITLE:\s*(.+)", block)' >> parse_issues.py
+          printf '%s\n' '    labels_m = re.search(r"LABELS:\s*(.+)", block)' >> parse_issues.py
+          printf '%s\n' '    body_m = re.search(r"BODY:\s*\n(.*)", block, re.DOTALL)' >> parse_issues.py
+          printf '%s\n' '    if not title_m: continue' >> parse_issues.py
+          printf '%s\n' '    title = title_m.group(1).strip()[:80]' >> parse_issues.py
+          printf '%s\n' '    labels = labels_m.group(1).strip() if labels_m else "enhancement"' >> parse_issues.py
+          printf '%s\n' '    body = body_m.group(1).strip() if body_m else ""' >> parse_issues.py
+          printf '%s\n' '    print(json.dumps({"title": title, "labels": labels, "body": body}))' >> parse_issues.py
+
+          while IFS= read -r issue_json; do
+            [ -z "$issue_json" ] && continue
+            TITLE=$(echo "$issue_json" | jq -r '.title')
+            LABELS=$(echo "$issue_json" | jq -r '.labels')
+            BODY=$(echo "$issue_json" | jq -r '.body')
+
+            ALREADY_EXISTS=$(echo "$EXISTING_ISSUES" | jq --arg t "$TITLE" 'map(ascii_downcase) | index($t | ascii_downcase) != null')
+            if [ "$ALREADY_EXISTS" = "true" ]; then
+              echo "Skipping duplicate issue: $TITLE"
+              continue
+            fi
+
+            gh issue create --repo "$REPO" --title "$TITLE" --label "$LABELS" --body "$BODY" || \
+              gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY" || true
+
+            echo "Created issue: $TITLE"
+            sleep 1
+          done < <(python3 parse_issues.py)
+
+          echo "=== Done with $REPO ==="
+# AI Issue Generator
