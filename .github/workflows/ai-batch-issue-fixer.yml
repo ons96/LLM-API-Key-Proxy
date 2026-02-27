@@ -11,33 +11,42 @@ permissions:
   pull-requests: write
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix-setup.outputs.matrix }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Discover open issues and build matrix
+        id: matrix-setup
+        run: |
+          ISSUE_NUMBERS=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 500 --json number | jq '[.[].number]')
+
+          printf '%s\n' 'import json, sys, math' > compute_matrix.py
+          printf '%s\n' 'numbers = json.loads(sys.argv[1])' >> compute_matrix.py
+          printf '%s\n' 'if not numbers:' >> compute_matrix.py
+          printf '%s\n' '    print(json.dumps({"batch": [""]}))' >> compute_matrix.py
+          printf '%s\n' '    sys.exit(0)' >> compute_matrix.py
+          printf '%s\n' 'N = min(20, len(numbers))' >> compute_matrix.py
+          printf '%s\n' 'size = math.ceil(len(numbers) / N)' >> compute_matrix.py
+          printf '%s\n' 'batches = []' >> compute_matrix.py
+          printf '%s\n' 'for i in range(0, len(numbers), size):' >> compute_matrix.py
+          printf '%s\n' '    chunk = numbers[i:i+size]' >> compute_matrix.py
+          printf '%s\n' '    batches.append(",".join(str(n) for n in chunk))' >> compute_matrix.py
+          printf '%s\n' 'print(json.dumps({"batch": batches}))' >> compute_matrix.py
+
+          MATRIX=$(python3 compute_matrix.py "$ISSUE_NUMBERS")
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
   fix-issues:
+    needs: setup
+    if: needs.setup.outputs.matrix != ''
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 20
       fail-fast: false
-      matrix:
-        batch:
-          - "133,132,131,130,129,128"
-          - "127,126,125,124,123,122"
-          - "121,120,119,118,117,116"
-          - "115,114,113,112,111,110"
-          - "109,108,107,106,105,104"
-          - "103,102,101,100,99,98"
-          - "97,96,95,94,93,92"
-          - "91,90,89,88,87,86"
-          - "85,84,83,82,81,80"
-          - "79,78,77,76,75,74"
-          - "73,72,71,70,69,68"
-          - "67,66,65,64,63,62"
-          - "61,60,59,58,57,56"
-          - "55,54,53,52,51,50"
-          - "49,48,47,46,45,44"
-          - "43,42,41,40,39,38"
-          - "37,36,35,34,33,32"
-          - "31,30,29,28,27,26"
-          - "25,24,23,22,21,20"
-          - "19,18,17"
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -47,6 +56,7 @@ jobs:
       - name: Process issue batch
         env:
           KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+          OPENCODE_ZEN_API_KEY: ${{ secrets.OPENCODE_ZEN_API_KEY }}
           BATCH: ${{ matrix.batch }}
         run: |
           set -uo pipefail
@@ -57,6 +67,7 @@ jobs:
           MODELS="moonshotai/kimi-k2.5:free minimax/minimax-m2.5:free arcee-ai/trinity-large-preview:free stepfun/step-3.5-flash:free corethink:free"
 
           for issue_num in $(echo "$BATCH" | tr ',' ' '); do
+            if [ -z "$issue_num" ]; then continue; fi
             echo "=== Processing issue #$issue_num ==="
 
             ISSUE_TITLE=$(gh issue view "$issue_num" --json title --jq '.title' 2>/dev/null || echo "Unknown")
@@ -104,8 +115,10 @@ jobs:
 
             AI_OUTPUT=""
             PROMPT_CONTENT=$(cat prompt.txt)
+
+            # Tier 1: Try each Kilo Gateway model
             for model in $MODELS; do
-              echo "Trying model: $model for issue #$issue_num"
+              echo "Trying Kilo model: $model for issue #$issue_num"
               PAYLOAD=$(jq -n \
                 --arg model "$model" \
                 --arg content "$PROMPT_CONTENT" \
@@ -119,11 +132,34 @@ jobs:
 
               AI_OUTPUT=$(echo "$RESP" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
               if [ -n "$AI_OUTPUT" ]; then
-                echo "Model $model succeeded for issue #$issue_num"
+                echo "Kilo model $model succeeded for issue #$issue_num"
                 break
               fi
-              echo "Model $model failed, trying next..."
+              echo "Kilo model $model failed, trying next..."
             done
+
+            # Tier 2: OpenCode Zen fallback via OpenRouter
+            if [ -z "$AI_OUTPUT" ] && [ -n "${OPENCODE_ZEN_API_KEY:-}" ]; then
+              echo "All Kilo models failed, trying OpenCode Zen fallback for issue #$issue_num"
+              PAYLOAD=$(jq -n \
+                --arg content "$PROMPT_CONTENT" \
+                '{model: "minimax/minimax-m2.5:free", max_tokens: 8192, messages: [{role: "user", content: $content}]}')
+
+              RESP=$(curl -sf --max-time 120 \
+                -X POST "https://openrouter.ai/api/v1/chat/completions" \
+                -H "Authorization: Bearer ${OPENCODE_ZEN_API_KEY}" \
+                -H "Content-Type: application/json" \
+                -H "HTTP-Referer: https://github.com" \
+                -H "X-Title: AI-Batch-Issue-Fixer" \
+                -d "$PAYLOAD" 2>&1) || true
+
+              AI_OUTPUT=$(echo "$RESP" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
+              if [ -n "$AI_OUTPUT" ]; then
+                echo "OpenCode Zen fallback succeeded for issue #$issue_num"
+              else
+                echo "OpenCode Zen fallback also failed for issue #$issue_num"
+              fi
+            fi
 
             if [ -z "$AI_OUTPUT" ]; then
               echo "All models failed for issue #$issue_num, skipping"
