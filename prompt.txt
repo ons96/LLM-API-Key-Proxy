@@ -1,0 +1,12 @@
+You are an expert software engineer.
+Fix GitHub issue #133 in this repository.
+Title: Quick Wins: Improve README with badges and examples
+
+Description:
+From Quick Wins section.
+
+Instructions:
+1. Identify the root cause.
+2. Implement the minimal correct fix.
+3. Write clean code.
+4. Explain what you changed and why.
