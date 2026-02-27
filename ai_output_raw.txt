@@ -1,0 +1,622 @@
+=== FILE: src/proxy_app/rate_limiter.py ===
+"""Rate Limiter for API Key-based Request Throttling
+
+Implements token bucket algorithm for distributed rate limiting per API key.
+Supports configurable limits via settings and provides standard rate limit headers.
+"""
+
+import asyncio
+import time
+import logging
+from typing import Dict, Optional, Tuple, Any
+from dataclasses import dataclass, field
+from enum import Enum
+
+logger = logging.getLogger(__name__)
+
+
+class RateLimitScope(Enum):
+    """Scopes for rate limiting."""
+    GLOBAL = "global"
+    CHAT = "chat"
+    COMPLETION = "completion"
+    EMBEDDING = "embedding"
+
+
+@dataclass
+class RateLimitConfig:
+    """Configuration for rate limiting."""
+    requests_per_minute: int = 60
+    requests_per_hour: int = 1000
+    requests_per_day: int = 10000
+    burst_size: Optional[int] = None  # If None, uses requests_per_minute
+    
+    def __post_init__(self):
+        if self.burst_size is None:
+            self.burst_size = self.requests_per_minute
+
+
+@dataclass
+class TokenBucket:
+    """Token bucket for rate limiting."""
+    tokens: float
+    last_update: float
+    config: RateLimitConfig
+    
+    @property
+    def rate_per_second(self) -> float:
+        """Calculate token refill rate based on per-minute limit."""
+        return self.config.requests_per_minute / 60.0
+
+
+class RateLimiter:
+    """Token bucket rate limiter with per-API-key tracking."""
+    
+    def __init__(self, cleanup_interval: int = 300):
+        self.buckets: Dict[str, TokenBucket] = {}
+        self.configs: Dict[str, RateLimitConfig] = {}  # Per-API-key configs
+        self.default_config = RateLimitConfig()
+        self.cleanup_interval = cleanup_interval
+        self._lock = asyncio.Lock()
+        self._last_cleanup = time.time()
+        
+    def configure_key(self, api_key: str, config: RateLimitConfig):
+        """Configure custom rate limits for a specific API key."""
+        self.configs[api_key] = config
+        # Reset bucket to apply new config
+        if api_key in self.buckets:
+            del self.buckets[api_key]
+    
+    def set_default_config(self, config: RateLimitConfig):
+        """Set default rate limit configuration."""
+        self.default_config = config
+    
+    def _get_bucket_key(self, api_key: str, scope: RateLimitScope = RateLimitScope.GLOBAL) -> str:
+        """Generate storage key for bucket."""
+        return f"{api_key}:{scope.value}"
+    
+    async def check_rate_limit(
+        self, 
+        api_key: str, 
+        scope: RateLimitScope = RateLimitScope.GLOBAL,
+        cost: float = 1.0
+    ) -> Tuple[bool, Dict[str, str], Optional[str]]:
+        """
+        Check if request is within rate limit.
+        
+        Args:
+            api_key: The API key to check
+            scope: Rate limiting scope (global, chat, etc.)
+            cost: Token cost for this request (default 1.0)
+            
+        Returns:
+            Tuple of (allowed, headers, error_message)
+            Headers include X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset
+        """
+        async with self._lock:
+            now = time.time()
+            
+            # Cleanup old entries periodically
+            if now - self._last_cleanup > self.cleanup_interval:
+                self._cleanup_old_buckets(now)
+                self._last_cleanup = now
+            
+            key = self._get_bucket_key(api_key, scope)
+            config = self.configs.get(api_key, self.default_config)
+            
+            # Initialize bucket if doesn't exist
+            if key not in self.buckets:
+                self.buckets[key] = TokenBucket(
+                    tokens=config.burst_size - cost,
+                    last_update=now,
+                    config=config
+                )
+                
+                reset_time = int(now + 60)  # Reset window is 1 minute for RPM
+                headers = self._build_headers(
+                    limit=config.requests_per_minute,
+                    remaining=int(config.burst_size - cost),
+                    reset_time=reset_time
+                )
+                return True, headers, None
+            
+            bucket = self.buckets[key]
+            
+            # Refill tokens based on time passed
+            time_passed = now - bucket.last_update
+            tokens_to_add = time_passed * bucket.rate_per_second
+            bucket.tokens = min(config.burst_size, bucket.tokens + tokens_to_add)
+            bucket.last_update = now
+            
+            # Check if we have enough tokens
+            if bucket.tokens >= cost:
+                bucket.tokens -= cost
+                remaining = max(0, int(bucket.tokens))
+                
+                # Calculate reset time based on when bucket will be full again
+                seconds_to_refill = (config.burst_size - bucket.tokens) / bucket.rate_per_second
+                reset_time = int(now + seconds_to_refill)
+                
+                headers = self._build_headers(
+                    limit=config.requests_per_minute,
+                    remaining=remaining,
+                    reset_time=reset_time
+                )
+                return True, headers, None
+            else:
+                # Rate limit exceeded
+                seconds_until_ready = (cost - bucket.tokens) / bucket.rate_per_second
+                reset_time = int(now + seconds_until_ready)
+                
+                headers = self._build_headers(
+                    limit=config.requests_per_minute,
+                    remaining=0,
+                    reset_time=reset_time
+                )
+                error_msg = (
+                    f"Rate limit exceeded. Limit: {config.requests_per_minute} requests per minute. "
+                    f"Retry after {int(seconds_until_ready)} seconds."
+                )
+                return False, headers, error_msg
+    
+    def _build_headers(self, limit: int, remaining: int, reset_time: int) -> Dict[str, str]:
+        """Build rate limit headers."""
+        return {
+            "X-RateLimit-Limit": str(limit),
+            "X-RateLimit-Remaining": str(remaining),
+            "X-RateLimit-Reset": str(reset_time),
+            "Retry-After": str(max(0, reset_time - int(time.time())))
+        }
+    
+    def _cleanup_old_buckets(self, now: float):
+        """Remove buckets that haven't been used recently."""
+        cutoff = now - self.cleanup_interval * 2
+        expired_keys = [
+            key for key, bucket in self.buckets.items() 
+            if bucket.last_update < cutoff
+        ]
+        for key in expired_keys:
+            del self.buckets[key]
+        if expired_keys:
+            logger.debug(f"Cleaned up {len(expired_keys)} expired rate limit buckets")
+    
+    def get_stats(self, api_key: Optional[str] = None) -> Dict[str, Any]:
+        """Get current rate limit statistics."""
+        if api_key:
+            key = self._get_bucket_key(api_key)
+            bucket = self.buckets.get(key)
+            if bucket:
+                return {
+                    "api_key": api_key[:8] + "...",  # Mask key
+                    "current_tokens": bucket.tokens,
+                    "last_update": bucket.last_update,
+                    "config": {
+                        "rpm": bucket.config.requests_per_minute,
+                        "burst": bucket.config.burst_size
+                    }
+                }
+            return {"error": "No data for key"}
+        
+        return {
+            "total_buckets": len(self.buckets),
+            "configured_keys": len(self.configs),
+            "default_rpm": self.default_config.requests_per_minute
+        }
+
+
+# Global rate limiter instance
+_rate_limiter_instance: Optional[RateLimiter] = None
+
+
+def get_rate_limiter() -> RateLimiter:
+    """Get or create global rate limiter instance."""
+    global _rate_limiter_instance
+    if _rate_limiter_instance is None:
+        _rate_limiter_instance = RateLimiter()
+    return _rate_limiter_instance
+
+
+def configure_rate_limiter(default_config: Optional[RateLimitConfig] = None, cleanup_interval: int = 300):
+    """Configure the global rate limiter."""
+    global _rate_limiter_instance
+    _rate_limiter_instance = RateLimiter(cleanup_interval=cleanup_interval)
+    if default_config:
+        _rate_limiter_instance.set_default_config(default_config)
+    return _rate_limiter_instance
+
+
+class RateLimitMiddleware:
+    """FastAPI-style middleware for rate limiting."""
+    
+    def __init__(self, rate_limiter: Optional[RateLimiter] = None):
+        self.rate_limiter = rate_limiter or get_rate_limiter()
+    
+    async def process_request(self, headers: Dict[str, str], path: str = "") -> Tuple[bool, Dict[str, str], Optional[str]]:
+        """
+        Process request and check rate limits.
+        
+        Returns:
+            (allowed, headers_to_add, error_message)
+        """
+        api_key = self._extract_api_key(headers)
+        
+        # Determine scope based on path
+        scope = RateLimitScope.GLOBAL
+        if "/chat" in path or "/v1/chat" in path:
+            scope = RateLimitScope.CHAT
+        elif "/embeddings" in path:
+            scope = RateLimitScope.EMBEDDING
+        elif "/completions" in path:
+            scope = RateLimitScope.COMPLETION
+            
+        allowed, response_headers, error = await self.rate_limiter.check_rate_limit(
+            api_key=api_key,
+            scope=scope
+        )
+        
+        return allowed, response_headers, error
+    
+    def _extract_api_key(self, headers: Dict[str, str]) -> str:
+        """Extract API key from headers."""
+        # Try Authorization header first (Bearer token)
+        auth = headers.get("Authorization", headers.get("authorization", ""))
+        if auth.startswith("Bearer "):
+            return auth[7:].strip()
+        elif auth.startswith("bearer "):
+            return auth[7:].strip()
+        
+        # Try X-API-Key header
+        api_key = headers.get("X-API-Key", headers.get("x-api-key", ""))
+        if api_key:
+            return api_key.strip()
+        
+        # Fallback to IP-based limiting (X-Forwarded-For or X-Real-IP)
+        ip = headers.get("X-Forwarded-For", headers.get("X-Real-IP", "anonymous"))
+        if "," in ip:
+            ip = ip.split(",")[0].strip()
+        return f"ip:{ip}"
+    
+    def configure_key_limits(self, api_key: str, requests_per_minute: int, 
+                           requests_per_hour: int = 1000, 
+                           requests_per_day: int = 10000):
+        """Configure custom limits for a specific API key."""
+        config = RateLimitConfig(
+            requests_per_minute=requests_per_minute,
+            requests_per_hour=requests_per_hour,
+            requests_per_day=requests_per_day
+        )
+        self.rate_limiter.configure_key(api_key, config)
+=== END FILE ===
+
+=== FILE: src/proxy_app/enhanced_proxy.py ===
+"""Enhanced Proxy with Rate Limiting Integration
+
+This extends the base proxy functionality with per-API-key rate limiting.
+"""
+
+import logging
+from typing import Optional, Dict, Any
+from fastapi import Request, Response, HTTPException, status
+from fastapi.responses import JSONResponse
+
+from .rate_limiter import RateLimitMiddleware, get_rate_limiter, RateLimitConfig
+from .settings_tool import get_settings
+
+logger = logging.getLogger(__name__)
+
+
+class RateLimitedProxy:
+    """Proxy handler with integrated rate limiting."""
+    
+    def __init__(self):
+        self.rate_limit_middleware: Optional[RateLimitMiddleware] = None
+        self._initialized = False
+    
+    def initialize(self):
+        """Initialize rate limiting from configuration."""
+        if self._initialized:
+            return
+            
+        try:
+            settings = get_settings()
+            rate_limit_config = getattr(settings, 'rate_limiting', {})
+            
+            # Configure default limits
+            default_rpm = rate_limit_config.get('requests_per_minute', 60)
+            default_burst = rate_limit_config.get('burst_size', default_rpm)
+            
+            config = RateLimitConfig(
+                requests_per_minute=default_rpm,
+                burst_size=default_burst,
+                requests_per_hour=rate_limit_config.get('requests_per_hour', 1000),
+                requests_per_day=rate_limit_config.get('requests_per_day', 10000)
+            )
+            
+            rate_limiter = get_rate_limiter()
+            rate_limiter.set_default_config(config)
+            
+            # Configure specific API keys
+            key_limits = rate_limit_config.get('per_key_limits', {})
+            for api_key, limits in key_limits.items():
+                key_config = RateLimitConfig(
+                    requests_per_minute=limits.get('rpm', default_rpm),
+                    requests_per_hour=limits.get('rph', 1000),
+                    requests_per_day=limits.get('rpd', 10000),
+                    burst_size=limits.get('burst', limits.get('rpm', default_rpm))
+                )
+                rate_limiter.configure_key(api_key, key_config)
+                logger.info(f"Configured rate limits for key {api_key[:8]}...: {limits.get('rpm', default_rpm)} RPM")
+            
+            self.rate_limit_middleware = RateLimitMiddleware(rate_limiter)
+            self._initialized = True
+            logger.info(f"Rate limiting initialized: {default_rpm} RPM default")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize rate limiting: {e}")
+            # Fail open - continue without rate limiting if config fails
+            self.rate_limit_middleware = None
+    
+    async def check_rate_limit(self, request: Request) -> Optional[JSONResponse]:
+        """
+        Check rate limit for incoming request.
+        
+        Returns:
+            JSONResponse if rate limited, None if allowed
+        """
+        if not self._initialized:
+            self.initialize()
+            
+        if not self.rate_limit_middleware:
+            return None
+        
+        try:
+            headers = dict(request.headers)
+            path = request.url.path
+            
+            allowed, response_headers, error_msg = await self.rate_limit_middleware.process_request(
+                headers=headers,
+                path=path
+            )
+            
+            if not allowed:
+                logger.warning(f"Rate limit exceeded for {headers.get('X-Forwarded-For', 'unknown')}: {error_msg}")
+                return JSONResponse(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    content={
+                        "error": {
+                            "message": error_msg,
+                            "type": "rate_limit_exceeded",
+                            "code": "rate_limit_exceeded"
+                        }
+                    },
+                    headers=response_headers
+                )
+            
+            # Store headers to add to response
+            request.state.rate_limit_headers = response_headers
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error checking rate limit: {e}")
+            # Fail open on errors
+            return None
+    
+    def add_rate_limit_headers(self, response: Response, request: Request) -> Response:
+        """Add rate limit headers to response."""
+        if hasattr(request.state, 'rate_limit_headers'):
+            for header, value in request.state.rate_limit_headers.items():
+                response.headers[header] = value
+        return response
+
+
+# Singleton instance
+_proxy_instance: Optional[RateLimitedProxy] = None
+
+
+def get_rate_limited_proxy() -> RateLimitedProxy:
+    """Get or create proxy instance with rate limiting."""
+    global _proxy_instance
+    if _proxy_instance is None:
+        _proxy_instance = RateLimitedProxy()
+        _proxy_instance.initialize()
+    return _proxy_instance
+
+
+async def rate_limit_dependency(request: Request):
+    """
+    FastAPI dependency for rate limiting.
+    
+    Usage:
+        @app.post("/v1/chat/completions")
+        async def chat_completions(request: Request, _=Depends(rate_limit_dependency)):
+            ...
+    """
+    proxy = get_rate_limited_proxy()
+    blocked_response = await proxy.check_rate_limit(request)
+    if blocked_response:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=blocked_response.body.decode() if hasattr(blocked_response, 'body') else "Rate limit exceeded",
+            headers=dict(blocked_response.headers) if hasattr(blocked_response, 'headers') else {}
+        )
+=== END FILE ===
+
+=== FILE: config/router_config.yaml ===
+# Router Configuration
+# Phase 1.3: Rate Limiting Configuration Added
+
+rate_limiting:
+  enabled: true
+  # Default rate limits for all API keys (unless overridden)
+  requests_per_minute: 60
+  requests_per_hour: 1000
+  requests_per_day: 10000
+  burst_size: 60  # Allow burst up to 60 requests
+  
+  # Cleanup interval for idle buckets (seconds)
+  cleanup_interval: 300
+  
+  # Per-API-key custom limits
+  # Keys are the actual API key values or key prefixes
+  per_key_limits:
+    # Example: Premium tier key
+    "sk-premium-tier-abc123":
+      rpm: 1000
+      rph: 50000
+      rpd: 1000000
+      burst: 1000
+    
+    # Example: Standard tier key  
+    "sk-standard-tier-xyz789":
+      rpm: 120
+      rph: 3000
+      rpd: 50000
+      burst: 120
+    
+    # Example: Free tier key
+    "sk-free-tier-free123":
+      rpm: 20
+      rph: 200
+      rpd: 2000
+      burst: 20
+  
+  # IP-based limits for requests without API keys (anonymous access)
+  anonymous_limits:
+    enabled: true
+    rpm: 10
+    rph: 100
+    rpd: 1000
+
+# Existing routing configuration...
+routing:
+  strategy: weighted_round_robin
+  health_check_interval: 30
+  failover_enabled: true
+
+logging:
+  level: INFO
+  rate_limit_violations: true  # Log when rate limits are hit
+=== END FILE ===
+
+=== FILE: src/proxy_app/settings_tool.py ===
+"""Settings and configuration management with rate limiting support."""
+
+import os
+import yaml
+from pathlib import Path
+from typing import Dict, Any, Optional
+from dataclasses import dataclass, field
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class RateLimitSettings:
+    """Rate limiting configuration."""
+    enabled: bool = True
+    requests_per_minute: int = 60
+    requests_per_hour: int = 1000
+    requests_per_day: int = 10000
+    burst_size: int = 60
+    cleanup_interval: int = 300
+    per_key_limits: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    anonymous_limits: Dict[str, Any] = field(default_factory=lambda: {
+        "enabled": True,
+        "rpm": 10,
+        "rph": 100,
+        "rpd": 1000
+    })
+
+
+@dataclass
+class Settings:
+    """Application settings."""
+    rate_limiting: RateLimitSettings = field(default_factory=RateLimitSettings)
+    # Add other settings fields as needed
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Settings":
+        """Create settings from dictionary."""
+        rate_limit_data = data.get('rate_limiting', {})
+        
+        return cls(
+            rate_limiting=RateLimitSettings(
+                enabled=rate_limit_data.get('enabled', True),
+                requests_per_minute=rate_limit_data.get('requests_per_minute', 60),
+                requests_per_hour=rate_limit_data.get('requests_per_hour', 1000),
+                requests_per_day=rate_limit_data.get('requests_per_day', 10000),
+                burst_size=rate_limit_data.get('burst_size', 60),
+                cleanup_interval=rate_limit_data.get('cleanup_interval', 300),
+                per_key_limits=rate_limit_data.get('per_key_limits', {}),
+                anonymous_limits=rate_limit_data.get('anonymous_limits', {
+                    "enabled": True,
+                    "rpm": 10,
+                    "rph": 100,
+                    "rpd": 1000
+                })
+            )
+        )
+
+
+def load_yaml_config(path: Path) -> Dict[str, Any]:
+    """Load YAML configuration file."""
+    if not path.exists():
+        logger.warning(f"Config file not found: {path}")
+        return {}
+    
+    try:
+        with open(path, 'r') as f:
+            return yaml.safe_load(f) or {}
+    except Exception as e:
+        logger.error(f"Failed to load config {path}: {e}")
+        return {}
+
+
+def get_settings() -> Settings:
+    """Load settings from configuration files."""
+    # Try to load from router_config.yaml
+    config_paths = [
+        Path("config/router_config.yaml"),
+        Path("/app/config/router_config.yaml"),
+        Path(os.environ.get("ROUTER_CONFIG_PATH", "config/router_config.yaml"))
+    ]
+    
+    config_data = {}
+    for path in config_paths:
+        if path.exists():
+            config_data = load_yaml_config(path)
+            logger.debug(f"Loaded config from {path}")
+            break
+    
+    return Settings.from_dict(config_data)
+
+
+# Global settings cache
+_settings_cache: Optional[Settings] = None
+
+
+def get_cached_settings() -> Settings:
+    """Get cached settings or load new."""
+    global _settings_cache
+    if _settings_cache is None:
+        _settings_cache = get_settings()
+    return _settings_cache
+
+
+def reload_settings() -> Settings:
+    """Force reload settings from disk."""
+    global _settings_cache
+    _settings_cache = get_settings()
+    logger.info("Settings reloaded")
+    return _settings_cache
+=== END FILE ===
+
+=== FILE: src/proxy_app/main.py ===
+"""Main FastAPI application with rate limiting integration."""
+
+import logging
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
