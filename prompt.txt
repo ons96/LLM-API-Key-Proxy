@@ -1,9 +1,9 @@
 You are an expert software engineer.
-Fix GitHub issue #122 in this repository.
-Title: Bugs: Investigate and resolve dormant router logic in main.py
+Fix GitHub issue #121 in this repository.
+Title: Quick Wins: Add .env.example comments for each variable
 
 Description:
-From BUGS.md: Some routing logic in main.py bypasses RouterCore. Investigate and resolve this dormant code.
+From Quick Wins section. Add helpful comments to .env.example for each variable.
 
 Instructions:
 1. Identify the root cause.
