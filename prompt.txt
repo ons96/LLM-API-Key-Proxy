@@ -1,9 +1,9 @@
 You are an expert software engineer.
-Fix GitHub issue #132 in this repository.
-Title: Phase 7.2: Create developer setup guide
+Fix GitHub issue #131 in this repository.
+Title: Quick Wins: Add editorconfig file
 
 Description:
-Part of Phase 7.2 Developer Documentation.
+From Quick Wins section.
 
 Instructions:
 1. Identify the root cause.
