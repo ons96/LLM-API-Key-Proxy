@@ -1,0 +1,391 @@
+=== FILE: src/proxy_app/security_utils.py ===
+#!/usr/bin/env python3
+"""
+Security Utilities Module
+
+Provides secure hashing and verification for API keys using bcrypt.
+Part of Phase 1.3 Security Hardening.
+"""
+
+import bcrypt
+import logging
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+
+def hash_api_key(api_key: str, rounds: int = 12) -> str:
+    """
+    Hash an API key using bcrypt.
+    
+    Args:
+        api_key: The plaintext API key to hash
+        rounds: Cost factor for bcrypt (default: 12)
+        
+    Returns:
+        str: The bcrypt hash string
+    """
+    try:
+        # Generate salt with specified rounds
+        salt = bcrypt.gensalt(rounds=rounds)
+        # Hash the API key
+        hashed = bcrypt.hashpw(api_key.encode('utf-8'), salt)
+        return hashed.decode('utf-8')
+    except Exception as e:
+        logger.error(f"Failed to hash API key: {e}")
+        raise
+
+
+def verify_api_key(api_key: str, hashed_key: str) -> bool:
+    """
+    Verify an API key against a bcrypt hash.
+    
+    Args:
+        api_key: The plaintext API key to verify
+        hashed_key: The stored bcrypt hash
+        
+    Returns:
+        bool: True if valid, False otherwise
+    """
+    try:
+        return bcrypt.checkpw(api_key.encode('utf-8'), hashed_key.encode('utf-8'))
+    except Exception as e:
+        logger.error(f"Error verifying API key: {e}")
+        return False
+
+
+def is_hashed_value(value: str) -> bool:
+    """
+    Check if a string appears to be a bcrypt hash.
+    
+    Args:
+        value: The string to check
+        
+    Returns:
+        bool: True if it looks like a bcrypt hash
+    """
+    if not value or not isinstance(value, str):
+        return False
+    return value.startswith('$2b$') or value.startswith('$2a$') or value.startswith('$2y$')
+
+
+def mask_api_key(api_key: str, visible_chars: int = 4) -> str:
+    """
+    Mask an API key for logging/display purposes.
+    
+    Args:
+        api_key: The API key to mask
+        visible_chars: Number of characters to show at the end
+        
+    Returns:
+        str: Masked key (e.g., '****...last4')
+    """
+    if not api_key or len(api_key) <= visible_chars:
+        return '*' * len(api_key) if api_key else ''
+    return '*' * (len(api_key) - visible_chars) + api_key[-visible_chars:]
+=== END FILE ===
+
+=== FILE: src/rotator_library/credential_manager.py ===
+#!/usr/bin/env python3
+"""
+Credential Manager Module
+
+Manages API credentials with secure hashing for storage.
+Part of Phase 1.3 Security Hardening - implements hashed storage for API keys.
+"""
+
+import os
+import yaml
+import logging
+from pathlib import Path
+from typing import Dict, Optional, Any, List
+from dataclasses import dataclass, field, asdict
+from datetime import datetime
+
+from proxy_app.security_utils import hash_api_key, verify_api_key, is_hashed_value, mask_api_key
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CredentialEntry:
+    """Represents a stored credential with metadata."""
+    hashed_key: str
+    created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    active: bool = True
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'CredentialEntry':
+        return cls(**data)
+
+
+class CredentialManager:
+    """
+    Manages API credentials with secure hashing.
+    
+    Stores API keys as bcrypt hashes rather than plaintext to prevent
+    credential exposure in case of database/config file leaks.
+    """
+    
+    def __init__(self, config_path: Optional[str] = None):
+        """
+        Initialize the credential manager.
+        
+        Args:
+            config_path: Path to the credentials YAML file. 
+                        Defaults to config/credentials.yaml
+        """
+        if config_path is None:
+            # Default to config directory at repo root
+            repo_root = Path(__file__).parent.parent.parent
+            config_path = repo_root / "config" / "credentials.yaml"
+        
+        self.config_path = Path(config_path)
+        self._credentials: Dict[str, Dict[str, CredentialEntry]] = {}
+        self._load_credentials()
+    
+    def _load_credentials(self):
+        """Load credentials from storage."""
+        if not self.config_path.exists():
+            logger.info(f"Credentials file not found at {self.config_path}, starting empty")
+            self._credentials = {}
+            return
+        
+        try:
+            with open(self.config_path, 'r') as f:
+                data = yaml.safe_load(f) or {}
+            
+            # Convert nested dicts to CredentialEntry objects
+            self._credentials = {}
+            for provider, keys in data.items():
+                self._credentials[provider] = {}
+                for key_id, entry_data in keys.items():
+                    if isinstance(entry_data, dict) and 'hashed_key' in entry_data:
+                        self._credentials[provider][key_id] = CredentialEntry.from_dict(entry_data)
+                    elif isinstance(entry_data, str):
+                        # Legacy plaintext format - will be migrated
+                        logger.warning(f"Found plaintext credential for {provider}/{key_id}, migration needed")
+                        self._credentials[provider][key_id] = entry_data
+            logger.info(f"Loaded credentials for {len(self._credentials)} providers")
+        except Exception as e:
+            logger.error(f"Failed to load credentials: {e}")
+            self._credentials = {}
+    
+    def _save_credentials(self):
+        """Save credentials to storage."""
+        try:
+            self.config_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Convert CredentialEntry objects to dicts for YAML serialization
+            data = {}
+            for provider, keys in self._credentials.items():
+                data[provider] = {}
+                for key_id, entry in keys.items():
+                    if isinstance(entry, CredentialEntry):
+                        data[provider][key_id] = entry.to_dict()
+                    else:
+                        # Legacy string format (should not happen after migration)
+                        data[provider][key_id] = entry
+            
+            # Write with restricted permissions (owner read/write only)
+            with open(self.config_path, 'w') as f:
+                yaml.dump(data, f, default_flow_style=False, sort_keys=True)
+            
+            # Set file permissions to 600 (owner read/write only)
+            os.chmod(self.config_path, 0o600)
+            logger.debug("Credentials saved successfully")
+        except Exception as e:
+            logger.error(f"Failed to save credentials: {e}")
+            raise
+    
+    def add_credential(self, provider: str, key_id: str, api_key: str, 
+                      metadata: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Add a new API key with automatic hashing.
+        
+        Args:
+            provider: Provider name (e.g., 'openai', 'anthropic')
+            key_id: Identifier for this key (e.g., 'primary', 'backup-1')
+            api_key: The plaintext API key (will be hashed immediately)
+            metadata: Optional metadata dict (description, rate limits, etc.)
+        """
+        if not api_key or not isinstance(api_key, str):
+            raise ValueError("API key must be a non-empty string")
+        
+        # Hash the API key immediately
+        hashed_key = hash_api_key(api_key)
+        
+        if provider not in self._credentials:
+            self._credentials[provider] = {}
+        
+        entry = CredentialEntry(
+            hashed_key=hashed_key,
+            metadata=metadata or {},
+            updated_at=datetime.utcnow().isoformat()
+        )
+        
+        self._credentials[provider][key_id] = entry
+        self._save_credentials()
+        logger.info(f"Added hashed credential for provider={provider}, key_id={key_id}")
+    
+    def verify_credential(self, provider: str, key_id: str, api_key: str) -> bool:
+        """
+        Verify an API key against stored hash.
+        
+        Args:
+            provider: Provider name
+            key_id: Key identifier
+            api_key: Plaintext API key to verify
+            
+        Returns:
+            bool: True if valid and active, False otherwise
+        """
+        try:
+            entry = self._credentials.get(provider, {}).get(key_id)
+            if not entry:
+                logger.debug(f"No credential found for {provider}/{key_id}")
+                return False
+            
+            # Handle legacy plaintext entries during transition
+            if isinstance(entry, str):
+                logger.warning(f"Legacy plaintext storage detected for {provider}/{key_id}")
+                return False
+            
+            if not entry.active:
+                logger.warning(f"Attempted use of inactive credential {provider}/{key_id}")
+                return False
+            
+            return verify_api_key(api_key, entry.hashed_key)
+            
+        except Exception as e:
+            logger.error(f"Error verifying credential {provider}/{key_id}: {e}")
+            return False
+    
+    def get_credential_metadata(self, provider: str, key_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get metadata for a credential without exposing the hash.
+        
+        Returns:
+            Dict with metadata or None if not found
+        """
+        entry = self._credentials.get(provider, {}).get(key_id)
+        if isinstance(entry, CredentialEntry):
+            return {
+                'provider': provider,
+                'key_id': key_id,
+                'created_at': entry.created_at,
+                'updated_at': entry.updated_at,
+                'active': entry.active,
+                'metadata': entry.metadata
+            }
+        return None
+    
+    def list_credentials(self, provider: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        List all credentials (without exposing hashes).
+        
+        Args:
+            provider: Optional filter by provider name
+            
+        Returns:
+            List of credential metadata
+        """
+        results = []
+        providers = [provider] if provider else self._credentials.keys()
+        
+        for prov in providers:
+            if prov not in self._credentials:
+                continue
+            for key_id, entry in self._credentials[prov].items():
+                if isinstance(entry, CredentialEntry):
+                    results.append({
+                        'provider': prov,
+                        'key_id': key_id,
+                        'created_at': entry.created_at,
+                        'updated_at': entry.updated_at,
+                        'active': entry.active,
+                        'metadata': entry.metadata
+                    })
+        return results
+    
+    def deactivate_credential(self, provider: str, key_id: str) -> bool:
+        """Deactivate a credential (soft delete)."""
+        entry = self._credentials.get(provider, {}).get(key_id)
+        if isinstance(entry, CredentialEntry):
+            entry.active = False
+            entry.updated_at = datetime.utcnow().isoformat()
+            self._save_credentials()
+            logger.info(f"Deactivated credential {provider}/{key_id}")
+            return True
+        return False
+    
+    def delete_credential(self, provider: str, key_id: str) -> bool:
+        """Permanently delete a credential."""
+        if provider in self._credentials and key_id in self._credentials[provider]:
+            del self._credentials[provider][key_id]
+            if not self._credentials[provider]:
+                del self._credentials[provider]
+            self._save_credentials()
+            logger.info(f"Deleted credential {provider}/{key_id}")
+            return True
+        return False
+    
+    def migrate_plaintext_credentials(self) -> int:
+        """
+        Migrate any existing plaintext credentials to hashed format.
+        
+        This should be run once when upgrading to Phase 1.3.
+        
+        Returns:
+            int: Number of credentials migrated
+        """
+        migrated = 0
+        for provider, keys in list(self._credentials.items()):
+            for key_id, entry in list(keys.items()):
+                # Check if this is a legacy plaintext entry
+                if isinstance(entry, str):
+                    logger.info(f"Migrating plaintext credential: {provider}/{key_id}")
+                    hashed = hash_api_key(entry)
+                    self._credentials[provider][key_id] = CredentialEntry(
+                        hashed_key=hashed,
+                        metadata={'migrated_from_plaintext': True, 
+                                 'migrated_at': datetime.utcnow().isoformat()}
+                    )
+                    migrated += 1
+                elif isinstance(entry, dict) and 'hashed_key' in entry and not is_hashed_value(entry['hashed_key']):
+                    # Edge case: dict format but unhashed key
+                    logger.info(f"Migrating unhashed credential: {provider}/{key_id}")
+                    hashed = hash_api_key(entry['hashed_key'])
+                    entry['hashed_key'] = hashed
+                    entry['updated_at'] = datetime.utcnow().isoformat()
+                    self._credentials[provider][key_id] = CredentialEntry.from_dict(entry)
+                    migrated += 1
+        
+        if migrated > 0:
+            self._save_credentials()
+            logger.info(f"Migration complete: {migrated} credentials hashed")
+        else:
+            logger.info("No plaintext credentials found to migrate")
+        
+        return migrated
+    
+    def audit_security(self) -> Dict[str, Any]:
+        """
+        Perform security audit of stored credentials.
+        
+        Returns:
+            Dict with security status information
+        """
+        total = 0
+        hashed = 0
+        plaintext = 0
+        inactive = 0
+        
+        for provider, keys in self._credentials.items():
+            for key_id, entry in keys.items():
+                total += 
