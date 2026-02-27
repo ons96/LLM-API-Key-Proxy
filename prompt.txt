@@ -1,0 +1,316 @@
+You are an expert Python/FastAPI software engineer.
+Repository layout (partial): config/aliases.yaml config/chat_model_rankings.yaml config/model_rankings.yaml config/providers_database.yaml config/router_config.yaml config/scoring_config.yaml config/virtual_models.yaml config/virtual_models_backup.yaml config/virtual_models_generated.yaml src/proxy_app/__init__.py src/proxy_app/batch_manager.py src/proxy_app/build.py src/proxy_app/config_exceptions.py src/proxy_app/config_watcher.py src/proxy_app/detailed_logger.py src/proxy_app/enhanced_proxy.py src/proxy_app/health_checker.py src/proxy_app/launcher_tui.py src/proxy_app/main.py src/proxy_app/model_ranker.py src/proxy_app/provider_adapter.py src/proxy_app/provider_urls.py src/proxy_app/rate_limiter.py src/proxy_app/request_logger.py src/proxy_app/router_core.py src/proxy_app/router_integration.py src/proxy_app/router_wrapper.py src/proxy_app/settings_tool.py src/proxy_app/status_api.py src/rotator_library/__init__.py src/rotator_library/background_refresher.py src/rotator_library/client.py src/rotator_library/cooldown_manager.py src/rotator_library/credential_manager.py src/rotator_library/credential_tool.py src/rotator_library/error_handler.py src/rotator_library/failure_logger.py src/rotator_library/fetch_artificial_analysis_data.py src/rotator_library/leaderboard_updater.py src/rotator_library/live_scraper.py src/rotator_library/llm_aggregated_leaderboard.py src/rotator_library/model_definitions.py src/rotator_library/model_info_service.py src/rotator_library/models_dev_discovery.py src/rotator_library/provider_factory.py src/rotator_library/provider_priority_manager.py src/rotator_library/provider_status_tracker.py src/rotator_library/providers/__init__.py src/rotator_library/providers/agentrouter_provider.py src/rotator_library/providers/antigravity_auth_base.py src/rotator_library/providers/antigravity_provider.py src/rotator_library/providers/cerebras_provider.py src/rotator_library/providers/chutes_provider.py src/rotator_library/providers/cohere_provider.py src/rotator_library/providers/g4f_provider.py src/rotator_library/providers/gemini_auth_base.py src/rotator_library/providers/gemini_cli_provider.py src/rotator_library/providers/gemini_provider.py src/rotator_library/providers/google_oauth_base.py src/rotator_library/providers/groq_provider.py 
+
+Relevant file contents:
+--- src/rotator_library/client.py ---
+import asyncio
+import json
+import re
+import codecs
+import time
+import os
+import random
+import httpx
+import litellm
+from litellm.exceptions import APIConnectionError
+from litellm.litellm_core_utils.token_counter import token_counter
+import logging
+from pathlib import Path
+from typing import List, Dict, Any, AsyncGenerator, Optional, Union
+
+lib_logger = logging.getLogger("rotator_library")
+# Ensure the logger is configured to propagate to the root logger
+# which is set up in main.py. This allows the main app to control
+# log levels and handlers centrally.
+lib_logger.propagate = False
+
+from .usage_manager import UsageManager
+from .failure_logger import log_failure, configure_failure_logger
+from .error_handler import (
+    PreRequestCallbackError,
+    CredentialNeedsReauthError,
+    classify_error,
+    AllProviders,
+    NoAvailableKeysError,
+    should_rotate_on_error,
+    should_retry_same_key,
+    RequestErrorAccumulator,
+    mask_credential,
+)
+from .providers import PROVIDER_PLUGINS
+from .providers.openai_compatible_provider import OpenAICompatibleProvider
+from .request_sanitizer import sanitize_request_payload
+from .cooldown_manager import CooldownManager
+from .credential_manager import CredentialManager
+from .background_refresher import BackgroundRefresher
+from .model_definitions import ModelDefinitions
+from .utils.paths import get_default_root, get_logs_dir, get_oauth_dir, get_data_file
+from .provider_priority_manager import ProviderPriorityManager
+from .telemetry import TelemetryManager
+
+
+class StreamedAPIError(Exception):
+    """Custom exception to signal an API error received over a stream."""
+
+    def __init__(self, message, data=None):
+        super().__init__(message)
+        self.data = data
+
+
+class RotatingClient:
+    """
+    A client that intelligently rotates and retries API keys using LiteLLM,
+    with support for both streaming and non-streaming responses.
+    """
+
+    def __init__(
+        self,
+        api_keys: Optional[Dict[str, List[str]]] = None,
+        oauth_credentials: Optional[Dict[str, List[str]]] = None,
+        max_retries: int = 2,
+        usage_file_path: Optional[Union[str, Path]] = None,
+        configure_logging: bool = True,
+        global_timeout: int = 30,
+        abort_on_callback_error: bool = True,
+        litellm_provider_params: Optional[Dict[str, Any]] = None,
+        ignore_models: Optional[Dict[str, List[str]]] = None,
+        whitelist_models: Optional[Dict[str, List[str]]] = None,
+        enable_request_logging: bool = False,
+        max_concurrent_requests_per_key: Optional[Dict[str, int]] = None,
+        rotation_tolerance: float = 3.0,
+        data_dir: Optional[Union[str, Path]] = None,
+    ):
+        """
+        Initialize the RotatingClient with intelligent credential rotation.
+
+        Args:
+            api_keys: Dictionary mapping provider names to lists of API keys
+            oauth_credentials: Dictionary mapping provider names to OAuth credential paths
+            max_retries: Maximum number of retry attempts per credential
+            usage_file_path: Path to store usage statistics. If None, uses data_dir/key_usage.json
+            configure_logging: Whether to configure library logging
+            global_timeout: Global timeout for requests in seconds
+            abort_on_callback_error: Whether to abort on pre-request callback errors
+            litellm_provider_params: Provider-specific parameters for LiteLLM
+            ignore_models: Models to ignore/blacklist per provider
+            whitelist_models: Models to explicitly whitelist per provider
+            enable_request_logging: Whether to enable detailed request logging
+            max_concurrent_requests_per_key: Max concurrent requests per key by provider
+            rotation_tolerance: Tolerance for weighted random credential rotation.
+                - 0.0: Deterministic, least-used credential always selected
+                - 2.0 - 4.0 (default, recommended): Balanced randomness, can pick credentials within 2 uses of max
+                - 5.0+: High randomness, more unpredictable selection patterns
+            data_dir: Root directory for all data files (logs, cache, oauth_creds, key_usage.json).
+                      If None, auto-detects: EXE directory if frozen, else current working directory.
+        """
+        # Resolve data_dir early - this becomes the root for all file operations
+        if data_dir is not None:
+            self.data_dir = Path(data_dir).resolve()
+        else:
+            self.data_dir = get_default_root()
+
+        # Configure failure logger to use correct logs directory
+        configure_failure_logger(get_logs_dir(self.data_dir))
+
+        os.environ["LITELLM_LOG"] = "ERROR"
+        litellm.set_verbose = False
+        litellm.drop_params = True
+        if configure_logging:
+            # When True, this allows logs from this library to be handled
+            # by the parent application's logging configuration.
+            lib_logger.propagate = True
+            # Remove any default handlers to prevent duplicate logging
+            if lib_logger.hasHandlers():
+                lib_logger.handlers.clear()
+                lib_logger.addHandler(logging.NullHandler())
+        else:
+            lib_logger.propagate = False
+
+        api_keys = api_keys or {}
+        oauth_credentials = oauth_credentials or {}
+
+        # Filter out providers with empty lists of credentials to ensure validity
+        api_keys = {provider: keys for provider, keys in api_keys.items() if keys}
+        oauth_credentials = {
+            provider: paths for provider, paths in oauth_credentials.items() if paths
+        }
+
+        if not api_keys and not oauth_credentials:
+            lib_logger.warning(
+                "No provider credentials configured. The client will be unable to make any API requests."
+            )
+
+        self.api_keys = api_keys
+        # Use provided oauth_credentials directly if available (already discovered by main.py)
+        # Only call discover_and_prepare() if no credentials were passed
+        if oauth_credentials:
+            self.oauth_credentials = oauth_credentials
+        else:
+            self.credential_manager = CredentialManager(
+                os.environ, oauth_dir=get_oauth_dir(self.data_dir)
+            )
+            self.oauth_credentials = self.credential_manager.discover_and_prepare()
+        self.background_refresher = BackgroundRefresher(self)
+        self.oauth_providers = set(self.oauth_credentials.keys())
+
+        all_credentials = {}
+        for provider, keys in api_keys.items():
+            all_credentials.setdefault(provider, []).extend(keys)
+        for provider, paths in self.oauth_credentials.items():
+            all_credentials.setdefault(provider, []).extend(paths)
+        self.all_credentials = all_credentials
+
+        self.max_retries = max_retries
+        self.global_timeout = global_timeout
+        self.abort_on_callback_error = abort_on_callback_error
+
+        # Initialize provider plugins early so they can be used for rotation mode detection
+        self._provider_plugins = PROVIDER_PLUGINS
+        self._provider_instances = {}
+
+        # Build provider rotation modes map
+        # Each provider can specify its preferred rotation mode ("balanced" or "sequential")
+        provider_rotation_modes = {}
+        for provider in self.all_credentials.keys():
+            provider_class = self._provider_plugins.get(provider)
+            if provider_class and hasattr(provider_class, "get_rotation_mode"):
+                # Use class method to get rotation mode (checks env var + class default)
+                mode = provider_class.get_rotation_mode(provider)
+            else:
+                # Fallback: check environment variable directly
+                env_key = f"ROTATION_MODE_{provider.upper()}"
+                mode = os.getenv(env_key, "balanced")
+
+            provider_rotation_modes[provider] = mode
+            if mode != "balanced":
+                lib_logger.info(f"Provider '{provider}' using rotation mode: {mode}")
+
+        # Build priority-based concurrency multiplier maps
+        # These are universal multipliers based on credential tier/priority
+        priority_multipliers: Dict[str, Dict[int, int]] = {}
+        priority_multipliers_by_mode: Dict[str, Dict[str, Dict[int, int]]] = {}
+        sequential_fallback_multipliers: Dict[str, int] = {}
+
+        for provider in self.all_credentials.keys():
+            provider_class = self._provider_plugins.get(provider)
+
+            # Start with provider class defaults
+            if provider_class:
+                # Get default priority multipliers from provider class
+                if hasattr(provider_class, "default_priority_multipliers"):
+                    default_multipliers = provider_class.default_priority_multipliers
+                    if default_multipliers:
+                        priority_multipliers[provider] = dict(default_multipliers)
+
+                # Get sequential fallback from provider class
+
+--- src/proxy_app/router_wrapper.py ---
+"""
+Router Wrapper for FastAPI Integration
+
+This module provides a clean wrapper to integrate the router with the existing FastAPI endpoints.
+"""
+
+import logging
+import time
+import asyncio
+from typing import Dict, Any, AsyncGenerator, Union
+from fastapi import HTTPException, Request
+
+from .router_integration import RouterIntegration
+
+logger = logging.getLogger(__name__)
+
+
+class RouterWrapper:
+    """Wrapper class to handle router integration with existing endpoints."""
+    
+    def __init__(self, rotating_client: Any = None):
+        self.router_integration = RouterIntegration(rotating_client)
+        self._initialized = True
+        logger.info("RouterWrapper initialized with router integration")
+    
+    async def handle_chat_completions(self, 
+                                    request_data: Dict[str, Any], 
+                                    raw_request: Request) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
+        """Handle chat completions with router integration."""
+        
+        # Check if we should use legacy path (when no virtual models are specified)
+        model_id = request_data.get("model", "")
+        
+        # Always use router for virtual models
+        if model_id.startswith("router/"):
+            logger.info(f"Virtual model requested: {model_id}")
+            return await self.router_integration.chat_completions(request_data, raw_request)
+        
+        # For specific provider/model combinations, still use router
+        if "/" in model_id:
+            provider = model_id.split("/", 1)[0]
+            if provider in ["groq", "gemini", "g4f"]:
+                logger.info(f"Routed model requested: {model_id}")
+                return await self.router_integration.chat_completions(request_data, raw_request)
+        
+        # For generic models, use router as well (it will handle provider selection)
+        logger.info(f"Model requested via router: {model_id}")
+        return await self.router_integration.chat_completions(request_data, raw_request)
+    
+    def get_models(self) -> Dict[str, Any]:
+        """Get available models."""
+        return self.router_integration.get_models()
+    
+    def get_health(self) -> Dict[str, Any]:
+        """Get health status."""
+        return self.router_integration.get_health()
+    
+    @property 
+    def free_only_mode(self) -> bool:
+        """Get FREE_ONLY_MODE status."""
+        return self.router_integration.free_only_mode
+
+
+# Global instance
+_router_wrapper = None
+
+
+def initialize_router(rotating_client: Any = None):
+    """Initialize the global router wrapper."""
+    global _router_wrapper
+    _router_wrapper = RouterWrapper(rotating_client)
+    logger.info("Global router wrapper initialized")
+
+
+def get_router() -> RouterWrapper:
+    """Get the global router wrapper instance."""
+    if _router_wrapper is None:
+        raise RuntimeError("Router not initialized. Call initialize_router() first.")
+    return _router_wrapper
+
+
+# Compatibility functions for direct integration
+async def chat_completions_with_router(
+    request_data: Dict[str, Any],
+    raw_request: Request,
+    rotating_client: Any = None
+) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
+    """Compatibility function for chat completions with router."""
+    
+    # Initialize router if not already done
+    try:
+        router = get_router()
+    except RuntimeError:
+        initialize_router(rotating_client)
+        router = get_router()
+    
+    return await router.handle_chat_completions(request_data, raw_request)
+
+GitHub Issue #75: Phase 4.1: Implement Redis client wrapper
+
+Description: Part of Phase 4.1 Response Caching.
+
+Task: Implement the changes needed to resolve this issue.
+For each file to create or modify, output a block in this EXACT format:
+=== FILE: path/to/file.py ===
+<complete new file contents>
+=== END FILE ===
+Only allowed path prefixes: src/, config/, docs/
+Output ONLY file blocks. No prose outside blocks.
