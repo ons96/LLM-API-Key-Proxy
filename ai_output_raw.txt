@@ -1,3 +1,4 @@
+=== FILE: src/proxy_app/main.py ===
 import time
 
 # Phase 1: Minimal imports for arg parsing and TUI
@@ -488,3 +489,4 @@ if __name__ == "__main__":
         reload=False,
         access_log=False
     )
+=== END FILE ===
