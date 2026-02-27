@@ -243,3 +243,4 @@ $(head -200 "$f")
             git checkout main 2>/dev/null || true
             echo "=== Done with issue #$issue_num ==="
           done
+# re-index
