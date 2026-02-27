@@ -49,80 +49,22 @@ jobs:
           KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
           BATCH: ${{ matrix.batch }}
         run: |
-          # Get list of open issues
-          ISSUES=$(gh issue list --state open --json number --jq '[.[].number]')
-          COUNT=$(echo "$ISSUES" | jq 'length')
-          echo "Found $COUNT open issues"
-          
-          # Process each issue
-          for issue_num in $(echo "$ISSUES" | jq -r '.[]'); do
-            echo "Processing issue #$issue_num"
-            
-            # Get issue details separately
-            ISSUE_TITLE=$(gh issue view "$issue_num" --json title --jq '.title')
-            ISSUE_BODY=$(gh issue view "$issue_num" --json body --jq '.body' | head -c 1500)
-            
-            # Write prompt using printf to avoid heredoc issues
-            printf '%s\n' "You are an expert software engineer." > prompt.txt
-            printf '%s\n' "Fix GitHub issue #${issue_num} in this repository." >> prompt.txt
-            printf '%s\n' "Title: $ISSUE_TITLE" >> prompt.txt
-            printf '%s\n' "" >> prompt.txt
-            printf '%s\n' "Description:" >> prompt.txt
-            printf '%s\n' "$ISSUE_BODY" >> prompt.txt
-            printf '%s\n' "" >> prompt.txt
-            printf '%s\n' "Instructions:" >> prompt.txt
-            printf '%s\n' "1. Identify the root cause." >> prompt.txt
-            printf '%s\n' "2. Implement the minimal correct fix." >> prompt.txt
-            printf '%s\n' "3. Write clean code." >> prompt.txt
-            printf '%s\n' "4. Explain what you changed and why." >> prompt.txt
-            
-            # Call AI API (Kilo Gateway - free)
-            PROMPT_CONTENT=$(cat prompt.txt)
-            PAYLOAD=$(jq -n --arg model "moonshotai/kimi-k2.5:free" --arg content "$PROMPT_CONTENT" \
-              '{model: $model, max_tokens: 8192, messages: [{role: "user", content: $content}]}')
-            
-            RESP=$(curl -sf --max-time 180 \
-              -X POST "https://api.kilo.ai/api/gateway/chat/completions" \
-              -H "Authorization: Bearer $KILOCODE_API_KEY" \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD" 2>&1) || true
-            
-            AI_OUTPUT=$(echo "$RESP" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
-            if [ -z "$AI_OUTPUT" ]; then
-              echo "API call failed or returned no content for issue #$issue_num: $RESP"
-              continue
-            fi
-            echo "API call succeeded for issue #$issue_num"
-            echo "$AI_OUTPUT" > agent_output.txt
-            
-            # Create branch and PR
-            BRANCH="fix/issue-${issue_num}"
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git checkout -b "$BRANCH" 2>/dev/null || git checkout "$BRANCH"
-            
-            mkdir -p .github/agent-patches
-            cp agent_output.txt ".github/agent-patches/issue-${issue_num}.md"
-            
-            git add -A
-            if ! git diff --staged --quiet; then
-              git commit -m "fix: AI agent patch for issue #${issue_num}" || true
-              git push origin "$BRANCH" --force-with-lease || true
-              
-              # Create PR
-              gh pr create --title "fix: resolve issue #${issue_num}" \
-                --body "Closes #${issue_num}" \
-                --head "$BRANCH" --base main || true
-            fi
+          set -uo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          MODELS="moonshotai/kimi-k2.5:free minimax/minimax-m2.5:free arcee-ai/trinity-large-preview:free stepfun/step-3.5-flash:free corethink:free"
+
+          for issue_num in $(echo "$BATCH" | tr ',' ' '); do
+            echo "=== Processing issue #$issue_num ==="
 
             ISSUE_TITLE=$(gh issue view "$issue_num" --json title --jq '.title' 2>/dev/null || echo "Unknown")
             ISSUE_BODY=$(gh issue view "$issue_num" --json body --jq '.body' 2>/dev/null | head -c 2000 || echo "")
             echo "Issue: $ISSUE_TITLE"
 
-            # Build file tree
             FILE_TREE=$(find src config -type f \( -name "*.py" -o -name "*.yaml" -o -name "*.yml" \) 2>/dev/null | sort | head -60 | tr '\n' ' ' || echo "")
 
-            # Find relevant files based on keywords from title
             KEYWORDS=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '\n' | grep -v '^.\{1,2\}$' | head -5 | tr '\n' '|' | sed 's/|$//' || echo "")
             RELEVANT_FILES=""
             if [ -n "$KEYWORDS" ]; then
@@ -141,7 +83,6 @@ $(head -200 "$f")
               fi
             done
 
-            # Write prompt to file
             printf '%s\n' "You are an expert Python/FastAPI software engineer." > prompt.txt
             printf '%s\n' "Repository layout (partial): $FILE_TREE" >> prompt.txt
             printf '%s\n' "" >> prompt.txt
@@ -160,7 +101,6 @@ $(head -200 "$f")
             printf '%s\n' "Only allowed path prefixes: src/, config/, docs/" >> prompt.txt
             printf '%s\n' "Output ONLY file blocks. No prose outside blocks." >> prompt.txt
 
-            # Try each model in fallback order
             AI_OUTPUT=""
             PROMPT_CONTENT=$(cat prompt.txt)
             for model in $MODELS; do
@@ -191,7 +131,6 @@ $(head -200 "$f")
 
             echo "$AI_OUTPUT" > ai_output_raw.txt
 
-            # Write Python parser script using printf (no heredoc)
             printf '%s\n' 'import sys, os, re' > parse_ai.py
             printf '%s\n' 'with open("ai_output_raw.txt") as f: content = f.read()' >> parse_ai.py
             printf '%s\n' 'pattern = r"=== FILE: (.+?) ===\n(.*?)=== END FILE ==="' >> parse_ai.py
@@ -217,7 +156,6 @@ $(head -200 "$f")
               continue
             fi
 
-            # Create branch, commit, push, open PR
             BRANCH="fix/issue-${issue_num}"
             git checkout -B "$BRANCH"
             git add -A
@@ -243,4 +181,3 @@ $(head -200 "$f")
             git checkout main 2>/dev/null || true
             echo "=== Done with issue #$issue_num ==="
           done
-# re-index
