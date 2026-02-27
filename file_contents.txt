@@ -1,0 +1,202 @@
+--- src/rotator_library/error_handler.py ---
+import re
+import json
+import os
+import logging
+from typing import Optional, Dict, Any
+import httpx
+
+from litellm.exceptions import (
+    APIConnectionError,
+    RateLimitError,
+    ServiceUnavailableError,
+    AuthenticationError,
+    InvalidRequestError,
+    BadRequestError,
+    OpenAIError,
+    InternalServerError,
+    Timeout,
+    ContextWindowExceededError,
+)
+
+lib_logger = logging.getLogger("rotator_library")
+
+
+def _parse_duration_string(duration_str: str) -> Optional[int]:
+    """
+    Parse duration strings in various formats to total seconds.
+
+    Handles:
+    - Compound durations: '156h14m36.752463453s', '2h30m', '45m30s'
+    - Simple durations: '562476.752463453s', '3600s', '60m', '2h'
+    - Plain seconds (no unit): '562476'
+
+    Args:
+        duration_str: Duration string to parse
+
+    Returns:
+        Total seconds as integer, or None if parsing fails
+    """
+    if not duration_str:
+        return None
+
+    total_seconds = 0
+    remaining = duration_str.strip().lower()
+
+    # Try parsing as plain number first (no units)
+    try:
+        return int(float(remaining))
+    except ValueError:
+        pass
+
+    # Parse hours component
+    hour_match = re.match(r"(\d+)h", remaining)
+    if hour_match:
+        total_seconds += int(hour_match.group(1)) * 3600
+        remaining = remaining[hour_match.end() :]
+
+    # Parse minutes component
+    min_match = re.match(r"(\d+)m", remaining)
+    if min_match:
+        total_seconds += int(min_match.group(1)) * 60
+        remaining = remaining[min_match.end() :]
+
+    # Parse seconds component (including decimals like 36.752463453s)
+    sec_match = re.match(r"([\d.]+)s", remaining)
+    if sec_match:
+        total_seconds += int(float(sec_match.group(1)))
+
+    return total_seconds if total_seconds > 0 else None
+
+
+def extract_retry_after_from_body(error_body: Optional[str]) -> Optional[int]:
+    """
+    Extract the retry-after time from an API error response body.
+
+    Handles various error formats including:
+    - Gemini CLI: "Your quota will reset after 39s."
+    - Antigravity: "quota will reset after 156h14m36s"
+    - Generic: "quota will reset after 120s", "retry after 60s"
+
+    Args:
+        error_body: The raw error response body
+
+    Returns:
+        The retry time in seconds, or None if not found
+    """
+    if not error_body:
+        return None
+
+    # Pattern to match various "reset after" formats - capture the full duration string
+    patterns = [
+        r"quota will reset after\s*([\dhmso.]+)",  # Matches compound: 156h14m36s or 120s
+        r"reset after\s*([\dhmso.]+)",
+        r"retry after\s*([\dhmso.]+)",
+        r"try again in\s*(\d+)\s*seconds?",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, error_body, re.IGNORECASE)
+        if match:
+            duration_str = match.group(1)
+            result = _parse_duration_string(duration_str)
+            if result is not None:
+                return result
+
+    return None
+
+
+class NoAvailableKeysError(Exception):
+    """Raised when no API keys are available for a request after waiting."""
+
+    pass
+
+
+class PreRequestCallbackError(Exception):
+    """Raised when a pre-request callback fails."""
+
+    pass
+
+
+class CredentialNeedsReauthError(Exception):
+    """
+    Raised when a credential's refresh token is invalid and re-authentication is required.
+
+    This is a rotatable error - the request should try the next credential while
+    the broken credential is queued for re-authentication in the background.
+
+    Unlike generic HTTPStatusError, this exception signals:
+    - The credential is temporarily unavailable (needs user action)
+    - Re-auth has already been queued
+    - The request should rotate to the next credential without logging scary tracebacks
+
+    Attributes:
+        credential_path: Path to the credential file that needs re-auth
+        message: Human-readable message about the error
+    """
+
+    def __init__(self, credential_path: str, message: str = ""):
+        self.credential_path = credential_path
+        self.message = (
+            message or f"Credential '{credential_path}' requires re-authentication"
+        )
+        super().__init__(self.message)
+
+
+class EmptyResponseError(Exception):
+    """
+    Raised when a provider returns an empty response after multiple retry attempts.
+
+    This is a rotatable error - the request should try the next credential.
+    Treated as a transient server-side issue (503 equivalent).
+
+    Attributes:
+        provider: The provider name (e.g., "antigravity")
+        model: The model that was requested
+        message: Human-readable message about the error
+    """
+
+    def __init__(self, provider: str, model: str, message: str = ""):
+        self.provider = provider
+        self.model = model
+        self.message = (
+            message
+            or f"Empty response from {provider}/{model} after multiple retry attempts"
+        )
+        super().__init__(self.message)
+
+
+# =============================================================================
+# ERROR TRACKING FOR CLIENT REPORTING
+# =============================================================================
+
+# Abnormal errors that require attention and should always be reported to client
+ABNORMAL_ERROR_TYPES = frozenset(
+    {
+        "forbidden",  # 403 - credential access issue
+        "authentication",  # 401 - credential invalid/revoked
+        "pre_request_callback_error",  # Internal proxy error
+        "unknown",  # Unexpected error - surface per-credential details for debugging
+    }
+)
+
+# Normal/expected errors during operation - only report if ALL credentials fail
+NORMAL_ERROR_TYPES = frozenset(
+    {
+        "rate_limit",  # 429 - expected during high load
+        "quota_exceeded",  # Expected when quota runs out
+        "server_error",  # 5xx - transient provider issues
+        "api_connection",  # Network issues - transient
+    }
+)
+
+
+def is_abnormal_error(classified_error: "ClassifiedError") -> bool:
+    """
+    Check if an error is abnormal and should be reported to the client.
+
+    Abnormal errors indicate credential issues that need attention:
+    - 403 Forbidden: Credential doesn't have access
+    - 401 Unauthorized: Credential is invalid/revoked
+
+

@@ -1,0 +1,723 @@
+=== FILE: src/rotator_library/error_handler.py ===
+import re
+import json
+import os
+import logging
+from typing import Optional, Dict, Any, Union
+import httpx
+
+from litellm.exceptions import (
+    APIConnectionError,
+    RateLimitError,
+    ServiceUnavailableError,
+    AuthenticationError,
+    InvalidRequestError,
+    BadRequestError,
+    OpenAIError,
+    InternalServerError,
+    Timeout,
+    ContextWindowExceededError,
+)
+
+lib_logger = logging.getLogger("rotator_library")
+
+
+def _parse_duration_string(duration_str: str) -> Optional[int]:
+    """
+    Parse duration strings in various formats to total seconds.
+
+    Handles:
+    - Compound durations: '156h14m36.752463453s', '2h30m', '45m30s'
+    - Simple durations: '562476.752463453s', '3600s', '60m', '2h'
+    - Plain seconds (no unit): '562476'
+
+    Args:
+        duration_str: Duration string to parse
+
+    Returns:
+        Total seconds as integer, or None if parsing fails
+    """
+    if not duration_str:
+        return None
+
+    total_seconds = 0
+    remaining = duration_str.strip().lower()
+
+    # Try parsing as plain number first (no units)
+    try:
+        return int(float(remaining))
+    except ValueError:
+        pass
+
+    # Parse hours component
+    hour_match = re.match(r"(\d+)h", remaining)
+    if hour_match:
+        total_seconds += int(hour_match.group(1)) * 3600
+        remaining = remaining[hour_match.end() :]
+
+    # Parse minutes component
+    min_match = re.match(r"(\d+)m", remaining)
+    if min_match:
+        total_seconds += int(min_match.group(1)) * 60
+        remaining = remaining[min_match.end() :]
+
+    # Parse seconds component (including decimals like 36.752463453s)
+    sec_match = re.match(r"([\d.]+)s", remaining)
+    if sec_match:
+        total_seconds += int(float(sec_match.group(1)))
+
+    return total_seconds if total_seconds > 0 else None
+
+
+def extract_retry_after_from_body(error_body: Optional[str]) -> Optional[int]:
+    """
+    Extract the retry-after time from an API error response body.
+
+    Handles various error formats including:
+    - Gemini CLI: "Your quota will reset after 39s."
+    - Antigravity: "quota will reset after 156h14m36s"
+    - Generic: "quota will reset after 120s", "retry after 60s"
+
+    Args:
+        error_body: The raw error response body
+
+    Returns:
+        The retry time in seconds, or None if not found
+    """
+    if not error_body:
+        return None
+
+    # Pattern to match various "reset after" formats - capture the full duration string
+    patterns = [
+        r"quota will reset after\s*([\dhmso.]+)",  # Matches compound: 156h14m36s or 120s
+        r"reset after\s*([\dhmso.]+)",
+        r"retry after\s*([\dhmso.]+)",
+        r"try again in\s*(\d+)\s*seconds?",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, error_body, re.IGNORECASE)
+        if match:
+            duration_str = match.group(1)
+            result = _parse_duration_string(duration_str)
+            if result is not None:
+                return result
+
+    return None
+
+
+class NoAvailableKeysError(Exception):
+    """Raised when no API keys are available for a request after waiting."""
+
+    pass
+
+
+class PreRequestCallbackError(Exception):
+    """Raised when a pre-request callback fails."""
+
+    pass
+
+
+class CredentialNeedsReauthError(Exception):
+    """
+    Raised when a credential's refresh token is invalid and re-authentication is required.
+
+    This is a rotatable error - the request should try the next credential while
+    the broken credential is queued for re-authentication in the background.
+
+    Unlike generic HTTPStatusError, this exception signals:
+    - The credential is temporarily unavailable (needs user action)
+    - Re-auth has already been queued
+    - The request should rotate to the next credential without logging scary tracebacks
+
+    Attributes:
+        credential_path: Path to the credential file that needs re-auth
+        message: Human-readable message about the error
+    """
+
+    def __init__(self, credential_path: str, message: str = ""):
+        self.credential_path = credential_path
+        self.message = (
+            message or f"Credential '{credential_path}' requires re-authentication"
+        )
+        super().__init__(self.message)
+
+
+class EmptyResponseError(Exception):
+    """
+    Raised when a provider returns an empty response after multiple retry attempts.
+
+    This is a rotatable error - the request should try the next credential.
+    Treated as a transient server-side issue (503 equivalent).
+
+    Attributes:
+        provider: The provider name (e.g., "antigravity")
+        model: The model that was requested
+        message: Human-readable message about the error
+    """
+
+    def __init__(self, provider: str, model: str, message: str = ""):
+        self.provider = provider
+        self.model = model
+        self.message = (
+            message
+            or f"Empty response from {provider}/{model} after multiple retry attempts"
+        )
+        super().__init__(self.message)
+
+
+# =============================================================================
+# STREAMING ERROR RECOVERY (Phase 4.2)
+# =============================================================================
+
+class StreamingError(Exception):
+    """
+    Raised when an error occurs during streaming response generation.
+    
+    This captures the context of a mid-stream failure to enable recovery logic.
+    
+    Attributes:
+        original_error: The underlying exception that caused the stream to fail
+        partial_content: Content received before the error occurred
+        credential_id: Identifier for the credential that was being used
+        is_recoverable: Whether this error type supports stream recovery
+    """
+    
+    def __init__(
+        self, 
+        original_error: Exception, 
+        partial_content: str = "",
+        credential_id: Optional[str] = None,
+        is_recoverable: bool = False
+    ):
+        self.original_error = original_error
+        self.partial_content = partial_content
+        self.credential_id = credential_id
+        self.is_recoverable = is_recoverable
+        message = f"Streaming error with credential {credential_id}: {str(original_error)}"
+        super().__init__(message)
+
+
+class StreamingRecoveryError(Exception):
+    """
+    Raised when stream recovery fails after exhausting all retries.
+    
+    This is the final error returned to the client when recovery attempts fail.
+    """
+    
+    def __init__(self, attempts: int, last_error: Optional[Exception] = None):
+        self.attempts = attempts
+        self.last_error = last_error
+        message = f"Failed to recover stream after {attempts} attempt(s)"
+        if last_error:
+            message += f": {str(last_error)}"
+        super().__init__(message)
+
+
+# Abnormal errors that require attention and should always be reported to client
+ABNORMAL_ERROR_TYPES = frozenset(
+    {
+        "forbidden",  # 403 - credential access issue
+        "authentication",  # 401 - credential invalid/revoked
+        "pre_request_callback_error",  # Internal proxy error
+        "unknown",  # Unexpected error - surface per-credential details for debugging
+    }
+)
+
+# Normal/expected errors during operation - only report if ALL credentials fail
+NORMAL_ERROR_TYPES = frozenset(
+    {
+        "rate_limit",  # 429 - expected during high load
+        "quota_exceeded",  # Expected when quota runs out
+        "server_error",  # 5xx - transient provider issues
+        "api_connection",  # Network issues - transient
+    }
+)
+
+# Errors that can potentially be recovered from during streaming
+RECOVERABLE_STREAMING_ERRORS = frozenset(
+    {
+        "rate_limit",
+        "quota_exceeded", 
+        "server_error",
+        "api_connection",
+        "timeout",
+        "empty_response",
+    }
+)
+
+
+def is_abnormal_error(error_type: str) -> bool:
+    """
+    Check if an error is abnormal and should be reported to the client.
+
+    Abnormal errors indicate credential issues that need attention:
+    - 403 Forbidden: Credential doesn't have access
+    - 401 Unauthorized: Credential is invalid/revoked
+
+    Args:
+        error_type: The classified error type string
+
+    Returns:
+        True if the error is abnormal, False otherwise
+    """
+    return error_type in ABNORMAL_ERROR_TYPES
+
+
+def classify_error(error: Exception) -> str:
+    """
+    Classify an exception into a standardized error type.
+    
+    Args:
+        error: The exception to classify
+        
+    Returns:
+        String classification of the error
+    """
+    if isinstance(error, (AuthenticationError,)):
+        return "authentication"
+    elif isinstance(error, (RateLimitError,)):
+        return "rate_limit"
+    elif isinstance(error, (ServiceUnavailableError, InternalServerError)):
+        return "server_error"
+    elif isinstance(error, (APIConnectionError,)):
+        return "api_connection"
+    elif isinstance(error, (Timeout,)):
+        return "timeout"
+    elif isinstance(error, (EmptyResponseError,)):
+        return "empty_response"
+    elif isinstance(error, (CredentialNeedsReauthError,)):
+        return "authentication"
+    elif isinstance(error, (BadRequestError, InvalidRequestError)):
+        return "bad_request"
+    elif isinstance(error, (StreamingError,)):
+        return classify_error(error.original_error)
+    else:
+        return "unknown"
+
+
+def is_streaming_recoverable_error(error: Exception) -> bool:
+    """
+    Determine if a streaming error can be recovered from via retry.
+    
+    Args:
+        error: The exception that occurred during streaming
+        
+    Returns:
+        True if the error type supports recovery/retry logic
+    """
+    error_type = classify_error(error)
+    return error_type in RECOVERABLE_STREAMING_ERRORS
+
+
+def create_sse_error_event(
+    error: Exception, 
+    error_code: Optional[str] = None,
+    include_partial: bool = False,
+    partial_content: str = ""
+) -> str:
+    """
+    Format an error as a Server-Sent Events (SSE) data chunk.
+    
+    Args:
+        error: The exception to format
+        error_code: Optional error code to include
+        include_partial: Whether to include partial content received before error
+        partial_content: The partial content string if include_partial is True
+        
+    Returns:
+        Formatted SSE string
+    """
+    error_data = {
+        "error": {
+            "message": str(error),
+            "type": "stream_error",
+            "code": error_code or classify_error(error),
+        }
+    }
+    
+    if include_partial and partial_content:
+        error_data["error"]["partial_content"] = partial_content
+        
+    return f"data: {json.dumps(error_data)}\n\n"
+
+
+def create_sse_retry_event(
+    retry_count: int, 
+    max_retries: int,
+    message: str = ""
+) -> str:
+    """
+    Create an SSE event indicating a retry attempt.
+    
+    Args:
+        retry_count: Current retry attempt number
+        max_retries: Maximum number of retries allowed
+        message: Optional status message
+        
+    Returns:
+        Formatted SSE string
+    """
+    data = {
+        "retry_attempt": retry_count,
+        "max_retries": max_retries,
+        "message": message or f"Retrying stream (attempt {retry_count}/{max_retries})...",
+        "type": "stream_recovery"
+    }
+    return f"data: {json.dumps(data)}\n\n"
+
+
+def should_attempt_stream_recovery(
+    error: Exception,
+    attempt_count: int,
+    max_attempts: int = 3
+) -> bool:
+    """
+    Determine whether to attempt stream recovery based on error and attempt count.
+    
+    Args:
+        error: The exception that occurred
+        attempt_count: Number of recovery attempts already made
+        max_attempts: Maximum allowed recovery attempts
+        
+    Returns:
+        True if recovery should be attempted
+    """
+    if attempt_count >= max_attempts:
+        return False
+        
+    if isinstance(error, StreamingError):
+        return error.is_recoverable and is_streaming_recoverable_error(error.original_error)
+    
+    return is_streaming_recoverable_error(error)
+=== END FILE ===
+
+=== FILE: src/proxy_app/streaming_recovery.py ===
+"""
+Streaming Error Recovery Module (Phase 4.2)
+
+Implements resilient streaming with automatic failover and recovery.
+Handles mid-stream errors by attempting to retry with alternate credentials.
+"""
+
+import asyncio
+import json
+import logging
+from typing import AsyncGenerator, Optional, Dict, Any, Callable, List, Tuple
+from dataclasses import dataclass, field
+
+from src.rotator_library.error_handler import (
+    StreamingError,
+    StreamingRecoveryError,
+    is_streaming_recoverable_error,
+    create_sse_error_event,
+    create_sse_retry_event,
+    should_attempt_stream_recovery,
+    classify_error,
+)
+from src.rotator_library.credential_manager import CredentialManager
+from src.rotator_library.provider_adapter import ProviderAdapter
+
+logger = logging.getLogger("proxy_app.streaming_recovery")
+
+
+@dataclass
+class StreamContext:
+    """Context for a streaming request to enable recovery."""
+    model: str
+    messages: List[Dict[str, Any]]
+    original_params: Dict[str, Any]
+    accumulated_content: str = ""
+    tokens_generated: int = 0
+    credential_history: List[str] = field(default_factory=list)
+    attempt_count: int = 0
+    max_attempts: int = 3
+    
+    def get_resume_params(self) -> Dict[str, Any]:
+        """
+        Get parameters to resume the stream from current position.
+        For chat completions, this may involve modifying the prompt to include
+        partial generation context.
+        """
+        params = self.original_params.copy()
+        
+        # If we have partial content, we might want to include it in context
+        # for the next attempt depending on the model type
+        if self.accumulated_content:
+            # Create a modified message list that includes the partial assistant response
+            # as context for the retry
+            modified_messages = self.messages.copy()
+            
+            # Add the partial content as an assistant message to maintain context
+            modified_messages.append({
+                "role": "assistant",
+                "content": self.accumulated_content + "[...interrupted...]"
+            })
+            params["messages"] = modified_messages
+            
+        return params
+
+
+class StreamRecoveryManager:
+    """
+    Manages streaming responses with automatic error recovery.
+    
+    Wraps streaming generators to catch errors and attempt retries
+    with different credentials while maintaining SSE compatibility.
+    """
+    
+    def __init__(
+        self,
+        credential_manager: CredentialManager,
+        provider_adapter: ProviderAdapter,
+        max_recovery_attempts: int = 3,
+        enable_recovery_events: bool = True
+    ):
+        self.credential_manager = credential_manager
+        self.provider_adapter = provider_adapter
+        self.max_recovery_attempts = max_recovery_attempts
+        self.enable_recovery_events = enable_recovery_events
+        
+    async def create_resilient_stream(
+        self,
+        model: str,
+        messages: List[Dict[str, Any]],
+        request_params: Optional[Dict[str, Any]] = None,
+        credential_filter: Optional[Callable] = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Create a streaming generator that recovers from transient errors.
+        
+        Args:
+            model: The model identifier
+            messages: Chat messages
+            request_params: Additional request parameters
+            credential_filter: Optional filter for credential selection
+            
+        Yields:
+            SSE-formatted data chunks
+            
+        Raises:
+            StreamingRecoveryError: If all recovery attempts fail
+        """
+        context = StreamContext(
+            model=model,
+            messages=messages,
+            original_params=request_params or {},
+            max_attempts=self.max_recovery_attempts
+        )
+        
+        last_error = None
+        
+        while context.attempt_count < context.max_attempts:
+            try:
+                async for chunk in self._attempt_stream(context, credential_filter):
+                    yield chunk
+                return  # Stream completed successfully
+                
+            except Exception as e:
+                last_error = e
+                context.attempt_count += 1
+                
+                if not should_attempt_stream_recovery(e, context.attempt_count - 1, context.max_attempts):
+                    logger.warning(f"Stream error not recoverable: {e}")
+                    break
+                    
+                logger.info(f"Attempting stream recovery ({context.attempt_count}/{context.max_attempts}): {e}")
+                
+                if self.enable_recovery_events:
+                    yield create_sse_retry_event(
+                        context.attempt_count, 
+                        context.max_attempts,
+                        f"Switching to backup provider due to: {classify_error(e)}"
+                    )
+                
+                # Brief delay before retry to allow transient issues to clear
+                await asyncio.sleep(0.5 * context.attempt_count)
+        
+        # All attempts failed
+        error_msg = f"Stream failed after {context.attempt_count} attempt(s)"
+        logger.error(error_msg, exc_info=last_error)
+        
+        # Yield final error event before raising
+        yield create_sse_error_event(
+            last_error or Exception("Unknown stream error"),
+            include_partial=True,
+            partial_content=context.accumulated_content
+        )
+        yield "data: [DONE]\n\n"
+        
+        raise StreamingRecoveryError(context.attempt_count, last_error)
+    
+    async def _attempt_stream(
+        self,
+        context: StreamContext,
+        credential_filter: Optional[Callable]
+    ) -> AsyncGenerator[str, None]:
+        """
+        Attempt to stream with a single credential.
+        
+        Args:
+            context: Stream context with state
+            credential_filter: Filter for credential selection
+            
+        Yields:
+            SSE data chunks
+            
+        Raises:
+            StreamingError: If stream fails mid-generation
+        """
+        credential = None
+        try:
+            # Get next available credential, excluding ones we've already tried
+            credential = await self.credential_manager.get_next_credential(
+                model=context.model,
+                exclude=context.credential_history,
+                filter_func=credential_filter
+            )
+            
+            if not credential:
+                raise StreamingError(
+                    Exception("No available credentials"),
+                    partial_content=context.accumulated_content,
+                    is_recoverable=False
+                )
+            
+            context.credential_history.append(credential.id)
+            
+            # Get the streaming generator from the provider
+            stream_gen = await self.provider_adapter.stream_completion(
+                credential=credential,
+                model=context.model,
+                messages=context.messages if context.attempt_count == 0 else context.get_resume_params().get("messages", context.messages),
+                params=context.original_params
+            )
+            
+            chunk_count = 0
+            async for chunk in stream_gen:
+                chunk_count += 1
+                
+                # Extract content and update context for potential recovery
+                content = self._extract_content_from_chunk(chunk)
+                if content:
+                    context.accumulated_content += content
+                    context.tokens_generated += 1
+                
+                yield chunk
+            
+            logger.debug(f"Stream completed successfully with {chunk_count} chunks")
+            
+        except Exception as e:
+            # Check if this is a mid-stream error or initialization error
+            if context.tokens_generated > 0:
+                # Mid-stream failure - wrap in StreamingError
+                is_recoverable = is_streaming_recoverable_error(e)
+                raise StreamingError(
+                    original_error=e,
+                    partial_content=context.accumulated_content,
+                    credential_id=credential.id if credential else None,
+                    is_recoverable=is_recoverable
+                )
+            else:
+                # Failed before generating any content - standard error handling
+                raise
+    
+    def _extract_content_from_chunk(self, chunk: str) -> str:
+        """
+        Extract text content from an SSE chunk for accumulation.
+        
+        Args:
+            chunk: SSE formatted chunk string
+            
+        Returns:
+            Extracted text content or empty string
+        """
+        try:
+            if chunk.startswith("data: "):
+                data_str = chunk[6:]  # Remove "data: " prefix
+                if data_str.strip() == "[DONE]":
+                    return ""
+                    
+                data = json.loads(data_str)
+                
+                # Handle OpenAI-style deltas
+                if "choices" in data and len(data["choices"]) > 0:
+                    choice = data["choices"][0]
+                    if "delta" in choice and "content" in choice["delta"]:
+                        return choice["delta"]["content"] or ""
+                    elif "text" in choice:
+                        return choice["text"] or ""
+                        
+                # Handle error events within stream
+                if "error" in data:
+                    return ""
+                    
+        except (json.JSONDecodeError, KeyError, IndexError) as e:
+            logger.debug(f"Could not extract content from chunk: {e}")
+            
+        return ""
+
+
+class StreamingHealthMonitor:
+    """
+    Monitors streaming health and tracks failure patterns.
+    
+    Used to proactively avoid credentials/providers that frequently fail mid-stream.
+    """
+    
+    def __init__(self, window_size: int = 100):
+        self.window_size = window_size
+        self.failure_counts: Dict[str, List[float]] = {}
+        self.success_counts: Dict[str, List[float]] = {}
+        
+    def record_failure(self, credential_id: str, error_type: str):
+        """Record a streaming failure for a credential."""
+        now = asyncio.get_event_loop().time()
+        if credential_id not in self.failure_counts:
+            self.failure_counts[credential_id] = []
+        self.failure_counts[credential_id].append(now)
+        
+        # Clean old entries
+        cutoff = now - 300  # 5 minute window
+        self.failure_counts[credential_id] = [
+            t for t in self.failure_counts[credential_id] if t > cutoff
+        ]
+        
+    def record_success(self, credential_id: str):
+        """Record a successful stream completion."""
+        now = asyncio.get_event_loop().time()
+        if credential_id not in self.success_counts:
+            self.success_counts[credential_id] = []
+        self.success_counts[credential_id].append(now)
+        
+        cutoff = now - 300
+        self.success_counts[credential_id] = [
+            t for t in self.success_counts[credential_id] if t > cutoff
+        ]
+        
+    def get_failure_rate(self, credential_id: str) -> float:
+        """Get recent failure rate for a credential (0.0 to 1.0)."""
+        failures = len(self.failure_counts.get(credential_id, []))
+        successes = len(self.success_counts.get(credential_id, []))
+        total = failures + successes
+        
+        if total == 0:
+            return 0.0
+        return failures / total
+        
+    def is_healthy(self, credential_id: str, threshold: float = 0.5) -> bool:
+        """Check if credential is healthy for streaming."""
+        return self.get_failure_rate(credential_id) < threshold
+
+
+async def with_stream_recovery(
+    stream_gen: AsyncGenerator[str, None],
+    context: StreamContext,
+    recovery_manager: StreamRecoveryManager
+) -> AsyncGenerator[str, None]:
+    """
+    Decorator-style wrapper to add recovery to an existing stream.
+    
+    Args:
+        stream_gen: Original streaming generator
+        context: Stream context
