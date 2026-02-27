@@ -1,0 +1,408 @@
+You are an expert Python/FastAPI software engineer.
+Repository layout (partial): config/aliases.yaml config/chat_model_rankings.yaml config/model_rankings.yaml config/providers_database.yaml config/router_config.yaml config/scoring_config.yaml config/virtual_models.yaml config/virtual_models_backup.yaml config/virtual_models_generated.yaml src/proxy_app/__init__.py src/proxy_app/batch_manager.py src/proxy_app/build.py src/proxy_app/config_exceptions.py src/proxy_app/config_watcher.py src/proxy_app/detailed_logger.py src/proxy_app/enhanced_proxy.py src/proxy_app/health_checker.py src/proxy_app/launcher_tui.py src/proxy_app/main.py src/proxy_app/model_ranker.py src/proxy_app/provider_adapter.py src/proxy_app/provider_urls.py src/proxy_app/rate_limiter.py src/proxy_app/request_logger.py src/proxy_app/router_core.py src/proxy_app/router_integration.py src/proxy_app/router_wrapper.py src/proxy_app/settings_tool.py src/proxy_app/status_api.py src/rotator_library/__init__.py src/rotator_library/background_refresher.py src/rotator_library/client.py src/rotator_library/cooldown_manager.py src/rotator_library/credential_manager.py src/rotator_library/credential_tool.py src/rotator_library/error_handler.py src/rotator_library/failure_logger.py src/rotator_library/fetch_artificial_analysis_data.py src/rotator_library/leaderboard_updater.py src/rotator_library/live_scraper.py src/rotator_library/llm_aggregated_leaderboard.py src/rotator_library/model_definitions.py src/rotator_library/model_info_service.py src/rotator_library/models_dev_discovery.py src/rotator_library/provider_factory.py src/rotator_library/provider_priority_manager.py src/rotator_library/provider_status_tracker.py src/rotator_library/providers/__init__.py src/rotator_library/providers/agentrouter_provider.py src/rotator_library/providers/antigravity_auth_base.py src/rotator_library/providers/antigravity_provider.py src/rotator_library/providers/cerebras_provider.py src/rotator_library/providers/chutes_provider.py src/rotator_library/providers/cohere_provider.py src/rotator_library/providers/g4f_provider.py src/rotator_library/providers/gemini_auth_base.py src/rotator_library/providers/gemini_cli_provider.py src/rotator_library/providers/gemini_provider.py src/rotator_library/providers/google_oauth_base.py src/rotator_library/providers/groq_provider.py 
+
+Relevant file contents:
+--- src/rotator_library/score_engine.py ---
+"""
+Scoring engine for dynamic provider/model ranking.
+Combines agentic coding scores and TPS into unified scores.
+Availability is used as a yes/no filter, not a scoring factor.
+"""
+
+import logging
+from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta
+
+from telemetry import TelemetryManager, get_telemetry_manager
+
+logger = logging.getLogger(__name__)
+
+
+class ScoringEngine:
+    """
+    Ranks provider+model combinations using:
+    - Virtual models: Agentic(70%) + TPS(30%)
+    - Specific models: TPS(70%) + Quality(30%)
+    - Availability is a yes/no filter (excluded providers)
+    """
+
+    def __init__(self, telemetry: Optional[TelemetryManager] = None):
+        self.telemetry = telemetry or get_telemetry_manager()
+        self.agentic_scores = self._load_agentic_scores()
+        self.max_observed_tps = 3000  # Will be updated from telemetry
+
+    def _load_agentic_scores(self) -> Dict[str, float]:
+        """Load SWE-bench agentic coding scores for models."""
+        return {
+            "claude-opus-4-5": 74.4,
+            "claude-opus-4.5": 74.4,
+            "gemini-3-pro": 74.2,
+            "gpt-5-2": 71.8,
+            "gpt-5.2": 71.8,
+            "claude-sonnet-4-5": 70.6,
+            "claude-sonnet-4.5": 70.6,
+            "gpt-4": 68.5,
+            "gpt-4o": 68.3,
+            "gemini-1.5-pro": 67.2,
+            "llama-3.3-70b": 65.2,
+            "llama-3.3-70b-versatile": 65.2,
+            "codestral": 63.5,
+        }
+
+    def get_agentic_score(self, model: str) -> float:
+        """Get agentic coding score for a model (normalized 0-1)."""
+        model_lower = model.lower().strip()
+
+        for key, score in self.agentic_scores.items():
+            if key.lower() in model_lower or model_lower in key.lower():
+                return score / 100.0
+
+        return 0.5
+
+    def get_average_tps(self, provider: str, model: str, minutes: int = 60) -> float:
+        """Get average TPS from telemetry data."""
+        try:
+            since = datetime.now() - timedelta(minutes=minutes)
+
+            conn = self.telemetry._connect()
+            cursor = conn.cursor()
+
+            cursor.execute(
+                """
+                SELECT AVG(tokens_per_second)
+                FROM api_calls
+                WHERE provider = ? AND model = ? AND timestamp >= ? AND success = 1
+                AND tokens_per_second IS NOT NULL
+            """,
+                (provider, model, since),
+            )
+
+            result = cursor.fetchone()[0]
+            conn.close()
+
+            return result or 0.0
+
+        except Exception as e:
+            logger.error(f"Failed to get TPS for {provider}/{model}: {e}")
+            return 0.0
+
+    def is_provider_available(
+        self,
+        provider: str,
+        model: Optional[str] = None,
+    ) -> bool:
+        """
+        Check if provider is available (not rate-limited, not unhealthy).
+        This is a yes/no filter, not a scoring factor.
+        """
+        health = self.telemetry.get_provider_health(provider, model)
+
+        if not health.get("is_healthy", True):
+            logger.debug(f"{provider}/{model or '*'} not available: unhealthy")
+            return False
+
+        if health.get("consecutive_failures", 0) > 5:
+            logger.debug(f"{provider}/{model or '*'} not available: too many failures")
+            return False
+
+        is_limited, _ = self.telemetry.check_rate_limit(provider, model or "*")
+        if is_limited:
+            logger.debug(f"{provider}/{model or '*'} not available: rate limited")
+            return False
+
+        return True
+
+    def calculate_virtual_model_score(
+        self,
+        provider: str,
+        model: str,
+    ) -> float:
+        """
+        Calculate score for virtual models:
+        Score = Agentic(70%) + TPS(30%)
+        Availability is a yes/no filter (excluded if not available)
+        """
+        if not self.is_provider_available(provider, model):
+            return 0.0
+
+        agentic_score = self.get_agentic_score(model)
+        tps = self.get_average_tps(provider, model, minutes=60)
+        tps_score = min(tps / 3000.0, 1.0) if tps else 0.1
+
+        final_score = (agentic_score * 0.70) + (tps_score * 0.30)
+
+        logger.debug(
+            f"Virtual model score for {provider}/{model}: Agentic={agentic_score:.3f}, TPS={tps_score:.3f}, "
+            f"Final={final_score:.3f}"
+        )
+
+        return final_score
+
+    def calculate_specific_model_score(
+        self,
+        provider: str,
+        model: str,
+    ) -> float:
+        """
+        Calculate score for specific models:
+        Score = TPS(70%) + Agentic(30%)
+        Availability is a yes/no filter (excluded if not available)
+        """
+        if not self.is_provider_available(provider, model):
+            return 0.0
+
+        tps = self.get_average_tps(provider, model, minutes=60)
+        tps_score = min(tps / 3000.0, 1.0) if tps else 0.1
+
+        agentic_score = self.get_agentic_score(model)
+
+        final_score = (tps_score * 0.70) + (agentic_score * 0.30)
+
+        logger.debug(
+            f"Specific model score for {provider}/{model}: TPS={tps_score:.3f}, "
+            f"Agentic={agentic_score:.3f}, Final={final_score:.3f}"
+        )
+
+        return final_score
+
+    def rank_virtual_models(
+        self,
+        model_candidates: List[str],
+        providers_per_model: Dict[str, List[str]],
+    ) -> List[Dict[str, Any]]:
+        """
+        Rank provider+model combinations for virtual models.
+        Returns sorted list of {provider, model, score}
+        """
+        candidates = []
+
+        for model in model_candidates:
+            providers = providers_per_model.get(model, [])
+
+            for provider in providers:
+                score = self.calculate_virtual_model_score(provider, model)
+
+                if score > 0:  # Only include available providers
+                    candidates.append(
+                        {
+                            "provider": provider,
+                            "model": model,
+                            "score": score,
+                            "agentic_score": self.get_agentic_score(model),
+                        }
+                    )
+
+        ranked = sorted(candidates, key=lambda x: x["score"], reverse=True)
+
+        logger.info(f"Ranked {len(ranked)} candidates for virtual models")
+        return ranked
+
+    def rank_specific_model(
+        self,
+        model: str,
+        providers: List[str],
+    ) -> List[Dict[str, Any]]:
+        """
+
+--- config/chat_model_rankings.yaml ---
+# Chat Model Rankings from Artificial Analysis
+# Source: https://artificialanalysis.ai/leaderboards/providers
+# Last Updated: 2026-01-31
+# 
+# Intelligence Index: 0-100 (higher is better)
+# Response Time: Average time to complete a standard prompt (seconds)
+# Efficiency Score: Intelligence / Response Time
+
+metadata:
+  source: "Artificial Analysis"
+  source_url: "https://artificialanalysis.ai/leaderboards/providers"
+  update_frequency: "daily"
+  last_updated: "2026-01-31"
+  methodology: |
+    Intelligence Index combines 10 evaluations including:
+    - GDPval-AA, τ²-Bench Telecom, Terminal-Bench Hard
+    - SciCode, AA-LCR, AA-Omniscience, IFBench
+    - Humanity's Last Exam, GPQA Diamond, CritPt
+
+models:
+  # Tier 1: Highest Intelligence (Chat-smart candidates)
+  - id: "google/gemini-3-pro"
+    name: "Gemini 3 Pro"
+    intelligence_score: 94.5
+    response_time_seconds: 8.2
+    efficiency_score: 11.52
+    chat_arena_score: 1489
+    context_window: 1000000
+    tier: "elite"
+    
+  - id: "anthropic/claude-opus-4-5-thinking-32k"
+    name: "Claude Opus 4.5 Thinking"
+    intelligence_score: 93.8
+    response_time_seconds: 12.5
+    efficiency_score: 7.50
+    chat_arena_score: 1468
+    context_window: 32768
+    tier: "elite"
+    reasoning_effort: "high"
+    
+  - id: "openai/gpt-5-xhigh"
+    name: "GPT-5 xHigh"
+    intelligence_score: 93.2
+    response_time_seconds: 9.8
+    efficiency_score: 9.51
+    chat_arena_score: 1475
+    context_window: 128000
+    tier: "elite"
+    
+  - id: "xai/grok-4-1-thinking"
+    name: "Grok 4.1 Thinking"
+    intelligence_score: 92.7
+    response_time_seconds: 7.1
+    efficiency_score: 13.06
+    chat_arena_score: 1477
+    context_window: 131072
+    tier: "elite"
+    
+  # Tier 2: High Intelligence (Chat-smart fallback)
+  - id: "google/gemini-3-flash"
+    name: "Gemini 3 Flash"
+    intelligence_score: 89.3
+    response_time_seconds: 3.2
+    efficiency_score: 27.91
+    chat_arena_score: 1471
+    context_window: 1000000
+    tier: "premium"
+    
+  - id: "anthropic/claude-sonnet-4-5-thinking-32k"
+    name: "Claude Sonnet 4.5 Thinking"
+    intelligence_score: 88.9
+    response_time_seconds: 6.8
+    efficiency_score: 13.07
+    chat_arena_score: 1452
+    context_window: 32768
+    tier: "premium"
+    reasoning_effort: "medium"
+    
+  - id: "openai/gpt-5-high"
+    name: "GPT-5 High"
+    intelligence_score: 88.1
+    response_time_seconds: 4.5
+    efficiency_score: 19.58
+    chat_arena_score: 1460
+    context_window: 128000
+    tier: "premium"
+    
+  - id: "xai/grok-4-1"
+    name: "Grok 4.1"
+    intelligence_score: 87.4
+    response_time_seconds: 2.9
+    efficiency_score: 30.14
+    chat_arena_score: 1466
+    context_window: 131072
+    tier: "premium"
+    
+  # Tier 3: Fast & Efficient (Chat-fast candidates)
+  - id: "meta/llama-4-scout"
+    name: "Llama 4 Scout"
+    intelligence_score: 84.2
+    response_time_seconds: 2.1
+    efficiency_score: 40.10
+    chat_arena_score: 1420
+    context_window: 10000000
+    tier: "fast"
+    
+  - id: "mistral/medium-3-1"
+    name: "Mistral Medium 3.1"
+    intelligence_score: 82.7
+    response_time_seconds: 1.8
+    efficiency_score: 45.94
+    chat_arena_score: 1405
+    context_window: 128000
+    tier: "fast"
+    
+  - id: "google/gemini-2-flash"
+    name: "Gemini 2 Flash"
+    intelligence_score: 82.1
+    response_time_seconds: 1.8
+    efficiency_score: 45.61
+    chat_arena_score: 1385
+    context_window: 1000000
+    tier: "fast"
+    
+  - id: "openai/gpt-5-medium"
+    name: "GPT-5 Medium"
+    intelligence_score: 79.8
+    response_time_seconds: 2.2
+    efficiency_score: 36.27
+    chat_arena_score: 1375
+    context_window: 128000
+    tier: "fast"
+    
+  # Tier 4: Open Models (Budget/Free options)
+  - id: "deepseek/deepseek-v3"
+    name: "DeepSeek V3"
+    intelligence_score: 76.5
+    response_time_seconds: 4.5
+    efficiency_score: 17.00
+    chat_arena_score: 1340
+    context_window: 64000
+    tier: "standard"
+    
+  - id: "qwen/qwen2-5-72b"
+    name: "Qwen 2.5 72B"
+    intelligence_score: 74.2
+    response_time_seconds: 3.8
+    efficiency_score: 19.53
+    chat_arena_score: 1320
+    context_window: 131072
+    tier: "standard"
+    
+  - id: "meta/llama-3-3-70b"
+    name: "Llama 3.3 70B"
+    intelligence_score: 71.8
+    response_time_seconds: 2.5
+    efficiency_score: 28.72
+    chat_arena_score: 1290
+    context_window: 131072
+    tier: "standard"
+
+virtual_model_mappings:
+  chat-smart:
+    description: "Highest intelligence models for complex reasoning"
+    selection_criteria: "intelligence_score descending"
+    min_intelligence: 85.0
+    models:
+      - "google/gemini-3-pro"
+      - "anthropic/claude-opus-4-5-thinking-32k"
+      - "openai/gpt-5-xhigh"
+      - "xai/grok-4-1-thinking"
+      - "google/gemini-3-flash"
+      - "anthropic/claude-sonnet-4-5-thinking-32k"
+      - "openai/gpt-5-high"
+      - "xai/grok-4-1"
+      
+  chat-fast:
+    description: "Best efficiency (intelligence / response time)"
+    selection_criteria: "efficiency_score descending"
+    min_intelligence: 70.0
+    models:
+      - "google/gemini-3-flash-lite"
+      - "mistral/medium-3-1"
+      - "meta/llama-4-scout"
+      - "openai/gpt-5-medium"
+      - "meta/llama-3-3-70b"
+      - "qwen/qwen2-5-72b"
+      - "deepseek/deepseek-v3"
+      - "google/gemini-3-flash"
+
+GitHub Issue #46: Phase 2.2: Implement chat_score() function
+
+Description: Part of Phase 2.2 Scoring Algorithm.
+
+Task: Implement the changes needed to resolve this issue.
+For each file to create or modify, output a block in this EXACT format:
+=== FILE: path/to/file.py ===
+<complete new file contents>
+=== END FILE ===
+Only allowed path prefixes: src/, config/, docs/
+Output ONLY file blocks. No prose outside blocks.
