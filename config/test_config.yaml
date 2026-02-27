@@ -1,0 +1,23 @@
+# Test configuration for G4F provider integration tests
+
+# G4F Provider Configuration
+g4f:
+  enabled: true
+  base_url: "https://api.g4f.pro"
+  timeout: 30
+  max_retries: 3
+  default_model: "gpt-3.5-turbo"
+  supported_models:
+    - gpt-3.5-turbo
+    - gpt-4
+    - gpt-4-turbo
+    - claude-3-opus
+    - claude-3-sonnet
+    - llama-3-70b
+    - mistral-large
+
+# Test-specific settings
+test:
+  mock_responses: true
+  stream_chunk_delay: 0.01
+  max_test_duration: 5
