@@ -1,0 +1,249 @@
+#!/usr/bin/env python3
+"""
+Scoring API Module
+
+FastAPI endpoints for accessing model and provider scoring information.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
+from fastapi.responses import JSONResponse
+from typing import Dict, Any, List, Optional
+import logging
+
+from rotator_library.scoring_engine import DynamicScoringEngine, ModelScore
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Create router for scoring API endpoints
+router = APIRouter(prefix="/api/scoring", tags=["scoring"])
+
+
+def get_scoring_engine(request: Request) -> DynamicScoringEngine:
+    """Dependency to get the scoring engine from app state."""
+    if not hasattr(request.app.state, "scoring_engine"):
+        raise HTTPException(
+            status_code=500, detail="Scoring engine not initialized"
+        )
+    return request.app.state.scoring_engine
+
+
+@router.get("/models/{provider}/{model}")
+async def get_model_score(
+    request: Request,
+    provider: str,
+    model: str,
+    engine: DynamicScoringEngine = Depends(get_scoring_engine),
+) -> Dict[str, Any]:
+    """
+    Get detailed scoring information for a specific model.
+
+    Args:
+        provider: Provider name (e.g., 'openai', 'anthropic')
+        model: Model name (e.g., 'gpt-4', 'claude-3-opus')
+
+    Returns:
+        JSON with model scores and metadata
+    """
+    try:
+        agentic_score = engine.get_model_score(provider, model)
+        hallucination_rate = engine.get_hallucination_rate(provider, model)
+        web_search_capable = engine.get_web_search_capable(provider, model)
+        tps_estimate = engine.get_tps_estimate(provider, model)
+
+        if agentic_score is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model '{provider}/{model}' not found in rankings"
+            )
+
+        return {
+            "provider": provider,
+            "model": model,
+            "scores": {
+                "agentic_coding": agentic_score,
+                "tps_estimate": tps_estimate,
+                "hallucination_rate": hallucination_rate,
+            },
+            "capabilities": {
+                "web_search_capable": web_search_capable,
+            },
+            "timestamp": engine._last_refresh if hasattr(engine, '_last_refresh') else None,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get model score for {provider}/{model}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get model score: {e}"
+        )
+
+
+@router.get("/virtual/{virtual_model}")
+async def get_virtual_model_scores(
+    request: Request,
+    virtual_model: str,
+    engine: DynamicScoringEngine = Depends(get_scoring_engine),
+) -> Dict[str, Any]:
+    """
+    Get scores for all providers supporting a virtual model category.
+
+    Args:
+        virtual_model: Virtual model category (e.g., 'coding-elite', 'chat-smart', 'coding-fast')
+
+    Returns:
+        JSON with ranked list of providers for this virtual model
+    """
+    try:
+        # Load rankings to get provider mappings for virtual models
+        rankings = engine.load_model_rankings()
+        
+        # Filter models that belong to this virtual category
+        # Virtual models are typically tagged in the rankings
+        category_models = []
+        
+        for model_id, model_data in rankings.items():
+            virtual_models = model_data.get("virtual_models", [])
+            categories = model_data.get("categories", [])
+            
+            if virtual_model in virtual_models or virtual_model in categories:
+                if "/" in model_id:
+                    prov, mod = model_id.split("/", 1)
+                    score = engine.calculate_model_score(prov, mod, virtual_model)
+                    if score:
+                        category_models.append(score)
+
+        # Sort by total score descending
+        category_models.sort(key=lambda x: x.total_score, reverse=True)
+
+        return {
+            "virtual_model": virtual_model,
+            "weights": engine.CATEGORY_WEIGHTS.get(virtual_model, engine.CODING_WEIGHTS),
+            "threshold": engine.THRESHOLDS.get(virtual_model, 0.0),
+            "providers": [
+                {
+                    "provider": m.provider,
+                    "model": m.model,
+                    "total_score": m.total_score,
+                    "agentic_score": m.agentic_score,
+                    "tps": m.tps,
+                    "availability": m.availability,
+                    "hallucination_rate": m.hallucination_rate,
+                    "meets_threshold": m.meets_threshold,
+                }
+                for m in category_models
+            ],
+            "count": len(category_models),
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get virtual model scores for {virtual_model}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get virtual model scores: {e}"
+        )
+
+
+@router.get("/weights")
+async def get_scoring_weights(
+    request: Request,
+    engine: DynamicScoringEngine = Depends(get_scoring_engine),
+) -> Dict[str, Any]:
+    """
+    Get current scoring weights and thresholds.
+
+    Returns:
+        JSON with category weights, thresholds, and configuration
+    """
+    try:
+        return {
+            "category_weights": engine.CATEGORY_WEIGHTS,
+            "coding_weights": engine.CODING_WEIGHTS,
+            "chat_weights": engine.CHAT_WEIGHTS,
+            "thresholds": engine.THRESHOLDS,
+            "description": "Weights used for dynamic model scoring and ranking",
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get scoring weights: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get scoring weights: {e}"
+        )
+
+
+@router.get("/compare")
+async def compare_models(
+    request: Request,
+    models: str = Query(..., description="Comma-separated list of provider/model pairs (e.g., 'openai/gpt-4,anthropic/claude-3')"),
+    engine: DynamicScoringEngine = Depends(get_scoring_engine),
+) -> Dict[str, Any]:
+    """
+    Compare scores for multiple models side by side.
+
+    Args:
+        models: Comma-separated list of provider/model pairs
+
+    Returns:
+        JSON with comparison data for requested models
+    """
+    try:
+        model_list = [m.strip() for m in models.split(",") if m.strip()]
+        comparisons = []
+
+        for model_pair in model_list:
+            if "/" not in model_pair:
+                continue
+                
+            provider, model = model_pair.split("/", 1)
+            agentic_score = engine.get_model_score(provider, model)
+            
+            if agentic_score is not None:
+                comparisons.append({
+                    "provider": provider,
+                    "model": model,
+                    "agentic_score": agentic_score,
+                    "tps_estimate": engine.get_tps_estimate(provider, model),
+                    "hallucination_rate": engine.get_hallucination_rate(provider, model),
+                    "web_search_capable": engine.get_web_search_capable(provider, model),
+                })
+
+        # Sort by agentic score descending
+        comparisons.sort(key=lambda x: x["agentic_score"], reverse=True)
+
+        return {
+            "comparisons": comparisons,
+            "count": len(comparisons),
+            "requested": model_list,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to compare models: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to compare models: {e}"
+        )
+
+
+@router.post("/refresh")
+async def refresh_rankings(
+    request: Request,
+    engine: DynamicScoringEngine = Depends(get_scoring_engine),
+) -> Dict[str, Any]:
+    """
+    Force refresh of model rankings cache.
+
+    Returns:
+        JSON with refresh status and timestamp
+    """
+    try:
+        rankings = engine.load_model_rankings()
+        return {
+            "status": "success",
+            "models_loaded": len(rankings),
+            "last_refresh": engine._last_refresh,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to refresh rankings: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to refresh rankings: {e}"
+        )
