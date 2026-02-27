@@ -1,385 +1,195 @@
+# src/proxy_app/enhanced_proxy.py
 """
-Enhanced Proxy Module
-
-This module provides complete multi-provider routing functionality as a drop-in enhancement
-to the existing proxy. It maintains full OpenAI compatibility while adding virtual models,
-MoE support, web-search augmentation, and $0-only guarantees.
+Enhanced proxy with streaming-aware timeout handling.
 """
 
-import os
-import sys
-import asyncio
+import json
 import logging
-import time
-import uuid
-from pathlib import Path
-from typing import Dict, Any, AsyncGenerator, Union, List
+from typing import Optional, Dict, Any, AsyncGenerator
+import httpx
+from fastapi import Request, Response, HTTPException
+from fastapi.responses import StreamingResponse
 
-# Add parent directory to path for imports
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-
-# Import existing infrastructure
-from proxy_app.main import (
-    app,
-    lifespan,
-    RotatingClient,
-    EmbeddingBatcher,
-    get_rotating_client,
-    get_embedding_batcher,
-    verify_api_key,
-    ModelCard,
-    ModelList,
-)
-from proxy_app.router_integration import RouterIntegration
+from rotator_library.timeout_config import TimeoutConfig
+from rotator_library.client import is_streaming_request, get_timeout_for_request
 
 logger = logging.getLogger(__name__)
 
-# Initialize router integration
-_router_integration = None
 
-
-def initialize_router_integration(
-    rotating_client: RotatingClient = None,
-) -> RouterIntegration:
-    """Initialize the router integration."""
-    global _router_integration
-
-    config_path = Path(__file__).parent.parent.parent / "config" / "router_config.yaml"
-
-    if _router_integration is None:
-        _router_integration = RouterIntegration(
-            rotating_client=rotating_client, config_path=str(config_path)
-        )
-        logger.info("Router integration initialized")
-
-    return _router_integration
-
-
-# Store original endpoints for reference
-_original_chat_completions = None
-_original_models_endpoint = None
-
-
-def preserve_original_endpoints() -> None:
-    """Store references to original endpoints for fallback."""
-    global _original_chat_completions, _original_models_endpoint
-
-    # These will be set during enhancement
-    pass
-
-
-# Enhanced model list endpoint
-@app.get("/v1/models")
-async def enhanced_models_list(request: Request) -> ModelList:
-    """Enhanced models endpoint that includes virtual router models."""
-    try:
-        # Initialize router if not done
-        if _router_integration is None:
-            rotating_client = get_rotating_client(request)
-            initialize_router_integration(rotating_client)
-
-        # Get models from router
-        router_models = _router_integration.get_models()
-
-        # Convert to OpenAI format
-        models_data = [
-            ModelCard(
-                id=model["id"],
-                created=model.get("created", int(time.time())),
-                owned_by=model.get("owned_by", "unknown"),
-            )
-            for model in router_models
-        ]
-
-        return ModelList(data=models_data)
-
-    except Exception as e:
-        logger.error(f"Enhanced models endpoint failed: {e}")
-        # Fallback to showing a basic model list
-        current_time = int(time.time())
-        return ModelList(
-            data=[
-                ModelCard(
-                    id="router/best-coding", created=current_time, owned_by="router"
-                ),
-                ModelCard(
-                    id="router/best-reasoning", created=current_time, owned_by="router"
-                ),
-                ModelCard(
-                    id="router/best-research", created=current_time, owned_by="router"
-                ),
-                ModelCard(
-                    id="router/best-chat", created=current_time, owned_by="router"
-                ),
-                ModelCard(
-                    id="router/best-coding-moe", created=current_time, owned_by="router"
-                ),
-            ]
-        )
-
-
-# Enhanced health endpoint showing router status
-@app.get("/health")
-@app.get("/v1/health")
-async def enhanced_health_check(request: Request) -> Dict[str, Any]:
-    """Enhanced health check showing router and provider status."""
-    try:
-        if _router_integration is None:
-            rotating_client = get_rotating_client(request)
-            initialize_router_integration(rotating_client)
-
-        # Get router health
-        router_health = _router_integration.get_health()
-
-        # Get basic proxy health
-        basic_health = {"status": "healthy", "router": router_health}
-
-        return basic_health
-
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return {"status": "degraded", "error": str(e)}
-
-
-# Enhanced chat completions endpoint
-@app.post("/v1/chat/completions")
-async def enhanced_chat_completions(
-    request: Request, auth: str = Depends(verify_api_key)
-) -> Union[Dict[str, Any], AsyncGenerator[str, None]]:
-    """Enhanced chat completions with multi-provider routing."""
-
-    request_id = f"req_{uuid.uuid4().hex[:16]}"
-    start_time = time.time()
-
-    try:
-        # Parse request
-        request_data = await request.json()
-        model = request_data.get("model", "")
-
-        logger.info(f"[{request_id}] Chat completion request for model: {model}")
-
-        # Initialize router if not done
-        if _router_integration is None:
-            rotating_client = get_rotating_client(request)
-            initialize_router_integration(rotating_client)
-
-        # Route through enhanced system
-        response = await _router_integration.chat_completions(
-            request_data=request_data, raw_request=request, enable_logging=True
-        )
-
-        # Handle streaming
-        if request_data.get("stream", False):
-            return StreamingResponse(
-                _wrap_streaming_response(response, request_id, start_time),
-                media_type="text/plain",
-            )
+class EnhancedProxy:
+    """
+    Proxy handler that applies appropriate timeouts based on streaming mode.
+    """
+    
+    def __init__(self):
+        self.session_stats = {
+            "streaming_requests": 0,
+            "non_streaming_requests": 0
+        }
+    
+    async def proxy_request(
+        self, 
+        request: Request, 
+        target_url: str, 
+        provider_headers: Optional[Dict[str, str]] = None
+    ) -> Response:
+        """
+        Proxy a request to a provider with appropriate timeout handling.
+        
+        Automatically detects streaming requests and applies suitable timeouts.
+        """
+        body = await request.body()
+        is_streaming = is_streaming_request(body)
+        
+        # Update stats
+        if is_streaming:
+            self.session_stats["streaming_requests"] += 1
+            logger.debug(f"Detected streaming request to {target_url}")
         else:
-            duration_ms = (time.time() - start_time) * 1000
-            logger.info(f"[{request_id}] Request completed in {duration_ms:.1f}ms")
-            return response
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        duration_ms = (time.time() - start_time) * 1000
-        logger.error(f"[{request_id}] Request failed after {duration_ms:.1f}ms: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-async def _wrap_streaming_response(
-    response_stream: AsyncGenerator[Dict[str, Any], None],
-    request_id: str,
-    start_time: float,
-) -> AsyncGenerator[str, None]:
-    """Wrap streaming response with proper SSE formatting."""
-
-    chunk_count = 0
-    try:
-        async for chunk in response_stream:
-            # Ensure chunk is properly formatted
-            if isinstance(chunk, dict):
-                # Check if it's already a properly formatted chunk
-                if "id" in chunk and "choices" in chunk:
-                    # Standard LiteLLM chunk format
-                    yield f"data: {chunk}\\n\\n"
-                    chunk_count += 1
-                elif "error" in chunk:
-                    # Error chunk
-                    yield f"data: {chunk}\\n\\n"
+            self.session_stats["non_streaming_requests"] += 1
+        
+        # Select appropriate timeout
+        timeout = get_timeout_for_request(explicit_streaming=is_streaming)
+        
+        # Prepare headers
+        headers = self._prepare_headers(request, provider_headers)
+        
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                if is_streaming:
+                    return await self._handle_streaming_request(
+                        client, request, target_url, body, headers
+                    )
                 else:
-                    # Raw content, wrap it
-                    wrapped_chunk = {
-                        "id": f"router-{request_id}-{chunk_count}",
-                        "object": "chat.completion.chunk",
-                        "created": int(time.time()),
-                        "model": chunk.get("model", "unknown"),
-                        "choices": [
-                            {
-                                "index": 0,
-                                "delta": chunk.get("delta", {"content": ""}),
-                                "finish_reason": chunk.get("finish_reason"),
-                            }
-                        ],
-                    }
-                    yield f"data: {wrapped_chunk}\\n\\n"
-                    chunk_count += 1
-            else:
-                # String or other type, convert to string
-                yield f"data: {chunk}\\n\\n"
-                chunk_count += 1
+                    return await self._handle_non_streaming_request(
+                        client, request, target_url, body, headers
+                    )
+        except httpx.TimeoutException as e:
+            logger.error(f"Timeout {'streaming' if is_streaming else 'non-streaming'} request to {target_url}: {e}")
+            raise HTTPException(
+                status_code=504,
+                detail=f"Gateway timeout: {'streaming' if is_streaming else 'completion'} request exceeded time limit"
+            )
+        except Exception as e:
+            logger.error(f"Error proxying request to {target_url}: {e}")
+            raise HTTPException(status_code=502, detail="Bad gateway")
+    
+    async def _handle_streaming_request(
+        self,
+        client: httpx.AsyncClient,
+        request: Request,
+        target_url: str,
+        body: bytes,
+        headers: Dict[str, str]
+    ) -> StreamingResponse:
+        """Handle streaming request with chunked timeout handling."""
+        
+        async def stream_generator() -> AsyncGenerator[str, None]:
+            try:
+                async with client.stream(
+                    method=request.method,
+                    url=target_url,
+                    content=body,
+                    headers=headers
+                ) as response:
+                    response.raise_for_status()
+                    async for chunk in response.aiter_text():
+                        yield chunk
+            except httpx.TimeoutException:
+                logger.error("Streaming timeout - no data received within chunk timeout window")
+                yield "data: [ERROR] Stream timeout - connection stalled\n\n"
+            except Exception as e:
+                logger.error(f"Streaming error: {e}")
+                yield f"data: [ERROR] {str(e)}\n\n"
+        
+        return StreamingResponse(
+            stream_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            }
+        )
+    
+    async def _handle_non_streaming_request(
+        self,
+        client: httpx.AsyncClient,
+        request: Request,
+        target_url: str,
+        body: bytes,
+        headers: Dict[str, str]
+    ) -> Response:
+        """Handle standard non-streaming request."""
+        response = await client.request(
+            method=request.method,
+            url=target_url,
+            content=body,
+            headers=headers
+        )
+        response.raise_for_status()
+        
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=dict(response.headers)
+        )
+    
+    def _prepare_headers(
+        self, 
+        request: Request, 
+        provider_headers: Optional[Dict[str, str]] = None
+    ) -> Dict[str, str]:
+        """Prepare headers for upstream request."""
+        headers = {}
+        
+        # Copy safe headers from original request
+        safe_headers = ["content-type", "accept", "user-agent"]
+        for header in safe_headers:
+            if value := request.headers.get(header):
+                headers[header] = value
+        
+        # Add provider-specific headers (auth, etc.)
+        if provider_headers:
+            headers.update(provider_headers)
+        
+        # Remove problematic headers
+        headers.pop("host", None)
+        headers.pop("content-length", None)  # httpx will recalculate
+        
+        return headers
+    
+    def get_stats(self) -> Dict[str, int]:
+        """Get session statistics."""
+        return self.session_stats.copy()
 
-        # Send done signal
-        yield "data: [DONE]\\n\\n"
 
-        duration_ms = (time.time() - start_time) * 1000
+class TimeoutAwareRouter:
+    """
+    Router component that ensures providers respect streaming timeouts.
+    """
+    
+    @staticmethod
+    def validate_streaming_timeout_config():
+        """
+        Validate that timeout configuration is suitable for expected workloads.
+        Logs warnings if timeouts seem misconfigured.
+        """
+        streaming_read = TimeoutConfig.read_streaming()
+        non_streaming_read = TimeoutConfig.read_non_streaming()
+        
+        if streaming_read > 300:
+            logger.warning(
+                f"Streaming read timeout ({streaming_read}s) is quite high. "
+                "Consider reducing to detect stalled connections faster."
+            )
+        
+        if non_streaming_read < 60:
+            logger.warning(
+                f"Non-streaming read timeout ({non_streaming_read}s) is very low. "
+                "Long completions may fail."
+            )
+        
         logger.info(
-            f"[{request_id}] Stream completed in {duration_ms:.1f}ms ({chunk_count} chunks)"
+            f"Timeout configuration - Streaming: {streaming_read}s, "
+            f"Non-streaming: {non_streaming_read}s"
         )
-
-    except Exception as e:
-        duration_ms = (time.time() - start_time) * 1000
-        logger.error(f"[{request_id}] Stream failed after {duration_ms:.1f}ms: {e}")
-        yield f'data: {{"error": "{str(e)}"}}\\n\\n'
-        yield "data: [DONE]\\n\\n"
-
-
-# Router status endpoint
-@app.get("/v1/router/status")
-async def router_status(request: Request) -> Dict[str, Any]:
-    """Get detailed router status including provider health."""
-    try:
-        if _router_integration is None:
-            rotating_client = get_rotating_client(request)
-            initialize_router_integration(rotating_client)
-
-        health = _router_integration.get_health()
-
-        # Add runtime info
-        health.update(
-            {
-                "free_only_mode": _router_integration.free_only_mode,
-                "timestamp": time.time(),
-                "uptime_seconds": time.time() - time.time(),  # Placeholder
-            }
-        )
-
-        return health
-
-    except Exception as e:
-        logger.error(f"Router status failed: {e}")
-        return {"error": str(e)}
-
-
-# Router metrics endpoint
-@app.get("/v1/router/metrics")
-async def router_metrics(request: Request) -> Dict[str, Any]:
-    """Get router performance metrics."""
-    try:
-        if _router_integration is None:
-            rotating_client = get_rotating_client(request)
-            initialize_router_integration(rotating_client)
-
-        # Get router health (contains metrics)
-        health = _router_integration.get_health()
-
-        # Summarize metrics
-        provider_stats = {}
-        for provider, models in health.get("providers", {}).items():
-            provider_stats[provider] = {
-                "total_models": len(models),
-                "healthy_models": sum(
-                    1 for m in models.values() if m.get("status") == "healthy"
-                ),
-                "avg_success_rate": sum(
-                    m.get("success_rate", 0) for m in models.values()
-                )
-                / len(models)
-                if models
-                else 0,
-                "avg_latency": sum(m.get("ewma_latency_ms", 0) for m in models.values())
-                / len(models)
-                if models
-                else 0,
-            }
-
-        return {
-            "providers": provider_stats,
-            "search_providers": health.get("search_providers", {}),
-            "timestamp": time.time(),
-        }
-
-    except Exception as e:
-        logger.error(f"Router metrics failed: {e}")
-        return {"error": str(e)}
-
-
-# Configuration refresh endpoint
-@app.post("/v1/router/refresh")
-async def refresh_router_config(request: Request) -> Dict[str, Any]:
-    """Refresh router configuration."""
-    try:
-        if _router_integration is None:
-            return {"error": "Router not initialized"}
-
-        _router_integration.refresh_configuration()
-        return {"status": "refreshed"}
-
-    except Exception as e:
-        logger.error(f"Router refresh failed: {e}")
-        return {"error": str(e)}
-
-
-# Dynamic search endpoint for testing
-@app.post("/v1/search")
-async def perform_search(request: Request) -> Dict[str, Any]:
-    """Perform web search using configured search providers."""
-    try:
-        request_data = await request.json()
-        query = request_data.get("query", "")
-        max_results = request_data.get("max_results", 5)
-
-        if not query:
-            raise HTTPException(status_code=400, detail="Query is required")
-
-        # This is simplified - real implementation would use router's search providers
-        # For now, return a placeholder response
-        return {
-            "query": query,
-            "results": [
-                {
-                    "title": "Example search result",
-                    "url": "https://example.com",
-                    "description": "This is a placeholder for search results",
-                }
-            ],
-            "status": "placeholder",
-            "message": "Search functionality will be implemented with real providers",
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Search failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Search error: {str(e)}")
-
-
-def enhance_proxy() -> None:
-    """Apply enhancements to the existing proxy."""
-    logger.info("LLM Proxy enhanced with multi-provider router")
-    logger.info("Virtual models available:")
-    logger.info("  - router/best-coding")
-    logger.info("  - router/best-reasoning")
-    logger.info("  - router/best-research")
-    logger.info("  - router/best-chat")
-    logger.info("  - router/best-coding-moe")
-    logger.info(f"FREE_ONLY_MODE: {os.getenv('FREE_ONLY_MODE', 'true')}")
-
-    # Note: The actual endpoints are defined above with enhanced_* prefixes
-    # The existing main.py endpoints will co-exist with these enhanced versions
-    # The enhanced versions handle virtual models and fall back appropriately
-
-
-if __name__ == "__main__":
-    enhance_proxy()
-    print("Enhanced proxy module loaded. Use the main server from proxy_app.main")
