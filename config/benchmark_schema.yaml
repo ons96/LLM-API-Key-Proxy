@@ -1,0 +1,160 @@
+# Phase 2.1 Benchmark Data Schema Configuration
+# Defines mappings, validation rules, and normalization for benchmark data pipeline
+
+schema_version: "2.1.0"
+description: "Benchmark data schema for LLM proxy routing decisions"
+
+# === Source Definitions ===
+sources:
+  artificial_analysis:
+    name: "Artificial Analysis API"
+    api_version: "v2"
+    endpoint: "https://artificialanalysis.ai/api/v2/data/llms/models"
+    auth_type: "api_key"
+    refresh_interval_hours: 24
+    trust_score: 0.95  # Data reliability weight (0-1)
+    enabled: true
+    
+    # How to map API response fields to schema fields
+    field_mappings:
+      # Direct mappings (API field -> Schema field)
+      direct:
+        id: "id"
+        name: "name"
+        slug: "slug"
+        release_date: "release_date"
+        context_window: "context_window"
+        median_output_tokens_per_second: "performance.tokens_per_second"
+        median_time_to_first_token_seconds: "performance.latency_first_token_seconds"
+      
+      # Nested object mappings
+      nested:
+        model_creator:
+          name: "model_creator.name"
+          slug: "model_creator.slug"
+        
+        evaluations:
+          # Maps eval_* fields to standardized names
+          pattern_match:
+            prefix: "eval_"
+            strip_prefix: true
+        
+        pricing:
+          input_per_1m_tokens: "pricing.input_price_per_1k"
+          output_per_1m_tokens: "pricing.output_price_per_1k"
+          conversion_factor: 0.001  # Divide by 1000 to go from per-1M to per-1K
+
+  manual:
+    name: "Manual Entry"
+    trust_score: 0.8
+    enabled: true
+
+# === Validation Rules ===
+validation_rules:
+  freshness:
+    max_age_hours: 168  # 1 week - data older than this triggers refresh warning
+    critical_age_hours: 720  # 30 days - data older than this is rejected
+  
+  required_fields:
+    - id
+    - name
+    - slug
+    - source
+  
+  score_ranges:
+    # Define valid ranges for normalized scores (0-100 scale)
+    artificial_analysis_intelligence_index:
+      min: 0
+      max: 100
+      type: "float"
+    mmlu:
+      min: 0
+      max: 100
+      type: "float"
+    arena_elo:
+      min: 0
+      max: 2000
+      type: "float"
+  
+  pricing:
+    max_reasonable_input_price: 100.0   # $100 per 1K tokens
+    max_reasonable_output_price: 200.0  # $200 per 1K tokens
+
+# === Normalization Rules ===
+normalization:
+  # Model ID normalization patterns
+  # Converts various provider naming conventions to canonical IDs
+  id_patterns:
+    - name: "Google Gemini"
+      pattern: "^google/(gemini-[\\w\\-\\.]+)(?::free)?$"
+      canonical_format: "google/{model}"
+      example: "google/gemini-1.5-pro"
+    
+    - name: "Meta Llama"
+      pattern: "^(?:meta-llama/)?(?:Llama-)?([\\d\\.]+)-(\\d+)b-?(\\w*)$"
+      canonical_format: "llama-{version}-{size}b-{qualifier}"
+      example: "llama-3.3-70b-instruct"
+    
+    - name: "DeepSeek"
+      pattern: "^(?:deepseek/)?(deepseek-[\\w\\-]+)(?::free)?$"
+      canonical_format: "deepseek/{model}"
+      example: "deepseek/deepseek-chat"
+    
+    - name: "Mistral"
+      pattern: "^(?:mistralai/)?(?:mistral-)?([\\w\\-]+)$"
+      canonical_format: "mistral/{model}"
+      example: "mistral/mistral-large"
+
+  # Provider mapping rules
+  # Associates benchmark model IDs with provider_database entries
+  provider_mappings:
+    - benchmark_id_pattern: "gemini-1.5-pro"
+      providers:
+        - id: "google_ai_studio"
+          model_id: "gemini-1.5-pro"
+        - id: "openrouter"
+          model_id: "google/gemini-1.5-pro"
+        - id: "github-models"
+          model_id: "google/gemini-1.5-pro"
+    
+    - benchmark_id_pattern: "llama-3.3-70b"
+      providers:
+        - id: "groq"
+          model_id: "llama-3.3-70b-versatile"
+        - id: "cerebras"
+          model_id: "llama-3.1-70b"  # Note: Cerebras uses 3.1
+        - id: "github-models"
+          model_id: "meta-llama/Llama-3.3-70B-Instruct"
+        - id: "openrouter"
+          model_id: "meta-llama/llama-3.3-70b-instruct"
+    
+    - benchmark_id_pattern: "deepseek-chat"
+      providers:
+        - id: "openrouter"
+          model_id: "deepseek/deepseek-chat"
+        - id: "github-models"
+          model_id: "deepseek-v3"
+
+# === Scoring Configuration ===
+scoring:
+  # Weights for composite scoring (if used by router)
+  weights:
+    intelligence_index: 0.4
+    throughput: 0.2
+    price_efficiency: 0.2
+    latency: 0.2
+  
+  # Price tiers for categorization
+  price_tiers:
+    free:
+      input_max: 0.0
+      output_max: 0.0
+    budget:
+      input_max: 0.50  # $0.50 per 1K tokens
+      output_max: 1.50
+    standard:
+      input_max: 3.00
+      output_max: 6.00
+    premium:
+      input_max: 15.00
+      output_max: 30.00
