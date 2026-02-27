@@ -1,3 +1,4 @@
+=== FILE: src/proxy_app/status_api.py ===
 #!/usr/bin/env python3
 """
 Provider Status API Module
@@ -384,3 +385,4 @@ async def export_provider_status_csv(
         raise HTTPException(
             status_code=500, detail=f"Failed to export provider status: {e}"
         )
+=== END FILE ===
