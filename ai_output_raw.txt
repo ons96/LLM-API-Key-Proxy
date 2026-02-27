@@ -1,0 +1,409 @@
+=== FILE: src/rotator_library/providers/deepinfra_provider.py ===
+"""
+DeepInfra provider implementation for OpenAI-compatible API.
+Supports free tier models including Llama 3.3, Qwen2.5 Coder, and Gemma.
+"""
+
+import os
+from typing import Any, Dict, List, Optional, AsyncGenerator
+import httpx
+
+
+class DeepInfraProvider:
+    """DeepInfra API provider supporting free tier open source models."""
+    
+    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
+        self.api_key = api_key or os.getenv("DEEPINFRA_API_KEY")
+        self.base_url = base_url or "https://api.deepinfra.com/v1/openai"
+        
+    async def chat_completion(
+        self,
+        model: str,
+        messages: List[Dict[str, Any]],
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = None,
+        stream: bool = False,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Send chat completion request to DeepInfra.
+        
+        Args:
+            model: Model identifier (e.g., 'meta-llama/Llama-3.3-70B-Instruct')
+            messages: List of message dicts with 'role' and 'content'
+            temperature: Sampling temperature
+            max_tokens: Maximum tokens to generate
+            stream: Whether to stream the response
+            **kwargs: Additional parameters to pass to the API
+            
+        Returns:
+            JSON response from DeepInfra API
+            
+        Raises:
+            ValueError: If API key is not configured
+            httpx.HTTPError: If the request fails
+        """
+        if not self.api_key:
+            raise ValueError("DEEPINFRA_API_KEY not configured")
+            
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "stream": stream,
+            **kwargs
+        }
+        
+        if max_tokens:
+            payload["max_tokens"] = max_tokens
+            
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            response = await client.post(
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                json=payload
+            )
+            response.raise_for_status()
+            return response.json()
+            
+    async def stream_chat_completion(
+        self,
+        model: str,
+        messages: List[Dict[str, Any]],
+        **kwargs
+    ) -> AsyncGenerator[str, None]:
+        """Stream chat completion from DeepInfra."""
+        if not self.api_key:
+            raise ValueError("DEEPINFRA_API_KEY not configured")
+            
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        
+        payload = {
+            "model": model,
+            "messages": messages,
+            "stream": True,
+            **kwargs
+        }
+        
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            async with client.stream(
+                "POST",
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                json=payload
+            ) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if line.startswith("data: "):
+                        yield line[6:]
+                        
+    def get_free_tier_models(self) -> List[Dict[str, Any]]:
+        """
+        Return list of available free tier models on DeepInfra.
+        Based on research of DeepInfra's free tier offerings.
+        """
+        return [
+            {
+                "id": "meta-llama/Llama-3.3-70B-Instruct",
+                "name": "Llama 3.3 70B Instruct",
+                "context_window": 128000,
+                "coding_score": 0.85,
+                "chat_score": 0.88,
+            },
+            {
+                "id": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+                "name": "Llama 3.1 8B Instruct",
+                "context_window": 128000,
+                "coding_score": 0.72,
+                "chat_score": 0.75,
+                "speed": "fast",
+            },
+            {
+                "id": "Qwen/Qwen2.5-Coder-32B-Instruct",
+                "name": "Qwen2.5 Coder 32B",
+                "context_window": 128000,
+                "coding_score": 0.87,
+                "chat_score": 0.80,
+            },
+            {
+                "id": "google/gemma-2-27b-it",
+                "name": "Gemma 2 27B IT",
+                "context_window": 8192,
+                "coding_score": 0.78,
+                "chat_score": 0.82,
+            },
+            {
+                "id": "microsoft/WizardLM-2-8x22B",
+                "name": "WizardLM 2 8x22B",
+                "context_window": 65536,
+                "coding_score": 0.84,
+                "chat_score": 0.86,
+            },
+        ]
+        
+    def validate_config(self) -> tuple[bool, Optional[str]]:
+        """
+        Validate provider configuration.
+        
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        if not self.api_key:
+            return False, "DEEPINFRA_API_KEY environment variable not set"
+        return True, None
+        
+    def get_rate_limits(self) -> Dict[str, int]:
+        """Return default rate limits for DeepInfra free tier."""
+        return {
+            "rpm": 30,  # Requests per minute
+            "daily": 1000,  # Daily requests
+            "tpm": 100000,  # Tokens per minute
+        }
+=== END FILE ===
+
+=== FILE: config/virtual_models.yaml ===
+# Global settings
+free_only_mode: false
+
+virtual_models:
+  # =============================================================================
+  # CODING ELITE (Best Agentic Coding - benchmark-based ordering)
+  # =============================================================================
+  coding-elite:
+    description: "Best agentic coding models (benchmark-based)"
+    fallback_chain:
+    # Tier 1: Best via g4f (free, uses g4f library)
+    - provider: g4f
+      model: claude-opus-4-5
+      priority: 1
+    - provider: g4f
+      model: claude-opus-4-6
+      priority: 2
+    - provider: g4f
+      model: claude-sonnet-4-5
+      priority: 3
+    - provider: g4f
+      model: gpt-5-2
+      priority: 4
+    - provider: g4f
+      model: gemini-3-flash
+      priority: 5
+    - provider: g4f
+      model: minimax-m2-5
+      priority: 6
+    # Tier 2: Direct API fallbacks
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 7
+    - provider: gemini
+      model: gemini-2.5-flash
+      priority: 8
+    - provider: together
+      model: deepseek-chat
+      priority: 9
+    # Tier 3: DeepInfra free tier (Phase 5.1 research)
+    - provider: deepinfra
+      model: meta-llama/Llama-3.3-70B-Instruct
+      priority: 10
+    - provider: deepinfra
+      model: Qwen/Qwen2.5-Coder-32B-Instruct
+      priority: 11
+    settings:
+      timeout_ms: 180000
+      retry_on_rate_limit: true
+
+  coding-smart:
+    description: "High-quality coding with balanced performance"
+    fallback_chain:
+    - provider: g4f
+      model: gemini-3-flash
+      priority: 1
+    - provider: g4f
+      model: claude-opus-4-5
+      priority: 2
+    - provider: g4f
+      model: gpt-5-2
+      priority: 3
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 4
+    - provider: together
+      model: deepseek-chat
+      priority: 5
+    # DeepInfra options (Phase 5.1)
+    - provider: deepinfra
+      model: Qwen/Qwen2.5-Coder-32B-Instruct
+      priority: 6
+    - provider: deepinfra
+      model: meta-llama/Llama-3.3-70B-Instruct
+      priority: 7
+    - provider: deepinfra
+      model: microsoft/WizardLM-2-8x22B
+      priority: 8
+    settings:
+      timeout_ms: 120000
+      retry_on_rate_limit: true
+
+  coding-fast:
+    description: "Fastest coding models"
+    fallback_chain:
+    - provider: groq
+      model: llama-3.1-8b-instant
+      priority: 1
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 2
+    - provider: g4f
+      model: gemini-2.5-flash
+      priority: 3
+    - provider: gemini
+      model: gemini-2.5-flash
+      priority: 4
+    # DeepInfra fast models (Phase 5.1)
+    - provider: deepinfra
+      model: meta-llama/Meta-Llama-3.1-8B-Instruct
+      priority: 5
+    - provider: deepinfra
+      model: google/gemma-2-27b-it
+      priority: 6
+    settings:
+      timeout_ms: 30000
+      retry_on_rate_limit: true
+
+  chat-smart:
+    description: "Best intelligence-to-speed ratio"
+    fallback_chain:
+    - provider: g4f
+      model: gemini-3-pro
+      priority: 1
+    - provider: g4f
+      model: gemini-3-flash
+      priority: 2
+    - provider: g4f
+      model: gpt-5-xhigh
+      priority: 3
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 4
+    # DeepInfra chat options (Phase 5.1)
+    - provider: deepinfra
+      model: meta-llama/Llama-3.3-70B-Instruct
+      priority: 5
+    - provider: deepinfra
+      model: microsoft/WizardLM-2-8x22B
+      priority: 6
+    settings:
+      timeout_ms: 120000
+      retry_on_rate_limit: true
+
+  chat-elite:
+    description: "Most intelligent models"
+    fallback_chain:
+    - provider: g4f
+      model: gemini-3-pro
+      priority: 1
+    - provider: g4f
+      model: claude-opus-4-5-thinking-32k
+      priority: 2
+    - provider: g4f
+      model: gpt-5-xhigh
+      priority: 3
+    - provider: g4f
+      model: gemini-3-flash
+      priority: 4
+    # DeepInfra high-quality options (Phase 5.1)
+    - provider: deepinfra
+      model: meta-llama/Llama-3.3-70B-Instruct
+      priority: 5
+    - provider: deepinfra
+      model: microsoft/WizardLM-2-8x22B
+      priority: 6
+    settings:
+      timeout_ms: 300000
+      retry_on_rate_limit: true
+
+  chat-fast:
+    description: "Fastest models"
+    fallback_chain:
+    - provider: groq
+      model: llama-3.1-8b-instant
+      priority: 1
+    - provider: gemini
+      model: gemini-2.5-flash
+      priority: 2
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 3
+    # DeepInfra fast option (Phase 5.1)
+    - provider: deepinfra
+      model: meta-llama/Meta-Llama-3.1-8B-Instruct
+      priority: 4
+    settings:
+      timeout_ms: 15000
+      retry_on_rate_limit: true
+
+  chat-rp:
+    description: "Roleplay models"
+    fallback_chain:
+    - provider: g4f
+      model: mn-violet-lotus-12b
+      priority: 1
+    - provider: g4f
+      model: cydonia-24b-v4.1
+      priority: 2
+    - provider: groq
+      model: llama-3.1-8b-instant
+      priority: 3
+    # DeepInfra RP-capable models (Phase 5.1)
+    - provider: deepinfra
+      model: meta-llama/Llama-3.3-70B-Instruct
+      priority: 4
+    settings:
+      timeout_ms: 30000
+      retry_on_rate_limit: true
+
+providers:
+  groq:
+    base_url: https://api.groq.com/openai/v1
+    api_key_env: GROQ_API_KEY
+    rate_limits:
+      rpm: 30
+      daily: 14400
+  gemini:
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key_env: GEMINI_API_KEY
+    rate_limits:
+      rpm: 15
+      daily: 1500
+  together:
+    base_url: https://api.together.xyz/v1
+    api_key_env: TOGETHER_API_KEY
+    rate_limits:
+      rpm: 60
+  g4f:
+    base_url: https://g4f.space/v1
+    api_key_env: G4F_API_KEY
+    rate_limits:
+      rpm: 10
+  # Phase 5.1: DeepInfra free tier provider configuration
+  deepinfra:
+    base_url: https://api.deepinfra.com/v1/openai
+    api_key_env: DEEPINFRA_API_KEY
+    rate_limits:
+      rpm: 30
+      daily: 1000
+      tpm: 100000
+    free_tier_models:
+      - meta-llama/Llama-3.3-70B-Instruct
+      - meta-llama/Meta-Llama-3.1-8B-Instruct
+      - Qwen/Qwen2.5-Coder-32B-Instruct
+      - google/gemma-2-27b-it
+      - microsoft/WizardLM-2
