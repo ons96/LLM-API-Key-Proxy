@@ -1,3 +1,6 @@
+Looking at the issue, I need to integrate the existing `SmartScheduler` into the main application to handle periodic benchmark updates. Let me implement the necessary changes.
+
+=== FILE: src/rotator_library/smart_scheduler.py ===
 """Smart Scheduler for Dynamic Ranking Updates
 
 Resource-efficient recalculation that triggers only during gateway inactivity.
@@ -178,3 +181,202 @@ class SmartScheduler:
 def get_scheduler(config: SchedulerConfig = None) -> SmartScheduler:
     """Factory function to get scheduler instance."""
     return SmartScheduler(config)
+=== END FILE ===
+
+=== FILE: src/rotator_library/__init__.py ===
+"""Rotator Library - Core utilities for the proxy rotator."""
+
+from .smart_scheduler import SmartScheduler, SchedulerConfig, get_scheduler
+
+__all__ = [
+    'SmartScheduler',
+    'SchedulerConfig', 
+    'get_scheduler',
+]
+=== END FILE ===
+
+=== FILE: src/proxy_app/main.py ===
+"""Main entry point for the proxy application."""
+
+import asyncio
+import logging
+import signal
+import sys
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from . import router_wrapper, status_api, settings_tool
+from .config_watcher import ConfigWatcher
+from ..rotator_library import (
+    get_scheduler, 
+    SchedulerConfig,
+    leaderboard_updater,
+    provider_priority_manager,
+    model_info_service
+)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Global scheduler instance
+scheduler = None
+
+
+def create_app() -> FastAPI:
+    """Create and configure the FastAPI application."""
+    
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        """Application lifespan handler."""
+        global scheduler
+        
+        # Initialize scheduler with configuration
+        scheduler_config = SchedulerConfig(
+            inactivity_threshold=300,  # 5 minutes
+            min_recalc_interval=300,   # 5 minutes
+            provider_refresh_interval=21600,  # 6 hours
+            benchmark_update_interval=86400   # 24 hours
+        )
+        scheduler = get_scheduler(scheduler_config)
+        
+        # Set up callbacks
+        async def ranking_recalc():
+            """Callback for ranking recalculation."""
+            logger.info("Running scheduled ranking recalculation")
+            await router_wrapper.update_rankings()
+            
+        async def provider_refresh():
+            """Callback for provider model refresh."""
+            logger.info("Running scheduled provider model refresh")
+            await provider_priority_manager.refresh_provider_models()
+            await model_info_service.update_all_providers()
+            
+        async def benchmark_update():
+            """Callback for benchmark data update."""
+            logger.info("Running scheduled benchmark data update")
+            await leaderboard_updater.update_leaderboard()
+            
+        scheduler.set_callbacks(
+            recalc_callback=ranking_recalc,
+            provider_refresh_callback=provider_refresh,
+            benchmark_update_callback=benchmark_update
+        )
+        
+        # Start the scheduler
+        await scheduler.start()
+        
+        # Initial provider load
+        await provider_priority_manager.initialize()
+        
+        # Initial benchmark data load
+        try:
+            await leaderboard_updater.update_leaderboard()
+        except Exception as e:
+            logger.warning(f"Initial leaderboard load failed: {e}")
+        
+        logger.info("Application started successfully")
+        
+        yield
+        
+        # Shutdown
+        if scheduler:
+            await scheduler.stop()
+        logger.info("Application shutdown complete")
+    
+    app = FastAPI(
+        title="Proxy Rotator API",
+        description="Dynamic model routing with smart scheduling",
+        version="2.1.0",
+        lifespan=lifespan
+    )
+    
+    # CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
+    # Include routers
+    app.include_router(router_wrapper.router, prefix="/v1")
+    app.include_router(status_api.router, prefix="/status")
+    app.include_router(settings_tool.router, prefix="/settings")
+    
+    # Health check endpoint
+    @app.get("/health")
+    async def health_check():
+        return {"status": "healthy", "scheduler": "active" if scheduler and scheduler._running else "inactive"}
+    
+    return app
+
+
+app = create_app()
+
+
+def main():
+    """Run the application."""
+    import uvicorn
+    
+    # Handle shutdown signals
+    def signal_handler(sig, frame):
+        logger.info("Shutdown signal received")
+        sys.exit(0)
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    uvicorn.run(
+        "src.proxy_app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=False,
+        log_level="info"
+    )
+
+
+if __name__ == "__main__":
+    main()
+=== END FILE ===
+
+=== FILE: config/scheduler_config.yaml ===
+# Scheduler Configuration for Phase 2.1 Data Collection Pipeline
+# Controls periodic benchmark updates and ranking refreshes
+
+scheduler:
+  # Gateway inactivity threshold in seconds (default: 5 minutes)
+  # Tasks only run when gateway has been inactive for this duration
+  inactivity_threshold: 300
+  
+  # Minimum interval between ranking recalculations (default: 5 minutes)
+  min_recalc_interval: 300
+  
+  # Maximum frequency of recalculations even with activity (default: 1 hour)
+  max_recalc_frequency: 3600
+  
+  # Provider model refresh interval in seconds (default: 6 hours)
+  provider_refresh_interval: 21600
+  
+  # Benchmark data update interval in seconds (default: 24 hours)
+  # This is the core feature for Phase 2.1 Data Collection Pipeline
+  benchmark_update_interval: 86400
+
+# Feature flags
+features:
+  # Enable automatic benchmark updates
+  enable_benchmark_updates: true
+  
+  # Enable ranking recalculation
+  enable_ranking_updates: true
+  
+  # Enable provider model refresh
+  enable_provider_refresh: true
+=== END FILE ===

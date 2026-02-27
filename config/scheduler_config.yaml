@@ -1,0 +1,31 @@
+# Scheduler Configuration for Phase 2.1 Data Collection Pipeline
+# Controls periodic benchmark updates and ranking refreshes
+
+scheduler:
+  # Gateway inactivity threshold in seconds (default: 5 minutes)
+  # Tasks only run when gateway has been inactive for this duration
+  inactivity_threshold: 300
+  
+  # Minimum interval between ranking recalculations (default: 5 minutes)
+  min_recalc_interval: 300
+  
+  # Maximum frequency of recalculations even with activity (default: 1 hour)
+  max_recalc_frequency: 3600
+  
+  # Provider model refresh interval in seconds (default: 6 hours)
+  provider_refresh_interval: 21600
+  
+  # Benchmark data update interval in seconds (default: 24 hours)
+  # This is the core feature for Phase 2.1 Data Collection Pipeline
+  benchmark_update_interval: 86400
+
+# Feature flags
+features:
+  # Enable automatic benchmark updates
+  enable_benchmark_updates: true
+  
+  # Enable ranking recalculation
+  enable_ranking_updates: true
+  
+  # Enable provider model refresh
+  enable_provider_refresh: true

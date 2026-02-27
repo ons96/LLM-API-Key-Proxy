@@ -1,3 +1,8 @@
+You are an expert Python/FastAPI software engineer.
+Repository layout (partial): config/aliases.yaml config/chat_model_rankings.yaml config/model_rankings.yaml config/providers_database.yaml config/router_config.yaml config/scoring_config.yaml config/virtual_models.yaml config/virtual_models_backup.yaml config/virtual_models_generated.yaml src/proxy_app/__init__.py src/proxy_app/batch_manager.py src/proxy_app/build.py src/proxy_app/config_exceptions.py src/proxy_app/config_watcher.py src/proxy_app/detailed_logger.py src/proxy_app/enhanced_proxy.py src/proxy_app/health_checker.py src/proxy_app/launcher_tui.py src/proxy_app/main.py src/proxy_app/model_ranker.py src/proxy_app/provider_adapter.py src/proxy_app/provider_urls.py src/proxy_app/rate_limiter.py src/proxy_app/request_logger.py src/proxy_app/router_core.py src/proxy_app/router_integration.py src/proxy_app/router_wrapper.py src/proxy_app/settings_tool.py src/proxy_app/status_api.py src/rotator_library/__init__.py src/rotator_library/background_refresher.py src/rotator_library/client.py src/rotator_library/cooldown_manager.py src/rotator_library/credential_manager.py src/rotator_library/credential_tool.py src/rotator_library/error_handler.py src/rotator_library/failure_logger.py src/rotator_library/fetch_artificial_analysis_data.py src/rotator_library/leaderboard_updater.py src/rotator_library/live_scraper.py src/rotator_library/llm_aggregated_leaderboard.py src/rotator_library/model_definitions.py src/rotator_library/model_info_service.py src/rotator_library/models_dev_discovery.py src/rotator_library/provider_factory.py src/rotator_library/provider_priority_manager.py src/rotator_library/provider_status_tracker.py src/rotator_library/providers/__init__.py src/rotator_library/providers/agentrouter_provider.py src/rotator_library/providers/antigravity_auth_base.py src/rotator_library/providers/antigravity_provider.py src/rotator_library/providers/cerebras_provider.py src/rotator_library/providers/chutes_provider.py src/rotator_library/providers/cohere_provider.py src/rotator_library/providers/g4f_provider.py src/rotator_library/providers/gemini_auth_base.py src/rotator_library/providers/gemini_cli_provider.py src/rotator_library/providers/gemini_provider.py src/rotator_library/providers/google_oauth_base.py src/rotator_library/providers/groq_provider.py 
+
+Relevant file contents:
+--- src/rotator_library/smart_scheduler.py ---
 """Smart Scheduler for Dynamic Ranking Updates
 
 Resource-efficient recalculation that triggers only during gateway inactivity.
@@ -20,7 +25,6 @@ class SchedulerConfig:
     max_recalc_frequency: int = 3600  # Max once per hour even with activity
     min_recalc_interval: int = 300  # Minimum 5 minutes between recalcs
     provider_refresh_interval: int = 21600  # 6 hours for provider refresh
-    benchmark_update_interval: int = 86400  # 24 hours for benchmark updates
 
 
 class SmartScheduler:
@@ -31,7 +35,6 @@ class SmartScheduler:
     - Batches multiple triggers into single recalculation
     - Respects minimum intervals to prevent spam
     - Ultra-lightweight: <20MB RAM, <50ms CPU per recalc
-    - Supports periodic benchmark updates
     """
     
     def __init__(self, config: SchedulerConfig = None):
@@ -39,24 +42,19 @@ class SmartScheduler:
         self.last_request_time: float = time.time()
         self.last_recalc_time: float = 0
         self.last_provider_refresh: float = 0
-        self.last_benchmark_update: float = 0
         self.pending_recalc: bool = False
         self.pending_provider_refresh: bool = False
-        self.pending_benchmark_update: bool = False
         self._task: Optional[asyncio.Task] = None
         self._recalc_callback: Optional[Callable] = None
         self._provider_refresh_callback: Optional[Callable] = None
-        self._benchmark_update_callback: Optional[Callable] = None
         self._running: bool = False
         
     def set_callbacks(self, 
                       recalc_callback: Callable,
-                      provider_refresh_callback: Callable,
-                      benchmark_update_callback: Callable = None):
-        """Set callback functions for recalculation, provider refresh, and benchmark updates."""
+                      provider_refresh_callback: Callable):
+        """Set callback functions for recalculation and refresh."""
         self._recalc_callback = recalc_callback
         self._provider_refresh_callback = provider_refresh_callback
-        self._benchmark_update_callback = benchmark_update_callback
         
     def record_activity(self):
         """Record that a request was processed."""
@@ -77,17 +75,6 @@ class SmartScheduler:
             
         self.pending_recalc = True
         logger.info(f"Recalculation queued (reason: {reason})")
-        
-    def trigger_benchmark_update(self, reason: str = "manual"):
-        """Trigger a benchmark data update."""
-        time_since_last = time.time() - self.last_benchmark_update
-        
-        if time_since_last < self.config.benchmark_update_interval:
-            logger.debug(f"Benchmark update ignored ({time_since_last:.0f}s < {self.config.benchmark_update_interval}s)")
-            return
-            
-        self.pending_benchmark_update = True
-        logger.info(f"Benchmark update queued (reason: {reason})")
         
     async def start(self):
         """Start the scheduler background task."""
@@ -160,21 +147,20 @@ class SmartScheduler:
                     self.pending_provider_refresh = False
                 except Exception as e:
                     logger.error(f"Provider refresh failed: {e}")
-                    
-        # 3. Update benchmark data if needed
-        if self.pending_benchmark_update and self._benchmark_update_callback:
-            time_since_benchmark = now - self.last_benchmark_update
-            
-            if time_since_benchmark >= self.config.benchmark_update_interval:
-                logger.info("Executing benchmark data update (inactive period)")
-                try:
-                    await self._benchmark_update_callback()
-                    self.last_benchmark_update = now
-                    self.pending_benchmark_update = False
-                except Exception as e:
-                    logger.error(f"Benchmark update failed: {e}")
 
 
 def get_scheduler(config: SchedulerConfig = None) -> SmartScheduler:
     """Factory function to get scheduler instance."""
     return SmartScheduler(config)
+
+GitHub Issue #47: Phase 2.1: Add scheduler for periodic benchmark updates
+
+Description: Part of Phase 2.1 Data Collection Pipeline.
+
+Task: Implement the changes needed to resolve this issue.
+For each file to create or modify, output a block in this EXACT format:
+=== FILE: path/to/file.py ===
+<complete new file contents>
+=== END FILE ===
+Only allowed path prefixes: src/, config/, docs/
+Output ONLY file blocks. No prose outside blocks.
