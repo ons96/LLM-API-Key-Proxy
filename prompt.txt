@@ -1,9 +1,9 @@
 You are an expert software engineer.
-Fix GitHub issue #127 in this repository.
-Title: Phase 7.2: Document provider adapter architecture
+Fix GitHub issue #126 in this repository.
+Title: Quick Wins: Add docstrings to all modules
 
 Description:
-Part of Phase 7.2 Developer Documentation.
+From Quick Wins section.
 
 Instructions:
 1. Identify the root cause.
