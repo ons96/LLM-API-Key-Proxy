@@ -26,6 +26,11 @@ class OpenAICompatibleProvider(ProviderInterface):
         self.provider_name = provider_name
         # Get API base URL from environment
         self.api_base = os.getenv(f"{provider_name.upper()}_API_BASE")
+        
+        # For OpenAI provider, default to the standard API endpoint if not set
+        if not self.api_base and provider_name.lower() == "openai":
+            self.api_base = "https://api.openai.com/v1"
+        
         if not self.api_base:
             raise ValueError(
                 f"Environment variable {provider_name.upper()}_API_BASE is required for OpenAI-compatible provider"
