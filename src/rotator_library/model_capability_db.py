@@ -1,0 +1,318 @@
+"""
+Model Capability Database
+
+Persistent storage and retrieval of model capabilities, pricing, and metadata.
+Aggregates data from multiple sources (models.dev, OpenRouter, manual configs)
+and provides a unified interface for querying model information.
+
+Part of Phase 2.1 Data Collection Pipeline.
+"""
+
+import json
+import logging
+import os
+from dataclasses import asdict, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Union
+
+import yaml
+
+logger = logging.getLogger(__name__)
+
+CONFIG_ROOT = Path(__file__).resolve().parent.parent.parent / "config"
+CAPABILITY_DB_PATH = CONFIG_ROOT / "model_capabilities.yaml"
+
+
+class ModelCapabilityDatabase:
+    """
+    Singleton database for model capabilities.
+    
+    Aggregates data from:
+    - models.dev discovery (via models_dev_discovery)
+    - OpenRouter API (via model_info_service)
+    - Manual configuration files
+    - Environment variable overrides
+    
+    Thread-safe for reads. Writes should be serialized by caller.
+    """
+    
+    _instance: Optional["ModelCapabilityDatabase"] = None
+    _initialized: bool = False
+    
+    def __new__(cls, db_path: Optional[Path] = None):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def __init__(self, db_path: Optional[Path] = None):
+        """Initialize database (singleton - runs once)."""
+        if ModelCapabilityDatabase._initialized:
+            return
+            
+        ModelCapabilityDatabase._initialized = True
+        self.db_path = db_path or CAPABILITY_DB_PATH
+        self._models: Dict[str, Dict[str, Any]] = {}
+        self._load_database()
+    
+    def _load_database(self):
+        """Load existing capability database from disk."""
+        if not self.db_path.exists():
+            logger.info(f"Capability database not found at {self.db_path}, starting fresh")
+            self._models = {}
+            return
+            
+        try:
+            with open(self.db_path, 'r') as f:
+                data = yaml.safe_load(f) or {}
+            
+            self._models = data.get('models', {})
+            logger.info(f"Loaded {len(self._models)} models from capability database")
+        except Exception as e:
+            logger.error(f"Failed to load capability database: {e}")
+            self._models = {}
+    
+    def _save_database(self):
+        """Persist current database to disk."""
+        try:
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            data = {
+                'version': '1.0',
+                'updated_at': datetime.now(timezone.utc).isoformat(),
+                'model_count': len(self._models),
+                'models': self._models
+            }
+            
+            # Atomic write pattern
+            temp_path = self.db_path.with_suffix('.tmp')
+            with open(temp_path, 'w') as f:
+                yaml.dump(data, f, default_flow_style=False, sort_keys=True, allow_unicode=True)
+            
+            temp_path.replace(self.db_path)
+            logger.debug(f"Saved capability database with {len(self._models)} models")
+        except Exception as e:
+            logger.error(f"Failed to save capability database: {e}")
+    
+    def get_model(self, model_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get raw capability data for a specific model.
+        
+        Args:
+            model_id: Unique model identifier (e.g., "openai/gpt-4")
+            
+        Returns:
+            Model capability dictionary or None
+        """
+        return self._models.get(model_id)
+    
+    def get_model_field(self, model_id: str, field_path: str, default: Any = None) -> Any:
+        """
+        Get a specific field from model data using dot notation.
+        
+        Args:
+            model_id: Model identifier
+            field_path: Dot-separated path (e.g., "capabilities.tools")
+            default: Default value if not found
+        """
+        model = self._models.get(model_id)
+        if not model:
+            return default
+        
+        parts = field_path.split('.')
+        value = model
+        for part in parts:
+            if isinstance(value, dict) and part in value:
+                value = value[part]
+            else:
+                return default
+        return value
+    
+    def get_capability(self, model_id: str, capability: str, default: bool = False) -> bool:
+        """Check if model has a specific capability."""
+        return self.get_model_field(model_id, f'capabilities.{capability}', default)
+    
+    def get_limits(self, model_id: str) -> Dict[str, Any]:
+        """Get model limits (context_window, max_output)."""
+        return self.get_model_field(model_id, 'limits', {})
+    
+    def get_pricing(self, model_id: str) -> Dict[str, Any]:
+        """Get model pricing (prompt, completion, cached_input)."""
+        return self.get_model_field(model_id, 'pricing', {})
+    
+    def get_models_by_provider(self, provider: str) -> Dict[str, Dict[str, Any]]:
+        """Get all models for a specific provider."""
+        return {
+            mid: data for mid, data in self._models.items()
+            if data.get('provider') == provider or mid.startswith(f"{provider}/")
+        }
+    
+    def update_model(self, model_id: str, data: Dict[str, Any], source: str = "manual", 
+                     merge: bool = True) -> None:
+        """
+        Update or add a model to the database.
+        
+        Args:
+            model_id: Unique model identifier
+            data: Model capability data
+            source: Data source tag (e.g., 'models.dev', 'openrouter', 'manual')
+            merge: If True, merge with existing data; if False, replace
+        """
+        if model_id in self._models and merge:
+            existing = self._models[model_id]
+            merged = self._deep_merge(existing, data)
+            merged['sources'] = list(set(existing.get('sources', []) + [source]))
+            merged['updated_at'] = datetime.now(timezone.utc).isoformat()
+            self._models[model_id] = merged
+        else:
+            data['sources'] = [source]
+            data['added_at'] = datetime.now(timezone.utc).isoformat()
+            data['updated_at'] = data['added_at']
+            self._models[model_id] = data
+        
+        logger.debug(f"Updated model {model_id} from {source}")
+    
+    def update_models_batch(self, models: Dict[str, Dict[str, Any]], source: str = "batch"):
+        """Update multiple models at once."""
+        for model_id, data in models.items():
+            self.update_model(model_id, data, source, merge=True)
+        self._save_database()
+    
+    def _deep_merge(self, existing: Dict, new: Dict) -> Dict:
+        """Deep merge two dictionaries, with new taking precedence for non-dict values."""
+        result = existing.copy()
+        for key, value in new.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = self._deep_merge(result[key], value)
+            else:
+                result[key] = value
+        return result
+    
+    def find_models(self, 
+                   provider: Optional[str] = None,
+                   capability: Optional[str] = None,
+                   min_context: Optional[int] = None,
+                   free_only: bool = False,
+                   status: Optional[str] = None) -> List[str]:
+        """
+        Query model IDs by various criteria.
+        
+        Args:
+            provider: Filter by provider name
+            capability: Filter by capability flag (e.g., 'tools', 'vision')
+            min_context: Minimum context window size
+            free_only: Only return models with zero pricing
+            status: Filter by status (active, deprecated, preview)
+            
+        Returns:
+            List of model IDs matching criteria
+        """
+        results = []
+        
+        for model_id, data in self._models.items():
+            if provider:
+                model_provider = data.get('provider', model_id.split('/')[0] if '/' in model_id else '')
+                if model_provider.lower() != provider.lower():
+                    continue
+            
+            if capability:
+                caps = data.get('capabilities', {})
+                if not caps.get(capability, False):
+                    continue
+            
+            if min_context:
+                ctx = data.get('limits', {}).get('context_window', 0) or 0
+                if ctx < min_context:
+                    continue
+            
+            if free_only:
+                pricing = data.get('pricing', {})
+                prompt_cost = pricing.get('prompt', 0) or 0
+                completion_cost = pricing.get('completion', 0) or 0
+                if prompt_cost > 0 or completion_cost > 0:
+                    continue
+            
+            if status:
+                model_status = data.get('info', {}).get('status', 'active')
+                if model_status != status:
+                    continue
+            
+            results.append(model_id)
+        
+        return results
+    
+    def get_all_models(self) -> Dict[str, Dict[str, Any]]:
+        """Get all models in the database."""
+        return self._models.copy()
+    
+    def remove_model(self, model_id: str) -> bool:
+        """Remove a model from the database."""
+        if model_id in self._models:
+            del self._models[model_id]
+            self._save_database()
+            return True
+        return False
+    
+    def get_statistics(self) -> Dict[str, Any]:
+        """Get database statistics."""
+        providers = set()
+        total_free = 0
+        capability_counts = {}
+        categories = {}
+        
+        for model_id, data in self._models.items():
+            # Extract provider from ID or field
+            provider = data.get('provider', model_id.split('/')[0] if '/' in model_id else 'unknown')
+            providers.add(provider)
+            
+            # Category stats
+            cat = data.get('category', 'chat')
+            categories[cat] = categories.get(cat, 0) + 1
+            
+            # Check if free
+            pricing = data.get('pricing', {})
+            if (pricing.get('prompt', 0) or 0) == 0 and (pricing.get('completion', 0) or 0) == 0:
+                total_free += 1
+            
+            # Count capabilities
+            caps = data.get('capabilities', {})
+            for cap in ['tools', 'vision', 'reasoning', 'functions', 'structured_output']:
+                if caps.get(cap, False):
+                    capability_counts[cap] = capability_counts.get(cap, 0) + 1
+        
+        return {
+            'total_models': len(self._models),
+            'unique_providers': len(providers),
+            'provider_list': sorted(list(providers)),
+            'free_models': total_free,
+            'paid_models': len(self._models) - total_free,
+            'categories': categories,
+            'capability_distribution': capability_counts,
+            'database_path': str(self.db_path),
+            'last_updated': datetime.now(timezone.utc).isoformat()
+        }
+    
+    def export_to_json(self, output_path: Optional[Path] = None) -> str:
+        """Export database to JSON format."""
+        if output_path is None:
+            output_path = self.db_path.with_suffix('.json')
+        
+        with open(output_path, 'w') as f:
+            json.dump(self._models, f, indent=2, default=str)
+        
+        return str(output_path)
+    
+    def sync(self):
+        """Explicitly save database to disk."""
+        self._save_database()
+    
+    def clear(self):
+        """Clear all models from database (use with caution)."""
+        self._models.clear()
+        self._save_database()
+
+
+# Global singleton accessor
+def get_capability_db() -> ModelCapabilityDatabase:
+    """Get the singleton capability database instance."""
+    return ModelCapabilityDatabase()
