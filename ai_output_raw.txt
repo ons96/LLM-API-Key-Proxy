@@ -1,0 +1,603 @@
+=== FILE: src/proxy_app/input_sanitizer.py ===
+"""
+Input sanitization utilities for security hardening.
+Prevents injection attacks, XSS, and handles malicious input patterns.
+"""
+
+import html
+import json
+import logging
+import re
+from typing import Any, Dict, List, Optional, Union
+
+logger = logging.getLogger(__name__)
+
+# Security constants
+MAX_INPUT_LENGTH = 10 * 1024 * 1024  # 10MB max total input
+MAX_STRING_LENGTH = 1_000_000  # 1MB per individual string
+MAX_JSON_DEPTH = 100
+MAX_ARRAY_LENGTH = 10_000
+ALLOWED_CONTROL_CHARS = frozenset('\t\n\r')
+
+# Patterns for detecting injection attempts
+SQLI_PATTERNS = [
+    r"(\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|EXEC|EXECUTE)\b)",
+    r"(--|#|\/\*)",
+    r"(\bOR\b\s+\b1\b\s*=\s*\b1\b)",
+    r"(\bAND\b\s+\b1\b\s*=\s*\b1\b)",
+]
+
+PATH_TRAVERSAL_PATTERN = re.compile(r"(\.\.[/\\]|[/\\]\.\.)")
+NULL_BYTE_PATTERN = re.compile(r"\x00")
+CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]")
+
+
+class SanitizationError(ValueError):
+    """Raised when input cannot be safely sanitized."""
+    pass
+
+
+def sanitize_string(
+    value: str, 
+    max_length: int = MAX_STRING_LENGTH,
+    allow_markup: bool = False
+) -> str:
+    """
+    Sanitize a string input by removing dangerous characters and limiting length.
+    
+    Args:
+        value: Input string to sanitize
+        max_length: Maximum allowed length
+        allow_markup: If False, HTML/XML tags are escaped
+        
+    Returns:
+        Sanitized string
+        
+    Raises:
+        SanitizationError: If input contains critical security threats
+    """
+    if not isinstance(value, str):
+        return value
+    
+    # Check for null bytes (indicates potential binary injection or C-style attacks)
+    if NULL_BYTE_PATTERN.search(value):
+        logger.warning("Null byte detected in input - potential injection attempt")
+        value = value.replace('\x00', '')
+    
+    # Limit length before processing
+    if len(value) > max_length:
+        logger.warning(f"Input truncated from {len(value)} to {max_length} characters")
+        value = value[:max_length]
+    
+    # Remove dangerous control characters while preserving whitespace
+    sanitized = CONTROL_CHAR_PATTERN.sub('', value)
+    
+    # HTML escape to prevent XSS in rendered responses (unless explicitly allowed)
+    if not allow_markup:
+        sanitized = html.escape(sanitized)
+    
+    return sanitized
+
+
+def sanitize_json(
+    data: Any, 
+    depth: int = 0, 
+    max_depth: int = MAX_JSON_DEPTH,
+    seen_objects: Optional[set] = None
+) -> Any:
+    """
+    Recursively sanitize JSON data structures.
+    
+    Args:
+        data: JSON data to sanitize
+        depth: Current recursion depth
+        max_depth: Maximum allowed recursion depth
+        seen_objects: Set of object ids to detect circular references
+        
+    Returns:
+        Sanitized data structure
+        
+    Raises:
+        SanitizationError: If depth exceeded or circular reference detected
+    """
+    if seen_objects is None:
+        seen_objects = set()
+    
+    # Check recursion depth
+    if depth > max_depth:
+        raise SanitizationError(f"JSON structure exceeds maximum depth of {max_depth}")
+    
+    # Handle circular references
+    obj_id = id(data)
+    if obj_id in seen_objects:
+        raise SanitizationError("Circular reference detected in input")
+    
+    if isinstance(data, str):
+        return sanitize_string(data)
+    elif isinstance(data, dict):
+        seen_objects.add(obj_id)
+        try:
+            result = {}
+            for k, v in data.items():
+                # Sanitize keys (prevent header injection via object keys)
+                safe_key = sanitize_string(str(k), max_length=1000)
+                result[safe_key] = sanitize_json(v, depth + 1, max_depth, seen_objects)
+            return result
+        finally:
+            seen_objects.discard(obj_id)
+    elif isinstance(data, list):
+        seen_objects.add(obj_id)
+        try:
+            if len(data) > MAX_ARRAY_LENGTH:
+                logger.warning(f"Array truncated from {len(data)} to {MAX_ARRAY_LENGTH}")
+                data = data[:MAX_ARRAY_LENGTH]
+            return [sanitize_json(item, depth + 1, max_depth, seen_objects) for item in data]
+        finally:
+            seen_objects.discard(obj_id)
+    elif isinstance(data, (int, float, bool)) or data is None:
+        return data
+    else:
+        # Convert unknown types to string and sanitize
+        return sanitize_string(str(data))
+
+
+def mask_api_key(key: Optional[str]) -> str:
+    """
+    Mask API key for safe logging.
+    
+    Args:
+        key: API key to mask
+        
+    Returns:
+        Masked key string
+    """
+    if not key:
+        return "None"
+    if len(key) <= 8:
+        return "****"
+    return f"{key[:4]}...{key[-4:]}"
+
+
+def sanitize_headers(headers: Dict[str, str]) -> Dict[str, str]:
+    """
+    Sanitize HTTP headers to prevent header injection and log sensitive data safely.
+    
+    Args:
+        headers: Dictionary of HTTP headers
+        
+    Returns:
+        Sanitized headers dictionary
+    """
+    sensitive_headers = {
+        'authorization', 'x-api-key', 'api-key', 'x-auth-token',
+        'x-proxy-api-key', 'cookie', 'set-cookie', 'x-forwarded-api-key'
+    }
+    
+    sanitized = {}
+    for key, value in headers.items():
+        key_lower = key.lower()
+        
+        # Mask sensitive values
+        if key_lower in sensitive_headers:
+            sanitized[key] = mask_api_key(str(value))
+        else:
+            # Prevent header injection by removing CRLF
+            safe_value = str(value).replace('\r', '').replace('\n', '')[:1000]
+            sanitized[key] = safe_value
+    
+    return sanitized
+
+
+def validate_model_name(model: str) -> str:
+    """
+    Validate and sanitize model name to prevent path traversal and injection.
+    
+    Args:
+        model: Model identifier string
+        
+    Returns:
+        Sanitized model name
+        
+    Raises:
+        SanitizationError: If model name contains forbidden patterns
+    """
+    if not model or not isinstance(model, str):
+        raise SanitizationError("Model name must be a non-empty string")
+    
+    # Prevent path traversal
+    if PATH_TRAVERSAL_PATTERN.search(model):
+        raise SanitizationError("Model name contains path traversal characters")
+    
+    # Prevent command injection via backticks, semicolons, pipes
+    dangerous_chars = set('`;|$&<>')
+    if any(c in model for c in dangerous_chars):
+        raise SanitizationError("Model name contains forbidden characters")
+    
+    # Limit length and sanitize
+    return sanitize_string(model.strip(), max_length=1000)
+
+
+def sanitize_chat_message(message: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Sanitize a chat message structure.
+    
+    Args:
+        message: Message dictionary with role and content
+        
+    Returns:
+        Sanitized message dictionary
+    """
+    if not isinstance(message, dict):
+        raise SanitizationError("Message must be a dictionary")
+    
+    sanitized = {}
+    
+    # Sanitize role
+    role = str(message.get('role', 'user'))
+    if role not in {'system', 'user', 'assistant', 'tool', 'function'}:
+        role = 'user'  # Default to user if invalid
+    sanitized['role'] = role
+    
+    # Sanitize content
+    content = message.get('content')
+    if isinstance(content, str):
+        sanitized['content'] = sanitize_string(content)
+    elif isinstance(content, list):
+        # Handle multimodal content
+        sanitized['content'] = [
+            sanitize_json(item) if isinstance(item, dict) else sanitize_string(str(item))
+            for item in content[:100]  # Limit number of content parts
+        ]
+    elif content is None:
+        sanitized['content'] = None
+    else:
+        sanitized['content'] = sanitize_string(str(content))
+    
+    # Sanitize name if present
+    if 'name' in message:
+        sanitized['name'] = sanitize_string(str(message['name']), max_length=256)
+    
+    return sanitized
+
+
+def sanitize_embedding_input(input_data: Union[str, List[str]]) -> Union[str, List[str]]:
+    """
+    Sanitize embedding input data.
+    
+    Args:
+        input_data: String or list of strings
+        
+    Returns:
+        Sanitized input
+    """
+    if isinstance(input_data, str):
+        return sanitize_string(input_data)
+    elif isinstance(input_data, list):
+        return [sanitize_string(s) for s in input_data[:MAX_ARRAY_LENGTH]]
+    else:
+        raise SanitizationError("Embedding input must be string or list of strings")
+=== END FILE ===
+
+=== FILE: src/proxy_app/security_middleware.py ===
+"""
+FastAPI middleware for request/response sanitization and security headers.
+"""
+
+import logging
+import time
+from typing import Callable, Optional
+
+from fastapi import Request, Response
+from fastapi.responses import JSONResponse, StreamingResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from proxy_app.input_sanitizer import (
+    sanitize_headers,
+    sanitize_json,
+    mask_api_key,
+    SanitizationError
+)
+
+logger = logging.getLogger(__name__)
+
+# Security headers to add to all responses
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Content-Security-Policy": "default-src 'none'",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+}
+
+
+class SecurityMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to sanitize all incoming requests and outgoing responses.
+    Adds security headers and validates request size.
+    """
+    
+    def __init__(self, app, max_body_size: int = 10 * 1024 * 1024):
+        super().__init__(app)
+        self.max_body_size = max_body_size
+    
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Store sanitized headers for logging
+        request.state.sanitized_headers = sanitize_headers(dict(request.headers))
+        
+        # Check request body size if Content-Length provided
+        content_length = request.headers.get('content-length')
+        if content_length:
+            try:
+                size = int(content_length)
+                if size > self.max_body_size:
+                    logger.warning(f"Request body too large: {size} bytes")
+                    return JSONResponse(
+                        status_code=413,
+                        content={
+                            "error": "Request entity too large",
+                            "max_size": self.max_body_size,
+                            "received_size": size
+                        }
+                    )
+            except ValueError:
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "Invalid Content-Length header"}
+                )
+        
+        # Process request with timing
+        start_time = time.time()
+        
+        try:
+            response = await call_next(request)
+            
+            # Add security headers
+            for header, value in SECURITY_HEADERS.items():
+                response.headers[header] = value
+            
+            # Sanitize response headers to prevent injection
+            self._sanitize_response_headers(response)
+            
+            # Add processing time header (optional, for debugging)
+            process_time = time.time() - start_time
+            response.headers["X-Process-Time"] = str(process_time)
+            
+            return response
+            
+        except SanitizationError as e:
+            logger.error(f"Sanitization error: {e}")
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Invalid input data", "details": str(e)}
+            )
+        except Exception as e:
+            logger.error(f"Unhandled exception in middleware: {e}", exc_info=True)
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Internal server error"}
+            )
+    
+    def _sanitize_response_headers(self, response: Response) -> None:
+        """Remove dangerous characters from response headers."""
+        safe_headers = {}
+        for key, value in response.headers.items():
+            # Remove CRLF to prevent header injection
+            safe_key = str(key).replace('\r', '').replace('\n', '')
+            safe_value = str(value).replace('\r', '').replace('\n', '')[:2000]
+            safe_headers[safe_key] = safe_value
+        
+        response.headers.mutable_headers.clear()
+        for key, value in safe_headers.items():
+            response.headers[key] = value
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """
+    Basic rate limiting middleware to prevent DoS.
+    Note: For production, use a proper rate limiter like slowapi.
+    """
+    
+    def __init__(self, app, requests_per_minute: int = 1000):
+        super().__init__(app)
+        self.requests_per_minute = requests_per_minute
+        self.requests = {}
+    
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # Simple IP-based rate limiting
+        client_ip = request.client.host if request.client else "unknown"
+        current_time = time.time()
+        
+        # Clean old entries
+        self.requests = {
+            ip: times for ip, times in self.requests.items()
+            if current_time - times[-1] < 60
+        }
+        
+        # Check rate
+        if client_ip in self.requests:
+            recent_requests = len([
+                t for t in self.requests[client_ip]
+                if current_time - t < 60
+            ])
+            if recent_requests > self.requests_per_minute:
+                logger.warning(f"Rate limit exceeded for {client_ip}")
+                return JSONResponse(
+                    status_code=429,
+                    content={"error": "Rate limit exceeded", "retry_after": 60}
+                )
+            self.requests[client_ip].append(current_time)
+        else:
+            self.requests[client_ip] = [current_time]
+        
+        return await call_next(request)
+
+
+async def sanitize_request_body(request: Request) -> Optional[dict]:
+    """
+    Dependency to sanitize and validate JSON request body.
+    
+    Returns:
+        Sanitized JSON body or None if empty
+        
+    Raises:
+        SanitizationError: If body cannot be sanitized
+    """
+    if request.method not in ["POST", "PUT", "PATCH"]:
+        return None
+    
+    try:
+        body = await request.json()
+        return sanitize_json(body)
+    except SanitizationError:
+        raise
+    except Exception as e:
+        logger.warning(f"Failed to parse request body: {e}")
+        return None
+
+
+def sanitize_streaming_response(content: str) -> str:
+    """
+    Sanitize content in streaming responses.
+    
+    Args:
+        content: SSE or chunked content string
+        
+    Returns:
+        Sanitized content
+    """
+    # Remove potential SSE injection
+    if '\n\n' in content:
+        lines = content.split('\n')
+        safe_lines = []
+        for line in lines:
+            # Ensure lines start with expected prefixes
+            if line and not any(line.startswith(p) for p in ['data:', 'event:', 'id:', 'retry:', ':']):
+                line = 'data: ' + line
+            safe_lines.append(line.replace('\r', ''))
+        return '\n'.join(safe_lines)
+    return content.replace('\r', '')
+=== END FILE ===
+
+=== FILE: src/proxy_app/main.py ===
+import time
+
+# Phase 1: Minimal imports for arg parsing and TUI
+import asyncio
+import os
+from pathlib import Path
+import sys
+import argparse
+import logging
+from typing import AsyncGenerator, Any, List, Optional, Union, Dict
+
+# --- Argument Parsing (BEFORE heavy imports) ---
+parser = argparse.ArgumentParser(description="API Key Proxy Server")
+parser.add_argument(
+    "--host", type=str, default="0.0.0.0", help="Host to bind the server to."
+)
+parser.add_argument("--port", type=int, default=8000, help="Port to run the server on.")
+parser.add_argument(
+    "--enable-request-logging", action="store_true", help="Enable request logging."
+)
+parser.add_argument(
+    "--add-credential",
+    action="store_true",
+    help="Launch the interactive tool to add a new OAuth credential.",
+)
+args, _ = parser.parse_known_args()
+
+# Add the 'src' directory to the Python path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+# Check if we should launch TUI (no arguments = TUI mode)
+if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        # TUI MODE - Load ONLY what's needed for the launcher (fast path!)
+        from proxy_app.launcher_tui import run_launcher_tui
+
+        run_launcher_tui()
+        # Launcher modifies sys.argv and returns, or exits if user chose Exit
+        # If we get here, user chose "Run Proxy" and sys.argv is modified
+        # Re-parse arguments with modified sys.argv
+        args = parser.parse_args()
+
+    # Check if credential tool mode (also doesn't need heavy proxy imports)
+    if args.add_credential:
+        from rotator_library.credential_tool import run_credential_tool
+
+        run_credential_tool()
+        sys.exit(0)
+
+
+# If we get here, we're ACTUALLY running the proxy - NOW show startup messages and start timer
+_start_time = time.time()
+
+# Load all .env files from root folder (main .env first, then any additional *.env files)
+from dotenv import load_dotenv
+from glob import glob
+
+# Get the application root directory (EXE dir if frozen, else CWD)
+# Inlined here to avoid triggering heavy rotator_library imports before loading screen
+if getattr(sys, "frozen", False):
+    _root_dir = Path(sys.executable).parent
+else:
+    _root_dir = Path.cwd()
+
+# Load main .env first
+load_dotenv(_root_dir / ".env")
+
+# Load any additional .env files (e.g., antigravity_all_combined.env, gemini_cli_all_combined.env)
+_env_files_found = list(_root_dir.glob("*.env"))
+for _env_file in sorted(_root_dir.glob("*.env")):
+    if _env_file.name != ".env":  # Skip main .env (already loaded)
+        load_dotenv(_env_file, override=False)  # Don't override existing values
+
+# Log discovered .env files for deployment verification
+if _env_files_found:
+    _env_names = [_ef.name for _ef in _env_files_found]
+    print(f"📁 Loaded {len(_env_files_found)} .env file(s): {', '.join(_env_names)}")
+
+# Get proxy API key for display
+proxy_api_key = os.getenv("PROXY_API_KEY")
+if proxy_api_key:
+    # Mask the API key for security - only show first/last 4 chars
+    masked_key = (
+        f"{proxy_api_key[:4]}...{proxy_api_key[-4:]}"
+        if len(proxy_api_key) > 8
+        else "****"
+    )
+    key_display = f"✓ {masked_key}"
+else:
+    key_display = "✗ Not Set (INSECURE - anyone can access!)"
+
+# Phase 2: Load Rich for loading spinner (lightweight)
+from rich.console import Console
+
+_console = Console()
+
+# Phase 3: Heavy dependencies with granular loading messages
+print("  → Loading FastAPI framework...")
+with _console.status("[dim]Loading FastAPI framework...", spinner="dots"):
+    from contextlib import asynccontextmanager
+    from fastapi import FastAPI, Request, HTTPException, Depends, status
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import StreamingResponse, JSONResponse
+    from fastapi.security import APIKeyHeader
+    from pydantic import BaseModel, Field, validator
+
+print("  → Loading core dependencies...")
+with _console.status("[dim]Loading core dependencies...", spinner="dots"):
+    import colorlog
+    import json
+    import re
+
+    # --- Early Log Level Configuration ---
+    logging.getLogger("LiteLLM").setLevel(logging.WARNING)
+
+print("  → Loading security components...")
+with _console.status("[dim]Loading security components...", spinner="dots"):
+    from proxy_app.input_sanitizer import (
+        sanitize_string,
+        sanitize_json,
+        validate
