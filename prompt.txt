@@ -1,0 +1,419 @@
+You are an expert Python/FastAPI software engineer.
+Repository layout (partial): config/aliases.yaml config/chat_model_rankings.yaml config/model_rankings.yaml config/providers_database.yaml config/router_config.yaml config/scoring_config.yaml config/virtual_models.yaml config/virtual_models_backup.yaml config/virtual_models_generated.yaml src/proxy_app/__init__.py src/proxy_app/batch_manager.py src/proxy_app/build.py src/proxy_app/config_exceptions.py src/proxy_app/config_watcher.py src/proxy_app/detailed_logger.py src/proxy_app/enhanced_proxy.py src/proxy_app/health_checker.py src/proxy_app/launcher_tui.py src/proxy_app/main.py src/proxy_app/model_ranker.py src/proxy_app/provider_adapter.py src/proxy_app/provider_urls.py src/proxy_app/rate_limiter.py src/proxy_app/request_logger.py src/proxy_app/router_core.py src/proxy_app/router_integration.py src/proxy_app/router_wrapper.py src/proxy_app/settings_tool.py src/proxy_app/status_api.py src/rotator_library/__init__.py src/rotator_library/background_refresher.py src/rotator_library/client.py src/rotator_library/cooldown_manager.py src/rotator_library/credential_manager.py src/rotator_library/credential_tool.py src/rotator_library/error_handler.py src/rotator_library/failure_logger.py src/rotator_library/fetch_artificial_analysis_data.py src/rotator_library/leaderboard_updater.py src/rotator_library/live_scraper.py src/rotator_library/llm_aggregated_leaderboard.py src/rotator_library/model_definitions.py src/rotator_library/model_info_service.py src/rotator_library/models_dev_discovery.py src/rotator_library/provider_factory.py src/rotator_library/provider_priority_manager.py src/rotator_library/provider_status_tracker.py src/rotator_library/providers/__init__.py src/rotator_library/providers/agentrouter_provider.py src/rotator_library/providers/antigravity_auth_base.py src/rotator_library/providers/antigravity_provider.py src/rotator_library/providers/cerebras_provider.py src/rotator_library/providers/chutes_provider.py src/rotator_library/providers/cohere_provider.py src/rotator_library/providers/g4f_provider.py src/rotator_library/providers/gemini_auth_base.py src/rotator_library/providers/gemini_cli_provider.py src/rotator_library/providers/gemini_provider.py src/rotator_library/providers/google_oauth_base.py src/rotator_library/providers/groq_provider.py 
+
+Relevant file contents:
+--- src/rotator_library/provider_status_tracker.py ---
+#!/usr/bin/env python3
+"""
+Provider Status Tracker Module
+
+Real-time monitoring of LLM API provider health, uptime, latency, rate limits, and response times.
+Feeds provider health data to the proxy's routing logic for intelligent provider selection.
+"""
+
+import asyncio
+import logging
+import os
+import sqlite3
+import time
+import aiohttp
+from typing import Dict, List, Optional, Tuple, Any, Union
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+import json
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ProviderHealthStatus:
+    """Current health status for a single provider."""
+
+    status: str  # healthy/degraded/down
+    response_time_ms: float = 0.0
+    uptime_percent: float = 100.0
+    rate_limit_percent: float = 0.0
+    last_check_timestamp: str = ""
+    error_message: str = ""
+    consecutive_failures: int = 0
+
+
+class ProviderStatusTracker:
+    """Main class for tracking provider health and status."""
+
+    def __init__(
+        self,
+        check_interval_minutes: int = 5,
+        max_consecutive_failures: int = 3,
+        degraded_latency_threshold_ms: int = 1000,
+    ):
+        """
+        Initialize the provider status tracker.
+
+        Args:
+            check_interval_minutes: How often to run health checks (default: 5)
+            max_consecutive_failures: Number of failures before marking provider as down (default: 3)
+            degraded_latency_threshold_ms: Response time threshold for degraded status (default: 1000ms)
+        """
+        self.check_interval_minutes = check_interval_minutes
+        self.max_consecutive_failures = max_consecutive_failures
+        self.degraded_latency_threshold_ms = degraded_latency_threshold_ms
+
+        # Database setup
+        self.db_path = "provider_status.db"
+        self._initialize_database()
+
+        # Provider configuration
+        self.providers_to_monitor = self._discover_providers()
+
+        # Health check state
+        self.running = False
+        self.check_task = None
+
+        logger.info(
+            f"ProviderStatusTracker initialized with {len(self.providers_to_monitor)} providers"
+        )
+        logger.info(f"Providers to monitor: {', '.join(self.providers_to_monitor)}")
+
+    def _discover_providers(self) -> List[str]:
+        """Discover all configured providers from environment variables."""
+        providers = []
+
+        # List of known free/non-paid providers
+        free_providers = [
+            "groq",
+            "openrouter",
+            "together",
+            "g4f",
+            "gemini_cli",
+            "nvidia",
+            "mistral",
+            "huggingface",
+            "gemini",
+            "google",
+        ]
+
+        # Check which providers have API keys configured
+        for provider in free_providers:
+            # Check for API key environment variables
+            if provider == "g4f":
+                # G4F doesn't require API keys
+                providers.append(provider)
+            elif provider == "gemini_cli":
+                # Check for Gemini CLI configuration
+                if os.getenv("GEMINI_CLI_PROJECT_ID"):
+                    providers.append(provider)
+            else:
+                # Check for standard API key patterns
+                api_key_env = f"{provider.upper()}_API_KEY"
+                if os.getenv(api_key_env):
+                    providers.append(provider)
+
+        # Add G4F endpoints as separate providers
+        g4f_endpoints = ["g4f_main", "g4f_groq", "g4f_grok", "g4f_gemini", "g4f_nvidia"]
+        for endpoint in g4f_endpoints:
+            providers.append(endpoint)
+
+        return list(set(providers))  # Remove duplicates
+
+    def _initialize_database(self):
+        """Initialize SQLite database with required schema."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                # Create main health checks table
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS provider_health_checks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    provider_name TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    response_time_ms REAL,
+                    uptime_percent REAL,
+                    rate_limit_percent REAL,
+                    last_check_timestamp DATETIME NOT NULL,
+                    error_message TEXT,
+                    consecutive_failures INTEGER DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+                """)
+
+                # Create index for faster queries
+                cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_provider_timestamp 
+                ON provider_health_checks(provider_name, last_check_timestamp)
+                """)
+
+                conn.commit()
+
+            logger.info(f"Database initialized at {self.db_path}")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize database: {e}")
+            raise
+
+    def _get_db_connection(self):
+        """Get database connection with proper error handling."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            return conn
+        except Exception as e:
+            logger.error(f"Database connection failed: {e}")
+            raise
+
+    def _store_health_check_result(
+        self,
+        provider_name: str,
+        status: str,
+        response_time_ms: float = 0.0,
+        uptime_percent: float = 100.0,
+        rate_limit_percent: float = 0.0,
+        error_message: str = "",
+        consecutive_failures: int = 0,
+    ):
+        """Store health check result in database."""
+        try:
+            with self._get_db_connection() as conn:
+                cursor = conn.cursor()
+
+                # Insert new record
+                cursor.execute(
+                    """
+                INSERT INTO provider_health_checks 
+                (provider_name, status, response_time_ms, uptime_percent, 
+                 rate_limit_percent, last_check_timestamp, error_message, consecutive_failures)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        provider_name,
+                        status,
+                        response_time_ms,
+                        uptime_percent,
+                        rate_limit_percent,
+                        datetime.now().isoformat(),
+                        error_message,
+                        consecutive_failures,
+                    ),
+                )
+
+                # Clean up old records (>7 days)
+                seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
+                cursor.execute(
+                    """
+                DELETE FROM provider_health_checks 
+
+--- src/proxy_app/status_api.py ---
+#!/usr/bin/env python3
+"""
+Provider Status API Module
+
+FastAPI endpoints for accessing provider health status information.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
+from typing import Dict, Any, List
+import csv
+import io
+import logging
+
+from rotator_library.provider_status_tracker import ProviderStatusTracker
+
+# Module-level status tracker instance
+status_tracker = ProviderStatusTracker()
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Create router for status API endpoints
+router = APIRouter(prefix="/api/providers", tags=["provider-status"])
+
+
+def get_status_tracker(request: Request) -> ProviderStatusTracker:
+    """Dependency to get the provider status tracker from app state."""
+    if not hasattr(request.app.state, "provider_status_tracker"):
+        raise HTTPException(
+            status_code=500, detail="Provider status tracker not initialized"
+        )
+    return request.app.state.provider_status_tracker
+
+
+@router.get("/status")
+async def get_provider_status(
+    request: Request, tracker: ProviderStatusTracker = Depends(get_status_tracker)
+) -> Dict[str, Any]:
+    """
+    Get current status snapshot for all providers.
+
+    Returns:
+        JSON with timestamp and provider status details
+    """
+    try:
+        status = tracker.get_current_status()
+        return status
+    except Exception as e:
+        logger.error(f"Failed to get provider status: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get provider status: {e}"
+        )
+
+
+@router.get("/status/{provider_name}")
+async def get_single_provider_status(
+    request: Request,
+    provider_name: str,
+    tracker: ProviderStatusTracker = Depends(get_status_tracker),
+) -> Dict[str, Any]:
+    """
+    Get detailed status for a single provider.
+
+    Args:
+        provider_name: Name of the provider to query
+
+    Returns:
+        JSON with provider status details
+    """
+    try:
+        current_status = tracker.get_current_status()
+
+        if provider_name not in current_status["providers"]:
+            raise HTTPException(
+                status_code=404, detail=f"Provider '{provider_name}' not found"
+            )
+
+        provider_data = current_status["providers"][provider_name]
+
+        # Add provider name to response
+        provider_data["provider_name"] = provider_name
+
+        return provider_data
+
+    except Exception as e:
+        logger.error(f"Failed to get status for {provider_name}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get provider status: {e}"
+        )
+
+
+@router.get("/best")
+async def get_best_provider(
+    request: Request, tracker: ProviderStatusTracker = Depends(get_status_tracker)
+) -> Dict[str, Any]:
+    """
+    Get the healthiest/fastest provider.
+
+    Returns:
+        JSON with best provider recommendation and alternatives
+    """
+    try:
+        best_provider = tracker.get_best_provider()
+        return best_provider
+    except Exception as e:
+        logger.error(f"Failed to get best provider: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get best provider: {e}")
+
+
+@router.get("/history")
+async def get_provider_history(
+    request: Request,
+    hours: int = 24,
+    tracker: ProviderStatusTracker = Depends(get_status_tracker),
+) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Get historical data for all providers.
+
+    Args:
+        hours: Time window in hours (default: 24)
+
+    Returns:
+        JSON with time-series data for each provider
+    """
+    try:
+        if hours <= 0:
+            hours = 24
+
+        history = tracker.get_all_history(hours)
+        return history
+    except Exception as e:
+        logger.error(f"Failed to get provider history: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get provider history: {e}"
+        )
+
+
+@router.get("/history/{provider_name}")
+async def get_single_provider_history(
+    request: Request,
+    provider_name: str,
+    hours: int = 24,
+    tracker: ProviderStatusTracker = Depends(get_status_tracker),
+) -> List[Dict[str, Any]]:
+    """
+    Get historical data for a single provider.
+
+    Args:
+        provider_name: Name of the provider to query
+        hours: Time window in hours (default: 24)
+
+    Returns:
+        JSON with time-series data for the provider
+    """
+    try:
+        if hours <= 0:
+            hours = 24
+
+        history = tracker.get_provider_history(provider_name, hours)
+
+        if not history:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No history found for provider '{provider_name}'",
+            )
+
+        return history
+
+    except Exception as e:
+        logger.error(f"Failed to get history for {provider_name}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get provider history: {e}"
+        )
+
+
+@router.get("/export/csv")
+async def export_provider_status_csv(
+    request: Request, tracker: ProviderStatusTracker = Depends(get_status_tracker)
+) -> StreamingResponse:
+    """
+    Export current provider status to CSV format.
+
+    Returns:
+        CSV file with provider status data
+    """
+    try:
+        csv_data = tracker.export_to_csv()
+
+        # Create streaming response
+        stream = io.StringIO(csv_data)
+
+        return StreamingResponse(
+            iter([stream.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": "attachment; filename=provider_status.csv",
+                "Content-Type": "text/csv",
+            },
+        )
+
+GitHub Issue #67: Phase 3.1: Implement uptime status dashboard API
+
+Description: Part of Phase 3.1 Uptime Monitoring.
+
+Task: Implement the changes needed to resolve this issue.
+For each file to create or modify, output a block in this EXACT format:
+=== FILE: path/to/file.py ===
+<complete new file contents>
+=== END FILE ===
+Only allowed path prefixes: src/, config/, docs/
+Output ONLY file blocks. No prose outside blocks.

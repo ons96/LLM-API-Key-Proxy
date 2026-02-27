@@ -1,0 +1,752 @@
+===FILE: src/rotator_library/provider_status_tracker.py ===
+#!/usr/bin/env python3
+"""
+Provider Status Tracker Module
+
+Real-time monitoring of LLM API provider health, uptime, latency, rate limits, and response times.
+Feeds provider health data to the proxy's routing logic for intelligent provider selection.
+"""
+
+import asyncio
+import logging
+import os
+import sqlite3
+import time
+import aiohttp
+import csv
+import io
+from typing import Dict, List, Optional, Tuple, Any, Union
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+import json
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ProviderHealthStatus:
+    """Current health status for a single provider."""
+
+    status: str  # healthy/degraded/down
+    response_time_ms: float = 0.0
+    uptime_percent: float = 100.0
+    rate_limit_percent: float = 0.0
+    last_check_timestamp: str = ""
+    error_message: str = ""
+    consecutive_failures: int = 0
+
+
+class ProviderStatusTracker:
+    """Main class for tracking provider health and status."""
+
+    # Basic mapping for health check endpoints (can be expanded or loaded from config)
+    PROVIDER_HEALTH_ENDPOINTS = {
+        "groq": "https://api.groq.com/openai/v1/models",
+        "openrouter": "https://openrouter.ai/api/v1/models",
+        "together": "https://api.together.xyz/v1/models",
+        "nvidia": "https://integrate.api.nvidia.com/v1/models",
+        "mistral": "https://api.mistral.ai/v1/models",
+        "huggingface": "https://api-inference.huggingface.co/status",
+        "gemini": "https://generativelanguage.googleapis.com/v1beta/models",
+        "google": "https://generativelanguage.googleapis.com/v1beta/models",
+        "cerebras": "https://api.cerebras.ai/v1/models",
+        "cohere": "https://api.cohere.ai/v1/models",
+    }
+
+    def __init__(
+        self,
+        check_interval_minutes: int = 5,
+        max_consecutive_failures: int = 3,
+        degraded_latency_threshold_ms: int = 1000,
+    ):
+        """
+        Initialize the provider status tracker.
+
+        Args:
+            check_interval_minutes: How often to run health checks (default: 5)
+            max_consecutive_failures: Number of failures before marking provider as down (default: 3)
+            degraded_latency_threshold_ms: Response time threshold for degraded status (default: 1000ms)
+        """
+        self.check_interval_minutes = check_interval_minutes
+        self.max_consecutive_failures = max_consecutive_failures
+        self.degraded_latency_threshold_ms = degraded_latency_threshold_ms
+
+        # Database setup
+        self.db_path = "provider_status.db"
+        self._initialize_database()
+
+        # Provider configuration
+        self.providers_to_monitor = self._discover_providers()
+
+        # Health check state
+        self.running = False
+        self.check_task = None
+
+        logger.info(
+            f"ProviderStatusTracker initialized with {len(self.providers_to_monitor)} providers"
+        )
+        logger.info(f"Providers to monitor: {', '.join(self.providers_to_monitor)}")
+
+    def _discover_providers(self) -> List[str]:
+        """Discover all configured providers from environment variables."""
+        providers = []
+
+        # List of known free/non-paid providers
+        free_providers = [
+            "groq",
+            "openrouter",
+            "together",
+            "g4f",
+            "gemini_cli",
+            "nvidia",
+            "mistral",
+            "huggingface",
+            "gemini",
+            "google",
+            "cerebras",
+            "cohere",
+        ]
+
+        # Check which providers have API keys configured
+        for provider in free_providers:
+            # Check for API key environment variables
+            if provider == "g4f":
+                # G4F doesn't require API keys
+                providers.append(provider)
+            elif provider == "gemini_cli":
+                # Check for Gemini CLI configuration
+                if os.getenv("GEMINI_CLI_PROJECT_ID"):
+                    providers.append(provider)
+            else:
+                # Check for standard API key patterns
+                api_key_env = f"{provider.upper()}_API_KEY"
+                if os.getenv(api_key_env):
+                    providers.append(provider)
+
+        # Add G4F endpoints as separate providers
+        g4f_endpoints = ["g4f_main", "g4f_groq", "g4f_grok", "g4f_gemini", "g4f_nvidia"]
+        for endpoint in g4f_endpoints:
+            providers.append(endpoint)
+
+        return list(set(providers))  # Remove duplicates
+
+    def _initialize_database(self):
+        """Initialize SQLite database with required schema."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+
+                # Create main health checks table
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS provider_health_checks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    provider_name TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    response_time_ms REAL,
+                    uptime_percent REAL,
+                    rate_limit_percent REAL,
+                    last_check_timestamp DATETIME NOT NULL,
+                    error_message TEXT,
+                    consecutive_failures INTEGER DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+                """)
+
+                # Create index for faster queries
+                cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_provider_timestamp 
+                ON provider_health_checks(provider_name, last_check_timestamp)
+                """)
+
+                conn.commit()
+
+            logger.info(f"Database initialized at {self.db_path}")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize database: {e}")
+            raise
+
+    def _get_db_connection(self):
+        """Get database connection with proper error handling."""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            return conn
+        except Exception as e:
+            logger.error(f"Database connection failed: {e}")
+            raise
+
+    def _store_health_check_result(
+        self,
+        provider_name: str,
+        status: str,
+        response_time_ms: float = 0.0,
+        uptime_percent: float = 100.0,
+        rate_limit_percent: float = 0.0,
+        error_message: str = "",
+        consecutive_failures: int = 0,
+    ):
+        """Store health check result in database."""
+        try:
+            with self._get_db_connection() as conn:
+                cursor = conn.cursor()
+
+                # Insert new record
+                cursor.execute(
+                    """
+                INSERT INTO provider_health_checks 
+                (provider_name, status, response_time_ms, uptime_percent, 
+                 rate_limit_percent, last_check_timestamp, error_message, consecutive_failures)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        provider_name,
+                        status,
+                        response_time_ms,
+                        uptime_percent,
+                        rate_limit_percent,
+                        datetime.now().isoformat(),
+                        error_message,
+                        consecutive_failures,
+                    ),
+                )
+
+                # Clean up old records (>7 days)
+                seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
+                cursor.execute(
+                    """
+                DELETE FROM provider_health_checks 
+                WHERE last_check_timestamp < ?
+                """,
+                    (seven_days_ago,),
+                )
+
+                conn.commit()
+
+        except Exception as e:
+            logger.error(f"Failed to store health check result for {provider_name}: {e}")
+
+    async def _check_provider(self, provider_name: str) -> Dict[str, Any]:
+        """
+        Perform a health check on a single provider.
+        
+        Returns a dictionary with health check results.
+        """
+        result = {
+            "provider_name": provider_name,
+            "status": "down",
+            "response_time_ms": 0.0,
+            "error_message": "",
+        }
+
+        # Determine URL to check
+        url = self.PROVIDER_HEALTH_ENDPOINTS.get(provider_name)
+        
+        # Handle G4F or other special cases where we might not have a direct URL
+        if not url and provider_name.startswith("g4f"):
+            # For G4F, we might simulate a check or check a local proxy endpoint
+            # For now, we'll mark as unknown/skip if no URL
+            result["status"] = "unknown"
+            result["error_message"] = "No health check endpoint configured"
+            return result
+        elif not url:
+            result["status"] = "unknown"
+            result["error_message"] = "No health check endpoint configured"
+            return result
+
+        headers = {}
+        # Add API key if available for the provider
+        api_key_env = f"{provider_name.upper()}_API_KEY"
+        api_key = os.getenv(api_key_env)
+        if api_key:
+            if provider_name == "openrouter":
+                headers["Authorization"] = f"Bearer {api_key}"
+            elif provider_name in ["groq", "nvidia", "mistral", "cerebras", "cohere"]:
+                headers["Authorization"] = f"Bearer {api_key}"
+            elif provider_name in ["gemini", "google"]:
+                # Gemini uses query param usually, but for health check we might just hit the URL
+                pass
+
+        start_time = time.time()
+        try:
+            timeout = aiohttp.ClientTimeout(total=10)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url, headers=headers) as response:
+                    elapsed_ms = (time.time() - start_time) * 1000
+                    result["response_time_ms"] = round(elapsed_ms, 2)
+
+                    if response.status == 200:
+                        result["status"] = "healthy"
+                    elif 400 <= response.status < 500:
+                        result["status"] = "degraded"
+                        result["error_message"] = f"Client error: {response.status}"
+                    else:
+                        result["status"] = "down"
+                        result["error_message"] = f"Server error: {response.status}"
+
+        except asyncio.TimeoutError:
+            result["status"] = "down"
+            result["error_message"] = "Connection timed out"
+        except aiohttp.ClientError as e:
+            result["status"] = "down"
+            result["error_message"] = str(e)
+        except Exception as e:
+            logger.error(f"Unexpected error checking {provider_name}: {e}")
+            result["status"] = "down"
+            result["error_message"] = "Unexpected error"
+
+        return result
+
+    async def run_health_checks(self):
+        """Run health checks for all monitored providers."""
+        logger.info("Starting health check cycle...")
+        
+        tasks = [self._check_provider(provider) for provider in self.providers_to_monitor]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for i, result in enumerate(results):
+            provider_name = self.providers_to_monitor[i]
+            
+            if isinstance(result, Exception):
+                logger.error(f"Health check failed for {provider_name}: {result}")
+                self._store_health_check_result(
+                    provider_name=provider_name,
+                    status="down",
+                    error_message=str(result)
+                )
+                continue
+
+            # Determine consecutive failures (simplified logic: reset on healthy, increment otherwise)
+            # In a real implementation, we'd fetch the previous status from DB
+            consecutive_failures = 0
+            if result["status"] != "healthy":
+                # Fetch previous failures count
+                try:
+                    with self._get_db_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute(
+                            "SELECT consecutive_failures FROM provider_health_checks WHERE provider_name = ? ORDER BY id DESC LIMIT 1",
+                            (provider_name,)
+                        )
+                        row = cursor.fetchone()
+                        if row:
+                            consecutive_failures = row["consecutive_failures"] + 1
+                except Exception:
+                    pass
+            
+            # Determine final status based on consecutive failures
+            final_status = result["status"]
+            if consecutive_failures >= self.max_consecutive_failures:
+                final_status = "down"
+
+            self._store_health_check_result(
+                provider_name=provider_name,
+                status=final_status,
+                response_time_ms=result["response_time_ms"],
+                error_message=result["error_message"],
+                consecutive_failures=consecutive_failures if final_status != "healthy" else 0
+            )
+
+        logger.info("Health check cycle completed.")
+
+    async def _background_loop(self):
+        """Background loop to run health checks periodically."""
+        while self.running:
+            await self.run_health_checks()
+            await asyncio.sleep(self.check_interval_minutes * 60)
+
+    def start_background_task(self):
+        """Start the background health check task."""
+        if not self.running:
+            self.running = True
+            # In a real FastAPI app, this would be handled by lifespan events or startup
+            # For now, we create a task
+            loop = asyncio.get_event_loop()
+            self.check_task = loop.create_task(self._background_loop())
+            logger.info("Background health check task started.")
+
+    def stop_background_task(self):
+        """Stop the background health check task."""
+        if self.running:
+            self.running = False
+            if self.check_task:
+                self.check_task.cancel()
+            logger.info("Background health check task stopped.")
+
+    def get_current_status(self) -> Dict[str, Any]:
+        """
+        Get current status snapshot for all providers.
+        
+        Returns:
+            JSON with timestamp and provider status details
+        """
+        providers_status = {}
+        
+        try:
+            with self._get_db_connection() as conn:
+                cursor = conn.cursor()
+                
+                # Get latest status for each provider
+                cursor.execute("""
+                    SELECT * FROM provider_health_checks 
+                    WHERE id IN (
+                        SELECT MAX(id) FROM provider_health_checks GROUP BY provider_name
+                    )
+                """)
+                
+                rows = cursor.fetchall()
+                
+                for row in rows:
+                    provider_name = row["provider_name"]
+                    providers_status[provider_name] = {
+                        "status": row["status"],
+                        "response_time_ms": row["response_time_ms"],
+                        "uptime_percent": row["uptime_percent"],
+                        "rate_limit_percent": row["rate_limit_percent"],
+                        "last_check_timestamp": row["last_check_timestamp"],
+                        "error_message": row["error_message"],
+                        "consecutive_failures": row["consecutive_failures"],
+                    }
+                    
+        except Exception as e:
+            logger.error(f"Failed to get current status: {e}")
+            
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "providers": providers_status
+        }
+
+    def get_best_provider(self) -> Dict[str, Any]:
+        """
+        Get the healthiest/fastest provider.
+        
+        Returns:
+            JSON with best provider recommendation and alternatives
+        """
+        current_status = self.get_current_status()
+        providers = current_status.get("providers", {})
+        
+        healthy_providers = []
+        
+        for name, data in providers.items():
+            if data["status"] == "healthy":
+                healthy_providers.append({
+                    "name": name,
+                    "response_time_ms": data["response_time_ms"],
+                    "uptime_percent": data["uptime_percent"]
+                })
+        
+        if not healthy_providers:
+            return {
+                "best_provider": None,
+                "message": "No healthy providers available",
+                "alternatives": []
+            }
+            
+        # Sort by response time (ascending)
+        healthy_providers.sort(key=lambda x: x["response_time_ms"])
+        
+        best = healthy_providers[0]
+        alternatives = healthy_providers[1:4] # Top 3 alternatives
+        
+        return {
+            "best_provider": best,
+            "alternatives": alternatives,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    def get_provider_history(self, provider_name: str, hours: int = 24) -> List[Dict[str, Any]]:
+        """
+        Get historical data for a single provider.
+        
+        Args:
+            provider_name: Name of the provider
+            hours: Time window in hours
+            
+        Returns:
+            List of historical status records
+        """
+        history = []
+        cutoff_time = (datetime.now() - timedelta(hours=hours)).isoformat()
+        
+        try:
+            with self._get_db_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT * FROM provider_health_checks 
+                    WHERE provider_name = ? AND last_check_timestamp > ?
+                    ORDER BY last_check_timestamp DESC
+                    """,
+                    (provider_name, cutoff_time)
+                )
+                
+                rows = cursor.fetchall()
+                for row in rows:
+                    history.append({
+                        "id": row["id"],
+                        "provider_name": row["provider_name"],
+                        "status": row["status"],
+                        "response_time_ms": row["response_time_ms"],
+                        "uptime_percent": row["uptime_percent"],
+                        "rate_limit_percent": row["rate_limit_percent"],
+                        "last_check_timestamp": row["last_check_timestamp"],
+                        "error_message": row["error_message"],
+                        "consecutive_failures": row["consecutive_failures"],
+                    })
+                    
+        except Exception as e:
+            logger.error(f"Failed to get history for {provider_name}: {e}")
+            
+        return history
+
+    def get_all_history(self, hours: int = 24) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get historical data for all providers.
+        
+        Args:
+            hours: Time window in hours
+            
+        Returns:
+            Dictionary mapping provider names to their history
+        """
+        all_history = {}
+        
+        for provider in self.providers_to_monitor:
+            all_history[provider] = self.get_provider_history(provider, hours)
+            
+        return all_history
+
+    def export_to_csv(self) -> str:
+        """
+        Export current provider status to CSV format.
+        
+        Returns:
+            CSV string
+        """
+        output = io.StringIO()
+        current_status = self.get_current_status()
+        providers = current_status.get("providers", {})
+        
+        fieldnames = [
+            "provider_name", "status", "response_time_ms", 
+            "uptime_percent", "rate_limit_percent", 
+            "last_check_timestamp", "error_message", "consecutive_failures"
+        ]
+        
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        
+        for name, data in providers.items():
+            row = {"provider_name": name}
+            row.update(data)
+            writer.writerow(row)
+            
+        return output.getvalue()
+=== END FILE ===
+
+=== FILE: src/proxy_app/status_api.py ===
+#!/usr/bin/env python3
+"""
+Provider Status API Module
+
+FastAPI endpoints for accessing provider health status information.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
+from typing import Dict, Any, List
+import logging
+
+from rotator_library.provider_status_tracker import ProviderStatusTracker
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Create router for status API endpoints
+router = APIRouter(prefix="/api/providers", tags=["provider-status"])
+
+
+def get_status_tracker(request: Request) -> ProviderStatusTracker:
+    """Dependency to get the provider status tracker from app state."""
+    if not hasattr(request.app.state, "provider_status_tracker"):
+        raise HTTPException(
+            status_code=500, detail="Provider status tracker not initialized"
+        )
+    return request.app.state.provider_status_tracker
+
+
+@router.get("/status")
+async def get_provider_status(
+    request: Request, tracker: ProviderStatusTracker = Depends(get_status_tracker)
+) -> Dict[str, Any]:
+    """
+    Get current status snapshot for all providers.
+
+    Returns:
+        JSON with timestamp and provider status details
+    """
+    try:
+        status = tracker.get_current_status()
+        return status
+    except Exception as e:
+        logger.error(f"Failed to get provider status: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get provider status: {e}"
+        )
+
+
+@router.get("/status/{provider_name}")
+async def get_single_provider_status(
+    request: Request,
+    provider_name: str,
+    tracker: ProviderStatusTracker = Depends(get_status_tracker),
+) -> Dict[str, Any]:
+    """
+    Get detailed status for a single provider.
+
+    Args:
+        provider_name: Name of the provider to query
+
+    Returns:
+        JSON with provider status details
+    """
+    try:
+        current_status = tracker.get_current_status()
+
+        if provider_name not in current_status["providers"]:
+            raise HTTPException(
+                status_code=404, detail=f"Provider '{provider_name}' not found"
+            )
+
+        provider_data = current_status["providers"][provider_name]
+
+        # Add provider name to response
+        provider_data["provider_name"] = provider_name
+
+        return provider_data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get status for {provider_name}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get provider status: {e}"
+        )
+
+
+@router.get("/best")
+async def get_best_provider(
+    request: Request, tracker: ProviderStatusTracker = Depends(get_status_tracker)
+) -> Dict[str, Any]:
+    """
+    Get the healthiest/fastest provider.
+
+    Returns:
+        JSON with best provider recommendation and alternatives
+    """
+    try:
+        best_provider = tracker.get_best_provider()
+        return best_provider
+    except Exception as e:
+        logger.error(f"Failed to get best provider: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get best provider: {e}")
+
+
+@router.get("/history")
+async def get_provider_history(
+    request: Request,
+    hours: int = 24,
+    tracker: ProviderStatusTracker = Depends(get_status_tracker),
+) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Get historical data for all providers.
+
+    Args:
+        hours: Time window in hours (default: 24)
+
+    Returns:
+        JSON with time-series data for each provider
+    """
+    try:
+        if hours <= 0:
+            hours = 24
+
+        history = tracker.get_all_history(hours)
+        return history
+    except Exception as e:
+        logger.error(f"Failed to get provider history: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get provider history: {e}"
+        )
+
+
+@router.get("/history/{provider_name}")
+async def get_single_provider_history(
+    request: Request,
+    provider_name: str,
+    hours: int = 24,
+    tracker: ProviderStatusTracker = Depends(get_status_tracker),
+) -> List[Dict[str, Any]]:
+    """
+    Get historical data for a single provider.
+
+    Args:
+        provider_name: Name of the provider to query
+        hours: Time window in hours (default: 24)
+
+    Returns:
+        JSON with time-series data for the provider
+    """
+    try:
+        if hours <= 0:
+            hours = 24
+
+        history = tracker.get_provider_history(provider_name, hours)
+
+        if not history:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No history found for provider '{provider_name}'",
+            )
+
+        return history
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get history for {provider_name}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get provider history: {e}"
+        )
+
+
+@router.get("/export/csv")
+async def export_provider_status_csv(
+    request: Request, tracker: ProviderStatusTracker = Depends(get_status_tracker)
+) -> StreamingResponse:
+    """
+    Export current provider status to CSV format.
+
+    Returns:
+        CSV file with provider status data
+    """
+    try:
+        csv_data = tracker.export_to_csv()
+
+        # Create streaming response
+        stream = io.StringIO(csv_data)
+
+        return StreamingResponse(
+            iter([stream.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": "attachment; filename=provider_status.csv",
+                "Content-Type": "text/csv",
+            },
+        )
+    except Exception as e:
+        logger.error(f"Failed to export CSV: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to export CSV: {e}")
+=== END FILE ===
