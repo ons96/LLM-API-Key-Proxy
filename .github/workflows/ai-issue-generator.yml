@@ -231,3 +231,4 @@ ${CONTENT}
           done < <(python3 parse_issues.py)
 
           echo "=== Done with $REPO ==="
+# AI Issue Generator
