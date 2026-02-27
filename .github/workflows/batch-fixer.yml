@@ -5,6 +5,11 @@ on:
   schedule:
     - cron: '*/30 * * * *'
 
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
 jobs:
   fix-issues:
     runs-on: ubuntu-latest
@@ -15,6 +20,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Collect and fix issues
+        env:
+          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
         run: |
           # Get list of open issues
           ISSUES=$(gh issue list --state open --json number --jq '[.[].number]')
@@ -25,22 +32,6 @@ jobs:
           for issue_num in $(echo "$ISSUES" | jq -r '.[]'); do
             echo "Processing issue #$issue_num"
             
-            # Build prompt
-            cat > prompt.txt << EOF
-            You are an expert software engineer.
-            Fix GitHub issue #${issue_num} in this repository.
-            Title: $(gh issue view "$issue_num" --json title --jq '.title')
-            
-            Description:
-            $(gh issue view "$issue_num" --json body --jq '.body' | head -c 1500)
-            
-            Instructions:
-            1. Identify the root cause.
-            2. Implement the minimal correct fix.
-            3. Write clean code.
-            4. Explain what you changed and why.
-
-
             # Get issue details separately
             ISSUE_TITLE=$(gh issue view "$issue_num" --json title --jq '.title')
             ISSUE_BODY=$(gh issue view "$issue_num" --json body --jq '.body' | head -c 1500)
@@ -60,16 +51,9 @@ jobs:
             printf '%s\n' "4. Explain what you changed and why." >> prompt.txt
             
             # Call AI API (Kilo Kimi K2.5 free)
-            PAYLOAD=$(python3 -c "
-            import json
-            with open('prompt.txt') as f: content = f.read()
-            payload = {
-                'model': 'moonshotai/kimi-k2.5:free',
-                'max_tokens': 8192,
-                'messages': [{'role': 'user', 'content': content}]
-            }
-            print(json.dumps(payload))
-            ")
+            PROMPT_CONTENT=$(cat prompt.txt)
+            PAYLOAD=$(jq -n --arg model "moonshotai/kimi-k2.5:free" --arg content "$PROMPT_CONTENT" \
+              '{model: $model, max_tokens: 8192, messages: [{role: "user", content: $content}]}')
             
             RESP=$(curl -sf --max-time 180 \
               -X POST "https://api.kilo.ai/v1/chat/completions" \
