@@ -74,14 +74,15 @@ jobs:
               RELEVANT_FILES="src/proxy_app/main.py"
             fi
 
-            FILE_CONTENTS=""
+            rm -f file_contents.txt
             for f in $RELEVANT_FILES; do
               if [ -f "$f" ]; then
-                FILE_CONTENTS="${FILE_CONTENTS}--- $f ---
-$(head -200 "$f")
-"
+                printf '%s\n' "--- $f ---" >> file_contents.txt
+                head -200 "$f" >> file_contents.txt
+                printf '\n' >> file_contents.txt
               fi
             done
+            FILE_CONTENTS=$(cat file_contents.txt 2>/dev/null || echo "")
 
             printf '%s\n' "You are an expert Python/FastAPI software engineer." > prompt.txt
             printf '%s\n' "Repository layout (partial): $FILE_TREE" >> prompt.txt
