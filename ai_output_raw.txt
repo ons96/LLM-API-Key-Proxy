@@ -1,3 +1,4 @@
+=== FILE: src/proxy_app/status_api.py ===
 import logging
 import time
 from typing import Any, Dict, Optional, List
@@ -161,3 +162,4 @@ async def get_model(model_id: str, request: Request):
         root=model_data.get("root", model_id),
         parent=None
     )
+=== END FILE ===
