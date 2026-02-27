@@ -1,3 +1,4 @@
+=== FILE: src/proxy_app/main.py ===
 import time
 
 # Phase 1: Minimal imports for arg parsing and TUI
@@ -367,3 +368,4 @@ if __name__ == "__main__":
         port=args.port,
         log_level="info"
     )
+=== END FILE ===

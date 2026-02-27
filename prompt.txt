@@ -1,3 +1,8 @@
+You are an expert Python/FastAPI software engineer.
+Repository layout (partial): config/aliases.yaml config/chat_model_rankings.yaml config/model_rankings.yaml config/providers_database.yaml config/router_config.yaml config/scoring_config.yaml config/virtual_models.yaml config/virtual_models_backup.yaml config/virtual_models_generated.yaml src/proxy_app/__init__.py src/proxy_app/batch_manager.py src/proxy_app/build.py src/proxy_app/config_exceptions.py src/proxy_app/config_watcher.py src/proxy_app/detailed_logger.py src/proxy_app/enhanced_proxy.py src/proxy_app/health_checker.py src/proxy_app/launcher_tui.py src/proxy_app/main.py src/proxy_app/model_ranker.py src/proxy_app/provider_adapter.py src/proxy_app/provider_urls.py src/proxy_app/rate_limiter.py src/proxy_app/request_logger.py src/proxy_app/router_core.py src/proxy_app/router_integration.py src/proxy_app/router_wrapper.py src/proxy_app/settings_tool.py src/proxy_app/status_api.py src/rotator_library/__init__.py src/rotator_library/background_refresher.py src/rotator_library/client.py src/rotator_library/cooldown_manager.py src/rotator_library/credential_manager.py src/rotator_library/credential_tool.py src/rotator_library/error_handler.py src/rotator_library/failure_logger.py src/rotator_library/fetch_artificial_analysis_data.py src/rotator_library/leaderboard_updater.py src/rotator_library/live_scraper.py src/rotator_library/llm_aggregated_leaderboard.py src/rotator_library/model_definitions.py src/rotator_library/model_info_service.py src/rotator_library/models_dev_discovery.py src/rotator_library/provider_factory.py src/rotator_library/provider_priority_manager.py src/rotator_library/provider_status_tracker.py src/rotator_library/providers/__init__.py src/rotator_library/providers/agentrouter_provider.py src/rotator_library/providers/antigravity_auth_base.py src/rotator_library/providers/antigravity_provider.py src/rotator_library/providers/cerebras_provider.py src/rotator_library/providers/chutes_provider.py src/rotator_library/providers/cohere_provider.py src/rotator_library/providers/g4f_provider.py src/rotator_library/providers/gemini_auth_base.py src/rotator_library/providers/gemini_cli_provider.py src/rotator_library/providers/gemini_provider.py src/rotator_library/providers/google_oauth_base.py src/rotator_library/providers/groq_provider.py 
+
+Relevant file contents:
+--- src/proxy_app/main.py ---
 import time
 
 # Phase 1: Minimal imports for arg parsing and TUI
@@ -198,172 +203,15 @@ class EnrichedModelCard(BaseModel):
     supported_output_modalities: List[str] = Field(default_factory=lambda: ["text"])
     capabilities: Optional[ModelCapabilities] = None
     # Debug info (optional)
-    debug_info: Optional[Dict[str, Any]] = None
 
+GitHub Issue #38: Phase 1.3: Add security headers to all responses
 
-# --- Application Lifespan ---
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan manager."""
-    # Initialize services
-    print("  → Initializing model info service...")
-    init_model_info_service()
-    
-    print("  → Initializing router...")
-    await initialize_router()
-    
-    yield
-    
-    # Cleanup
-    print("  → Shutting down services...")
+Description: Part of Phase 1.3 Security Hardening.
 
-
-# --- FastAPI App Initialization ---
-app = FastAPI(
-    title="Mirro-Proxy",
-    description="API Key Proxy Server with intelligent routing",
-    version="1.3.0",
-    lifespan=lifespan,
-)
-
-
-# --- Security Headers Middleware ---
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    """Add security headers to all responses as per Phase 1.3 Security Hardening."""
-    response = await call_next(request)
-    
-    # Prevent MIME type sniffing
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    
-    # Prevent clickjacking attacks
-    response.headers["X-Frame-Options"] = "DENY"
-    
-    # XSS Protection for legacy browsers
-    response.headers["X-SS-Protection"] = "1; mode=block"
-    
-    # Enforce HTTPS connections (1 year max-age, include subdomains)
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    
-    # Control referrer information leakage
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    
-    # Restrict Flash/PDF cross-domain policies
-    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
-    
-    # Feature policy / Permissions policy to restrict browser features
-    response.headers["Permissions-Policy"] = (
-        "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
-        "magnetometer=(), microphone=(), payment=(), usb=(), "
-        "interest-cohort=(), browsing-topics=()"
-    )
-    
-    # Content Security Policy for API (restrictive default)
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; "
-        "form-action 'none'"
-    )
-    
-    # Disable caching for sensitive API responses by default
-    # (Can be overridden by specific endpoints if needed)
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, proxy-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    
-    return response
-
-
-# --- CORS Middleware ---
-# Note: CORS is configured before security headers to ensure proper ordering
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["X-Request-ID"],  # Expose any custom headers used by the app
-)
-
-
-# --- API Key Security ---
-api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
-
-async def verify_api_key(authorization: Optional[str] = Depends(api_key_header)):
-    """Verify the API key from Authorization header."""
-    if not proxy_api_key:
-        return True  # No key required if not set
-    
-    if not authorization:
-        raise HTTPException(status_code=401, detail="Missing Authorization header")
-    
-    # Handle Bearer token format
-    if authorization.startswith("Bearer "):
-        token = authorization.replace("Bearer ", "")
-    else:
-        token = authorization
-    
-    if token != proxy_api_key:
-        raise HTTPException(status_code=403, detail="Invalid API key")
-    
-    return True
-
-
-# --- Routes ---
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    return {
-        "message": "Mirro-Proxy Server",
-        "version": "1.3.0",
-        "status": "operational"
-    }
-
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint."""
-    return {"status": "healthy"}
-
-
-@app.get("/v1/models")
-async def list_models(authorized: bool = Depends(verify_api_key)):
-    """List available models."""
-    router = get_router()
-    models = []
-    # Implementation would populate models from router
-    return {"data": models, "object": "list"}
-
-
-@app.post("/v1/chat/completions")
-async def chat_completions(request: Request, authorized: bool = Depends(verify_api_key)):
-    """Handle chat completions."""
-    body = await request.json()
-    # Implementation would use the router to handle the request
-    return {"status": "not implemented in this snippet"}
-
-
-@app.post("/v1/embeddings")
-async def embeddings(
-    request: EmbeddingRequest, 
-    authorized: bool = Depends(verify_api_key)
-):
-    """Handle embeddings."""
-    # Implementation would use the batch manager
-    return {"status": "not implemented in this snippet"}
-
-
-# --- Main Entry Point ---
-if __name__ == "__main__":
-    import uvicorn
-    
-    elapsed = time.time() - _start_time
-    print(f"✓ Startup complete in {elapsed:.2f}s")
-    print(f"  Security headers: ENABLED")
-    print(f"  Listening on {args.host}:{args.port}")
-    
-    uvicorn.run(
-        app, 
-        host=args.host, 
-        port=args.port,
-        log_level="info"
-    )
+Task: Implement the changes needed to resolve this issue.
+For each file to create or modify, output a block in this EXACT format:
+=== FILE: path/to/file.py ===
+<complete new file contents>
+=== END FILE ===
+Only allowed path prefixes: src/, config/, docs/
+Output ONLY file blocks. No prose outside blocks.
