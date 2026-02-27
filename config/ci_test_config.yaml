@@ -1,0 +1,78 @@
+# CI/CD Test Configuration
+# Minimal configuration for running tests in CI environments
+# This disables heavy features to speed up CI and avoid unnecessary API calls
+
+environment: ci
+debug: false
+
+# Logging configuration
+logging:
+  level: ERROR
+  format: json
+  enable_request_logging: false
+  enable_detailed_logging: false
+
+# Feature flags for CI
+features:
+  enable_tui: false
+  enable_credential_tool: false
+  enable_batch_manager: false
+  enable_background_refresh: false
+  
+# Provider configuration - minimal for testing
+providers:
+  discovery:
+    enabled: false
+    lazy_load: true
+  
+  # Use only mock/test providers in CI
+  test_providers:
+    - name: mock_provider
+      type: mock
+      models:
+        - gpt-3.5-turbo-mock
+  
+  # Disable all real providers to avoid API calls
+  disabled_providers:
+    - gemini
+    - anthropic
+    - openai
+    - groq
+    - cerebras
+    - cohere
+
+# Rate limiting - disable in CI
+rate_limiting:
+  enabled: false
+
+# Health check configuration
+health_check:
+  enabled: true
+  interval: 30
+  timeout: 5
+
+# Router configuration - minimal
+router:
+  strategy: simple_round_robin
+  enable_caching: false
+  cache_ttl: 0
+  
+# Virtual models - minimal set for testing
+virtual_models:
+  enabled: true
+  config_file: config/virtual_models.yaml
+  fallback_to_direct: true
+
+# Credentials - use ephemeral/memory store
+credentials:
+  store_type: memory
+  encryption: false
+  
+# Scoring configuration
+scoring:
+  enabled: false
+  
+# Model rankings
+model_rankings:
+  enabled: false
+  auto_update: false
