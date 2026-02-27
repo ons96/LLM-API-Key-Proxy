@@ -1,0 +1,689 @@
+=== FILE: src/rotator_library/timeout_config.py ===
+# src/rotator_library/timeout_config.py
+"""
+Centralized timeout configuration for HTTP requests.
+
+All values can be overridden via environment variables:
+    TIMEOUT_CONNECT - Connection establishment timeout (default: 30s)
+    TIMEOUT_WRITE - Request body send timeout (default: 30s)
+    TIMEOUT_POOL - Connection pool acquisition timeout (default: 60s)
+    TIMEOUT_READ_STREAMING - Read timeout between chunks for streaming (default: 180s / 3 min)
+    TIMEOUT_READ_NON_STREAMING - Read timeout for non-streaming responses (default: 600s / 10 min)
+"""
+
+import os
+import logging
+import httpx
+
+lib_logger = logging.getLogger("rotator_library")
+
+
+class TimeoutConfig:
+    """
+    Centralized timeout configuration for HTTP requests.
+
+    All values can be overridden via environment variables.
+    """
+
+    # Default values (in seconds)
+    _CONNECT = 30.0
+    _WRITE = 30.0
+    _POOL = 60.0
+    _READ_STREAMING = 180.0  # 3 minutes between chunks
+    _READ_NON_STREAMING = 600.0  # 10 minutes for full response
+
+    @classmethod
+    def _get_env_float(cls, key: str, default: float) -> float:
+        """Get a float value from environment variable, or return default."""
+        value = os.environ.get(key)
+        if value is not None:
+            try:
+                return float(value)
+            except ValueError:
+                lib_logger.warning(
+                    f"Invalid value for {key}: {value}. Using default: {default}"
+                )
+        return default
+
+    @classmethod
+    def connect(cls) -> float:
+        """Connection establishment timeout."""
+        return cls._get_env_float("TIMEOUT_CONNECT", cls._CONNECT)
+
+    @classmethod
+    def write(cls) -> float:
+        """Request body send timeout."""
+        return cls._get_env_float("TIMEOUT_WRITE", cls._WRITE)
+
+    @classmethod
+    def pool(cls) -> float:
+        """Connection pool acquisition timeout."""
+        return cls._get_env_float("TIMEOUT_POOL", cls._POOL)
+
+    @classmethod
+    def read_streaming(cls) -> float:
+        """Read timeout between chunks for streaming requests."""
+        return cls._get_env_float("TIMEOUT_READ_STREAMING", cls._READ_STREAMING)
+
+    @classmethod
+    def read_non_streaming(cls) -> float:
+        """Read timeout for non-streaming responses."""
+        return cls._get_env_float("TIMEOUT_READ_NON_STREAMING", cls._READ_NON_STREAMING)
+
+    @classmethod
+    def streaming(cls) -> httpx.Timeout:
+        """
+        Timeout configuration for streaming LLM requests.
+
+        Uses a shorter read timeout (default 3 min) since we expect
+        periodic chunks. If no data arrives for this duration, the
+        connection is considered stalled.
+        """
+        return httpx.Timeout(
+            connect=cls.connect(),
+            read=cls.read_streaming(),
+            write=cls.write(),
+            pool=cls.pool(),
+        )
+
+    @classmethod
+    def non_streaming(cls) -> httpx.Timeout:
+        """
+        Timeout configuration for non-streaming LLM requests.
+
+        Uses a longer read timeout (default 10 min) since the server
+        may take significant time to generate the complete response
+        before sending anything back.
+        """
+        return httpx.Timeout(
+            connect=cls.connect(),
+            read=cls.read_non_streaming(),
+            write=cls.write(),
+            pool=cls.pool(),
+        )
+=== END FILE ===
+
+=== FILE: src/rotator_library/client.py ===
+# src/rotator_library/client.py
+"""
+HTTP client factory with centralized timeout configuration.
+"""
+
+import httpx
+from typing import Optional, Dict, Any, AsyncGenerator
+import json
+import logging
+
+from .timeout_config import TimeoutConfig
+
+logger = logging.getLogger(__name__)
+
+
+class StreamingClient:
+    """
+    HTTP client wrapper that applies appropriate timeouts based on streaming mode.
+    """
+    
+    def __init__(self, streaming: bool = False, headers: Optional[Dict[str, str]] = None):
+        self.streaming = streaming
+        self.headers = headers or {}
+        self._client: Optional[httpx.AsyncClient] = None
+    
+    async def __aenter__(self):
+        timeout = TimeoutConfig.streaming() if self.streaming else TimeoutConfig.non_streaming()
+        self._client = httpx.AsyncClient(timeout=timeout, headers=self.headers)
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self._client:
+            await self._client.aclose()
+    
+    async def post(self, url: str, **kwargs) -> httpx.Response:
+        """Make POST request with configured timeout."""
+        if not self._client:
+            raise RuntimeError("Client not initialized. Use async context manager.")
+        return await self._client.post(url, **kwargs)
+    
+    async def get(self, url: str, **kwargs) -> httpx.Response:
+        """Make GET request with configured timeout."""
+        if not self._client:
+            raise RuntimeError("Client not initialized. Use async context manager.")
+        return await self._client.get(url, **kwargs)
+    
+    async def stream(self, method: str, url: str, **kwargs) -> AsyncGenerator[bytes, None]:
+        """
+        Stream response with streaming-appropriate timeouts.
+        Forces streaming timeout configuration regardless of initial mode.
+        """
+        if not self._client:
+            # Create client with streaming timeout if streaming content
+            timeout = TimeoutConfig.streaming()
+            self._client = httpx.AsyncClient(timeout=timeout, headers=self.headers)
+        
+        async with self._client.stream(method, url, **kwargs) as response:
+            async for chunk in response.aiter_bytes():
+                yield chunk
+
+
+def create_client(streaming: bool = False, headers: Optional[Dict[str, str]] = None) -> httpx.AsyncClient:
+    """
+    Factory function to create an httpx.AsyncClient with appropriate timeout configuration.
+    
+    Args:
+        streaming: Whether this client will be used for streaming requests
+        headers: Default headers to include
+        
+    Returns:
+        Configured httpx.AsyncClient instance
+    """
+    timeout = TimeoutConfig.streaming() if streaming else TimeoutConfig.non_streaming()
+    return httpx.AsyncClient(timeout=timeout, headers=headers or {})
+
+
+def is_streaming_request(body: bytes) -> bool:
+    """
+    Detect if a request body indicates streaming mode.
+    
+    Checks for OpenAI-compatible stream parameter in JSON body.
+    
+    Args:
+        body: Raw request body bytes
+        
+    Returns:
+        True if streaming is requested
+    """
+    try:
+        if not body:
+            return False
+        data = json.loads(body)
+        return data.get("stream", False) is True
+    except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        return False
+
+
+def get_timeout_for_request(body: Optional[bytes] = None, explicit_streaming: Optional[bool] = None) -> httpx.Timeout:
+    """
+    Determine appropriate timeout configuration based on request characteristics.
+    
+    Args:
+        body: Request body to inspect for streaming flag
+        explicit_streaming: Explicit streaming flag if already known
+        
+    Returns:
+        httpx.Timeout configuration
+    """
+    if explicit_streaming is not None:
+        return TimeoutConfig.streaming() if explicit_streaming else TimeoutConfig.non_streaming()
+    
+    if body and is_streaming_request(body):
+        return TimeoutConfig.streaming()
+    
+    return TimeoutConfig.non_streaming()
+=== END FILE ===
+
+=== FILE: src/proxy_app/enhanced_proxy.py ===
+# src/proxy_app/enhanced_proxy.py
+"""
+Enhanced proxy with streaming-aware timeout handling.
+"""
+
+import json
+import logging
+from typing import Optional, Dict, Any, AsyncGenerator
+import httpx
+from fastapi import Request, Response, HTTPException
+from fastapi.responses import StreamingResponse
+
+from rotator_library.timeout_config import TimeoutConfig
+from rotator_library.client import is_streaming_request, get_timeout_for_request
+
+logger = logging.getLogger(__name__)
+
+
+class EnhancedProxy:
+    """
+    Proxy handler that applies appropriate timeouts based on streaming mode.
+    """
+    
+    def __init__(self):
+        self.session_stats = {
+            "streaming_requests": 0,
+            "non_streaming_requests": 0
+        }
+    
+    async def proxy_request(
+        self, 
+        request: Request, 
+        target_url: str, 
+        provider_headers: Optional[Dict[str, str]] = None
+    ) -> Response:
+        """
+        Proxy a request to a provider with appropriate timeout handling.
+        
+        Automatically detects streaming requests and applies suitable timeouts.
+        """
+        body = await request.body()
+        is_streaming = is_streaming_request(body)
+        
+        # Update stats
+        if is_streaming:
+            self.session_stats["streaming_requests"] += 1
+            logger.debug(f"Detected streaming request to {target_url}")
+        else:
+            self.session_stats["non_streaming_requests"] += 1
+        
+        # Select appropriate timeout
+        timeout = get_timeout_for_request(explicit_streaming=is_streaming)
+        
+        # Prepare headers
+        headers = self._prepare_headers(request, provider_headers)
+        
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                if is_streaming:
+                    return await self._handle_streaming_request(
+                        client, request, target_url, body, headers
+                    )
+                else:
+                    return await self._handle_non_streaming_request(
+                        client, request, target_url, body, headers
+                    )
+        except httpx.TimeoutException as e:
+            logger.error(f"Timeout {'streaming' if is_streaming else 'non-streaming'} request to {target_url}: {e}")
+            raise HTTPException(
+                status_code=504,
+                detail=f"Gateway timeout: {'streaming' if is_streaming else 'completion'} request exceeded time limit"
+            )
+        except Exception as e:
+            logger.error(f"Error proxying request to {target_url}: {e}")
+            raise HTTPException(status_code=502, detail="Bad gateway")
+    
+    async def _handle_streaming_request(
+        self,
+        client: httpx.AsyncClient,
+        request: Request,
+        target_url: str,
+        body: bytes,
+        headers: Dict[str, str]
+    ) -> StreamingResponse:
+        """Handle streaming request with chunked timeout handling."""
+        
+        async def stream_generator() -> AsyncGenerator[str, None]:
+            try:
+                async with client.stream(
+                    method=request.method,
+                    url=target_url,
+                    content=body,
+                    headers=headers
+                ) as response:
+                    response.raise_for_status()
+                    async for chunk in response.aiter_text():
+                        yield chunk
+            except httpx.TimeoutException:
+                logger.error("Streaming timeout - no data received within chunk timeout window")
+                yield "data: [ERROR] Stream timeout - connection stalled\n\n"
+            except Exception as e:
+                logger.error(f"Streaming error: {e}")
+                yield f"data: [ERROR] {str(e)}\n\n"
+        
+        return StreamingResponse(
+            stream_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            }
+        )
+    
+    async def _handle_non_streaming_request(
+        self,
+        client: httpx.AsyncClient,
+        request: Request,
+        target_url: str,
+        body: bytes,
+        headers: Dict[str, str]
+    ) -> Response:
+        """Handle standard non-streaming request."""
+        response = await client.request(
+            method=request.method,
+            url=target_url,
+            content=body,
+            headers=headers
+        )
+        response.raise_for_status()
+        
+        return Response(
+            content=response.content,
+            status_code=response.status_code,
+            headers=dict(response.headers)
+        )
+    
+    def _prepare_headers(
+        self, 
+        request: Request, 
+        provider_headers: Optional[Dict[str, str]] = None
+    ) -> Dict[str, str]:
+        """Prepare headers for upstream request."""
+        headers = {}
+        
+        # Copy safe headers from original request
+        safe_headers = ["content-type", "accept", "user-agent"]
+        for header in safe_headers:
+            if value := request.headers.get(header):
+                headers[header] = value
+        
+        # Add provider-specific headers (auth, etc.)
+        if provider_headers:
+            headers.update(provider_headers)
+        
+        # Remove problematic headers
+        headers.pop("host", None)
+        headers.pop("content-length", None)  # httpx will recalculate
+        
+        return headers
+    
+    def get_stats(self) -> Dict[str, int]:
+        """Get session statistics."""
+        return self.session_stats.copy()
+
+
+class TimeoutAwareRouter:
+    """
+    Router component that ensures providers respect streaming timeouts.
+    """
+    
+    @staticmethod
+    def validate_streaming_timeout_config():
+        """
+        Validate that timeout configuration is suitable for expected workloads.
+        Logs warnings if timeouts seem misconfigured.
+        """
+        streaming_read = TimeoutConfig.read_streaming()
+        non_streaming_read = TimeoutConfig.read_non_streaming()
+        
+        if streaming_read > 300:
+            logger.warning(
+                f"Streaming read timeout ({streaming_read}s) is quite high. "
+                "Consider reducing to detect stalled connections faster."
+            )
+        
+        if non_streaming_read < 60:
+            logger.warning(
+                f"Non-streaming read timeout ({non_streaming_read}s) is very low. "
+                "Long completions may fail."
+            )
+        
+        logger.info(
+            f"Timeout configuration - Streaming: {streaming_read}s, "
+            f"Non-streaming: {non_streaming_read}s"
+        )
+=== END FILE ===
+
+=== FILE: src/rotator_library/providers/antigravity_auth_base.py ===
+# src/rotator_library/providers/antigravity_auth_base.py
+"""
+Base class for Antigravity providers with streaming timeout support.
+"""
+
+import httpx
+from typing import Optional, Dict, Any, AsyncGenerator
+import logging
+
+from ..timeout_config import TimeoutConfig
+from ..client import create_client, is_streaming_request
+
+logger = logging.getLogger(__name__)
+
+
+class AntigravityAuthBase:
+    """
+    Base class for Antigravity providers implementing timeout-aware HTTP handling.
+    """
+    
+    def __init__(self, api_key: Optional[str] = None, base_url: Optional[str] = None):
+        self.api_key = api_key
+        self.base_url = base_url
+        self._client: Optional[httpx.AsyncClient] = None
+        self._streaming_client: Optional[httpx.AsyncClient] = None
+    
+    async def _get_client(self, streaming: bool = False) -> httpx.AsyncClient:
+        """
+        Get or create HTTP client with appropriate timeout configuration.
+        
+        Maintains separate clients for streaming and non-streaming to avoid
+        timeout configuration conflicts.
+        """
+        if streaming:
+            if self._streaming_client is None or self._streaming_client.is_closed:
+                self._streaming_client = create_client(streaming=True, headers=self._get_headers())
+            return self._streaming_client
+        else:
+            if self._client is None or self._client.is_closed:
+                self._client = create_client(streaming=False, headers=self._get_headers())
+            return self._client
+    
+    def _get_headers(self) -> Dict[str, str]:
+        """Get default headers for requests."""
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
+    
+    async def make_request(
+        self, 
+        endpoint: str, 
+        payload: Dict[str, Any],
+        stream: bool = False
+    ) -> httpx.Response:
+        """
+        Make a request with appropriate timeout handling.
+        
+        Args:
+            endpoint: API endpoint path
+            payload: Request payload
+            stream: Whether this is a streaming request
+            
+        Returns:
+            httpx.Response object
+        """
+        client = await self._get_client(streaming=stream)
+        url = f"{self.base_url}{endpoint}"
+        
+        try:
+            response = await client.post(url, json=payload)
+            return response
+        except httpx.TimeoutException as e:
+            logger.error(f"Timeout during {'streaming' if stream else 'standard'} request to {url}: {e}")
+            raise
+    
+    async def stream_request(
+        self,
+        endpoint: str,
+        payload: Dict[str, Any]
+    ) -> AsyncGenerator[str, None]:
+        """
+        Make a streaming request with streaming-appropriate timeouts.
+        
+        Args:
+            endpoint: API endpoint path
+            payload: Request payload requiring streaming response
+            
+        Yields:
+            Response chunks as strings
+        """
+        # Ensure streaming is enabled in payload
+        payload["stream"] = True
+        
+        # Use streaming client
+        client = await self._get_client(streaming=True)
+        url = f"{self.base_url}{endpoint}"
+        
+        try:
+            async with client.stream("POST", url, json=payload) as response:
+                response.raise_for_status()
+                async for chunk in response.aiter_text():
+                    yield chunk
+        except httpx.TimeoutException:
+            logger.error(f"Streaming timeout on {url} - no chunks received within {TimeoutConfig.read_streaming()}s")
+            raise
+        except Exception as e:
+            logger.error(f"Streaming error on {url}: {e}")
+            raise
+    
+    async def close(self):
+        """Close all HTTP clients."""
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
+        if self._streaming_client and not self._streaming_client.is_closed:
+            await self._streaming_client.aclose()
+    
+    async def __aenter__(self):
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
+=== END FILE ===
+
+=== FILE: src/proxy_app/router_core.py ===
+# src/proxy_app/router_core.py
+"""
+Core router logic with streaming-aware timeout handling.
+"""
+
+import json
+import logging
+from typing import Dict, Any, Optional, List
+import httpx
+
+from rotator_library.timeout_config import TimeoutConfig
+from rotator_library.client import get_timeout_for_request, is_streaming_request
+
+logger = logging.getLogger(__name__)
+
+
+class RouterCore:
+    """
+    Core routing logic that applies appropriate timeouts based on request type.
+    """
+    
+    def __init__(self):
+        self.timeout_stats = {
+            "streaming_timeouts": 0,
+            "non_streaming_timeouts": 0,
+            "total_streaming": 0,
+            "total_non_streaming": 0
+        }
+    
+    def classify_request(self, body: bytes) -> tuple[bool, httpx.Timeout]:
+        """
+        Classify request as streaming or non-streaming and return appropriate timeout.
+        
+        Returns:
+            Tuple of (is_streaming, timeout_config)
+        """
+        is_streaming = is_streaming_request(body)
+        timeout = TimeoutConfig.streaming() if is_streaming else TimeoutConfig.non_streaming()
+        
+        # Update stats
+        if is_streaming:
+            self.timeout_stats["total_streaming"] += 1
+        else:
+            self.timeout_stats["total_non_streaming"] += 1
+            
+        return is_streaming, timeout
+    
+    def get_provider_client(self, is_streaming: bool) -> httpx.AsyncClient:
+        """
+        Get HTTP client configured for the specific request type.
+        
+        Creates clients with distinct timeout configurations to ensure
+        streaming requests don't use excessive timeouts and non-streaming
+        requests have sufficient time for generation.
+        """
+        timeout = TimeoutConfig.streaming() if is_streaming else TimeoutConfig.non_streaming()
+        
+        return httpx.AsyncClient(
+            timeout=timeout,
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=100),
+            http2=True
+        )
+    
+    def handle_timeout_error(self, error: httpx.TimeoutException, is_streaming: bool, provider: str):
+        """
+        Handle timeout errors with appropriate logging and stats.
+        
+        Args:
+            error: The timeout exception
+            is_streaming: Whether this was a streaming request
+            provider: Provider identifier
+        """
+        if is_streaming:
+            self.timeout_stats["streaming_timeouts"] += 1
+            logger.warning(
+                f"Streaming timeout with provider {provider}: "
+                f"No data received for {TimeoutConfig.read_streaming()}s. "
+                f"Provider may be stalled or overloaded."
+            )
+        else:
+            self.timeout_stats["non_streaming_timeouts"] += 1
+            logger.warning(
+                f"Non-streaming timeout with provider {provider}: "
+                f"Request exceeded {TimeoutConfig.read_non_streaming()}s. "
+                f"Consider increasing TIMEOUT_READ_NON_STREAMING for large generations."
+            )
+    
+    def get_timeout_recommendations(self) -> List[str]:
+        """
+        Generate recommendations based on timeout statistics.
+        
+        Returns:
+            List of recommendation strings
+        """
+        recommendations = []
+        
+        streaming_rate = (
+            self.timeout_stats["streaming_timeouts"] / max(self.timeout_stats["total_streaming"], 1)
+        )
+        non_streaming_rate = (
+            self.timeout_stats["non_streaming_timeouts"] / max(self.timeout_stats["total_non_streaming"], 1)
+        )
+        
+        if streaming_rate > 0.1:  # More than 10% streaming timeouts
+            recommendations.append(
+                f"High streaming timeout rate ({streaming_rate:.1%}). "
+                f"Current chunk timeout: {TimeoutConfig.read_streaming()}s. "
+                "Providers may be sending keepalives too slowly."
+            )
+        
+        if non_streaming_rate > 0.05:  # More than 5% non-streaming timeouts
+            recommendations.append(
+                f"High completion timeout rate ({non_streaming_rate:.1%}). "
+                f"Current timeout: {TimeoutConfig.read_non_streaming()}s. "
+                "Consider increasing TIMEOUT_READ_NON_STREAMING for long outputs."
+            )
+        
+        return recommendations
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get current timeout statistics."""
+        return {
+            **self.timeout_stats,
+            "streaming_timeout_rate": (
+                self.timeout_stats["streaming_timeouts"] / 
+                max(self.timeout_stats["total_streaming"], 1)
+            ),
+            "non_streaming_timeout_rate": (
+                self.timeout_stats["non_streaming_timeouts"] / 
+                max(self.timeout_stats["total_non_streaming"], 1)
+            ),
+            "current_timeouts": {
+                "streaming_read": TimeoutConfig.read_streaming(),
+                "non_streaming_read": TimeoutConfig.read_non_streaming(),
+                "connect": TimeoutConfig.connect(),
+                "write": TimeoutConfig.write()
+            }
+        }
+=== END FILE ===
