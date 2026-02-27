@@ -1,9 +1,9 @@
 You are an expert software engineer.
-Fix GitHub issue #126 in this repository.
-Title: Quick Wins: Add docstrings to all modules
+Fix GitHub issue #125 in this repository.
+Title: Bugs: Test and fix G4F model ID handling for complex IDs
 
 Description:
-From Quick Wins section.
+From BUGS.md: Some complex G4F model IDs don't work correctly.
 
 Instructions:
 1. Identify the root cause.
