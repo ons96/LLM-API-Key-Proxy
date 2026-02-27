@@ -1,3 +1,8 @@
+You are an expert Python/FastAPI software engineer.
+Repository layout (partial): config/aliases.yaml config/chat_model_rankings.yaml config/model_rankings.yaml config/providers_database.yaml config/router_config.yaml config/scoring_config.yaml config/virtual_models.yaml config/virtual_models_backup.yaml config/virtual_models_generated.yaml src/proxy_app/__init__.py src/proxy_app/batch_manager.py src/proxy_app/build.py src/proxy_app/config_exceptions.py src/proxy_app/config_watcher.py src/proxy_app/detailed_logger.py src/proxy_app/enhanced_proxy.py src/proxy_app/health_checker.py src/proxy_app/launcher_tui.py src/proxy_app/main.py src/proxy_app/model_ranker.py src/proxy_app/provider_adapter.py src/proxy_app/provider_urls.py src/proxy_app/rate_limiter.py src/proxy_app/request_logger.py src/proxy_app/router_core.py src/proxy_app/router_integration.py src/proxy_app/router_wrapper.py src/proxy_app/settings_tool.py src/proxy_app/status_api.py src/rotator_library/__init__.py src/rotator_library/background_refresher.py src/rotator_library/client.py src/rotator_library/cooldown_manager.py src/rotator_library/credential_manager.py src/rotator_library/credential_tool.py src/rotator_library/error_handler.py src/rotator_library/failure_logger.py src/rotator_library/fetch_artificial_analysis_data.py src/rotator_library/leaderboard_updater.py src/rotator_library/live_scraper.py src/rotator_library/llm_aggregated_leaderboard.py src/rotator_library/model_definitions.py src/rotator_library/model_info_service.py src/rotator_library/models_dev_discovery.py src/rotator_library/provider_factory.py src/rotator_library/provider_priority_manager.py src/rotator_library/provider_status_tracker.py src/rotator_library/providers/__init__.py src/rotator_library/providers/agentrouter_provider.py src/rotator_library/providers/antigravity_auth_base.py src/rotator_library/providers/antigravity_provider.py src/rotator_library/providers/cerebras_provider.py src/rotator_library/providers/chutes_provider.py src/rotator_library/providers/cohere_provider.py src/rotator_library/providers/g4f_provider.py src/rotator_library/providers/gemini_auth_base.py src/rotator_library/providers/gemini_cli_provider.py src/rotator_library/providers/gemini_provider.py src/rotator_library/providers/google_oauth_base.py src/rotator_library/providers/groq_provider.py 
+
+Relevant file contents:
+--- src/proxy_app/main.py ---
 import time
 
 # Phase 1: Minimal imports for arg parsing and TUI
@@ -133,9 +138,6 @@ with _console.status("[dim]Initializing proxy core...", spinner="dots"):
     # [NEW] Import HealthChecker
     from proxy_app.health_checker import HealthChecker
 
-    # [NEW] Import Correlation ID Middleware
-    from proxy_app.middleware_correlation import CorrelationIDMiddleware
-
 print("  → Discovering provider plugins...")
 # Provider lazy loading happens during import, so time it here
 _provider_start = time.time()
@@ -201,4 +203,15 @@ class EnrichedModelCard(BaseModel):
     supported_output_modalities: List[str] = Field(default_factory=lambda: ["text"])
     capabilities: Optional[ModelCapabilities] = None
     # Debug info (optional)
-    # (We may add more fields later)
+
+GitHub Issue #30: Phase 1.2: Add correlation IDs to all request flows
+
+Description: Part of Phase 1.2 Error Handling & Logging.
+
+Task: Implement the changes needed to resolve this issue.
+For each file to create or modify, output a block in this EXACT format:
+=== FILE: path/to/file.py ===
+<complete new file contents>
+=== END FILE ===
+Only allowed path prefixes: src/, config/, docs/
+Output ONLY file blocks. No prose outside blocks.

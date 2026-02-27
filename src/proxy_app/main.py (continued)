@@ -1,0 +1,467 @@
+# ============================================================
+# FASTAPI APP LIFECYCLE
+# ============================================================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifecycle manager for the FastAPI app.
+    Handles startup and shutdown events.
+    """
+    global _start_time
+    import importlib
+    import proxy_app.router_core as router_core
+    importlib.reload(router_core)
+
+    # Initialize router
+    initialize_router()
+    print(f"✓ Router initialized")
+
+    # Initialize health checker
+    _health_checker = HealthChecker()
+    app.state.health_checker = _health_checker
+    print(f"✓ Health checker initialized")
+
+    # Background tasks can be added here if needed
+    yield
+
+    # Cleanup on shutdown
+    print("🛑 Shutting down...")
+
+
+# Create FastAPI app
+app = FastAPI(
+    title="Mirro Proxy",
+    description="Multi-Provider AI Gateway with Automatic Key Rotation",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+# [NEW] Add Correlation ID middleware FIRST (before other middleware)
+app.add_middleware(CorrelationIDMiddleware)
+
+# [EXISTING] CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ============================================================
+# DEPENDENCIES
+# ============================================================
+def get_detailed_logger() -> DetailedLogger:
+    """Dependency to get the detailed logger instance."""
+    return DetailedLogger()
+
+
+def require_api_key(request: Request) -> str:
+    """
+    Dependency that ensures a valid API key is provided.
+    Returns the API key for use in the endpoint.
+    """
+    api_key = request.headers.get("Authorization")
+    if not api_key:
+        # Also check query parameter for convenience
+        api_key = request.query_params.get("api_key")
+    
+    proxy_api_key = os.getenv("PROXY_API_KEY")
+    
+    # If no proxy API key is set, allow all requests (dev mode)
+    if not proxy_api_key:
+        return api_key or "no-key-dev-mode"
+    
+    # If proxy API key is set, validate it
+    if not api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing API key. Provide 'Authorization: Bearer <key>' header."
+        )
+    
+    # Strip 'Bearer ' prefix if present
+    if api_key.startswith("Bearer "):
+        api_key = api_key[7:]
+    
+    if api_key != proxy_api_key:
+        raise HTTPException(status_code=403, detail="Invalid API key.")
+    
+    return api_key
+
+
+# ============================================================
+# REQUEST PROCESSING HELPERS
+# ============================================================
+def _extract_model_from_request(data: dict) -> Optional[str]:
+    """Extract model name from various request formats."""
+    return data.get("model")
+
+
+async def _handle_chat_completion(
+    request_data: dict,
+    logger: DetailedLogger,
+    correlation_id: str,
+    request: Request
+):
+    """
+    Handle chat completion request with full correlation ID tracking.
+    """
+    from proxy_app.router_wrapper import get_router
+    
+    model = _extract_model_from_request(request_data)
+    start_time = time.time()
+    
+    logger.log_request_start(
+        method="POST",
+        endpoint="/v1/chat/completions",
+        model=model,
+        extra={"correlation_id": correlation_id}
+    )
+    
+    try:
+        router = get_router()
+        # Pass correlation_id to the router
+        response = await router.handle_chat_completion(
+            request_data,
+            correlation_id=correlation_id
+        )
+        
+        duration_ms = (time.time() - start_time) * 1000
+        logger.log_request_end(
+            method="POST",
+            endpoint="/v1/chat/completions",
+            status_code=200,
+            duration_ms=duration_ms,
+            extra={"correlation_id": correlation_id}
+        )
+        
+        return response
+        
+    except Exception as e:
+        duration_ms = (time.time() - start_time) * 1000
+        logger.log_error(e, {
+            "endpoint": "/v1/chat/completions",
+            "model": model,
+            "correlation_id": correlation_id
+        })
+        logger.log_request_end(
+            method="POST",
+            endpoint="/v1/chat/completions",
+            status_code=500,
+            duration_ms=duration_ms,
+            extra={"correlation_id": correlation_id, "error": str(e)}
+        )
+        raise
+
+
+async def _handle_embeddings(
+    request_data: EmbeddingRequest,
+    logger: DetailedLogger,
+    correlation_id: str,
+    request: Request
+):
+    """
+    Handle embedding request with full correlation ID tracking.
+    """
+    from proxy_app.batch_manager import EmbeddingBatcher
+    
+    model = request_data.model
+    start_time = time.time()
+    
+    logger.log_request_start(
+        method="POST",
+        endpoint="/v1/embeddings",
+        model=model,
+        extra={"correlation_id": correlation_id}
+    )
+    
+    try:
+        # Use batcher for embeddings
+        batcher = EmbeddingBatcher()
+        response = await batcher.process_embedding_request(
+            request_data,
+            correlation_id=correlation_id
+        )
+        
+        duration_ms = (time.time() - start_time) * 1000
+        logger.log_request_end(
+            method="POST",
+            endpoint="/v1/embeddings",
+            status_code=200,
+            duration_ms=duration_ms,
+            extra={"correlation_id": correlation_id}
+        )
+        
+        return response
+        
+    except Exception as e:
+        duration_ms = (time.time() - start_time) * 1000
+        logger.log_error(e, {
+            "endpoint": "/v1/embeddings",
+            "model": model,
+            "correlation_id": correlation_id
+        })
+        logger.log_request_end(
+            method="POST",
+            endpoint="/v1/embeddings",
+            status_code=500,
+            duration_ms=duration_ms,
+            extra={"correlation_id": correlation_id, "error": str(e)}
+        )
+        raise
+
+
+# ============================================================
+# ROUTES
+# ============================================================
+
+@app.get("/")
+async def root():
+    """Root endpoint with basic info."""
+    return {
+        "name": "Mirro Proxy",
+        "version": "1.0.0",
+        "status": "running"
+    }
+
+
+@app.get("/health")
+async def health_check(request: Request):
+    """Health check endpoint."""
+    # Get correlation ID from request state (set by middleware)
+    correlation_id = getattr(request.state, "correlation_id", "unknown")
+    
+    health_checker = request.app.state.health_checker
+    health_status = await health_checker.get_health_status()
+    
+    return {
+        "status": "healthy" if health_status["is_healthy"] else "degraded",
+        "correlation_id": correlation_id,
+        "details": health_status
+    }
+
+
+@app.get("/v1/models")
+async def list_models(
+    request: Request,
+    api_key: str = Depends(require_api_key)
+):
+    """List available models."""
+    # Get correlation ID
+    correlation_id = getattr(request.state, "correlation_id", "unknown")
+    
+    # Use the model's info service
+    from rotator_library.model_info_service import get_model_info_service
+    
+    model_info_service = get_model_info_service()
+    models = model_info_service.get_all_models()
+    
+    # Convert to ModelCard format
+    model_cards = [
+        ModelCard(
+            id=model_id,
+            owned_by=info.get("owned_by", "unknown")
+        )
+        for model_id, info in models.items()
+    ]
+    
+    return {
+        "object": "list",
+        "data": [m.model_dump() for m in model_cards]
+    }
+
+
+@app.get("/v1/models/{model_id}")
+async def get_model(
+    model_id: str,
+    request: Request,
+    api_key: str = Depends(require_api_key)
+):
+    """Get specific model info."""
+    correlation_id = getattr(request.state, "correlation_id", "unknown")
+    
+    from rotator_library.model_info_service import get_model_info_service
+    
+    model_info_service = get_model_info_service()
+    model_info = model_info_service.get_model_info(model_id)
+    
+    if not model_info:
+        raise HTTPException(status_code=404, detail="Model not found")
+    
+    # Convert to EnrichedModelCard
+    card = EnrichedModelCard(
+        id=model_id,
+        owned_by=model_info.get("owned_by", "unknown"),
+        input_cost_per_token=model_info.get("input_cost_per_token"),
+        output_cost_per_token=model_info.get("output_cost_per_token"),
+        max_input_tokens=model_info.get("max_input_tokens"),
+        max_output_tokens=model_info.get("max_output_tokens"),
+        context_window=model_info.get("context_window"),
+    )
+    
+    return card.model_dump()
+
+
+@app.post("/v1/chat/completions")
+async def chat_completions(
+    request: Request,
+    api_key: str = Depends(require_api_key),
+    logger: DetailedLogger = Depends(get_detailed_logger)
+):
+    """
+    Handle chat completion requests.
+    """
+    # Get correlation ID from request state (set by middleware)
+    correlation_id = getattr(request.state, "correlation_id", "unknown")
+    
+    # Enable request logging if flag is set
+    if args.enable_request_logging:
+        request_start = time.time()
+    
+    try:
+        # Parse request body
+        request_data = await request.json()
+        
+        # Handle the request
+        response = await _handle_chat_completion(
+            request_data,
+            logger,
+            correlation_id,
+            request
+        )
+        
+        # Log if enabled
+        if args.enable_request_logging:
+            duration_ms = (time.time() - request_start) * 1000
+            model = _extract_model_from_request(request_data)
+            log_request_to_console(
+                method="POST",
+                path="/v1/chat/completions",
+                status_code=200,
+                duration_ms=duration_ms,
+                model=model
+            )
+            log_request_to_file(
+                method="POST",
+                path="/v1/chat/completions",
+                status_code=200,
+                duration_ms=duration_ms,
+                request_body=request_data,
+                response_body=response,
+                model=model,
+                extra={"correlation_id": correlation_id}
+            )
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        if args.enable_request_logging:
+            duration_ms = (time.time() - request_start) * 1000
+            log_request_to_console(
+                method="POST",
+                path="/v1/chat/completions",
+                status_code=500,
+                duration_ms=duration_ms,
+                error=str(e)
+            )
+        
+        logger.log_error(e, {"correlation_id": correlation_id})
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/v1/embeddings")
+async def embeddings(
+    request: Request,
+    api_key: str = Depends(require_api_key),
+    logger: DetailedLogger = Depends(get_detailed_logger)
+):
+    """
+    Handle embedding requests.
+    """
+    # Get correlation ID from request state
+    correlation_id = getattr(request.state, "correlation_id", "unknown")
+    
+    if args.enable_request_logging:
+        request_start = time.time()
+    
+    try:
+        # Parse request body
+        request_data = EmbeddingRequest(**await request.json())
+        
+        # Handle the request
+        response = await _handle_embeddings(
+            request_data,
+            logger,
+            correlation_id,
+            request
+        )
+        
+        # Log if enabled
+        if args.enable_request_logging:
+            duration_ms = (time.time() - request_start) * 1000
+            input_count = len(request_data.input) if isinstance(request_data.input, list) else 1
+            log_request_to_console(
+                method="POST",
+                path="/v1/embeddings",
+                status_code=200,
+                duration_ms=duration_ms,
+                model=request_data.model
+            )
+            log_request_to_file(
+                method="POST",
+                path="/v1/embeddings",
+                status_code=200,
+                duration_ms=duration_ms,
+                model=request_data.model,
+                extra={"input_count": input_count, "correlation_id": correlation_id}
+            )
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        if args.enable_request_logging:
+            duration_ms = (time.time() - request_start) * 1000
+            log_request_to_console(
+                method="POST",
+                path="/v1/embeddings",
+                status_code=500,
+                duration_ms=duration_ms,
+                error=str(e)
+            )
+        
+        logger.log_error(e, {"correlation_id": correlation_id})
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================
+# MAIN ENTRY POINT
+# ============================================================
+if __name__ == "__main__":
+    import uvicorn
+    
+    # Calculate startup time
+    startup_time = time.time() - _start_time
+    
+    print(f"\n{'='*60}")
+    print(f"🚀 Mirro Proxy Server")
+    print(f"{'='*60}")
+    print(f"   🖥️  Host: {args.host}")
+    print(f"   🔌 Port: {args.port}")
+    print(f"   🔑 API Key: {key_display}")
+    print(f"   📦 Providers: {_plugin_count} loaded")
+    print(f"   ⏱️  Startup: {startup_time:.2f}s")
+    print(f"   📝 Request Logging: {'Enabled' if args.enable_request_logging else 'Disabled'}")
+    print(f"{'='*60}\n")
+    
+    uvicorn.run(
+        "proxy_app.main:app",
+        host=args.host,
+        port=args.port,
+        reload=False,
+        log_level="info"
+    )

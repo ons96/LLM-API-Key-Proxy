@@ -1,153 +1,162 @@
+"""Detailed logger with correlation ID support for request tracking."""
+import logging
 import json
 import time
-import uuid
+from typing import Optional, Dict, Any
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
-import logging
 
-from rotator_library.utils.resilient_io import (
-    safe_write_json,
-    safe_log_write,
-    safe_mkdir,
-)
-from rotator_library.utils.paths import get_logs_dir
-
-logger = logging.getLogger(__name__)
-
-
-def _get_detailed_logs_dir() -> Path:
-    """Get the detailed logs directory, creating it if needed."""
-    logs_dir = get_logs_dir()
-    detailed_dir = logs_dir / "detailed_logs"
-    detailed_dir.mkdir(parents=True, exist_ok=True)
-    return detailed_dir
+from proxy_app.middleware_correlation import get_correlation_id, correlation_id_var
 
 
 class DetailedLogger:
     """
-    Logs comprehensive details of each API transaction to a unique, timestamped directory.
-
-    Uses fire-and-forget logging - if disk writes fail, logs are dropped (not buffered)
-    to prevent memory issues, especially with streaming responses.
+    Enhanced logging utility that includes correlation IDs for request tracing.
     """
 
-    def __init__(self) -> None:
-        """
-        Initializes the logger for a single request, creating a unique directory to store all related log files.
-        """
-        self.start_time = time.time()
-        self.request_id = str(uuid.uuid4())
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.log_dir = _get_detailed_logs_dir() / f"{timestamp}_{self.request_id}"
-        self.streaming = False
-        self._dir_available = safe_mkdir(self.log_dir, logger)
+    def __init__(self, name: str = "detailed_logger", log_dir: Optional[Path] = None):
+        self.logger = logging.getLogger(name)
+        self.log_dir = log_dir
+        self._log_file = None
+        
+        if log_dir:
+            log_dir.mkdir(parents=True, exist_ok=True)
+            self._log_file = log_dir / f"detailed_{datetime.now().strftime('%Y%m%d')}.log"
 
-    def _write_json(self, filename: str, data: Dict[str, Any]) -> None:
-        """Helper to write data to a JSON file in the log directory."""
-        if not self._dir_available:
-            # Try to create directory again in case it was recreated
-            self._dir_available = safe_mkdir(self.log_dir, logger)
-            if not self._dir_available:
-                return
+    def _format_message(self, message: str, extra: Optional[Dict[str, Any]] = None) -> str:
+        """Format log message with correlation ID and optional extra data."""
+        correlation_id = get_correlation_id()
+        
+        parts = [
+            f"[corr_id={correlation_id}]" if correlation_id else "[corr_id=N/A]",
+            message
+        ]
+        
+        if extra:
+            parts.append(json.dumps(extra, default=str))
+        
+        return " ".join(parts)
 
-        safe_write_json(
-            self.log_dir / filename,
-            data,
-            logger,
-            atomic=False,
-            indent=4,
-            ensure_ascii=False,
-        )
+    def debug(self, message: str, extra: Optional[Dict[str, Any]] = None) -> None:
+        """Log debug level message."""
+        formatted = self._format_message(message, extra)
+        self.logger.debug(formatted)
+        self._write_to_file("DEBUG", formatted)
 
-    def log_request(self, headers: Dict[str, Any], body: Dict[str, Any]) -> None:
-        """Logs the initial request details."""
-        self.streaming = body.get("stream", False)
-        request_data = {
-            "request_id": self.request_id,
-            "timestamp_utc": datetime.utcnow().isoformat(),
-            "headers": dict(headers),
-            "body": body,
-        }
-        self._write_json("request.json", request_data)
+    def info(self, message: str, extra: Optional[Dict[str, Any]] = None) -> None:
+        """Log info level message."""
+        formatted = self._format_message(message, extra)
+        self.logger.info(formatted)
+        self._write_to_file("INFO", formatted)
 
-    def log_stream_chunk(self, chunk: Dict[str, Any]) -> None:
-        """Logs an individual chunk from a streaming response to a JSON Lines file."""
-        if not self._dir_available:
-            return
+    def warning(self, message: str, extra: Optional[Dict[str, Any]] = None) -> None:
+        """Log warning level message."""
+        formatted = self._format_message(message, extra)
+        self.logger.warning(formatted)
+        self._write_to_file("WARNING", formatted)
 
-        log_entry = {"timestamp_utc": datetime.utcnow().isoformat(), "chunk": chunk}
-        content = json.dumps(log_entry, ensure_ascii=False) + "\n"
-        safe_log_write(self.log_dir / "streaming_chunks.jsonl", content, logger)
+    def error(self, message: str, extra: Optional[Dict[str, Any]] = None, exc_info: bool = False) -> None:
+        """Log error level message."""
+        formatted = self._format_message(message, extra)
+        self.logger.error(formatted, exc_info=exc_info)
+        self._write_to_file("ERROR", formatted)
 
-    def log_final_response(
-        self, status_code: int, headers: Optional[Dict[str, Any]], body: Dict[str, Any]
+    def critical(self, message: str, extra: Optional[Dict[str, Any]] = None) -> None:
+        """Log critical level message."""
+        formatted = self._format_message(message, extra)
+        self.logger.critical(formatted)
+        self._write_to_file("CRITICAL", formatted)
+
+    def log_request_start(
+        self,
+        method: str,
+        endpoint: str,
+        model: Optional[str] = None,
+        extra: Optional[Dict[str, Any]] = None
     ) -> None:
-        """Logs the complete final response, either from a non-streaming call or after reassembling a stream."""
-        end_time = time.time()
-        duration_ms = (end_time - self.start_time) * 1000
-
-        response_data = {
-            "request_id": self.request_id,
-            "timestamp_utc": datetime.utcnow().isoformat(),
-            "status_code": status_code,
-            "duration_ms": round(duration_ms),
-            "headers": dict(headers) if headers else None,
-            "body": body,
-        }
-        self._write_json("final_response.json", response_data)
-        self._log_metadata(response_data)
-
-    def _extract_reasoning(self, response_body: Dict[str, Any]) -> Optional[str]:
-        """Recursively searches for and extracts 'reasoning' fields from the response body."""
-        if not isinstance(response_body, dict):
-            return None
-
-        if "reasoning" in response_body:
-            return response_body["reasoning"]
-
-        if "choices" in response_body and response_body["choices"]:
-            message = response_body["choices"][0].get("message", {})
-            if "reasoning" in message:
-                return message["reasoning"]
-            if "reasoning_content" in message:
-                return message["reasoning_content"]
-
-        return None
-
-    def _log_metadata(self, response_data: Dict[str, Any]) -> None:
-        """Logs a summary of the transaction for quick analysis."""
-        usage = response_data.get("body", {}).get("usage") or {}
-        model = response_data.get("body", {}).get("model", "N/A")
-        finish_reason = "N/A"
-        if (
-            "choices" in response_data.get("body", {})
-            and response_data["body"]["choices"]
-        ):
-            finish_reason = response_data["body"]["choices"][0].get(
-                "finish_reason", "N/A"
-            )
-
-        metadata = {
-            "request_id": self.request_id,
-            "timestamp_utc": response_data["timestamp_utc"],
-            "duration_ms": response_data["duration_ms"],
-            "status_code": response_data["status_code"],
+        """Log the start of an API request."""
+        data = {
+            "event": "request_start",
+            "method": method,
+            "endpoint": endpoint,
             "model": model,
-            "streaming": self.streaming,
-            "usage": {
-                "prompt_tokens": usage.get("prompt_tokens"),
-                "completion_tokens": usage.get("completion_tokens"),
-                "total_tokens": usage.get("total_tokens"),
-            },
-            "finish_reason": finish_reason,
-            "reasoning_found": False,
-            "reasoning_content": None,
+            "timestamp": datetime.now().isoformat()
         }
+        if extra:
+            data.update(extra)
+        
+        self.info(f"Request started: {method} {endpoint}", data)
 
-        reasoning = self._extract_reasoning(response_data.get("body", {}))
-        if reasoning:
-            metadata["reasoning_found"] = True
-            metadata["reasoning_content"] = reasoning
+    def log_request_end(
+        self,
+        method: str,
+        endpoint: str,
+        status_code: int,
+        duration_ms: float,
+        extra: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Log the end of an API request."""
+        data = {
+            "event": "request_end",
+            "method": method,
+            "endpoint": endpoint,
+            "status_code": status_code,
+            "duration_ms": round(duration_ms, 2),
+            "timestamp": datetime.now().isoformat()
+        }
+        if extra:
+            data.update(extra)
+        
+        self.info(f"Request completed: {method} {endpoint} - {status_code} ({duration_ms:.2f}ms)", data)
 
-        self._write_json("metadata.json", metadata)
+    def log_provider_call(
+        self,
+        provider: str,
+        model: str,
+        success: bool,
+        duration_ms: float,
+        error: Optional[str] = None,
+        extra: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Log a provider API call."""
+        data = {
+            "event": "provider_call",
+            "provider": provider,
+            "model": model,
+            "success": success,
+            "duration_ms": round(duration_ms, 2),
+            "timestamp": datetime.now().isoformat()
+        }
+        if error:
+            data["error"] = error
+        if extra:
+            data.update(extra)
+        
+        status = "SUCCESS" if success else "FAILED"
+        self.info(f"Provider call {status}: {provider}/{model} ({duration_ms:.2f}ms)", data)
+
+    def log_error(
+        self,
+        error: Exception,
+        context: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Log an error with full context."""
+        data = {
+            "event": "error",
+            "error_type": type(error).__name__,
+            "error_message": str(error),
+            "timestamp": datetime.now().isoformat()
+        }
+        if context:
+            data["context"] = context
+        
+        self.error(f"Error: {type(error).__name__}: {str(error)}", data, exc_info=True)
+
+    def _write_to_file(self, level: str, message: str) -> None:
+        """Write log message to file if configured."""
+        if self._log_file:
+            try:
+                with open(self._log_file, "a") as f:
+                    f.write(f"{datetime.now().isoformat()} [{level}] {message}\n")
+            except Exception:
+                pass  # Don't let file logging failures break the app
