@@ -1,0 +1,443 @@
+"""
+Integration tests for Gemini provider.
+
+Tests the Gemini provider implementation including:
+- Authentication and initialization
+- Chat completions (streaming and non-streaming)
+- Error handling (auth errors, rate limits, safety blocks)
+- Integration with ProviderAdapterFactory
+- Request/response formatting
+"""
+
+import os
+import pytest
+import asyncio
+from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from typing import AsyncGenerator, Dict, Any, List
+from fastapi import HTTPException
+
+
+# Import paths based on repository structure
+from src.rotator_library.providers.gemini_provider import GeminiProvider
+from src.rotator_library.providers.gemini_auth_base import GeminiAuthBase
+from src.proxy_app.router_integration import RouterIntegration
+from src.proxy_app.provider_adapter import ProviderAdapterFactory
+
+
+class TestGeminiProviderIntegration:
+    """Integration tests for GeminiProvider class."""
+
+    @pytest.fixture
+    def api_key(self) -> str:
+        """Test API key fixture."""
+        return "AIzaSyTest123456789012345678901234567890"
+
+    @pytest.fixture
+    def provider(self, api_key: str) -> GeminiProvider:
+        """Initialize Gemini provider with test credentials."""
+        return GeminiProvider(api_key=api_key)
+
+    @pytest.fixture
+    def sample_messages(self) -> List[Dict[str, str]]:
+        """Sample chat messages."""
+        return [
+            {"role": "user", "content": "Hello, how are you?"}
+        ]
+
+    @pytest.mark.asyncio
+    async def test_provider_initialization(self, provider: GeminiProvider, api_key: str):
+        """Test provider initializes with correct configuration."""
+        assert provider.api_key == api_key
+        assert hasattr(provider, 'base_url')
+        assert "googleapis.com" in provider.base_url
+
+    @pytest.mark.asyncio
+    async def test_provider_initialization_from_env(self, monkeypatch):
+        """Test provider initialization from environment variables."""
+        monkeypatch.setenv("GEMINI_API_KEY", "env-api-key-123")
+        
+        # Re-import to pick up env var
+        from src.rotator_library.providers.gemini_provider import GeminiProvider
+        provider = GeminiProvider()
+        
+        assert provider.api_key == "env-api-key-123"
+
+    @pytest.mark.asyncio
+    async def test_chat_completion_success(self, provider: GeminiProvider, sample_messages):
+        """Test successful non-streaming chat completion."""
+        mock_response = {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [{"text": "I'm doing well, thank you!"}],
+                        "role": "model"
+                    },
+                    "finishReason": "STOP",
+                    "index": 0
+                }
+            ],
+            "usageMetadata": {
+                "promptTokenCount": 10,
+                "candidatesTokenCount": 8,
+                "totalTokenCount": 18
+            },
+            "modelVersion": "gemini-1.0-pro"
+        }
+
+        with patch.object(provider, '_make_request', new_callable=AsyncMock) as mock_req:
+            mock_req.return_value = mock_response
+            
+            request_data = {
+                "model": "gemini-pro",
+                "messages": sample_messages,
+                "temperature": 0.7,
+                "max_tokens": 100,
+                "stream": False
+            }
+            
+            response = await provider.chat_completions(request_data)
+            
+            # Verify request was made
+            mock_req.assert_called_once()
+            call_args = mock_req.call_args[0][0]
+            assert "contents" in call_args
+            assert call_args["generationConfig"]["temperature"] == 0.7
+            
+            # Verify response formatting
+            assert "choices" in response
+            assert len(response["choices"]) == 1
+            assert response["choices"][0]["message"]["content"] == "I'm doing well, thank you!"
+            assert response["choices"][0]["finish_reason"] == "stop"
+            assert response["usage"]["total_tokens"] == 18
+            assert response["model"] == "gemini-pro"
+
+    @pytest.mark.asyncio
+    async def test_chat_completion_streaming(self, provider: GeminiProvider, sample_messages):
+        """Test streaming chat completion."""
+        async def mock_stream_generator():
+            chunks = [
+                {"candidates": [{"content": {"parts": [{"text": "I'm"}], "role": "model"}}]},
+                {"candidates": [{"content": {"parts": [{"text": " doing"}], "role": "model"}}]},
+                {"candidates": [{"content": {"parts": [{"text": " well"}], "role": "model"}, "finishReason": "STOP"}]},
+            ]
+            for chunk in chunks:
+                yield chunk
+
+        with patch.object(provider, '_make_stream_request', return_value=mock_stream_generator()):
+            request_data = {
+                "model": "gemini-pro",
+                "messages": sample_messages,
+                "stream": True,
+                "temperature": 0.5
+            }
+            
+            chunks = []
+            async for chunk in provider.chat_completions(request_data):
+                chunks.append(chunk)
+                # Verify chunk structure
+                assert "choices" in chunk or "delta" in str(chunk) or "content" in str(chunk)
+            
+            assert len(chunks) == 3
+
+    @pytest.mark.asyncio
+    async def test_authentication_error(self, provider: GeminiProvider, sample_messages):
+        """Test handling of 401 authentication errors."""
+        with patch.object(provider, '_make_request', new_callable=AsyncMock, 
+                         side_effect=Exception("401 Client Error: Invalid API key")):
+            
+            request_data = {
+                "model": "gemini-pro",
+                "messages": sample_messages,
+                "stream": False
+            }
+            
+            with pytest.raises(Exception) as exc_info:
+                await provider.chat_completions(request_data)
+            
+            assert "401" in str(exc_info.value) or "Invalid API key" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_error(self, provider: GeminiProvider, sample_messages):
+        """Test handling of 429 rate limit errors."""
+        with patch.object(provider, '_make_request', new_callable=AsyncMock,
+                         side_effect=Exception("429 Resource exhausted: Rate limit exceeded")):
+            
+            request_data = {
+                "model": "gemini-pro",
+                "messages": sample_messages,
+                "stream": False
+            }
+            
+            with pytest.raises(Exception) as exc_info:
+                await provider.chat_completions(request_data)
+            
+            error_msg = str(exc_info.value)
+            assert "429" in error_msg or "Rate limit" in error_msg or "Resource exhausted" in error_msg
+
+    @pytest.mark.asyncio
+    async def test_safety_blocking(self, provider: GeminiProvider):
+        """Test handling of Gemini safety blocks."""
+        mock_response = {
+            "candidates": [
+                {
+                    "finishReason": "SAFETY",
+                    "safetyRatings": [
+                        {"category": "HARM_CATEGORY_DANGEROUS", "probability": "HIGH"}
+                    ]
+                }
+            ],
+            "usageMetadata": {
+                "promptTokenCount": 5,
+                "totalTokenCount": 5
+            }
+        }
+
+        with patch.object(provider, '_make_request', new_callable=AsyncMock, return_value=mock_response):
+            request_data = {
+                "model": "gemini-pro",
+                "messages": [{"role": "user", "content": "harmful content test"}],
+                "stream": False
+            }
+            
+            response = await provider.chat_completions(request_data)
+            
+            # Should handle gracefully, possibly with empty content
+            assert "choices" in response
+            assert response["choices"][0].get("finish_reason") == "content_filter"
+
+    @pytest.mark.asyncio
+    async def test_model_mapping(self, provider: GeminiProvider):
+        """Test model name mapping from generic to Gemini-specific."""
+        # Test various model name formats
+        test_cases = [
+            ("gemini-pro", "gemini-1.0-pro"),
+            ("gemini-ultra", "gemini-1.0-ultra"),
+            ("gemini-1.5-pro", "gemini-1.5-pro"),
+            ("gemini-vision", "gemini-pro-vision"),
+        ]
+        
+        for input_name, expected_name in test_cases:
+            mapped = provider._map_model(input_name)
+            assert mapped == expected_name, f"Failed mapping {input_name} to {expected_name}"
+
+    @pytest.mark.asyncio
+    async def test_request_formatting_with_system_message(self, provider: GeminiProvider):
+        """Test that system messages are properly formatted for Gemini API."""
+        with patch.object(provider, '_make_request', new_callable=AsyncMock, return_value={
+            "candidates": [{"content": {"parts": [{"text": "OK"}], "role": "model"}, "finishReason": "STOP"}],
+            "usageMetadata": {"totalTokenCount": 5}
+        }) as mock_req:
+            
+            request_data = {
+                "model": "gemini-pro",
+                "messages": [
+                    {"role": "system", "content": "You are a helpful assistant"},
+                    {"role": "user", "content": "Hello"}
+                ],
+                "temperature": 0.5,
+                "top_p": 0.9,
+                "max_tokens": 200
+            }
+            
+            await provider.chat_completions(request_data)
+            
+            # Check the formatted request
+            call_args = mock_req.call_args[0][0]
+            
+            # Gemini uses 'systemInstruction' for system messages (in newer versions)
+            # or prepends to contents
+            assert "contents" in call_args
+            assert "generationConfig" in call_args
+            assert call_args["generationConfig"]["temperature"] == 0.5
+            assert call_args["generationConfig"]["topP"] == 0.9
+            assert call_args["generationConfig"]["maxOutputTokens"] == 200
+
+
+class TestGeminiAdapterFactoryIntegration:
+    """Tests for ProviderAdapterFactory integration with Gemini."""
+
+    def test_factory_creates_gemini_adapter(self):
+        """Test that ProviderAdapterFactory can create Gemini adapter."""
+        factory = ProviderAdapterFactory()
+        adapter = factory.create_adapter("gemini", "test-api-key")
+        
+        assert adapter is not None
+        assert adapter.provider_name == "gemini"
+
+    def test_factory_requires_api_key(self):
+        """Test that factory handles missing API key appropriately."""
+        factory = ProviderAdapterFactory()
+        
+        with pytest.raises((ValueError, Exception)):
+            factory.create_adapter("gemini", None)
+
+    @pytest.mark.asyncio
+    async def test_adapter_chat_completions(self):
+        """Test adapter chat completions method."""
+        factory = ProviderAdapterFactory()
+        adapter = factory.create_adapter("gemini", "test-key")
+        
+        with patch.object(adapter.provider, 'chat_completions', new_callable=AsyncMock) as mock_chat:
+            mock_chat.return_value = {
+                "choices": [{"message": {"content": "Test response"}}]
+            }
+            
+            result = await adapter.chat_completions({
+                "model": "gemini-pro",
+                "messages": [{"role": "user", "content": "Hi"}]
+            })
+            
+            assert result["choices"][0]["message"]["content"] == "Test response"
+            mock_chat.assert_called_once()
+
+
+class TestGeminiRouterIntegration:
+    """Tests for Gemini integration with RouterIntegration class."""
+
+    @pytest.fixture
+    def router_integration(self):
+        """Create router integration with mocked environment."""
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "test-router-key"}):
+            integration = RouterIntegration(rotating_client=None)
+            return integration
+
+    def test_router_initializes_gemini_adapter(self, router_integration):
+        """Test that RouterIntegration initializes Gemini adapter when API key present."""
+        assert "gemini" in router_integration.adapters
+        
+        adapter = router_integration.adapters["gemini"]
+        assert adapter is not None
+
+    @pytest.mark.asyncio
+    async def test_chat_completions_routes_to_gemini(self, router_integration):
+        """Test that chat completions can route to Gemini provider."""
+        request_data = {
+            "model": "gemini-pro",
+            "messages": [{"role": "user", "content": "Test message"}],
+            "stream": False
+        }
+        
+        # Mock the raw request
+        mock_request = Mock()
+        mock_request.headers = {}
+        
+        with patch.object(router_integration.router, 'route_request', new_callable=AsyncMock) as mock_route:
+            mock_route.return_value = {
+                "id": "test-id",
+                "object": "chat.completion",
+                "choices": [{
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Routed response"},
+                    "finish_reason": "stop"
+                }]
+            }
+            
+            response = await router_integration.chat_completions(
+                request_data, 
+                mock_request,
+                enable_logging=False
+            )
+            
+            assert response["choices"][0]["message"]["content"] == "Routed response"
+            mock_route.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_gemini_streaming_through_router(self, router_integration):
+        """Test streaming through router integration."""
+        request_data = {
+            "model": "gemini-pro",
+            "messages": [{"role": "user", "content": "Stream test"}],
+            "stream": True
+        }
+        
+        mock_request = Mock()
+        
+        async def mock_stream():
+            yield {"choices": [{"delta": {"content": "Hello"}}]}
+            yield {"choices": [{"delta": {"content": " World"}}]}
+
+        with patch.object(router_integration.router, 'route_request', return_value=mock_stream()):
+            response = await router_integration.chat_completions(
+                request_data,
+                mock_request,
+                enable_logging=False
+            )
+            
+            # Should return an async generator
+            assert hasattr(response, '__aiter__')
+            
+            chunks = []
+            async for chunk in response:
+                chunks.append(chunk)
+            
+            assert len(chunks) == 2
+
+    def test_model_list_includes_gemini(self, router_integration):
+        """Test that get_models includes Gemini models."""
+        models = router_integration.get_models()
+        
+        # Should contain Gemini models
+        model_ids = [m.get("id", "") for m in models.get("data", [])]
+        gemini_models = [m for m in model_ids if "gemini" in m.lower()]
+        
+        assert len(gemini_models) > 0
+
+
+class TestGeminiAuthBaseIntegration:
+    """Tests for Gemini authentication handling."""
+
+    def test_auth_base_initialization(self):
+        """Test GeminiAuthBase initialization."""
+        auth = GeminiAuthBase(api_key="test-key")
+        assert auth.api_key == "test-key"
+
+    def test_auth_headers(self):
+        """Test authentication headers generation."""
+        auth = GeminiAuthBase(api_key="test-key")
+        headers = auth.get_headers()
+        
+        assert "x-goog-api-key" in headers or "Authorization" in headers
+        assert "Content-Type" in headers
+        assert headers["Content-Type"] == "application/json"
+
+    def test_url_parameter_auth(self):
+        """Test that API key can be appended as URL parameter (Gemini supports both)."""
+        auth = GeminiAuthBase(api_key="test-key")
+        url = auth.add_auth_to_url("https://generativelanguage.googleapis.com/v1beta/models")
+        
+        assert "key=test-key" in url
+
+
+@pytest.mark.integration
+class TestGeminiEndToEnd:
+    """End-to-end integration tests requiring actual API credentials."""
+
+    @pytest.fixture
+    def live_provider(self):
+        """Create provider with real credentials (skipped if no env var)."""
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key or api_key == "test-key":
+            pytest.skip("Live API key not available")
+        return GeminiProvider(api_key=api_key)
+
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(not os.getenv("GEMINI_API_KEY"), reason="No live API key")
+    async def test_live_simple_completion(self, live_provider):
+        """Test actual API call (only runs with real key)."""
+        request_data = {
+            "model": "gemini-pro",
+            "messages": [{"role": "user", "content": "Say 'test successful' and nothing else"}],
+            "temperature": 0.0,
+            "stream": False
+        }
+        
+        response = await live_provider.chat_completions(request_data)
+        
+        assert "choices" in response
+        assert len(response["choices"]) > 0
+        content = response["choices"][0]["message"]["content"].lower()
+        assert "test successful" in content or "test" in content
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
