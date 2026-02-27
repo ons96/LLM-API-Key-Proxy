@@ -1,3 +1,4 @@
+=== FILE: src/rotator_library/score_engine.py ===
 """
 Scoring engine for dynamic provider/model ranking.
 Combines agentic coding scores and TPS into unified scores.
@@ -272,3 +273,4 @@ class ScoringEngine:
 
         logger.info(f"Ranked {len(ranked)} candidates for {model}")
         return ranked
+=== END FILE ===

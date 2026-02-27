@@ -1,3 +1,4 @@
+--- src/rotator_library/score_engine.py ---
 """
 Scoring engine for dynamic provider/model ranking.
 Combines agentic coding scores and TPS into unified scores.
@@ -16,8 +17,8 @@ logger = logging.getLogger(__name__)
 class ScoringEngine:
     """
     Ranks provider+model combinations using:
-    - Virtual models: Agentic(60%) + TPS(25%) + Latency(15%)
-    - Specific models: TPS(60%) + Quality(20%) + Latency(20%)
+    - Virtual models: Agentic(70%) + TPS(30%)
+    - Specific models: TPS(70%) + Quality(30%)
     - Availability is a yes/no filter (excluded providers)
     """
 
@@ -81,57 +82,6 @@ class ScoringEngine:
             logger.error(f"Failed to get TPS for {provider}/{model}: {e}")
             return 0.0
 
-    def get_average_latency(self, provider: str, model: str, minutes: int = 60) -> float:
-        """Get average latency (response time in seconds) from telemetry data."""
-        try:
-            since = datetime.now() - timedelta(minutes=minutes)
-
-            conn = self.telemetry._connect()
-            cursor = conn.cursor()
-
-            cursor.execute(
-                """
-                SELECT AVG(latency)
-                FROM api_calls
-                WHERE provider = ? AND model = ? AND timestamp >= ? AND success = 1
-                AND latency IS NOT NULL
-            """,
-                (provider, model, since),
-            )
-
-            result = cursor.fetchone()[0]
-            conn.close()
-
-            return result or 0.0
-
-        except Exception as e:
-            logger.error(f"Failed to get latency for {provider}/{model}: {e}")
-            return 0.0
-
-    def latency_score(self, provider: str, model: str) -> float:
-        """
-        Calculate latency score (0-1, higher is better).
-        Lower latency = higher score.
-        Uses inverse exponential decay: score = 1 / (1 + latency/2)
-        - 0s latency -> 1.0
-        - 1s latency -> 0.8
-        - 2s latency -> 0.67
-        - 5s latency -> 0.4
-        - 10s latency -> 0.25
-        """
-        avg_latency = self.get_average_latency(provider, model, minutes=60)
-        
-        if avg_latency <= 0:
-            # No data available, return neutral score
-            return 0.5
-        
-        # Calculate score: inverse relationship with latency
-        # Using formula: score = 1 / (1 + latency/2)
-        score = 1.0 / (1.0 + (avg_latency / 2.0))
-        
-        # Clamp between 0 and 1
-        return min(max(score, 0.0), 1.0)
-
     def is_provider_available(
         self,
         provider: str,
@@ -165,7 +115,7 @@ class ScoringEngine:
     ) -> float:
         """
         Calculate score for virtual models:
-        Score = Agentic(60%) + TPS(25%) + Latency(15%)
+        Score = Agentic(70%) + TPS(30%)
         Availability is a yes/no filter (excluded if not available)
         """
         if not self.is_provider_available(provider, model):
@@ -174,13 +124,12 @@ class ScoringEngine:
         agentic_score = self.get_agentic_score(model)
         tps = self.get_average_tps(provider, model, minutes=60)
         tps_score = min(tps / 3000.0, 1.0) if tps else 0.1
-        latency = self.latency_score(provider, model)
 
-        final_score = (agentic_score * 0.60) + (tps_score * 0.25) + (latency * 0.15)
+        final_score = (agentic_score * 0.70) + (tps_score * 0.30)
 
         logger.debug(
-            f"Virtual model score for {provider}/{model}: Agentic={agentic_score:.3f}, "
-            f"TPS={tps_score:.3f}, Latency={latency:.3f}, Final={final_score:.3f}"
+            f"Virtual model score for {provider}/{model}: Agentic={agentic_score:.3f}, TPS={tps_score:.3f}, "
+            f"Final={final_score:.3f}"
         )
 
         return final_score
@@ -192,7 +141,7 @@ class ScoringEngine:
     ) -> float:
         """
         Calculate score for specific models:
-        Score = TPS(60%) + Agentic(20%) + Latency(20%)
+        Score = TPS(70%) + Agentic(30%)
         Availability is a yes/no filter (excluded if not available)
         """
         if not self.is_provider_available(provider, model):
@@ -200,14 +149,14 @@ class ScoringEngine:
 
         tps = self.get_average_tps(provider, model, minutes=60)
         tps_score = min(tps / 3000.0, 1.0) if tps else 0.1
-        agentic_score = self.get_agentic_score(model)
-        latency = self.latency_score(provider, model)
 
-        final_score = (tps_score * 0.60) + (agentic_score * 0.20) + (latency * 0.20)
+        agentic_score = self.get_agentic_score(model)
+
+        final_score = (tps_score * 0.70) + (agentic_score * 0.30)
 
         logger.debug(
             f"Specific model score for {provider}/{model}: TPS={tps_score:.3f}, "
-            f"Agentic={agentic_score:.3f}, Latency={latency:.3f}, Final={final_score:.3f}"
+            f"Agentic={agentic_score:.3f}, Final={final_score:.3f}"
         )
 
         return final_score
@@ -250,25 +199,4 @@ class ScoringEngine:
         providers: List[str],
     ) -> List[Dict[str, Any]]:
         """
-        Rank providers for a specific model.
-        Returns sorted list of {provider, model, score}
-        """
-        candidates = []
 
-        for provider in providers:
-            score = self.calculate_specific_model_score(provider, model)
-
-            if score > 0:  # Only include available providers
-                candidates.append(
-                    {
-                        "provider": provider,
-                        "model": model,
-                        "score": score,
-                        "agentic_score": self.get_agentic_score(model),
-                    }
-                )
-
-        ranked = sorted(candidates, key=lambda x: x["score"], reverse=True)
-
-        logger.info(f"Ranked {len(ranked)} candidates for {model}")
-        return ranked
