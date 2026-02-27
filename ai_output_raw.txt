@@ -1,0 +1,608 @@
+=== FILE: src/proxy_app/request_database.py ===
+"""
+Request Database Module
+
+Handles persistent storage of request logs to a SQLite database.
+"""
+
+import sqlite3
+import json
+import os
+import logging
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any, Optional, List
+from contextlib import contextmanager
+
+logger = logging.getLogger(__name__)
+
+# Default database path - can be overridden via environment variable
+DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "requests.db")
+
+
+class RequestDatabase:
+    """
+    Manages SQLite database for request logging.
+    """
+
+    def __init__(self, db_path: Optional[str] = None):
+        self.db_path = db_path or os.environ.get("REQUEST_DB_PATH", DEFAULT_DB_PATH)
+        self._ensure_db_directory()
+        self._init_database()
+
+    def _ensure_db_directory(self):
+        """Create database directory if it doesn't exist."""
+        db_dir = os.path.dirname(self.db_path)
+        if db_dir:
+            Path(db_dir).mkdir(parents=True, exist_ok=True)
+
+    def _init_database(self):
+        """Initialize the database schema."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS request_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    request_id TEXT NOT NULL UNIQUE,
+                    timestamp TEXT NOT NULL,
+                    client_ip TEXT,
+                    client_port INTEGER,
+                    provider TEXT,
+                    model_name TEXT,
+                    endpoint_url TEXT,
+                    request_data TEXT,
+                    response_data TEXT,
+                    status TEXT,
+                    error_message TEXT,
+                    duration_ms REAL,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Create indexes for common query patterns
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_request_logs_timestamp 
+                ON request_logs(timestamp)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_request_logs_provider 
+                ON request_logs(provider)
+            """)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_request_logs_model 
+                ON request_logs(model_name)
+            """)
+            
+            conn.commit()
+            logger.info(f"Request database initialized at {self.db_path}")
+
+    @contextmanager
+    def _get_connection(self):
+        """Context manager for database connections."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            yield conn
+        finally:
+            conn.close()
+
+    def log_request(
+        self,
+        request_id: str,
+        timestamp: datetime,
+        client_ip: str,
+        client_port: int,
+        provider: str,
+        model_name: str,
+        endpoint_url: str,
+        request_data: Dict[str, Any],
+        response_data: Optional[Dict[str, Any]] = None,
+        status: str = "pending",
+        error_message: Optional[str] = None,
+        duration_ms: Optional[float] = None,
+    ) -> None:
+        """
+        Log a request to the database.
+        
+        Args:
+            request_id: Unique identifier for the request
+            timestamp: Request timestamp
+            client_ip: Client IP address
+            client_port: Client port
+            provider: Provider name
+            model_name: Model name
+            endpoint_url: Full endpoint URL
+            request_data: The request payload (will be JSON serialized)
+            response_data: The response payload (will be JSON serialized)
+            status: Request status (pending, success, error)
+            error_message: Error message if status is error
+            duration_ms: Request duration in milliseconds
+        """
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO request_logs (
+                        request_id, timestamp, client_ip, client_port,
+                        provider, model_name, endpoint_url, request_data,
+                        response_data, status, error_message, duration_ms
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        request_id,
+                        timestamp.isoformat() if isinstance(timestamp, datetime) else timestamp,
+                        client_ip,
+                        client_port,
+                        provider,
+                        model_name,
+                        endpoint_url,
+                        json.dumps(request_data),
+                        json.dumps(response_data) if response_data else None,
+                        status,
+                        error_message,
+                        duration_ms,
+                    ),
+                )
+                conn.commit()
+                logger.debug(f"Request {request_id} logged to database")
+        except Exception as e:
+            logger.error(f"Failed to log request to database: {e}")
+
+    def update_request_response(
+        self,
+        request_id: str,
+        response_data: Dict[str, Any],
+        status: str = "success",
+        error_message: Optional[str] = None,
+        duration_ms: Optional[float] = None,
+    ) -> None:
+        """
+        Update a pending request with its response data.
+        
+        Args:
+            request_id: The request ID to update
+            response_data: The response payload
+            status: Final status (success, error)
+            error_message: Error message if status is error
+            duration_ms: Request duration in milliseconds
+        """
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    UPDATE request_logs 
+                    SET response_data = ?, status = ?, error_message = ?, duration_ms = ?
+                    WHERE request_id = ?
+                    """,
+                    (
+                        json.dumps(response_data),
+                        status,
+                        error_message,
+                        duration_ms,
+                        request_id,
+                    ),
+                )
+                conn.commit()
+                logger.debug(f"Request {request_id} response logged to database")
+        except Exception as e:
+            logger.error(f"Failed to update request in database: {e}")
+
+    def get_request_logs(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        provider: Optional[str] = None,
+        model_name: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve request logs with optional filtering.
+        
+        Args:
+            limit: Maximum number of records to return
+            offset: Number of records to skip
+            provider: Filter by provider
+            model_name: Filter by model name
+            status: Filter by status
+            
+        Returns:
+            List of request log dictionaries
+        """
+        query = "SELECT * FROM request_logs WHERE 1=1"
+        params = []
+        
+        if provider:
+            query += " AND provider = ?"
+            params.append(provider)
+        if model_name:
+            query += " AND model_name = ?"
+            params.append(model_name)
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+            
+        query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, params)
+                rows = cursor.fetchall()
+                
+                return [
+                    {
+                        "request_id": row["request_id"],
+                        "timestamp": row["timestamp"],
+                        "client_ip": row["client_ip"],
+                        "client_port": row["client_port"],
+                        "provider": row["provider"],
+                        "model_name": row["model_name"],
+                        "endpoint_url": row["endpoint_url"],
+                        "request_data": json.loads(row["request_data"]) if row["request_data"] else None,
+                        "response_data": json.loads(row["response_data"]) if row["response_data"] else None,
+                        "status": row["status"],
+                        "error_message": row["error_message"],
+                        "duration_ms": row["duration_ms"],
+                    }
+                    for row in rows
+                ]
+        except Exception as e:
+            logger.error(f"Failed to retrieve request logs: {e}")
+            return []
+
+    def get_statistics(self, provider: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get request statistics.
+        
+        Args:
+            provider: Optional provider filter
+            
+        Returns:
+            Dictionary with statistics
+        """
+        query = """
+            SELECT 
+                COUNT(*) as total_requests,
+                SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful_requests,
+                SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as failed_requests,
+                AVG(duration_ms) as avg_duration_ms,
+                provider,
+                model_name
+            FROM request_logs
+        """
+        params = []
+        
+        if provider:
+            query += " WHERE provider = ?"
+            params.append(provider)
+            
+        query += " GROUP BY provider, model_name"
+        
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, params)
+                rows = cursor.fetchall()
+                
+                return [
+                    {
+                        "provider": row["provider"],
+                        "model_name": row["model_name"],
+                        "total_requests": row["total_requests"],
+                        "successful_requests": row["successful_requests"],
+                        "failed_requests": row["failed_requests"],
+                        "avg_duration_ms": row["avg_duration_ms"],
+                    }
+                    for row in rows
+                ]
+        except Exception as e:
+            logger.error(f"Failed to retrieve statistics: {e}")
+            return []
+
+
+# Global instance
+_request_db: Optional[RequestDatabase] = None
+
+
+def get_request_database() -> RequestDatabase:
+    """Get or create the global request database instance."""
+    global _request_db
+    if _request_db is None:
+        _request_db = RequestDatabase()
+    return _request_db
+=== END FILE ===
+
+=== FILE: src/proxy_app/request_logger.py ===
+import json
+import os
+from datetime import datetime
+from pathlib import Path
+import uuid
+from typing import Literal, Dict, Any, Optional
+import logging
+import time
+
+from .provider_urls import get_provider_endpoint
+from .request_database import get_request_database, RequestDatabase
+
+
+def log_request_to_console(url: str, headers: dict, client_info: tuple, request_data: dict):
+    """
+    Logs a concise, single-line summary of an incoming request to the console.
+    """
+    time_str = datetime.now().strftime("%H:%M")
+    model_full = request_data.get("model", "N/A")
+    
+    provider = "N/A"
+    model_name = model_full
+    endpoint_url = "N/A"
+
+    if '/' in model_full:
+        parts = model_full.split('/', 1)
+        provider = parts[0]
+        model_name = parts[1]
+        # Use the helper function to get the full endpoint URL
+        endpoint_url = get_provider_endpoint(provider, model_name, url) or "N/A"
+
+    log_message = f"{time_str} - {client_info[0]}:{client_info[1]} - provider: {provider}, model: {model_name} - {endpoint_url}"
+    logging.info(log_message)
+
+
+def log_request_to_database(
+    request_id: str,
+    client_info: tuple,
+    request_data: Dict[str, Any],
+    model_full: str,
+   ,
+) -> Optional endpoint_url: str[Dict[str, Any]]:
+    """
+    Logs a request to the database.
+    
+    Args:
+        request_id: Unique identifier for the request
+        client_info: Tuple of (IP, port)
+        request_data: The request payload
+        model_full: Full model identifier (e.g., "openai/gpt-4")
+        endpoint_url: The full endpoint URL
+        
+    Returns:
+        Dictionary with request metadata for later updating with response
+    """
+    provider = "N/A"
+    model_name = model_full
+    
+    if '/' in model_full:
+        parts = model_full.split('/', 1)
+        provider = parts[0]
+        model_name = parts[1]
+    
+    timestamp = datetime.now()
+    
+    # Get database instance
+    db = get_request_database()
+    
+    # Log the request
+    db.log_request(
+        request_id=request_id,
+        timestamp=timestamp,
+        client_ip=client_info[0],
+        client_port=client_info[1],
+        provider=provider,
+        model_name=model_name,
+        endpoint_url=endpoint_url,
+        request_data=request_data,
+        status="pending",
+    )
+    
+    return {
+        "request_id": request_id,
+        "timestamp": timestamp,
+        "provider": provider,
+        "model_name": model_name,
+    }
+
+
+def log_response_to_database(
+    request_metadata: Dict[str, Any],
+    response_data: Optional[Dict[str, Any]] = None,
+    error: Optional[Exception] = None,
+    duration_ms: Optional[float] = None,
+) -> None:
+    """
+    Updates a request log with response data.
+    
+    Args:
+        request_metadata: Dictionary returned from log_request_to_database
+        response_data: The response payload
+        error: Exception if request failed
+        duration_ms: Request duration in milliseconds
+    """
+    if not request_metadata or "request_id" not in request_metadata:
+        return
+    
+    db = get_request_database()
+    
+    if error:
+        db.update_request_response(
+            request_id=request_metadata["request_id"],
+            response_data=None,
+            status="error",
+            error_message=str(error),
+            duration_ms=duration_ms,
+        )
+    else:
+        db.update_request_response(
+            request_id=request_metadata["request_id"],
+            response_data=response_data,
+            status="success",
+            error_message=None,
+            duration_ms=duration_ms,
+        )
+
+
+class RequestLogger:
+    """
+    Centralized request logging with both console and database support.
+    """
+    
+    def __init__(self, enable_database: bool = None):
+        """
+        Initialize the request logger.
+        
+        Args:
+            enable_database: Whether to enable database logging. 
+                           Defaults to True if not explicitly disabled.
+        """
+        if enable_database is None:
+            enable_database = os.environ.get("REQUEST_DB_ENABLED", "true").lower() != "false"
+        self.enable_database = enable_database
+        self._db: Optional[RequestDatabase] = None
+        
+        if self.enable_database:
+            try:
+                self._db = get_request_database()
+                logging.info("Request database logging enabled")
+            except Exception as e:
+                logging.warning(f"Failed to initialize request database: {e}")
+                self.enable_database = False
+    
+    def log_request(
+        self,
+        url: str,
+        headers: dict,
+        client_info: tuple,
+        request_data: dict,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Log an incoming request to console and optionally database.
+        
+        Args:
+            url: The request URL
+            headers: Request headers
+            client_info: Tuple of (IP, port)
+            request_data: The request payload
+            
+        Returns:
+            Request metadata for tracking response, or None if logging disabled
+        """
+        # Always log to console
+        log_request_to_console(url, headers, client_info, request_data)
+        
+        # Optionally log to database
+        if self.enable_database:
+            model_full = request_data.get("model", "N/A")
+            
+            provider = "N/A"
+            model_name = model_full
+            endpoint_url = "N/A"
+
+            if '/' in model_full:
+                parts = model_full.split('/', 1)
+                provider = parts[0]
+                model_name = parts[1]
+                endpoint_url = get_provider_endpoint(provider, model_name, url) or "N/A"
+            
+            request_id = str(uuid.uuid4())
+            
+            return log_request_to_database(
+                request_id=request_id,
+                client_info=client_info,
+                request_data=request_data,
+                model_full=model_full,
+                endpoint_url=endpoint_url,
+            )
+        
+        return None
+    
+    def log_response(
+        self,
+        request_metadata: Optional[Dict[str, Any]],
+        response_data: Optional[Dict[str, Any]] = None,
+        error: Optional[Exception] = None,
+        start_time: Optional[float] = None,
+    ) -> None:
+        """
+        Log a response to the database.
+        
+        Args:
+            request_metadata: Metadata returned from log_request
+            response_data: The response payload
+            error: Exception if request failed
+            start_time: Optional start time for calculating duration
+        """
+        if not self.enable_database or not request_metadata:
+            return
+        
+        duration_ms = None
+        if start_time is not None:
+            duration_ms = (time.time() - start_time) * 1000
+        
+        log_response_to_database(
+            request_metadata=request_metadata,
+            response_data=response_data,
+            error=error,
+            duration_ms=duration_ms,
+        )
+    
+    def get_logs(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        provider: Optional[str] = None,
+        model_name: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> list:
+        """
+        Retrieve request logs from the database.
+        
+        Args:
+            limit: Maximum number of records
+            offset: Number of records to skip
+            provider: Filter by provider
+            model_name: Filter by model name
+            status: Filter by status
+            
+        Returns:
+            List of request log dictionaries
+        """
+        if not self.enable_database or not self._db:
+            return []
+        
+        return self._db.get_request_logs(
+            limit=limit,
+            offset=offset,
+            provider=provider,
+            model_name=model_name,
+            status=status,
+        )
+    
+    def get_statistics(self, provider: Optional[str] = None) -> list:
+        """
+        Get request statistics.
+        
+        Args:
+            provider: Optional provider filter
+            
+        Returns:
+            List of statistics dictionaries
+        """
+        if not self.enable_database or not self._db:
+            return []
+        
+        return self._db.get_statistics(provider=provider)
+
+
+# Default logger instance
+default_logger: Optional[RequestLogger] = None
+
+
+def get_request_logger() -> RequestLogger:
+    """Get or create the default request logger instance."""
+    global default_logger
+    if default_logger is None:
+        default_logger = RequestLogger()
+    return default_logger
+=== END FILE ===
