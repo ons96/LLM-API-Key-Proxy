@@ -1,3 +1,4 @@
+=== FILE: config/router_config.yaml ===
 # Router Configuration for Phase 5.1 Free Tier Providers
 version: "5.1.0"
 
@@ -104,3 +105,4 @@ model_routing:
     "deepseek-r1": ["agentrouter", "openrouter"]
     "glm-4.6": ["agentrouter"]
     "glm-4.5": ["agentrouter"]
+=== END FILE ===
