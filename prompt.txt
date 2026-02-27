@@ -1,0 +1,359 @@
+You are an expert Python/FastAPI software engineer.
+Repository layout (partial): config/aliases.yaml config/chat_model_rankings.yaml config/model_rankings.yaml config/providers_database.yaml config/router_config.yaml config/scoring_config.yaml config/virtual_models.yaml config/virtual_models_backup.yaml config/virtual_models_generated.yaml src/proxy_app/__init__.py src/proxy_app/batch_manager.py src/proxy_app/build.py src/proxy_app/config_exceptions.py src/proxy_app/config_watcher.py src/proxy_app/detailed_logger.py src/proxy_app/enhanced_proxy.py src/proxy_app/health_checker.py src/proxy_app/launcher_tui.py src/proxy_app/main.py src/proxy_app/model_ranker.py src/proxy_app/provider_adapter.py src/proxy_app/provider_urls.py src/proxy_app/rate_limiter.py src/proxy_app/request_logger.py src/proxy_app/router_core.py src/proxy_app/router_integration.py src/proxy_app/router_wrapper.py src/proxy_app/settings_tool.py src/proxy_app/status_api.py src/rotator_library/__init__.py src/rotator_library/background_refresher.py src/rotator_library/client.py src/rotator_library/cooldown_manager.py src/rotator_library/credential_manager.py src/rotator_library/credential_tool.py src/rotator_library/error_handler.py src/rotator_library/failure_logger.py src/rotator_library/fetch_artificial_analysis_data.py src/rotator_library/leaderboard_updater.py src/rotator_library/live_scraper.py src/rotator_library/llm_aggregated_leaderboard.py src/rotator_library/model_definitions.py src/rotator_library/model_info_service.py src/rotator_library/models_dev_discovery.py src/rotator_library/provider_factory.py src/rotator_library/provider_priority_manager.py src/rotator_library/provider_status_tracker.py src/rotator_library/providers/__init__.py src/rotator_library/providers/agentrouter_provider.py src/rotator_library/providers/antigravity_auth_base.py src/rotator_library/providers/antigravity_provider.py src/rotator_library/providers/cerebras_provider.py src/rotator_library/providers/chutes_provider.py src/rotator_library/providers/cohere_provider.py src/rotator_library/providers/g4f_provider.py src/rotator_library/providers/gemini_auth_base.py src/rotator_library/providers/gemini_cli_provider.py src/rotator_library/providers/gemini_provider.py src/rotator_library/providers/google_oauth_base.py src/rotator_library/providers/groq_provider.py 
+
+Relevant file contents:
+--- src/rotator_library/providers/openai_compatible_provider.py ---
+import os
+import httpx
+import logging
+from typing import List, Dict, Any, Optional
+from .provider_interface import ProviderInterface
+from ..model_definitions import ModelDefinitions
+
+lib_logger = logging.getLogger("rotator_library")
+lib_logger.propagate = False
+if not lib_logger.handlers:
+    lib_logger.addHandler(logging.NullHandler())
+
+
+class OpenAICompatibleProvider(ProviderInterface):
+    """
+    Generic provider implementation for any OpenAI-compatible API.
+    This provider can be configured via environment variables to support
+    custom OpenAI-compatible endpoints without requiring code changes.
+    Supports both dynamic model discovery and static model definitions.
+    """
+    
+    skip_cost_calculation: bool = True  # Skip cost calculation for custom providers
+    
+
+    def __init__(self, provider_name: str):
+        self.provider_name = provider_name
+        # Get API base URL from environment
+        self.api_base = os.getenv(f"{provider_name.upper()}_API_BASE")
+        if not self.api_base:
+            raise ValueError(
+                f"Environment variable {provider_name.upper()}_API_BASE is required for OpenAI-compatible provider"
+            )
+
+        # Initialize model definitions loader
+        self.model_definitions = ModelDefinitions()
+
+    async def get_models(self, api_key: str, client: httpx.AsyncClient) -> List[str]:
+        """
+        Fetches the list of available models from the OpenAI-compatible API.
+        Combines dynamic discovery with static model definitions.
+        """
+        models = []
+
+        # First, try to get static model definitions
+        static_models = self.model_definitions.get_all_provider_models(
+            self.provider_name
+        )
+        if static_models:
+            models.extend(static_models)
+            lib_logger.info(
+                f"Loaded {len(static_models)} static models for {self.provider_name}"
+            )
+
+        # Then, try dynamic discovery to get additional models
+        try:
+            models_url = f"{self.api_base.rstrip('/')}/models"
+            response = await client.get(
+                models_url, headers={"Authorization": f"Bearer {api_key}"}
+            )
+            response.raise_for_status()
+
+            dynamic_models = [
+                f"{self.provider_name}/{model['id']}"
+                for model in response.json().get("data", [])
+                if model["id"] not in [m.split("/")[-1] for m in static_models]
+            ]
+
+            if dynamic_models:
+                models.extend(dynamic_models)
+                lib_logger.debug(
+                    f"Discovered {len(dynamic_models)} additional models for {self.provider_name}"
+                )
+
+        except httpx.RequestError:
+            # Silently ignore dynamic discovery errors
+            pass
+        except Exception:
+            # Silently ignore dynamic discovery errors
+            pass
+
+        return models
+
+    def get_model_options(self, model_name: str) -> Dict[str, Any]:
+        """
+        Get options for a specific model from static definitions or environment variables.
+
+        Args:
+            model_name: Model name (without provider prefix)
+
+        Returns:
+            Dictionary of model options
+        """
+        # Extract model name without provider prefix if present
+        if "/" in model_name:
+            model_name = model_name.split("/")[-1]
+
+        return self.model_definitions.get_model_options(self.provider_name, model_name)
+
+    def has_custom_logic(self) -> bool:
+        """
+        Returns False since we want to use the standard litellm flow
+        with just custom API base configuration.
+        """
+        return False
+
+    async def get_auth_header(self, credential_identifier: str) -> Dict[str, str]:
+        """
+        Returns the standard Bearer token header for API key authentication.
+        """
+        return {"Authorization": f"Bearer {credential_identifier}"}
+
+--- src/rotator_library/providers/openai_provider.py ---
+import httpx
+import logging
+from typing import List
+from .provider_interface import ProviderInterface
+
+lib_logger = logging.getLogger('rotator_library')
+lib_logger.propagate = False # Ensure this logger doesn't propagate to root
+if not lib_logger.handlers:
+    lib_logger.addHandler(logging.NullHandler())
+
+class OpenAIProvider(ProviderInterface):
+    """
+    Provider implementation for the OpenAI API.
+    """
+    async def get_models(self, api_key: str, client: httpx.AsyncClient) -> List[str]:
+        """
+        Fetches the list of available models from the OpenAI API.
+        """
+        try:
+            response = await client.get(
+                "https://api.openai.com/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"}
+            )
+            response.raise_for_status()
+            return [f"openai/{model['id']}" for model in response.json().get("data", [])]
+        except httpx.RequestError as e:
+            lib_logger.error(f"Failed to fetch OpenAI models: {e}")
+            return []
+
+--- src/proxy_app/status_api.py ---
+#!/usr/bin/env python3
+"""
+Provider Status API Module
+
+FastAPI endpoints for accessing provider health status information.
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
+from typing import Dict, Any, List
+import csv
+import io
+import logging
+
+from rotator_library.provider_status_tracker import ProviderStatusTracker
+
+# Module-level status tracker instance
+status_tracker = ProviderStatusTracker()
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Create router for status API endpoints
+router = APIRouter(prefix="/api/providers", tags=["provider-status"])
+
+
+def get_status_tracker(request: Request) -> ProviderStatusTracker:
+    """Dependency to get the provider status tracker from app state."""
+    if not hasattr(request.app.state, "provider_status_tracker"):
+        raise HTTPException(
+            status_code=500, detail="Provider status tracker not initialized"
+        )
+    return request.app.state.provider_status_tracker
+
+
+@router.get("/status")
+async def get_provider_status(
+    request: Request, tracker: ProviderStatusTracker = Depends(get_status_tracker)
+) -> Dict[str, Any]:
+    """
+    Get current status snapshot for all providers.
+
+    Returns:
+        JSON with timestamp and provider status details
+    """
+    try:
+        status = tracker.get_current_status()
+        return status
+    except Exception as e:
+        logger.error(f"Failed to get provider status: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get provider status: {e}"
+        )
+
+
+@router.get("/status/{provider_name}")
+async def get_single_provider_status(
+    request: Request,
+    provider_name: str,
+    tracker: ProviderStatusTracker = Depends(get_status_tracker),
+) -> Dict[str, Any]:
+    """
+    Get detailed status for a single provider.
+
+    Args:
+        provider_name: Name of the provider to query
+
+    Returns:
+        JSON with provider status details
+    """
+    try:
+        current_status = tracker.get_current_status()
+
+        if provider_name not in current_status["providers"]:
+            raise HTTPException(
+                status_code=404, detail=f"Provider '{provider_name}' not found"
+            )
+
+        provider_data = current_status["providers"][provider_name]
+
+        # Add provider name to response
+        provider_data["provider_name"] = provider_name
+
+        return provider_data
+
+    except Exception as e:
+        logger.error(f"Failed to get status for {provider_name}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get provider status: {e}"
+        )
+
+
+@router.get("/best")
+async def get_best_provider(
+    request: Request, tracker: ProviderStatusTracker = Depends(get_status_tracker)
+) -> Dict[str, Any]:
+    """
+    Get the healthiest/fastest provider.
+
+    Returns:
+        JSON with best provider recommendation and alternatives
+    """
+    try:
+        best_provider = tracker.get_best_provider()
+        return best_provider
+    except Exception as e:
+        logger.error(f"Failed to get best provider: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get best provider: {e}")
+
+
+@router.get("/history")
+async def get_provider_history(
+    request: Request,
+    hours: int = 24,
+    tracker: ProviderStatusTracker = Depends(get_status_tracker),
+) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Get historical data for all providers.
+
+    Args:
+        hours: Time window in hours (default: 24)
+
+    Returns:
+        JSON with time-series data for each provider
+    """
+    try:
+        if hours <= 0:
+            hours = 24
+
+        history = tracker.get_all_history(hours)
+        return history
+    except Exception as e:
+        logger.error(f"Failed to get provider history: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get provider history: {e}"
+        )
+
+
+@router.get("/history/{provider_name}")
+async def get_single_provider_history(
+    request: Request,
+    provider_name: str,
+    hours: int = 24,
+    tracker: ProviderStatusTracker = Depends(get_status_tracker),
+) -> List[Dict[str, Any]]:
+    """
+    Get historical data for a single provider.
+
+    Args:
+        provider_name: Name of the provider to query
+        hours: Time window in hours (default: 24)
+
+    Returns:
+        JSON with time-series data for the provider
+    """
+    try:
+        if hours <= 0:
+            hours = 24
+
+        history = tracker.get_provider_history(provider_name, hours)
+
+        if not history:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No history found for provider '{provider_name}'",
+            )
+
+        return history
+
+    except Exception as e:
+        logger.error(f"Failed to get history for {provider_name}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get provider history: {e}"
+        )
+
+
+@router.get("/export/csv")
+async def export_provider_status_csv(
+    request: Request, tracker: ProviderStatusTracker = Depends(get_status_tracker)
+) -> StreamingResponse:
+    """
+    Export current provider status to CSV format.
+
+    Returns:
+        CSV file with provider status data
+    """
+    try:
+        csv_data = tracker.export_to_csv()
+
+        # Create streaming response
+        stream = io.StringIO(csv_data)
+
+        return StreamingResponse(
+            iter([stream.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": "attachment; filename=provider_status.csv",
+                "Content-Type": "text/csv",
+            },
+        )
+
+GitHub Issue #105: Phase 5.2: Research OpenAI direct API integration
+
+Description: Part of Phase 5.2 Paid Providers.
+
+Task: Implement the changes needed to resolve this issue.
+For each file to create or modify, output a block in this EXACT format:
+=== FILE: path/to/file.py ===
+<complete new file contents>
+=== END FILE ===
+Only allowed path prefixes: src/, config/, docs/
+Output ONLY file blocks. No prose outside blocks.
