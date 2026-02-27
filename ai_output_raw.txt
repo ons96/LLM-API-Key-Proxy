@@ -1,0 +1,568 @@
+=== FILE: config/logging_config.yaml ===
+# Logging Configuration
+# Configure log levels for different components of the proxy application.
+# Log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+log_levels:
+  # Root logger level - applies to all loggers not explicitly configured
+  root: INFO
+  
+  # Specific logger levels - override root for specific components
+  loggers:
+    # Proxy Application Components
+    proxy_app: INFO
+    proxy_app.request_logger: INFO
+    proxy_app.detailed_logger: DEBUG
+    proxy_app.router_core: INFO
+    proxy_app.enhanced_proxy: INFO
+    proxy_app.batch_manager: INFO
+    proxy_app.health_checker: INFO
+    
+    # Rotator Library Components
+    rotator_library: INFO
+    rotator_library.failure_logger: INFO
+    rotator_library.credential_manager: WARNING
+    rotator_library.provider_factory: INFO
+    rotator_library.leaderboard_updater: INFO
+    rotator_library.live_scraper: INFO
+    
+    # Third-party Libraries (reduce noise)
+    httpx: WARNING
+    httpcore: WARNING
+    uvicorn: INFO
+    fastapi: INFO
+    urllib3: WARNING
+=== END FILE ===
+
+=== FILE: src/proxy_app/logging_config.py ===
+import logging
+import os
+import sys
+from pathlib import Path
+from typing import Dict, Any, Optional, Union
+import yaml
+
+
+def load_logging_config(config_path: Optional[Union[Path, str]] = None) -> Dict[str, Any]:
+    """
+    Load logging configuration from YAML file.
+    
+    Args:
+        config_path: Path to logging config YAML. If None, uses default location
+                    at config/logging_config.yaml relative to project root.
+        
+    Returns:
+        Dictionary containing logging configuration with 'log_levels' key.
+    """
+    if config_path is None:
+        # Try to find config relative to this file (src/proxy_app/logging_config.py)
+        # Goes up to project root, then into config/
+        current_file = Path(__file__).resolve()
+        config_path = current_file.parent.parent.parent / "config" / "logging_config.yaml"
+    else:
+        config_path = Path(config_path)
+    
+    if not config_path.exists():
+        logging.warning(f"Logging config not found at {config_path}, using defaults")
+        return _get_default_config()
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+        return config if config else _get_default_config()
+    except Exception as e:
+        logging.warning(f"Failed to load logging config: {e}, using defaults")
+        return _get_default_config()
+
+
+def _get_default_config() -> Dict[str, Any]:
+    """Return default logging configuration."""
+    return {
+        "log_levels": {
+            "root": "INFO",
+            "loggers": {}
+        }
+    }
+
+
+def setup_logging(
+    config_path: Optional[Union[Path, str]] = None,
+    default_level: Optional[str] = None,
+    env_prefix: str = "LOG_LEVEL_",
+    enable_console: bool = True
+) -> None:
+    """
+    Setup logging configuration from YAML file and environment variables.
+    
+    This should be called once at application startup (e.g., in main.py)
+    before any loggers are instantiated.
+    
+    Args:
+        config_path: Path to logging config YAML. If None, uses default location.
+        default_level: Override for root log level (e.g., 'DEBUG', 'INFO').
+        env_prefix: Prefix for environment variable overrides (e.g., LOG_LEVEL_PROXY_APP).
+                   Environment variables should be uppercase with double underscore 
+                   for hierarchy: LOG_LEVEL_PROXY_APP__DETAILED_LOGGER=DEBUG
+        enable_console: If True, ensures a basic console handler exists for root logger.
+    """
+    config = load_logging_config(config_path)
+    log_levels = config.get("log_levels", {})
+    
+    # Setup basic console handler if none exists and requested
+    if enable_console and not logging.getLogger().handlers:
+        console_handler = logging.StreamHandler(sys.stderr)
+        console_handler.setFormatter(logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        ))
+        logging.getLogger().addHandler(console_handler)
+    
+    # Set root logger level
+    root_level = default_level or log_levels.get("root", "INFO")
+    logging.getLogger().setLevel(getattr(logging, root_level.upper(), logging.INFO))
+    
+    # Configure specific loggers from YAML
+    loggers_config = log_levels.get("loggers", {})
+    for logger_name, level in loggers_config.items():
+        _set_logger_level(logger_name, level)
+    
+    # Apply environment variable overrides
+    # Format: LOG_LEVEL_<logger_path>=LEVEL
+    # Example: LOG_LEVEL_ROTATOR_LIBRARY__FAILURE_LOGGER=DEBUG
+    for env_key, env_value in os.environ.items():
+        if env_key.startswith(env_prefix):
+            # Convert LOG_LEVEL_PROXY_APP__DETAILED_LOGGER to proxy_app.detailed_logger
+            logger_suffix = env_key[len(env_prefix):]
+            logger_name = logger_suffix.lower().replace("__", ".")
+            _set_logger_level(logger_name, env_value, source="environment")
+
+
+def _set_logger_level(logger_name: str, level: str, source: str = "config") -> None:
+    """
+    Set the log level for a specific logger.
+    
+    Args:
+        logger_name: Name of the logger (e.g., 'proxy_app.detailed_logger')
+        level: Log level string (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        source: Source of the configuration for logging purposes
+    """
+    try:
+        level_upper = level.upper()
+        log_level = getattr(logging, level_upper)
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(log_level)
+        # Only log the configuration change if we're configuring explicitly
+        if source == "environment":
+            logging.info(f"Log level for '{logger_name}' set to {level_upper} via {source}")
+    except AttributeError:
+        logging.warning(f"Invalid log level '{level}' for logger '{logger_name}'")
+    except Exception as e:
+        logging.warning(f"Failed to set log level for '{logger_name}': {e}")
+
+
+def get_effective_level(logger_name: str) -> int:
+    """
+    Get the effective log level for a logger (inherited if not set explicitly).
+    
+    Args:
+        logger_name: Name of the logger
+        
+    Returns:
+        The effective logging level constant
+    """
+    return logging.getLogger(logger_name).getEffectiveLevel()
+
+
+def is_debug_enabled(logger_name: str) -> bool:
+    """
+    Check if DEBUG level is enabled for a logger.
+    
+    Args:
+        logger_name: Name of the logger
+        
+    Returns:
+        True if DEBUG is enabled, False otherwise
+    """
+    return logging.getLogger(logger_name).isEnabledFor(logging.DEBUG)
+=== END FILE ===
+
+=== FILE: src/rotator_library/failure_logger.py ===
+import logging
+import json
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+from datetime import datetime
+from typing import Optional, Union
+
+from .error_handler import mask_credential
+from .utils.paths import get_logs_dir
+
+
+class JsonFormatter(logging.Formatter):
+    """Custom JSON formatter for structured logs."""
+
+    def format(self, record):
+        # The message is already a dict, so we just format it as a JSON string
+        return json.dumps(record.msg)
+
+
+# Module-level state for lazy initialization
+_failure_logger: Optional[logging.Logger] = None
+_configured_logs_dir: Optional[Path] = None
+_configured_level: Optional[int] = None
+
+
+def configure_failure_logger(
+    logs_dir: Optional[Union[Path, str]] = None,
+    level: Optional[Union[int, str]] = None
+) -> None:
+    """
+    Configure the failure logger to use a specific logs directory and/or level.
+
+    Call this before first use if you want to override the default location or level.
+    If not called, the logger will use get_logs_dir() on first use and inherit
+    log level from logging configuration.
+
+    Args:
+        logs_dir: Path to the logs directory. If None, uses get_logs_dir().
+        level: Log level (e.g., logging.INFO, 'DEBUG', etc.). If None, uses INFO
+               as default or inherits from parent logger configuration.
+    """
+    global _configured_logs_dir, _failure_logger, _configured_level
+    _configured_logs_dir = Path(logs_dir) if logs_dir else None
+    
+    if level is not None:
+        if isinstance(level, str):
+            _configured_level = getattr(logging, level.upper(), logging.INFO)
+        else:
+            _configured_level = level
+    
+    # Reset logger so it gets reconfigured on next use
+    _failure_logger = None
+
+
+def _setup_failure_logger(logs_dir: Path) -> logging.Logger:
+    """
+    Sets up a dedicated JSON logger for writing detailed failure logs to a file.
+
+    Args:
+        logs_dir: Path to the logs directory.
+
+    Returns:
+        Configured logger instance.
+    """
+    global _configured_level
+    
+    logger = logging.getLogger("failure_logger")
+    
+    # Only set default level if not already configured and no explicit config given
+    if _configured_level is not None:
+        logger.setLevel(_configured_level)
+    elif logger.level == logging.NOTSET:
+        # Default to INFO if no level configured externally
+        logger.setLevel(logging.INFO)
+    
+    logger.propagate = False
+
+    # Clear existing handlers to prevent duplicates on re-setup
+    logger.handlers.clear()
+
+    try:
+        logs_dir.mkdir(parents=True, exist_ok=True)
+
+        handler = RotatingFileHandler(
+            logs_dir / "failures.log",
+            maxBytes=5 * 1024 * 1024,  # 5 MB
+            backupCount=2,
+        )
+        handler.setFormatter(JsonFormatter())
+        logger.addHandler(handler)
+    except (OSError, PermissionError, IOError) as e:
+        logging.warning(f"Cannot create failure log file handler: {e}")
+        # Add NullHandler to prevent "no handlers" warning
+        logger.addHandler(logging.NullHandler())
+
+    return logger
+
+
+def get_failure_logger() -> logging.Logger:
+    """
+    Get the failure logger, initializing it lazily if needed.
+
+    Returns:
+        The configured failure logger.
+    """
+    global _failure_logger, _configured_logs_dir
+
+    if _failure_logger is None:
+        logs_dir = _configured_logs_dir if _configured_logs_dir else get_logs_dir()
+        _failure_logger = _setup_failure_logger(logs_dir)
+
+    return _failure_logger
+
+
+# Get the main library logger for concise, propagated messages
+main_lib_logger = logging.getLogger("rotator_library")
+
+
+def _extract_response_body(error: Exception) -> str:
+    """
+    Extract the full response body from various error types.
+
+    Handles:
+    - StreamedAPIError: wraps original exception in .data attribute
+    - httpx.HTTPStatusError: response.text or response.content
+    - litellm exceptions: various response attributes
+    - Other exceptions: str(error)
+    """
+    # Handle StreamedAPIError which wraps the original exception in .data
+    # This is used by our streaming wrapper when catching provider errors
+    if hasattr(error, "data") and error.data is not None:
+        inner = error.data
+        # If data is a dict (parsed JSON error), return it as JSON
+        if isinstance(inner, dict):
+            try:
+                return json.dumps(inner, indent=2)
+            except Exception:
+                return str(inner)
+        # If data is an exception, recurse to extract from it
+        if isinstance(inner, Exception):
+            result = _extract_response_body(inner)
+            if result:
+                return result
+
+    # Try to get response body from httpx errors
+    if hasattr(error, "response") and error.response is not None:
+        response = error.response
+        # Try .text first (decoded)
+        if hasattr(response, "text") and response.text:
+            return response.text
+        # Try .content (bytes)
+        if hasattr(response, "content") and response.content:
+            try:
+                return response.content.decode("utf-8", errors="replace")
+            except Exception:
+                return str(response.content)
+
+    # Check for litellm's body attribute
+    if hasattr(error, "body") and error.body:
+        return str(error.body)
+
+    # Check for message attribute that might contain response
+    if hasattr(error, "message") and error.message:
+        return str(error.message)
+
+    return None
+
+
+def log_failure(
+    api_key: str,
+    model: str,
+    attempt: int,
+    error: Exception,
+    request_headers: dict,
+    raw_response_text: str = None,
+):
+    """
+    Logs a detailed failure message to a file and a concise summary to the main logger.
+
+    Args:
+        api_key: The API key or credential path that was used
+        model: The model that was requested
+        attempt: The attempt number (1-based)
+        error: The exception that occurred
+        request_headers: Headers from the original request
+        raw_response_text: Optional pre-extracted response body (e.g., from streaming)
+    """
+    # 1. Log the full, detailed error to the dedicated failures.log file
+    # Prioritize the explicitly passed raw response text, as it may contain
+    # reassembled data from a stream that is not available on the exception object.
+    raw_response = raw_response_text
+    if not raw_response:
+        raw_response = _extract_response_body(error)
+
+    # Get full error message (not truncated)
+    full_error_message = str(error)
+
+    # Also capture any nested/wrapped exception info
+    error_chain = []
+    visited = set()  # Track visited exceptions to detect circular references
+    current_error = error
+    while current_error:
+        # Check for circular references
+        error_id = id(current_error)
+        if error_id in visited:
+            break
+        visited.add(error_id)
+
+        error_chain.append(
+            {
+                "type": type(current_error).__name__,
+                "message": str(current_error)[:2000],  # Limit per-error message size
+            }
+        )
+        current_error = getattr(current_error, "__cause__", None) or getattr(
+            current_error, "__context__", None
+        )
+        if len(error_chain) > 5:  # Prevent excessive chain length
+            break
+
+    detailed_log_data = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "api_key_ending": mask_credential(api_key),
+        "model": model,
+        "attempt": attempt,
+        "error_type": type(error).__name__,
+        "error_message": full_error_message[:5000],  # Limit overall message size
+        "error_chain": error_chain,
+        "raw_response": raw_response[:10000] if raw_response else None,  # Limit response size
+        "request_headers": {k: v for k, v in request_headers.items() 
+                           if k.lower() not in ('authorization', 'api-key', 'x-api-key')},
+    }
+
+    # Get the failure logger (respects configured log level)
+    failure_logger = get_failure_logger()
+    
+    # Only log if the level is appropriate (INFO or lower)
+    if failure_logger.isEnabledFor(logging.INFO):
+        failure_logger.info(detailed_log_data)
+
+    # 2. Log a concise summary to the main library logger (which also respects log levels)
+    concise_msg = f"Attempt {attempt} failed for model '{model}': {type(error).__name__}"
+    if main_lib_logger.isEnabledFor(logging.DEBUG):
+        concise_msg += f" - {str(error)[:200]}"
+    
+    main_lib_logger.warning(concise_msg)
+=== END FILE ===
+
+=== FILE: src/proxy_app/detailed_logger.py ===
+"""
+Detailed request/response logging module.
+
+This module provides comprehensive logging of API transactions to timestamped directories.
+Log levels are configurable via config/logging_config.yaml or environment variables.
+See proxy_app.logging_config for configuration options.
+
+Example configuration in logging_config.yaml:
+    loggers:
+        proxy_app.detailed_logger: DEBUG  # Enable detailed logging
+"""
+
+import json
+import time
+import uuid
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional
+import logging
+
+from rotator_library.utils.resilient_io import (
+    safe_write_json,
+    safe_log_write,
+    safe_mkdir,
+)
+from rotator_library.utils.paths import get_logs_dir
+
+logger = logging.getLogger(__name__)
+
+
+def _get_detailed_logs_dir() -> Path:
+    """Get the detailed logs directory, creating it if needed."""
+    logs_dir = get_logs_dir()
+    detailed_dir = logs_dir / "detailed_logs"
+    detailed_dir.mkdir(parents=True, exist_ok=True)
+    return detailed_dir
+
+
+class DetailedLogger:
+    """
+    Logs comprehensive details of each API transaction to a unique, timestamped directory.
+
+    Uses fire-and-forget logging - if disk writes fail, logs are dropped (not buffered)
+    to prevent memory issues, especially with streaming responses.
+    
+    Log output is controlled by the 'proxy_app.detailed_logger' logger level.
+    Set to DEBUG to enable detailed logging, or INFO/WARNING to suppress.
+    """
+
+    def __init__(self) -> None:
+        """
+        Initializes the logger for a single request, creating a unique directory to store all related log files.
+        """
+        self.start_time = time.time()
+        self.request_id = str(uuid.uuid4())
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.log_dir = _get_detailed_logs_dir() / f"{timestamp}_{self.request_id}"
+        self.streaming = False
+        self._dir_available = safe_mkdir(self.log_dir, logger)
+        
+        # Check if debug level is enabled to avoid unnecessary work
+        self._debug_enabled = logger.isEnabledFor(logging.DEBUG)
+
+    def _write_json(self, filename: str, data: Dict[str, Any]) -> None:
+        """Helper to write data to a JSON file in the log directory."""
+        if not self._debug_enabled:
+            return
+            
+        if not self._dir_available:
+            # Try to create directory again in case it was recreated
+            self._dir_available = safe_mkdir(self.log_dir, logger)
+            if not self._dir_available:
+                return
+
+        safe_write_json(
+            self.log_dir / filename,
+            data,
+            logger,
+            atomic=False,
+            indent=4,
+            ensure_ascii=False,
+        )
+
+    def log_request(self, headers: Dict[str, Any], body: Dict[str, Any]) -> None:
+        """Logs the initial request details (only if DEBUG level enabled)."""
+        if not self._debug_enabled:
+            return
+            
+        self.streaming = body.get("stream", False)
+        request_data = {
+            "request_id": self.request_id,
+            "timestamp_utc": datetime.utcnow().isoformat(),
+            "headers": dict(headers),
+            "body": body,
+        }
+        self._write_json("request.json", request_data)
+        logger.debug(f"Request {self.request_id} logged to {self.log_dir}")
+
+    def log_stream_chunk(self, chunk: Dict[str, Any]) -> None:
+        """Logs an individual chunk from a streaming response to a JSON Lines file (only if DEBUG enabled)."""
+        if not self._debug_enabled or not self._dir_available:
+            return
+
+        log_entry = {"timestamp_utc": datetime.utcnow().isoformat(), "chunk": chunk}
+        content = json.dumps(log_entry, ensure_ascii=False) + "\n"
+        safe_log_write(self.log_dir / "streaming_chunks.jsonl", content, logger)
+
+    def log_final_response(
+        self, status_code: int, headers: Optional[Dict[str, Any]], body: Dict[str, Any]
+    ) -> None:
+        """Logs the complete final response (only if DEBUG level enabled)."""
+        if not self._debug_enabled:
+            return
+            
+        end_time = time.time()
+        duration_ms = (end_time - self.start_time) * 1000
+
+        response_data = {
+            "request_id": self.request_id,
+            "timestamp_utc": datetime.utcnow().isoformat(),
+            "status_code": status_code,
+            "duration_ms": round(duration_ms),
+            "headers": dict(headers) if headers else None,
+            "body": body,
+        }
+        self._write_json("final_response.json", response_data)
+        self._log_metadata(response_data)
+        logger.debug(f"Response {self.request_id} completed in {duration_ms:.2f}ms")
+
+    def _extract_reasoning(self, response_body: Dict[str, Any]) -> Optional[str]:
+        """Rec

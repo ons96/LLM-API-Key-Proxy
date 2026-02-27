@@ -20,20 +20,34 @@ class JsonFormatter(logging.Formatter):
 # Module-level state for lazy initialization
 _failure_logger: Optional[logging.Logger] = None
 _configured_logs_dir: Optional[Path] = None
+_configured_level: Optional[int] = None
 
 
-def configure_failure_logger(logs_dir: Optional[Union[Path, str]] = None) -> None:
+def configure_failure_logger(
+    logs_dir: Optional[Union[Path, str]] = None,
+    level: Optional[Union[int, str]] = None
+) -> None:
     """
-    Configure the failure logger to use a specific logs directory.
+    Configure the failure logger to use a specific logs directory and/or level.
 
-    Call this before first use if you want to override the default location.
-    If not called, the logger will use get_logs_dir() on first use.
+    Call this before first use if you want to override the default location or level.
+    If not called, the logger will use get_logs_dir() on first use and inherit
+    log level from logging configuration.
 
     Args:
         logs_dir: Path to the logs directory. If None, uses get_logs_dir().
+        level: Log level (e.g., logging.INFO, 'DEBUG', etc.). If None, uses INFO
+               as default or inherits from parent logger configuration.
     """
-    global _configured_logs_dir, _failure_logger
+    global _configured_logs_dir, _failure_logger, _configured_level
     _configured_logs_dir = Path(logs_dir) if logs_dir else None
+    
+    if level is not None:
+        if isinstance(level, str):
+            _configured_level = getattr(logging, level.upper(), logging.INFO)
+        else:
+            _configured_level = level
+    
     # Reset logger so it gets reconfigured on next use
     _failure_logger = None
 
@@ -48,8 +62,17 @@ def _setup_failure_logger(logs_dir: Path) -> logging.Logger:
     Returns:
         Configured logger instance.
     """
+    global _configured_level
+    
     logger = logging.getLogger("failure_logger")
-    logger.setLevel(logging.INFO)
+    
+    # Only set default level if not already configured and no explicit config given
+    if _configured_level is not None:
+        logger.setLevel(_configured_level)
+    elif logger.level == logging.NOTSET:
+        # Default to INFO if no level configured externally
+        logger.setLevel(logging.INFO)
+    
     logger.propagate = False
 
     # Clear existing handlers to prevent duplicates on re-setup
@@ -199,28 +222,25 @@ def log_failure(
         "timestamp": datetime.utcnow().isoformat(),
         "api_key_ending": mask_credential(api_key),
         "model": model,
-        "attempt_number": attempt,
+        "attempt": attempt,
         "error_type": type(error).__name__,
-        "error_message": full_error_message[:5000],  # Limit total size
-        "raw_response": raw_response[:10000]
-        if raw_response
-        else None,  # Limit response size
-        "request_headers": request_headers,
-        "error_chain": error_chain if len(error_chain) > 1 else None,
+        "error_message": full_error_message[:5000],  # Limit overall message size
+        "error_chain": error_chain,
+        "raw_response": raw_response[:10000] if raw_response else None,  # Limit response size
+        "request_headers": {k: v for k, v in request_headers.items() 
+                           if k.lower() not in ('authorization', 'api-key', 'x-api-key')},
     }
 
-    # 2. Log a concise summary to the main library logger, which will propagate
-    summary_message = (
-        f"API call failed for model {model} with key {mask_credential(api_key)}. "
-        f"Error: {type(error).__name__}. See failures.log for details."
-    )
+    # Get the failure logger (respects configured log level)
+    failure_logger = get_failure_logger()
+    
+    # Only log if the level is appropriate (INFO or lower)
+    if failure_logger.isEnabledFor(logging.INFO):
+        failure_logger.info(detailed_log_data)
 
-    # Log to failure logger with resilience - if it fails, just continue
-    try:
-        get_failure_logger().error(detailed_log_data)
-    except (OSError, IOError) as e:
-        # Log file write failed - log to console instead
-        logging.warning(f"Failed to write to failures.log: {e}")
-
-    # Console log always succeeds
-    main_lib_logger.error(summary_message)
+    # 2. Log a concise summary to the main library logger (which also respects log levels)
+    concise_msg = f"Attempt {attempt} failed for model '{model}': {type(error).__name__}"
+    if main_lib_logger.isEnabledFor(logging.DEBUG):
+        concise_msg += f" - {str(error)[:200]}"
+    
+    main_lib_logger.warning(concise_msg)
