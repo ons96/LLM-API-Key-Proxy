@@ -1,0 +1,700 @@
+=== FILE: src/rotator_library/usage_schema.py ===
+"""
+Usage Tracking Schema for Phase 3.2 Analytics
+
+Defines Pydantic models for type-safe, comprehensive usage tracking
+including request metrics, token counts, costs, and error classification.
+"""
+
+from datetime import datetime
+from enum import Enum
+from typing import Dict, List, Optional, Any
+from pydantic import BaseModel, Field, validator
+
+
+class RequestStatus(str, Enum):
+    """Classification of request completion status."""
+    SUCCESS = "success"
+    FAILURE = "failure"
+    TIMEOUT = "timeout"
+    RATE_LIMITED = "rate_limited"
+    CANCELLED = "cancelled"
+
+
+class ErrorCategory(str, Enum):
+    """High-level error classification for analytics."""
+    AUTHENTICATION = "authentication"
+    RATE_LIMIT = "rate_limit"
+    SERVER_ERROR = "server_error"
+    CLIENT_ERROR = "client_error"
+    NETWORK = "network"
+    TIMEOUT = "timeout"
+    VALIDATION = "validation"
+    UNKNOWN = "unknown"
+
+
+class UsageEvent(BaseModel):
+    """
+    Individual usage event representing a single API request.
+    Stored in rolling window for recent activity analysis.
+    """
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    event_id: str = Field(default_factory=lambda: f"evt_{datetime.utcnow().timestamp()}")
+    provider: str
+    credential_id: str
+    model: Optional[str] = None
+    virtual_model: Optional[str] = None  # Router virtual model name if applicable
+    
+    # Request metadata
+    status: RequestStatus
+    error_category: Optional[ErrorCategory] = None
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None
+    
+    # Token metrics (if available)
+    tokens_prompt: int = 0
+    tokens_completion: int = 0
+    tokens_total: int = 0
+    
+    # Performance metrics
+    latency_ms: float = 0.0
+    time_to_first_token_ms: Optional[float] = None  # For streaming
+    
+    # Cost tracking
+    cost_usd: float = 0.0
+    
+    # Routing metadata
+    endpoint: Optional[str] = None
+    region: Optional[str] = None
+    priority: int = 5  # 1 = highest
+    rotation_mode: str = "balanced"
+    
+    # Request context
+    request_id: Optional[str] = None
+    session_id: Optional[str] = None
+    client_ip_hash: Optional[str] = None  # Hashed for privacy
+    
+    @validator('tokens_total', always=True)
+    def calculate_total_tokens(cls, v, values):
+        """Ensure tokens_total is calculated if not provided."""
+        if v == 0 and values.get('tokens_prompt') and values.get('tokens_completion'):
+            return values['tokens_prompt'] + values['tokens_completion']
+        return v
+
+
+class ModelStats(BaseModel):
+    """Aggregated statistics per model."""
+    model_id: str
+    first_used: Optional[datetime] = None
+    last_used: Optional[datetime] = None
+    
+    # Request counts
+    request_count: int = 0
+    success_count: int = 0
+    failure_count: int = 0
+    
+    # Token aggregates
+    total_tokens_prompt: int = 0
+    total_tokens_completion: int = 0
+    total_tokens: int = 0
+    
+    # Cost aggregates
+    total_cost_usd: float = 0.0
+    estimated_cost_usd: float = 0.0  # For providers without precise billing
+    
+    # Performance metrics
+    total_latency_ms: float = 0.0
+    avg_latency_ms: float = 0.0
+    min_latency_ms: float = float('inf')
+    max_latency_ms: float = 0.0
+    p95_latency_ms: Optional[float] = None  # Calculated periodically
+    
+    # Error tracking
+    error_counts: Dict[str, int] = Field(default_factory=dict)
+    
+    def update_latency_stats(self, latency_ms: float):
+        """Update latency statistics with new measurement."""
+        self.total_latency_ms += latency_ms
+        self.request_count += 1
+        self.avg_latency_ms = self.total_latency_ms / self.request_count
+        self.min_latency_ms = min(self.min_latency_ms, latency_ms)
+        self.max_latency_ms = max(self.max_latency_ms, latency_ms)
+
+
+class TimeWindowStats(BaseModel):
+    """Statistics for a specific time window (hourly/daily)."""
+    window_start: datetime
+    window_end: datetime
+    request_count: int = 0
+    token_count: int = 0
+    cost_usd: float = 0.0
+    error_count: int = 0
+    unique_models: set = Field(default_factory=set)
+    unique_credentials: set = Field(default_factory=set)
+    
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class CredentialStats(BaseModel):
+    """
+    Comprehensive statistics per credential.
+    Replaces and extends the simple usage count in legacy format.
+    """
+    credential_id: str
+    provider: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Current operational state (legacy compatibility)
+    current_daily_count: int = 0
+    last_reset_date: str = ""  # YYYY-MM-DD format
+    cooldown_until: Optional[datetime] = None
+    is_active: bool = True
+    
+    # Aggregate metrics
+    request_count: int = 0
+    success_count: int = 0
+    failure_count: int = 0
+    cooldown_count: int = 0
+    
+    # Token and cost tracking
+    total_tokens: int = 0
+    total_tokens_prompt: int = 0
+    total_tokens_completion: int = 0
+    total_cost_usd: float = 0.0
+    
+    # Temporal tracking
+    first_used: Optional[datetime] = None
+    last_used: Optional[datetime] = None
+    last_success: Optional[datetime] = None
+    last_failure: Optional[datetime] = None
+    
+    # Model breakdown
+    model_breakdown: Dict[str, ModelStats] = Field(default_factory=dict)
+    
+    # Error classification breakdown
+    error_breakdown: Dict[str, int] = Field(default_factory=dict)
+    error_category_breakdown: Dict[str, int] = Field(default_factory=dict)
+    
+    # Hourly windows for last 24h (rolling)
+    hourly_stats: Dict[str, TimeWindowStats] = Field(default_factory=dict)
+    
+    # Quality metrics
+    consecutive_failures: int = 0
+    consecutive_successes: int = 0
+    success_rate_24h: float = 1.0
+    
+    def record_event(self, event: UsageEvent):
+        """Update stats with a new usage event."""
+        self.updated_at = datetime.utcnow()
+        self.last_used = event.timestamp
+        
+        if event.status == RequestStatus.SUCCESS:
+            self.success_count += 1
+            self.last_success = event.timestamp
+            self.consecutive_successes += 1
+            self.consecutive_failures = 0
+        else:
+            self.failure_count += 1
+            self.last_failure = event.timestamp
+            self.consecutive_failures += 1
+            self.consecutive_successes = 0
+            
+            # Update error breakdowns
+            error_key = event.error_code or "unknown"
+            self.error_breakdown[error_key] = self.error_breakdown.get(error_key, 0) + 1
+            
+            if event.error_category:
+                cat_key = event.error_category.value
+                self.error_category_breakdown[cat_key] = self.error_category_breakdown.get(cat_key, 0) + 1
+        
+        # Update token counts
+        self.total_tokens += event.tokens_total
+        self.total_tokens_prompt += event.tokens_prompt
+        self.total_tokens_completion += event.tokens_completion
+        
+        # Update cost
+        self.total_cost_usd += event.cost_usd
+        
+        # Update model breakdown
+        if event.model:
+            if event.model not in self.model_breakdown:
+                self.model_breakdown[event.model] = ModelStats(model_id=event.model)
+            
+            model_stats = self.model_breakdown[event.model]
+            model_stats.last_used = event.timestamp
+            if not model_stats.first_used:
+                model_stats.first_used = event.timestamp
+            
+            if event.status == RequestStatus.SUCCESS:
+                model_stats.success_count += 1
+            else:
+                model_stats.failure_count += 1
+            
+            model_stats.total_tokens_prompt += event.tokens_prompt
+            model_stats.total_tokens_completion += event.tokens_completion
+            model_stats.total_tokens += event.tokens_total
+            model_stats.total_cost_usd += event.cost_usd
+            model_stats.update_latency_stats(event.latency_ms)
+            
+            if event.error_code:
+                model_stats.error_counts[event.error_code] = model_stats.error_counts.get(event.error_code, 0) + 1
+
+
+class DailySummary(BaseModel):
+    """Aggregated daily statistics."""
+    date: str  # YYYY-MM-DD
+    provider_breakdown: Dict[str, int] = Field(default_factory=dict)
+    model_breakdown: Dict[str, int] = Field(default_factory=dict)
+    status_breakdown: Dict[str, int] = Field(default_factory=dict)
+    
+    total_requests: int = 0
+    total_success: int = 0
+    total_failures: int = 0
+    
+    total_tokens: int = 0
+    total_tokens_prompt: int = 0
+    total_tokens_completion: int = 0
+    
+    total_cost_usd: float = 0.0
+    avg_latency_ms: float = 0.0
+    
+    unique_credentials: int = 0
+    unique_models: int = 0
+
+
+class ProviderAnalytics(BaseModel):
+    """Analytics aggregated at the provider level."""
+    provider: str
+    total_requests: int = 0
+    active_credentials: int = 0
+    total_credentials: int = 0
+    avg_success_rate: float = 0.0
+    total_cost_24h: float = 0.0
+    models_available: List[str] = Field(default_factory=list)
+
+
+class UsageSchema(BaseModel):
+    """
+    Root schema container for all usage analytics data.
+    Version 3.2.0 introduces comprehensive event tracking and aggregation.
+    """
+    schema_version: str = "3.2.0"
+    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    data_retention_days: int = 30
+    
+    # Primary data stores
+    credentials: Dict[str, CredentialStats] = Field(default_factory=dict)
+    daily_summaries: Dict[str, DailySummary] = Field(default_factory=dict)  # Key: YYYY-MM-DD
+    provider_analytics: Dict[str, ProviderAnalytics] = Field(default_factory=dict)
+    
+    # Rolling window of recent events (configurable size, default 1000)
+    recent_events: List[UsageEvent] = Field(default_factory=list)
+    max_recent_events: int = 1000
+    
+    # Metadata
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    migration_history: List[Dict] = Field(default_factory=list)
+    
+    def add_event(self, event: UsageEvent) -> None:
+        """Add event to recent events with FIFO overflow."""
+        self.recent_events.append(event)
+        if len(self.recent_events) > self.max_recent_events:
+            self.recent_events = self.recent_events[-self.max_recent_events:]
+        self.last_updated = datetime.utcnow()
+    
+    def get_or_create_credential_stats(self, credential_id: str, provider: str) -> CredentialStats:
+        """Get existing or create new credential stats."""
+        if credential_id not in self.credentials:
+            self.credentials[credential_id] = CredentialStats(
+                credential_id=credential_id,
+                provider=provider
+            )
+        return self.credentials[credential_id]
+    
+    def get_daily_summary(self, date_str: str) -> DailySummary:
+        """Get or create daily summary for date."""
+        if date_str not in self.daily_summaries:
+            self.daily_summaries[date_str] = DailySummary(date=date_str)
+        return self.daily_summaries[date_str]
+    
+    def update_provider_analytics(self, provider: str) -> None:
+        """Recalculate provider-level analytics from credential data."""
+        creds = [c for c in self.credentials.values() if c.provider == provider]
+        
+        total_reqs = sum(c.request_count for c in creds)
+        success_reqs = sum(c.success_count for c in creds)
+        
+        self.provider_analytics[provider] = ProviderAnalytics(
+            provider=provider,
+            total_requests=total_reqs,
+            active_credentials=sum(1 for c in creds if c.is_active),
+            total_credentials=len(creds),
+            avg_success_rate=success_reqs / total_reqs if total_reqs > 0 else 0.0
+        )
+
+
+# Legacy compatibility aliases for migration
+KeyUsageData = UsageSchema
+CredentialUsageData = CredentialStats
+=== END FILE ===
+
+=== FILE: src/rotator_library/usage_manager.py ===
+import json
+import os
+import time
+import logging
+import asyncio
+import random
+from datetime import date, datetime, timezone, time as dt_time, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
+import aiofiles
+import litellm
+
+from .error_handler import ClassifiedError, NoAvailableKeysError, mask_credential
+from .providers import PROVIDER_PLUGINS
+from .utils.resilient_io import ResilientStateWriter
+from .utils.paths import get_data_file
+from .usage_schema import (
+    UsageSchema, 
+    UsageEvent, 
+    CredentialStats, 
+    DailySummary,
+    RequestStatus, 
+    ErrorCategory
+)
+
+lib_logger = logging.getLogger("rotator_library")
+lib_logger.propagate = False
+if not lib_logger.handlers:
+    lib_logger.addHandler(logging.NullHandler())
+
+
+class UsageManager:
+    """
+    Manages usage statistics and cooldowns for API keys with asyncio-safe locking,
+    asynchronous file I/O, lazy-loading mechanism, and weighted random credential rotation.
+
+    Phase 3.2 Update: Now implements comprehensive usage tracking schema with
+    detailed analytics, event tracking, and cost management.
+
+    The credential rotation strategy can be configured via the `rotation_tolerance` parameter:
+
+    - **tolerance = 0.0**: Deterministic least-used selection. The credential with
+      the lowest usage count is always selected. This provides predictable, perfectly balanced
+      load distribution but may be vulnerable to fingerprinting.
+
+    - **tolerance = 2.0 - 4.0 (default, recommended)**: Balanced weighted randomness. Credentials are selected
+      randomly with weights biased toward less-used ones. Credentials within 2 uses of the
+      maximum can still be selected with reasonable probability. This provides security through
+      unpredictability while maintaining good load balance.
+
+    - **tolerance = 5.0+**: High randomness. Even heavily-used credentials have significant
+      selection probability. Useful for stress testing or maximum unpredictability, but may
+      result in less balanced load distribution.
+
+    The weight formula is: `weight = (max_usage - credential_usage) + tolerance + 1`
+
+    This ensures lower-usage credentials are preferred while tolerance controls how much
+    randomness is introduced into the selection process.
+
+    Additionally, providers can specify a rotation mode:
+    - "balanced" (default): Rotate credentials to distribute load evenly
+    - "sequential": Use one credential until exhausted (preserves caching)
+    """
+
+    def __init__(
+        self,
+        file_path: Optional[Union[str, Path]] = None,
+        daily_reset_time_utc: Optional[str] = "03:00",
+        rotation_tolerance: float = 0.0,
+        provider_rotation_modes: Optional[Dict[str, str]] = None,
+        provider_plugins: Optional[Dict[str, Any]] = None,
+        priority_multipliers: Optional[Dict[str, Dict[int, int]]] = None,
+        priority_multipliers_by_mode: Optional[
+            Dict[str, Dict[str, Dict[int, int]]]
+        ] = None,
+        sequential_fallback_multipliers: Optional[Dict[str, int]] = None,
+        analytics_config: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Initialize the UsageManager.
+
+        Args:
+            file_path: Path to the usage data JSON file. If None, uses get_data_file("key_usage.json").
+                       Can be absolute Path, relative Path, or string.
+            daily_reset_time_utc: Time in UTC when daily stats should reset (HH:MM format)
+            rotation_tolerance: Tolerance for weighted random credential rotation.
+                - 0.0: Deterministic, least-used credential always selected
+                - tolerance = 2.0 - 4.0 (default, recommended): Balanced randomness, can pick credentials within 2 uses of max
+                - 5.0+: High randomness, more unpredictable selection patterns
+            provider_rotation_modes: Dict mapping provider names to rotation modes.
+                - "balanced": Rotate credentials to distribute load evenly (default)
+                - "sequential": Use one credential until exhausted (preserves caching)
+            provider_plugins: Dict mapping provider names to provider plugin instances.
+                Used for per-provider usage reset configuration (window durations, field names).
+            priority_multipliers: Dict mapping provider -> priority -> multiplier.
+                Universal multipliers that apply regardless of rotation mode.
+                Example: {"antigravity": {1: 5, 2: 3}}
+            priority_multipliers_by_mode: Dict mapping provider -> mode -> priority -> multiplier.
+                Mode-specific overrides. Example: {"antigravity": {"balanced": {3: 1}}}
+            sequential_fallback_multipliers: Dict mapping provider -> fallback multiplier.
+                Used in sequential mode when priority not in priority_multipliers.
+                Example: {"antigravity": 2}
+            analytics_config: Configuration for Phase 3.2 analytics features.
+                - enabled: bool (default True)
+                - track_tokens: bool (default True)
+                - track_costs: bool (default True)
+                - track_latency: bool (default True)
+                - max_recent_events: int (default 1000)
+                - retention_days: int (default 30)
+        """
+        # Resolve file_path - use default if not provided
+        if file_path is None:
+            self.file_path = str(get_data_file("key_usage.json"))
+        elif isinstance(file_path, Path):
+            self.file_path = str(file_path)
+        else:
+            # String path - could be relative or absolute
+            self.file_path = file_path
+            
+        self.rotation_tolerance = rotation_tolerance
+        self.provider_rotation_modes = provider_rotation_modes or {}
+        self.provider_plugins = provider_plugins or PROVIDER_PLUGINS
+        self.priority_multipliers = priority_multipliers or {}
+        self.priority_multipliers_by_mode = priority_multipliers_by_mode or {}
+        self.sequential_fallback_multipliers = sequential_fallback_multipliers or {}
+        self._provider_instances: Dict[str, Any] = {}  # Cache for provider instances
+        self.key_states: Dict[str, Dict[str, Any]] = {}
+
+        # Phase 3.2 Analytics Configuration
+        self.analytics_config = analytics_config or {}
+        self.analytics_enabled = self.analytics_config.get("enabled", True)
+        self.track_tokens = self.analytics_config.get("track_tokens", True)
+        self.track_costs = self.analytics_config.get("track_costs", True)
+        self.track_latency = self.analytics_config.get("track_latency", True)
+        
+        self._data_lock = asyncio.Lock()
+        self._usage_data: Optional[UsageSchema] = None
+        self._initialized = asyncio.Event()
+        self._init_lock = asyncio.Lock()
+
+        self._timeout_lock = asyncio.Lock()
+        self._claimed_on_timeout: Set[str] = set()
+
+        # Resilient writer for usage data persistence
+        self._state_writer = ResilientStateWriter(file_path, lib_logger)
+
+        if daily_reset_time_utc:
+            hour, minute = map(int, daily_reset_time_utc.split(":"))
+            self.daily_reset_time_utc = dt_time(
+                hour=hour, minute=minute, tzinfo=timezone.utc
+            )
+        else:
+            self.daily_reset_time_utc = None
+
+    def _get_rotation_mode(self, provider: str) -> str:
+        """
+        Get the rotation mode for a provider.
+
+        Args:
+            provider: Provider name (e.g., "antigravity", "gemini_cli")
+
+        Returns:
+            "balanced" or "sequential"
+        """
+        return self.provider_rotation_modes.get(provider, "balanced")
+
+    def _get_priority_multiplier(
+        self, provider: str, priority: int, rotation_mode: str
+    ) -> int:
+        """
+        Get the concurrency multiplier for a provider/priority/mode combination.
+
+        Lookup order:
+        1. Mode-specific tier override: priority_multipliers_by_mode[provider][mode][priority]
+        2. Universal tier multiplier: priority_multipliers[provider][priority]
+        3. Sequential fallback (if mode is sequential): sequential_fallback_multipliers[provider]
+        4. Global default: 1 (no multiplier effect)
+
+        Args:
+            provider: Provider name (e.g., "antigravity")
+            priority: Priority level (1 = highest priority)
+            rotation_mode: Current rotation mode ("sequential" or "balanced")
+
+        Returns:
+            Multiplier value
+        """
+        provider_lower = provider.lower()
+
+        # 1. Check mode-specific override
+        if provider_lower in self.priority_multipliers_by_mode:
+            mode_multipliers = self.priority_multipliers_by_mode[provider_lower]
+            if rotation_mode in mode_multipliers:
+                if priority in mode_multipliers[rotation_mode]:
+                    return mode_multipliers[rotation_mode][priority]
+
+        # 2. Check universal tier multiplier
+        if provider_lower in self.priority_multipliers:
+            if priority in self.priority_multipliers[provider_lower]:
+                return self.priority_multipliers[provider_lower][priority]
+
+        # 3. Sequential fallback (only for sequential mode)
+        if rotation_mode == "sequential":
+            if provider_lower in self.sequential_fallback_multipliers:
+                return self.sequential_fallback_multipliers[provider_lower]
+
+        # 4. Global default
+        return 1
+
+    def _get_provider_from_credential(self, credential: str) -> Optional[str]:
+        """
+        Extract provider name from credential path or identifier.
+
+        Supports multiple credential formats:
+        - OAuth: "oauth_creds/antigravity_oauth_15.json" -> "antigravity"
+        - OAuth: "C:\\...\\oauth_creds\\gemini_cli_oauth_1.json" -> "gemini_cli"
+        - API key style: stored with provider prefix metadata
+
+        Args:
+            credential: The credential identifier (path or key)
+
+        Returns:
+            Provider name string or None if cannot be determined
+        """
+        import re
+
+        # Normalize path separators
+        normalized = credential.replace("\\", "/")
+        
+        # Try to extract from oauth path pattern
+        oauth_pattern = r'oauth_creds/(\w+)_oauth_\d+\.json'
+        match = re.search(oauth_pattern, normalized)
+        if match:
+            return match.group(1).lower()
+            
+        # Try to extract from provider-specific patterns
+        if "_oauth_" in normalized:
+            parts = normalized.split("_oauth_")
+            if parts:
+                provider_part = parts[0].split("/")[-1]
+                if provider_part:
+                    return provider_part.lower()
+        
+        return None
+
+    async def _load_usage_data(self) -> None:
+        """Load usage data from disk with schema migration support."""
+        if self._usage_data is not None:
+            return
+            
+        try:
+            if os.path.exists(self.file_path):
+                async with aiofiles.open(self.file_path, 'r') as f:
+                    content = await f.read()
+                    raw_data = json.loads(content)
+                
+                # Check schema version and migrate if necessary
+                current_version = raw_data.get("schema_version", "1.0.0")
+                
+                if current_version == "3.2.0":
+                    # Current schema, parse directly
+                    self._usage_data = UsageSchema.parse_obj(raw_data)
+                else:
+                    # Migrate from legacy format
+                    lib_logger.info(f"Migrating usage data from schema {current_version} to 3.2.0")
+                    self._usage_data = await self._migrate_legacy_data(raw_data, current_version)
+            else:
+                # Initialize new schema
+                max_events = self.analytics_config.get("max_recent_events", 1000)
+                retention = self.analytics_config.get("retention_days", 30)
+                self._usage_data = UsageSchema(
+                    max_recent_events=max_events,
+                    data_retention_days=retention
+                )
+                
+        except Exception as e:
+            lib_logger.error(f"Failed to load usage data: {e}")
+            # Initialize empty schema on error
+            self._usage_data = UsageSchema()
+
+    async def _migrate_legacy_data(self, raw_data: Dict, from_version: str) -> UsageSchema:
+        """
+        Migrate legacy usage data to new schema format.
+        
+        Legacy format had:
+        - credentials: dict of credential_id -> {daily_count, last_reset, etc}
+        - No structured events or detailed analytics
+        """
+        new_schema = UsageSchema()
+        
+        # Record migration
+        new_schema.migration_history.append({
+            "from_version": from_version,
+            "to_version": "3.2.0",
+            "migrated_at": datetime.utcnow().isoformat()
+        })
+        
+        # Migrate credential data
+        legacy_creds = raw_data.get("credentials", {})
+        for cred_id, cred_data in legacy_creds.items():
+            provider = cred_data.get("provider", self._get_provider_from_credential(cred_id) or "unknown")
+            
+            stats = CredentialStats(
+                credential_id=cred_id,
+                provider=provider,
+                current_daily_count=cred_data.get("daily_count", 0),
+                last_reset_date=cred_data.get("last_reset_date", ""),
+                request_count=cred_data.get("total_requests", 0),
+                success_count=cred_data.get("successful_requests", 0),
+                failure_count=cred_data.get("failed_requests", 0),
+                cooldown_count=cred_data.get("cooldown_count", 0),
+                total_tokens=cred_data.get("total_tokens", 0),
+                is_active=not cred_data.get("in_cooldown", False),
+                last_used=datetime.fromisoformat(cred_data["last_used"]) if cred_data.get("last_used") else None
+            )
+            
+            # Handle cooldown
+            if cred_data.get("cooldown_until"):
+                try:
+                    stats.cooldown_until = datetime.fromisoformat(cred_data["cooldown_until"])
+                except:
+                    pass
+            
+            new_schema.credentials[cred_id] = stats
+        
+        # Migrate daily summaries if present
+        legacy_daily = raw_data.get("daily_summaries", {})
+        for date_str, daily_data in legacy_daily.items():
+            new_schema.daily_summaries[date_str] = DailySummary(
+                date=date_str,
+                total_requests=daily_data.get("requests", 0),
+                total_tokens=daily_data.get("tokens", 0)
+            )
+        
+        return new_schema
+
+    async def _save_usage_data(self) -> None:
+        """Persist usage data to disk."""
+        if self._usage_data is None:
+            return
+            
+        async with self._data_lock:
+            self._usage_data.last_updated = datetime.utcnow()
+            data_dict = self._usage_data.dict()
+            await self._state_writer.write_atomic(data_dict)
+
+    async def record_usage_event(
+        self,
+        credential: str,
+        provider: str,
+        model: Optional[str] = None,
+        success: bool = True,
+        tokens_prompt: int = 0,
+        tokens_completion: int = 0,
+        latency_ms: float = 0.0,
+        cost_usd: float = 0.0,
+        error: Optional[Exception] = None,
+        metadata: Optional
