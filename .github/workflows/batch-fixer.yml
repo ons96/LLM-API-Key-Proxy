@@ -50,39 +50,43 @@ jobs:
             printf '%s\n' "3. Write clean code." >> prompt.txt
             printf '%s\n' "4. Explain what you changed and why." >> prompt.txt
             
-            # Call AI API (Kilo Kimi K2.5 free)
+            # Call AI API (Kilo Gateway - free)
             PROMPT_CONTENT=$(cat prompt.txt)
             PAYLOAD=$(jq -n --arg model "moonshotai/kimi-k2.5:free" --arg content "$PROMPT_CONTENT" \
               '{model: $model, max_tokens: 8192, messages: [{role: "user", content: $content}]}')
             
             RESP=$(curl -sf --max-time 180 \
-              -X POST "https://api.kilo.ai/v1/chat/completions" \
+              -X POST "https://api.kilo.ai/api/gateway/chat/completions" \
               -H "Authorization: Bearer $KILOCODE_API_KEY" \
               -H "Content-Type: application/json" \
-              -d "$PAYLOAD") || echo "API call failed"
+              -d "$PAYLOAD" 2>&1) || true
             
-            if [ -n "$RESP" ]; then
-              echo "$RESP" | jq -r '.choices[0].message.content' > agent_output.txt
+            AI_OUTPUT=$(echo "$RESP" | jq -r '.choices[0].message.content // empty' 2>/dev/null)
+            if [ -z "$AI_OUTPUT" ]; then
+              echo "API call failed or returned no content for issue #$issue_num: $RESP"
+              continue
+            fi
+            echo "API call succeeded for issue #$issue_num"
+            echo "$AI_OUTPUT" > agent_output.txt
+            
+            # Create branch and PR
+            BRANCH="fix/issue-${issue_num}"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git checkout -b "$BRANCH" 2>/dev/null || git checkout "$BRANCH"
+            
+            mkdir -p .github/agent-patches
+            cp agent_output.txt ".github/agent-patches/issue-${issue_num}.md"
+            
+            git add -A
+            if ! git diff --staged --quiet; then
+              git commit -m "fix: AI agent patch for issue #${issue_num}" || true
+              git push origin "$BRANCH" --force-with-lease || true
               
-              # Create branch and PR
-              BRANCH="fix/issue-${issue_num}"
-              git config user.name "github-actions[bot]"
-              git config user.email "github-actions[bot]@users.noreply.github.com"
-              git checkout -b "$BRANCH" 2>/dev/null || git checkout "$BRANCH"
-              
-              mkdir -p .github/agent-patches
-              cp agent_output.txt ".github/agent-patches/issue-${issue_num}.md"
-              
-              git add -A
-              if ! git diff --staged --quiet; then
-                git commit -m "fix: AI agent patch for issue #${issue_num}" || true
-                git push origin "$BRANCH" --force-with-lease || true
-                
-                # Create PR
-                gh pr create --title "fix: resolve issue #${issue_num}" \
-                  --body "Closes #${issue_num}" \
-                  --head "$BRANCH" --base main || true
-              fi
+              # Create PR
+              gh pr create --title "fix: resolve issue #${issue_num}" \
+                --body "Closes #${issue_num}" \
+                --head "$BRANCH" --base main || true
             fi
             
             echo "Finished issue #$issue_num"
