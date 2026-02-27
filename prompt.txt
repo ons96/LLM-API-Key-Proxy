@@ -1,9 +1,9 @@
 You are an expert software engineer.
-Fix GitHub issue #120 in this repository.
-Title: Phase 7.2: Create ADR template
+Fix GitHub issue #119 in this repository.
+Title: Phase 7.1: Write deployment guide for users
 
 Description:
-Part of Phase 7.2 Developer Documentation. Create Architecture Decision Record template.
+Part of Phase 7.1 User Documentation.
 
 Instructions:
 1. Identify the root cause.
