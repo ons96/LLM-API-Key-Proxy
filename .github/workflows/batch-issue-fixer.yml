@@ -2,6 +2,11 @@ name: AI Batch Issue Fixer
 
 on:
   workflow_dispatch:
+    inputs:
+      repos:
+        description: 'Comma-separated list of owner/repo to scan (leave empty for all 25)'
+        required: false
+        default: ''
   schedule:
     - cron: '0 */6 * * *'
 
@@ -11,48 +16,126 @@ permissions:
   pull-requests: write
 
 jobs:
+  collect-issues:
+    runs-on: ubuntu-latest
+    outputs:
+      issue_batches: ${{ steps.collect.outputs.issue_batches }}
+    env:
+      GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+    steps:
+      - name: Collect open issues across repos
+        id: collect
+        run: |
+          set -uo pipefail
+
+          INPUT_REPOS="${{ github.event.inputs.repos }}"
+          if [ -n "$INPUT_REPOS" ]; then
+            REPOS=$(echo "$INPUT_REPOS" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$')
+          else
+            REPOS="ons96/LLM-API-Key-Proxy
+          ons96/gas-fees-dashboard
+          ons96/oracle-freetier-instance-creation
+          ons96/llm-leaderboard
+          ons96/agentic_gateway
+          ons96/free_research_agent
+          ons96/llm-provider-tracker
+          ons96/esimdb_scraper
+          ons96/flask_app
+          ons96/deep-research
+          ons96/edit
+          ons96/puter-free-chatbot
+          ons96/my-ai-chatbot
+          ons96/defi-risk-yield-scanner
+          ons96/credit_card_optimizer
+          ons96/kimovil-scraper
+          ons96/muckbrass_scraper
+          ons96/car-deal-finder
+          ons96/dashboard-light_scraper
+          ons96/Autonomous_LLM_Router
+          ons96/llm-leaderboard-aggregate
+          ons96/esimdb-colab-code
+          ons96/AI_RP_app
+          ons96/vincentric_scraper
+          ons96/ish_api_tools"
+          fi
+
+          ALL_ISSUES="[]"
+
+          while IFS= read -r REPO; do
+            [ -z "$REPO" ] && continue
+            echo "=== Fetching issues for $REPO ==="
+
+            REPO_ISSUES=$(gh api "repos/${REPO}/issues?state=open&per_page=100" \
+              --jq --arg repo "$REPO" \
+              '[.[] | select(.pull_request == null) | {number: .number, title: .title, body: (.body // ""), repo: $repo}]' \
+              2>/dev/null || echo "[]")
+
+            if [ "$REPO_ISSUES" = "[]" ] || [ -z "$REPO_ISSUES" ]; then
+              echo "No open issues for $REPO"
+              continue
+            fi
+
+            echo "Found $(echo "$REPO_ISSUES" | jq 'length') open issues in $REPO"
+
+            # Filter out issues that already have an open fix PR
+            FILTERED="[]"
+            while IFS= read -r issue_json; do
+              [ -z "$issue_json" ] && continue
+              NUM=$(echo "$issue_json" | jq -r '.number')
+              EXISTING_PR=$(gh pr list --repo "$REPO" --head "fix/issue-${NUM}" --state open --json number --jq 'length' 2>/dev/null || echo "0")
+              if [ "${EXISTING_PR:-0}" -gt 0 ] 2>/dev/null; then
+                echo "  Skipping issue #$NUM — open PR already exists"
+              else
+                FILTERED=$(echo "$FILTERED" | jq --argjson issue "$issue_json" '. + [$issue]')
+              fi
+            done < <(echo "$REPO_ISSUES" | jq -c '.[]')
+
+            echo "  After PR filter: $(echo "$FILTERED" | jq 'length') issues remaining"
+            ALL_ISSUES=$(echo "$ALL_ISSUES" | jq --argjson new "$FILTERED" '. + $new')
+          done <<< "$REPOS"
+
+          TOTAL=$(echo "$ALL_ISSUES" | jq 'length')
+          echo "Total issues to fix: $TOTAL"
+
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "issue_batches=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Chunk ALL_ISSUES into batches of 6, output as JSON array of JSON strings
+          printf '%s\n' 'import sys, json' > chunk.py
+          printf '%s\n' 'issues = json.load(sys.stdin)' >> chunk.py
+          printf '%s\n' 'batch_size = 6' >> chunk.py
+          printf '%s\n' 'batches = []' >> chunk.py
+          printf '%s\n' 'for i in range(0, len(issues), batch_size):' >> chunk.py
+          printf '%s\n' '    chunk = issues[i:i+batch_size]' >> chunk.py
+          printf '%s\n' '    batches.append(json.dumps(chunk))' >> chunk.py
+          printf '%s\n' 'print(json.dumps(batches))' >> chunk.py
+
+          BATCHES=$(echo "$ALL_ISSUES" | python3 chunk.py)
+          echo "Batches: $(echo "$BATCHES" | jq 'length')"
+          echo "issue_batches=$BATCHES" >> "$GITHUB_OUTPUT"
+
   fix-issues:
+    needs: collect-issues
+    if: >-
+      needs.collect-issues.outputs.issue_batches != '[]' &&
+      needs.collect-issues.outputs.issue_batches != 'null' &&
+      needs.collect-issues.outputs.issue_batches != ''
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 20
       fail-fast: false
       matrix:
-        batch:
-          - "133,132,131,130,129,128"
-          - "127,126,125,124,123,122"
-          - "121,120,119,118,117,116"
-          - "115,114,113,112,111,110"
-          - "109,108,107,106,105,104"
-          - "103,102,101,100,99,98"
-          - "97,96,95,94,93,92"
-          - "91,90,89,88,87,86"
-          - "85,84,83,82,81,80"
-          - "79,78,77,76,75,74"
-          - "73,72,71,70,69,68"
-          - "67,66,65,64,63,62"
-          - "61,60,59,58,57,56"
-          - "55,54,53,52,51,50"
-          - "49,48,47,46,45,44"
-          - "43,42,41,40,39,38"
-          - "37,36,35,34,33,32"
-          - "31,30,29,28,27,26"
-          - "25,24,23,22,21,20"
-          - "19,18,17"
+        batch: ${{ fromJson(needs.collect-issues.outputs.issue_batches) }}
     env:
-      GH_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+      KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+      BATCH: ${{ matrix.batch }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Process issue batch
-        env:
-          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
-          BATCH: ${{ matrix.batch }}
         run: |
           set -uo pipefail
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
 
           MODELS_CONFIG=""
           MODELS_CONFIG="${MODELS_CONFIG}moonshotai/kimi-k2.5:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}\n"
@@ -63,153 +146,203 @@ jobs:
           MODELS_CONFIG="${MODELS_CONFIG}corethink:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}"
           MODELS_CONFIG=$(printf "%b" "$MODELS_CONFIG")
 
-          gh label create "ai-fix-pending" --color "0075ca" --description "AI fix PR is open" 2>/dev/null || true
+          WORKDIR="$(pwd)/repo_clones"
+          mkdir -p "$WORKDIR"
 
-          for issue_num in $(echo "$BATCH" | tr ',' ' '); do
-            echo "=== Processing issue #$issue_num ==="
+          while IFS= read -r issue_json; do
+            [ -z "$issue_json" ] && continue
 
-            ISSUE_STATE=$(gh issue view "$issue_num" --json state --jq '.state' 2>/dev/null || echo "unknown")
+            REPO=$(echo "$issue_json" | jq -r '.repo')
+            NUM=$(echo "$issue_json" | jq -r '.number')
+            ISSUE_TITLE=$(echo "$issue_json" | jq -r '.title')
+            ISSUE_BODY=$(echo "$issue_json" | jq -r '.body' | head -c 2000)
+            REPO_SLUG=$(echo "$REPO" | tr '/' '_')
+            CLONE_DIR="${WORKDIR}/${REPO_SLUG}"
+
+            echo "=== Processing $REPO #$NUM: $ISSUE_TITLE ==="
+
+            # Re-check issue state at fix time
+            ISSUE_STATE=$(gh issue view "$NUM" --repo "$REPO" --json state --jq '.state' 2>/dev/null || echo "unknown")
             if [ "$ISSUE_STATE" != "open" ]; then
-              echo "Issue #$issue_num is already closed/resolved, skipping"
+              echo "Issue #$NUM in $REPO is no longer open, skipping"
               continue
             fi
 
-            EXISTING_PR=$(gh pr list --head "fix/issue-${issue_num}" --state open --json number --jq 'length' 2>/dev/null || echo "0")
+            # Re-check for existing open PR
+            EXISTING_PR=$(gh pr list --repo "$REPO" --head "fix/issue-${NUM}" --state open --json number --jq 'length' 2>/dev/null || echo "0")
             if [ "${EXISTING_PR:-0}" -gt 0 ] 2>/dev/null; then
-              echo "PR already exists for issue #$issue_num, skipping"
+              echo "Open PR already exists for $REPO #$NUM, skipping"
               continue
             fi
 
-            ISSUE_TITLE=$(gh issue view "$issue_num" --json title --jq '.title' 2>/dev/null || echo "Unknown")
-            ISSUE_BODY=$(gh issue view "$issue_num" --json body --jq '.body' 2>/dev/null | head -c 2000 || echo "")
-            echo "Issue: $ISSUE_TITLE"
+            # Ensure ai-fix-pending label exists in target repo
+            gh label create "ai-fix-pending" --repo "$REPO" --color "0075ca" --description "AI fix PR is open" 2>/dev/null || true
 
-            FILE_TREE=$(find src config -type f \( -name "*.py" -o -name "*.yaml" -o -name "*.yml" \) 2>/dev/null | sort | head -60 | tr '\n' ' ' || echo "")
+            # Clone repo if not already cloned in this batch run
+            if [ ! -d "$CLONE_DIR/.git" ]; then
+              echo "Cloning $REPO..."
+              gh repo clone "$REPO" "$CLONE_DIR" -- --depth=1 2>/dev/null || {
+                echo "Failed to clone $REPO, skipping issue #$NUM"
+                continue
+              }
+            fi
 
+            pushd "$CLONE_DIR" > /dev/null
+
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            # Reset to default branch (handle both main and master)
+            DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}' || echo "main")
+            git checkout "$DEFAULT_BRANCH" 2>/dev/null || git checkout main 2>/dev/null || true
+            git pull origin "$DEFAULT_BRANCH" 2>/dev/null || true
+
+            # Build file context from cloned repo
+            FILE_TREE=$(find . -type f \( -name "*.py" -o -name "*.ts" -o -name "*.js" -o -name "*.yaml" -o -name "*.yml" -o -name "*.json" -o -name "*.md" \) \
+              ! -path "./.git/*" ! -path "./node_modules/*" ! -path "./__pycache__/*" ! -path "./.venv/*" ! -path "./venv/*" ! -path "./dist/*" ! -path "./build/*" \
+              2>/dev/null | sed 's|^\./||' | sort | head -80 | tr '\n' ' ' || echo "")
+
+            # Find relevant files based on keywords from issue title
             KEYWORDS=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '\n' | grep -v '^.\{1,2\}$' | head -5 | tr '\n' '|' | sed 's/|$//' || echo "")
             RELEVANT_FILES=""
             if [ -n "$KEYWORDS" ]; then
-              RELEVANT_FILES=$(find src config -type f \( -name "*.py" -o -name "*.yaml" \) 2>/dev/null | grep -iE "$KEYWORDS" | head -3 || true)
+              RELEVANT_FILES=$(find . -type f \( -name "*.py" -o -name "*.ts" -o -name "*.js" -o -name "*.yaml" \) \
+                ! -path "./.git/*" ! -path "./node_modules/*" ! -path "./__pycache__/*" \
+                2>/dev/null | grep -iE "$KEYWORDS" | sed 's|^\./||' | head -5 || true)
             fi
+            # Fallback: grab a few top-level source files
             if [ -z "$RELEVANT_FILES" ]; then
-              RELEVANT_FILES="src/proxy_app/main.py"
+              RELEVANT_FILES=$(find . -maxdepth 3 -type f -name "*.py" ! -path "./.git/*" ! -path "./__pycache__/*" 2>/dev/null | sed 's|^\./||' | sort | head -4 || echo "")
             fi
 
-            rm -f file_contents.txt
+            rm -f /tmp/file_contents_$$.txt
             for f in $RELEVANT_FILES; do
               if [ -f "$f" ]; then
-                printf '%s\n' "--- $f ---" >> file_contents.txt
-                head -200 "$f" >> file_contents.txt
-                printf '\n' >> file_contents.txt
+                printf '%s\n' "--- $f ---" >> /tmp/file_contents_$$.txt
+                head -200 "$f" >> /tmp/file_contents_$$.txt
+                printf '\n' >> /tmp/file_contents_$$.txt
               fi
             done
-            FILE_CONTENTS=$(cat file_contents.txt 2>/dev/null || echo "")
+            FILE_CONTENTS=$(cat /tmp/file_contents_$$.txt 2>/dev/null || echo "")
+            rm -f /tmp/file_contents_$$.txt
 
-            printf '%s\n' "You are an expert Python/FastAPI software engineer." > prompt.txt
-            printf '%s\n' "Repository layout (partial): $FILE_TREE" >> prompt.txt
-            printf '%s\n' "" >> prompt.txt
-            printf '%s\n' "Relevant file contents:" >> prompt.txt
-            printf '%s\n' "$FILE_CONTENTS" >> prompt.txt
-            printf '%s\n' "" >> prompt.txt
-            printf '%s\n' "GitHub Issue #${issue_num}: $ISSUE_TITLE" >> prompt.txt
-            printf '%s\n' "" >> prompt.txt
-            printf '%s\n' "Description: $ISSUE_BODY" >> prompt.txt
-            printf '%s\n' "" >> prompt.txt
-            printf '%s\n' "Task: Implement the changes needed to resolve this issue." >> prompt.txt
-            printf '%s\n' "For each file to create or modify, output a block in this EXACT format:" >> prompt.txt
-            printf '%s\n' "=== FILE: path/to/file.py ===" >> prompt.txt
-            printf '%s\n' "<complete new file contents>" >> prompt.txt
-            printf '%s\n' "=== END FILE ===" >> prompt.txt
-            printf '%s\n' "Only allowed path prefixes: src/, config/, docs/" >> prompt.txt
-            printf '%s\n' "Output ONLY file blocks. No prose outside blocks." >> prompt.txt
+            # Build prompt
+            printf '%s\n' "You are an expert software engineer." > /tmp/prompt_$$.txt
+            printf '%s\n' "Repository: ${REPO}" >> /tmp/prompt_$$.txt
+            printf '%s\n' "Repository file layout (partial): $FILE_TREE" >> /tmp/prompt_$$.txt
+            printf '%s\n' "" >> /tmp/prompt_$$.txt
+            printf '%s\n' "Relevant file contents:" >> /tmp/prompt_$$.txt
+            printf '%s\n' "$FILE_CONTENTS" >> /tmp/prompt_$$.txt
+            printf '%s\n' "" >> /tmp/prompt_$$.txt
+            printf '%s\n' "GitHub Issue #${NUM}: $ISSUE_TITLE" >> /tmp/prompt_$$.txt
+            printf '%s\n' "" >> /tmp/prompt_$$.txt
+            printf '%s\n' "Description: $ISSUE_BODY" >> /tmp/prompt_$$.txt
+            printf '%s\n' "" >> /tmp/prompt_$$.txt
+            printf '%s\n' "Task: Implement the changes needed to resolve this issue." >> /tmp/prompt_$$.txt
+            printf '%s\n' "For each file to create or modify, output a block in this EXACT format:" >> /tmp/prompt_$$.txt
+            printf '%s\n' "=== FILE: path/to/file ===" >> /tmp/prompt_$$.txt
+            printf '%s\n' "<complete new file contents>" >> /tmp/prompt_$$.txt
+            printf '%s\n' "=== END FILE ===" >> /tmp/prompt_$$.txt
+            printf '%s\n' "Rules: do not use path traversal (../ is forbidden). Write any file the fix requires." >> /tmp/prompt_$$.txt
+            printf '%s\n' "Output ONLY file blocks. No prose outside blocks." >> /tmp/prompt_$$.txt
 
+            # Call LLM with fallback chain
             AI_OUTPUT=""
-            PROMPT_CONTENT=$(cat prompt.txt)
+            PROMPT_CONTENT=$(cat /tmp/prompt_$$.txt)
+            rm -f /tmp/prompt_$$.txt
             while IFS= read -r model_entry; do
               [ -z "$model_entry" ] && continue
               MODEL=$(echo "$model_entry" | cut -d'|' -f1)
               ENDPOINT=$(echo "$model_entry" | cut -d'|' -f2)
               AUTH_KEY=$(echo "$model_entry" | cut -d'|' -f3)
-              echo "Trying model: $MODEL for issue #$issue_num"
+              echo "  Trying model: $MODEL"
               PAYLOAD=$(jq -n \
                 --arg model "$MODEL" \
                 --arg content "$PROMPT_CONTENT" \
                 '{model: $model, max_tokens: 8192, messages: [{role: "user", content: $content}]}')
-
               RESP=$(curl -sf --max-time 120 \
                 -X POST "$ENDPOINT" \
                 -H "Authorization: Bearer $AUTH_KEY" \
                 -H "Content-Type: application/json" \
                 -d "$PAYLOAD" 2>&1) || true
-
               AI_OUTPUT=$(echo "$RESP" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
               if [ -n "$AI_OUTPUT" ]; then
-                echo "Model $MODEL succeeded for issue #$issue_num"
+                echo "  Model $MODEL succeeded"
                 break
               fi
-              echo "Model $MODEL failed, trying next..."
+              echo "  Model $MODEL failed, trying next..."
             done <<< "$MODELS_CONFIG"
 
             if [ -z "$AI_OUTPUT" ]; then
-              echo "All models failed for issue #$issue_num, skipping"
+              echo "All models failed for $REPO #$NUM, skipping"
+              popd > /dev/null
               continue
             fi
 
-            echo "$AI_OUTPUT" > ai_output_raw.txt
+            echo "$AI_OUTPUT" > /tmp/ai_output_$$.txt
 
-            printf '%s\n' 'import sys, os, re' > parse_ai.py
-            printf '%s\n' 'with open("ai_output_raw.txt") as f: content = f.read()' >> parse_ai.py
-            printf '%s\n' 'pattern = r"=== FILE: (.+?) ===\n(.*?)=== END FILE ==="' >> parse_ai.py
-            printf '%s\n' 'matches = re.findall(pattern, content, re.DOTALL)' >> parse_ai.py
-            printf '%s\n' 'allowed = ("src/", "config/", "docs/")' >> parse_ai.py
-            printf '%s\n' 'count = 0' >> parse_ai.py
-            printf '%s\n' 'for path, body in matches:' >> parse_ai.py
-            printf '%s\n' '    path = path.strip()' >> parse_ai.py
-            printf '%s\n' '    if not any(path.startswith(p) for p in allowed): continue' >> parse_ai.py
-            printf '%s\n' '    dirpath = os.path.dirname(path)' >> parse_ai.py
-            printf '%s\n' '    if dirpath: os.makedirs(dirpath, exist_ok=True)' >> parse_ai.py
-            printf '%s\n' '    open(path, "w").write(body)' >> parse_ai.py
-            printf '%s\n' '    print(f"Wrote: {path}", file=sys.stderr)' >> parse_ai.py
-            printf '%s\n' '    count += 1' >> parse_ai.py
-            printf '%s\n' 'print(count)' >> parse_ai.py
-            FILES_WRITTEN=$(python3 parse_ai.py)
+            # Parse AI output and write files
+            printf '%s\n' 'import sys, os, re' > /tmp/parse_ai_$$.py
+            printf '%s\n' 'import argparse' >> /tmp/parse_ai_$$.py
+            printf '%s\n' 'with open(sys.argv[1]) as f: content = f.read()' >> /tmp/parse_ai_$$.py
+            printf '%s\n' 'pattern = r"=== FILE: (.+?) ===\n(.*?)=== END FILE ==="' >> /tmp/parse_ai_$$.py
+            printf '%s\n' 'matches = re.findall(pattern, content, re.DOTALL)' >> /tmp/parse_ai_$$.py
+            printf '%s\n' 'count = 0' >> /tmp/parse_ai_$$.py
+            printf '%s\n' 'for path, body in matches:' >> /tmp/parse_ai_$$.py
+            printf '%s\n' '    path = path.strip()' >> /tmp/parse_ai_$$.py
+            printf '%s\n' '    if ".." in path.split("/"): continue' >> /tmp/parse_ai_$$.py
+            printf '%s\n' '    if path.startswith("/"): continue' >> /tmp/parse_ai_$$.py
+            printf '%s\n' '    dirpath = os.path.dirname(path)' >> /tmp/parse_ai_$$.py
+            printf '%s\n' '    if dirpath: os.makedirs(dirpath, exist_ok=True)' >> /tmp/parse_ai_$$.py
+            printf '%s\n' '    open(path, "w").write(body)' >> /tmp/parse_ai_$$.py
+            printf '%s\n' '    print(f"Wrote: {path}", file=sys.stderr)' >> /tmp/parse_ai_$$.py
+            printf '%s\n' '    count += 1' >> /tmp/parse_ai_$$.py
+            printf '%s\n' 'print(count)' >> /tmp/parse_ai_$$.py
 
-            echo "Files written: $FILES_WRITTEN"
+            FILES_WRITTEN=$(python3 /tmp/parse_ai_$$.py /tmp/ai_output_$$.txt)
+            rm -f /tmp/parse_ai_$$.py /tmp/ai_output_$$.txt
+
+            echo "  Files written: $FILES_WRITTEN"
 
             if [ "${FILES_WRITTEN:-0}" -eq 0 ] 2>/dev/null || [ -z "$FILES_WRITTEN" ]; then
-              echo "No file blocks produced for issue #$issue_num, skipping PR"
-              git checkout main 2>/dev/null || true
+              echo "  No file blocks produced for $REPO #$NUM, skipping PR"
+              git checkout "$DEFAULT_BRANCH" 2>/dev/null || true
+              popd > /dev/null
               continue
             fi
 
-            BRANCH="fix/issue-${issue_num}"
+            BRANCH="fix/issue-${NUM}"
             git checkout -B "$BRANCH"
             git add -A
 
             if git diff --staged --quiet; then
-              echo "No staged changes for issue #$issue_num"
-              git checkout main 2>/dev/null || true
+              echo "  No staged changes for $REPO #$NUM"
+              git checkout "$DEFAULT_BRANCH" 2>/dev/null || true
+              popd > /dev/null
               continue
             fi
 
             SAFE_TITLE=$(echo "$ISSUE_TITLE" | head -c 60)
-            git commit -m "fix: resolve issue #${issue_num} - ${SAFE_TITLE}"
+            git commit -m "fix: resolve issue #${NUM} - ${SAFE_TITLE}"
             git push origin "$BRANCH" --force-with-lease || true
 
             PR_URL=$(gh pr create \
-              --title "fix: issue #${issue_num} - ${SAFE_TITLE}" \
-              --body "Closes #${issue_num}
+              --repo "$REPO" \
+              --title "fix: issue #${NUM} - ${SAFE_TITLE}" \
+              --body "Closes #${NUM}
 
           AI-generated fix using Kilo Gateway free models." \
               --head "$BRANCH" \
-              --base main 2>/dev/null || true)
+              --base "$DEFAULT_BRANCH" 2>/dev/null || true)
 
             if [ -n "$PR_URL" ]; then
-              gh issue comment "$issue_num" --body "🤖 AI fix submitted: $PR_URL — merges automatically when checks pass." || true
-              gh issue edit "$issue_num" --add-label "ai-fix-pending" || true
+              gh issue comment "$NUM" --repo "$REPO" --body "🤖 AI fix submitted: $PR_URL — merges automatically when checks pass." || true
+              gh issue edit "$NUM" --repo "$REPO" --add-label "ai-fix-pending" || true
               gh pr merge "$PR_URL" --auto --squash --delete-branch || true
             fi
 
-            git checkout main 2>/dev/null || true
-            echo "=== Done with issue #$issue_num ==="
-          done
+            git checkout "$DEFAULT_BRANCH" 2>/dev/null || true
+            popd > /dev/null
+            echo "=== Done with $REPO #$NUM ==="
+
+          done < <(echo "$BATCH" | jq -c '.[]')
