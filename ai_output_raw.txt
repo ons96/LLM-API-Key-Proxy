@@ -1,3 +1,4 @@
+=== FILE: src/rotator_library/providers/cohere_provider.py ===
 import httpx
 import logging
 from typing import List, Dict, Any, Optional
@@ -128,3 +129,66 @@ class CohereProvider(ProviderInterface):
             model for model in models 
             if any(free_model in model for free_model in self.FREE_TIER_MODELS)
         ]
+=== END FILE ===
+
+=== FILE: config/providers_database.yaml ===
+providers:
+  cohere:
+    display_name: "Cohere"
+    api_base: "https://api.cohere.ai/v1"
+    auth_type: "bearer"
+    free_tier:
+      enabled: true
+      signup_url: "https://cohere.com/pricing"
+      rate_limits:
+        requests_per_minute: 20
+        requests_per_month: 1000
+      features:
+        - "Text generation"
+        - "Embeddings"
+        - "Classification"
+      limitations:
+        - "Limited to 1,000 API calls per month"
+        - "20 calls per minute maximum"
+        - "No fine-tuning on free tier"
+        - "Limited context window compared to pro"
+      models:
+        - id: "command-light"
+          name: "Command Light"
+          type: "chat"
+          context_window: 4096
+          free_tier: true
+        - id: "command-light-nightly"
+          name: "Command Light Nightly"
+          type: "chat"
+          context_window: 4096
+          free_tier: true
+        - id: "embed-english-v2.0"
+          name: "Embed English v2.0"
+          type: "embedding"
+          dimensions: 4096
+          free_tier: true
+        - id: "embed-english-light-v2.0"
+          name: "Embed English Light v2.0"
+          type: "embedding"
+          dimensions: 1024
+          free_tier: true
+        - id: "embed-multilingual-v2.0"
+          name: "Embed Multilingual v2.0"
+          type: "embedding"
+          dimensions: 768
+          free_tier: true
+    endpoints:
+      models: "/models"
+      chat: "/chat"
+      generate: "/generate"
+      embed: "/embed"
+    error_codes:
+      429: "rate_limit_exceeded"
+      401: "invalid_api_key"
+      403: "permission_denied"
+    retry_policy:
+      max_retries: 3
+      backoff_factor: 2
+      retry_on: [429, 500, 502, 503, 504]
+=== END FILE ===
