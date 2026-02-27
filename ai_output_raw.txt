@@ -1,0 +1,99 @@
+=== FILE: .github/workflows/lint.yml ===
+name: Lint and Type Check
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml', '**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install linting tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy
+
+      - name: Install project dependencies
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          pip install types-PyYAML types-requests
+
+      - name: Run Ruff linter
+        run: ruff check src/ --config config/ruff.toml
+
+      - name: Check code formatting
+        run: ruff format --check src/ --config config/ruff.toml
+
+      - name: Run type checking with mypy
+        run: mypy src/ --config-file config/mypy.ini
+=== END FILE ===
+
+=== FILE: config/ruff.toml ===
+target-version = "py310"
+line-length = 100
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "W",   # pycodestyle warnings
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",  # Line too long (handled by formatter)
+]
+
+[lint.pydocstyle]
+convention = "google"
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+=== END FILE ===
+
+=== FILE: config/mypy.ini ===
+[mypy]
+python_version = 3.10
+warn_return_any = True
+warn_unused_configs = True
+disallow_untyped_defs = False
+disallow_incomplete_defs = False
+check_untyped_defs = True
+ignore_missing_imports = True
+show_error_codes = True
+=== END FILE ===
