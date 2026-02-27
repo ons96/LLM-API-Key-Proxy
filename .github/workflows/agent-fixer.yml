@@ -1,4 +1,4 @@
-name: AI Agent Issue Fixer
+name: AI Single-Issue Fixer (Manual / Fallback — needs ANTHROPIC_API_KEY)
 
 on:
   issue_comment:
