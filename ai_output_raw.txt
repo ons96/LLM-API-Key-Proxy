@@ -1,3 +1,4 @@
+=== FILE: src/rotator_library/failure_logger.py ===
 import logging
 import json
 from logging.handlers import RotatingFileHandler
@@ -214,3 +215,133 @@ def log_failure(
     main_lib_logger.error(
         f"Failure for model {model} (attempt {attempt}): {type(error).__name__}: {str(error)}"
     )
+=== END FILE ===
+=== FILE: src/rotator_library/utils/paths.py ===
+import os
+from pathlib import Path
+from typing import Optional
+
+def get_logs_dir() -> Path:
+    """
+    Get the logs directory path, creating it if it doesn't exist.
+
+    The logs directory is located at:
+    - If ROTATOR_LOGS_DIR environment variable is set, use that
+    - Otherwise, use a 'logs' directory in the current working directory
+
+    Returns:
+        Path to the logs directory
+    """
+    logs_dir = os.getenv("ROTATOR_LOGS_DIR", "logs")
+    path = Path(logs_dir).resolve()
+
+    # Create the directory if it doesn't exist
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise OSError(f"Cannot create logs directory at {path}: {e}")
+
+    return path
+
+
+def get_cache_dir() -> Path:
+    """
+    Get the cache directory path, creating it if it doesn't exist.
+
+    The cache directory is located at:
+    - If ROTATOR_CACHE_DIR environment variable is set, use that
+    - Otherwise, use a 'cache' directory in the current working directory
+
+    Returns:
+        Path to the cache directory
+    """
+    cache_dir = os.getenv("ROTATOR_CACHE_DIR", "cache")
+    path = Path(cache_dir).resolve()
+
+    # Create the directory if it doesn't exist
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise OSError(f"Cannot create cache directory at {path}: {e}")
+
+    return path
+
+
+def get_temp_dir() -> Path:
+    """
+    Get the temp directory path, creating it if it doesn't exist.
+
+    The temp directory is located at:
+    - If ROTATOR_TEMP_DIR environment variable is set, use that
+    - Otherwise, use a 'temp' directory in the current working directory
+
+    Returns:
+        Path to the temp directory
+    """
+    temp_dir = os.getenv("ROTATOR_TEMP_DIR", "temp")
+    path = Path(temp_dir).resolve()
+
+    # Create the directory if it doesn't exist
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise OSError(f"Cannot create temp directory at {path}: {e}")
+
+    return path
+
+
+def get_config_dir() -> Path:
+    """
+    Get the config directory path, creating it if it doesn't exist.
+
+    The config directory is located at:
+    - If ROTATOR_CONFIG_DIR environment variable is set, use that
+    - Otherwise, use a 'config' directory in the current working directory
+
+    Returns:
+        Path to the config directory
+    """
+    config_dir = os.getenv("ROTATOR_CONFIG_DIR", "config")
+    path = Path(config_dir).resolve()
+
+    # Create the directory if it doesn't exist
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise OSError(f"Cannot create config directory at {path}: {e}")
+
+    return path
+=== END FILE ===
+=== FILE: src/rotator_library/__init__.py ===
+import logging
+
+# Configure the main library logger
+logger = logging.getLogger("rotator_library")
+logger.setLevel(logging.INFO)
+
+# Add NullHandler to prevent "no handlers" warning
+logger.addHandler(logging.NullHandler())
+
+# Import public API
+from .failure_logger import (
+    configure_failure_logger,
+    get_failure_logger,
+    log_failure,
+    main_lib_logger,
+)
+from .error_handler import (
+    NoAvailableKeysError,
+    PreRequestCallbackError,
+    CredentialNeedsReauthError,
+    EmptyResponseError,
+    ABNORMAL_ERROR_TYPES,
+    NORMAL_ERROR_TYPES,
+    is_abnormal_error,
+    extract_retry_after_from_body,
+)
+from .client import Client
+from .provider_factory import ProviderFactory
+from .model_definitions import ModelDefinitions
+from .model_info_service import ModelInfoService
+from .utils.paths import get_logs_dir, get_cache_dir, get_temp_dir, get_config_dir
+=== END FILE ===

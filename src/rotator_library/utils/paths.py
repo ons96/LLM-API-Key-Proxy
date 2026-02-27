@@ -1,99 +1,94 @@
-# src/rotator_library/utils/paths.py
-"""
-Centralized path management for the rotator library.
-
-Supports two runtime modes:
-1. PyInstaller EXE -> files in the directory containing the executable
-2. Script/Library  -> files in the current working directory (overridable)
-
-Library users can override by passing `data_dir` to RotatingClient.
-"""
-
-import sys
+import os
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 
-
-def get_default_root() -> Path:
+def get_logs_dir() -> Path:
     """
-    Get the default root directory for data files.
+    Get the logs directory path, creating it if it doesn't exist.
 
-    - EXE mode (PyInstaller): directory containing the executable
-    - Otherwise: current working directory
-
-    Returns:
-        Path to the root directory
-    """
-    if getattr(sys, "frozen", False):
-        # Running as PyInstaller bundle - use executable's directory
-        return Path(sys.executable).parent
-    # Running as script or library - use current working directory
-    return Path.cwd()
-
-
-def get_logs_dir(root: Optional[Union[Path, str]] = None) -> Path:
-    """
-    Get the logs directory, creating it if needed.
-
-    Args:
-        root: Optional root directory. If None, uses get_default_root().
+    The logs directory is located at:
+    - If ROTATOR_LOGS_DIR environment variable is set, use that
+    - Otherwise, use a 'logs' directory in the current working directory
 
     Returns:
         Path to the logs directory
     """
-    base = Path(root) if root else get_default_root()
-    logs_dir = base / "logs"
-    logs_dir.mkdir(exist_ok=True)
-    return logs_dir
+    logs_dir = os.getenv("ROTATOR_LOGS_DIR", "logs")
+    path = Path(logs_dir).resolve()
+
+    # Create the directory if it doesn't exist
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise OSError(f"Cannot create logs directory at {path}: {e}")
+
+    return path
 
 
-def get_cache_dir(
-    root: Optional[Union[Path, str]] = None, subdir: Optional[str] = None
-) -> Path:
+def get_cache_dir() -> Path:
     """
-    Get the cache directory, optionally with a subdirectory.
+    Get the cache directory path, creating it if it doesn't exist.
 
-    Args:
-        root: Optional root directory. If None, uses get_default_root().
-        subdir: Optional subdirectory name (e.g., "gemini_cli", "antigravity")
+    The cache directory is located at:
+    - If ROTATOR_CACHE_DIR environment variable is set, use that
+    - Otherwise, use a 'cache' directory in the current working directory
 
     Returns:
-        Path to the cache directory (or subdirectory)
+        Path to the cache directory
     """
-    base = Path(root) if root else get_default_root()
-    cache_dir = base / "cache"
-    if subdir:
-        cache_dir = cache_dir / subdir
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    return cache_dir
+    cache_dir = os.getenv("ROTATOR_CACHE_DIR", "cache")
+    path = Path(cache_dir).resolve()
+
+    # Create the directory if it doesn't exist
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise OSError(f"Cannot create cache directory at {path}: {e}")
+
+    return path
 
 
-def get_oauth_dir(root: Optional[Union[Path, str]] = None) -> Path:
+def get_temp_dir() -> Path:
     """
-    Get the OAuth credentials directory, creating it if needed.
+    Get the temp directory path, creating it if it doesn't exist.
 
-    Args:
-        root: Optional root directory. If None, uses get_default_root().
+    The temp directory is located at:
+    - If ROTATOR_TEMP_DIR environment variable is set, use that
+    - Otherwise, use a 'temp' directory in the current working directory
 
     Returns:
-        Path to the oauth_creds directory
+        Path to the temp directory
     """
-    base = Path(root) if root else get_default_root()
-    oauth_dir = base / "oauth_creds"
-    oauth_dir.mkdir(exist_ok=True)
-    return oauth_dir
+    temp_dir = os.getenv("ROTATOR_TEMP_DIR", "temp")
+    path = Path(temp_dir).resolve()
+
+    # Create the directory if it doesn't exist
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise OSError(f"Cannot create temp directory at {path}: {e}")
+
+    return path
 
 
-def get_data_file(filename: str, root: Optional[Union[Path, str]] = None) -> Path:
+def get_config_dir() -> Path:
     """
-    Get the path to a data file in the root directory.
+    Get the config directory path, creating it if it doesn't exist.
 
-    Args:
-        filename: Name of the file (e.g., "key_usage.json", ".env")
-        root: Optional root directory. If None, uses get_default_root().
+    The config directory is located at:
+    - If ROTATOR_CONFIG_DIR environment variable is set, use that
+    - Otherwise, use a 'config' directory in the current working directory
 
     Returns:
-        Path to the file (does not create the file)
+        Path to the config directory
     """
-    base = Path(root) if root else get_default_root()
-    return base / filename
+    config_dir = os.getenv("ROTATOR_CONFIG_DIR", "config")
+    path = Path(config_dir).resolve()
+
+    # Create the directory if it doesn't exist
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise OSError(f"Cannot create config directory at {path}: {e}")
+
+    return path
