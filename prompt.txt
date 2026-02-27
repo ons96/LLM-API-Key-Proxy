@@ -1,6 +1,6 @@
 You are an expert software engineer.
-Fix GitHub issue #119 in this repository.
-Title: Phase 7.1: Write deployment guide for users
+Fix GitHub issue #118 in this repository.
+Title: Phase 7.1: Write provider configuration guide
 
 Description:
 Part of Phase 7.1 User Documentation.
