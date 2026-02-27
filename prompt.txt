@@ -1,6 +1,6 @@
 You are an expert software engineer.
-Fix GitHub issue #118 in this repository.
-Title: Phase 7.1: Write provider configuration guide
+Fix GitHub issue #117 in this repository.
+Title: Phase 7.1: Write virtual models usage guide
 
 Description:
 Part of Phase 7.1 User Documentation.
