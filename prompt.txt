@@ -1,9 +1,9 @@
 You are an expert software engineer.
-Fix GitHub issue #123 in this repository.
-Title: Quick Wins: Add type hints to all public functions
+Fix GitHub issue #122 in this repository.
+Title: Bugs: Investigate and resolve dormant router logic in main.py
 
 Description:
-From Quick Wins section.
+From BUGS.md: Some routing logic in main.py bypasses RouterCore. Investigate and resolve this dormant code.
 
 Instructions:
 1. Identify the root cause.
