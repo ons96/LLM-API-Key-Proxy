@@ -51,16 +51,9 @@ jobs:
             printf '%s\n' "4. Explain what you changed and why." >> prompt.txt
             
             # Call AI API (Kilo Kimi K2.5 free)
-            PAYLOAD=$(python3 -c "
-            import json
-            with open('prompt.txt') as f: content = f.read()
-            payload = {
-                'model': 'moonshotai/kimi-k2.5:free',
-                'max_tokens': 8192,
-                'messages': [{'role': 'user', 'content': content}]
-            }
-            print(json.dumps(payload))
-            ")
+            PROMPT_CONTENT=$(cat prompt.txt)
+            PAYLOAD=$(jq -n --arg model "moonshotai/kimi-k2.5:free" --arg content "$PROMPT_CONTENT" \
+              '{model: $model, max_tokens: 8192, messages: [{role: "user", content: $content}]}')
             
             RESP=$(curl -sf --max-time 180 \
               -X POST "https://api.kilo.ai/v1/chat/completions" \
