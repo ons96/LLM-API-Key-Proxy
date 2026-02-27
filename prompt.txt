@@ -1,9 +1,9 @@
 You are an expert software engineer.
-Fix GitHub issue #133 in this repository.
-Title: Quick Wins: Improve README with badges and examples
+Fix GitHub issue #132 in this repository.
+Title: Phase 7.2: Create developer setup guide
 
 Description:
-From Quick Wins section.
+Part of Phase 7.2 Developer Documentation.
 
 Instructions:
 1. Identify the root cause.
