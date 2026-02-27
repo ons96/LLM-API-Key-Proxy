@@ -1,3 +1,4 @@
+=== FILE: src/proxy_app/main.py ===
 import time
 
 # Phase 1: Minimal imports for arg parsing and TUI
@@ -358,3 +359,121 @@ if __name__ == "__main__":
         reload=False,
         access_log=args.enable_request_logging
     )
+=== END FILE ===
+
+=== FILE: src/proxy_app/healthcheck.py ===
+#!/usr/bin/env python3
+"""
+Docker healthcheck script for Mirro-Proxy.
+Used by Dockerfile HEALTHCHECK instruction to verify container health.
+"""
+import sys
+import urllib.request
+import urllib.error
+import os
+
+
+def check_health():
+    """
+    Check the health endpoint of the local FastAPI server.
+    Returns exit code 0 if healthy, 1 otherwise.
+    """
+    # Get port from environment or use default
+    port = os.getenv("PORT", "8000")
+    host = os.getenv("HOST", "localhost")
+    
+    url = f"http://{host}:{port}/health"
+    
+    try:
+        req = urllib.request.Request(
+            url, 
+            method="GET",
+            headers={"Accept": "application/json"}
+        )
+        
+        with urllib.request.urlopen(req, timeout=10) as response:
+            if response.status == 200:
+                data = json.loads(response.read().decode('utf-8'))
+                if data.get("status") == "healthy":
+                    print("Health check passed: Service is healthy")
+                    return 0
+                else:
+                    print(f"Health check failed: Status is {data.get('status')}")
+                    return 1
+            else:
+                print(f"Health check failed: HTTP {response.status}")
+                return 1
+                
+    except urllib.error.HTTPError as e:
+        print(f"Health check failed: HTTP Error {e.code}")
+        return 1
+    except urllib.error.URLError as e:
+        print(f"Health check failed: Connection error - {e.reason}")
+        return 1
+    except Exception as e:
+        print(f"Health check failed: {str(e)}")
+        return 1
+
+
+if __name__ == "__main__":
+    import json  # Import here to avoid issues if run standalone
+    sys.exit(check_health())
+=== END FILE ===
+
+=== FILE: docs/dockerfile_healthcheck.md ===
+# Dockerfile Healthcheck Configuration
+
+To add the healthcheck to your Dockerfile, include the following instruction:
+
+```dockerfile
+# Install Python if using slim/alpine base images
+# FROM python:3.11-slim
+
+# Copy the application
+COPY src/ /app/src/
+
+# Add healthcheck using the provided script
+HEALTHCHECK --interval=30s \
+            --timeout=10s \
+            --start-period=40s \
+            --retries=3 \
+            CMD python /app/src/proxy_app/healthcheck.py || exit 1
+
+# Or using curl if available in your image:
+# HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+#   CMD curl -f http://localhost:8000/health || exit 1
+
+# Environment variables for healthcheck script
+ENV PORT=8000
+ENV HOST=localhost
+
+# Start the application
+CMD ["python", "-m", "proxy_app.main"]
+```
+
+## Alternative: Inline Healthcheck
+
+If you prefer not to use the Python script, you can use curl directly in the Dockerfile:
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -fsS http://localhost:8000/health | grep -q "healthy" || exit 1
+```
+
+## Health Endpoint Details
+
+The health endpoint is available at `GET /health` and returns:
+
+```json
+{
+  "status": "healthy",
+  "timestamp": 1234567890.123,
+  "version": "2.0.0",
+  "uptime": 123.45
+}
+```
+
+HTTP Status codes:
+- `200 OK`: Service is healthy and ready to accept requests
+- `503 Service Unavailable`: Service is unhealthy or still initializing
+=== END FILE ===
