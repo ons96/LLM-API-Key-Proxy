@@ -1,4 +1,3 @@
-
 name: AI Issue Generator
 
 on:
@@ -9,7 +8,7 @@ on:
         required: false
         default: ''
   schedule:
-    - cron: '41 5 27 2 *'
+    - cron: '0 9 * * 1'
 
 permissions:
   contents: read

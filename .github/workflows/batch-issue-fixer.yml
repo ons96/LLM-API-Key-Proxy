@@ -1,10 +1,9 @@
-
 name: AI Batch Issue Fixer
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '41 5 27 2 *'
+    - cron: '0 */6 * * *'
 
 permissions:
   contents: write
