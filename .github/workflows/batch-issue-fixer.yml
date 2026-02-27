@@ -54,12 +54,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          MODELS_CONFIG="moonshotai/kimi-k2.5:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}
-minimax/minimax-m2.5:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}
-minimax-m2.5-free|https://opencode.ai/zen/v1/chat/completions|opencode
-arcee-ai/trinity-large-preview:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}
-stepfun/step-3.5-flash:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}
-corethink:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}"
+          MODELS_CONFIG=""
+          MODELS_CONFIG="${MODELS_CONFIG}moonshotai/kimi-k2.5:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}\n"
+          MODELS_CONFIG="${MODELS_CONFIG}minimax/minimax-m2.5:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}\n"
+          MODELS_CONFIG="${MODELS_CONFIG}minimax-m2.5-free|https://opencode.ai/zen/v1/chat/completions|opencode\n"
+          MODELS_CONFIG="${MODELS_CONFIG}arcee-ai/trinity-large-preview:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}\n"
+          MODELS_CONFIG="${MODELS_CONFIG}stepfun/step-3.5-flash:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}\n"
+          MODELS_CONFIG="${MODELS_CONFIG}corethink:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}"
+          MODELS_CONFIG=$(printf "%b" "$MODELS_CONFIG")
 
           for issue_num in $(echo "$BATCH" | tr ',' ' '); do
             echo "=== Processing issue #$issue_num ==="
