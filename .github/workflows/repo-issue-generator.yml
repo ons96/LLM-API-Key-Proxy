@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   generate-repo-list:
@@ -40,13 +39,21 @@ jobs:
       matrix:
         repo: ${{ fromJson(needs.generate-repo-list.outputs.repos) }}
     env:
-      GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+      GH_TOKEN: ${{ secrets.GH_PAT }}
       KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
       REPO: ${{ matrix.repo }}
     steps:
       - name: Analyze repo and create issues
         run: |
-          set -uo pipefail
+          set -euo pipefail
+
+          # Validate that GH_PAT is set - github.token cannot access other repos
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "ERROR: GH_PAT secret is not set. This workflow requires a Personal Access Token"
+            echo "with 'repo' scope to read files and create issues across multiple repositories."
+            echo "Add a GH_PAT secret to this repository with the required permissions."
+            exit 1
+          fi
 
           MODELS_CONFIG=""
           MODELS_CONFIG="${MODELS_CONFIG}moonshotai/kimi-k2.5:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}\n"
@@ -62,7 +69,7 @@ jobs:
           # Step 1: Fetch file tree via GitHub API (extract paths directly with jq, no Python JSON parsing)
           KEEP_EXTS="py|ts|tsx|js|jsx|html|css|yaml|yml|json|md|sh|toml|txt|dockerfile"
           FILTERED_FILES=$(gh api "repos/${REPO}/git/trees/HEAD?recursive=1" \
-            --jq '.tree[] | select(.type == "blob") | .path' 2>/dev/null \
+            --jq '.tree[] | select(.type == "blob") | .path' \
             | grep -iE "\.(${KEEP_EXTS})$|^Dockerfile$|^\.env\.example$" \
             | grep -viE "(node_modules|/\.git/|/dist/|/build/|/__pycache__/|/\.venv/|/venv/|\.min\.js$|\.min\.css$|package-lock\.json|yarn\.lock|poetry\.lock)" \
             | head -150 || echo "")
@@ -168,7 +175,15 @@ jobs:
               echo "Skipping duplicate: $TITLE"
               continue
             fi
-            gh issue create --repo "$REPO" --title "$TITLE" --label "$LABELS" --body "$BODY" || \
+            # Build --label flags: gh CLI requires one --label per label, not comma-separated
+            LABEL_FLAGS=""
+            IFS=',' read -ra LABEL_ARR <<< "$LABELS"
+            for lbl in "${LABEL_ARR[@]}"; do
+              lbl=$(echo "$lbl" | xargs)  # trim whitespace
+              [ -n "$lbl" ] && LABEL_FLAGS="$LABEL_FLAGS --label $lbl"
+            done
+            # shellcheck disable=SC2086
+            gh issue create --repo "$REPO" --title "$TITLE" $LABEL_FLAGS --body "$BODY" || \
               gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY" || true
             echo "Created issue: $TITLE"
             sleep 1
