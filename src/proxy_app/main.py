@@ -413,7 +413,9 @@ async def lifespan(app: FastAPI):
 
     # The CredentialManager now handles all discovery, including .env overrides.
     # We pass all environment variables to it for this purpose.
-    cred_manager = CredentialManager(os.environ)
+    # Cast os.environ to satisfy type checker (it expects Mapping[str, str])
+    from typing import cast
+    cred_manager = CredentialManager(cast(dict, os.environ))
     oauth_credentials = cred_manager.discover_and_prepare()
 
     if not skip_oauth_init and oauth_credentials:
@@ -500,8 +502,8 @@ async def lifespan(app: FastAPI):
 
         # --- Pass 3: Sequential Deduplication and Final Assembly ---
         for result in results:
-            # Handle exceptions from gather
-            if isinstance(result, Exception):
+            # Handle exceptions from gather (catch BaseException to handle all possible exceptions)
+            if isinstance(result, BaseException):
                 logging.error(f"Credential processing raised exception: {result}")
                 continue
 
@@ -603,10 +605,14 @@ async def lifespan(app: FastAPI):
         logging.warning("=" * 70)
 
     os.environ["LITELLM_LOG"] = "ERROR"
-    try:
-        litellm.set_verbose = False
-    except AttributeError:
-        pass
+    # Disable litellm verbose output - use hasattr to check for compatibility
+    if hasattr(litellm, "set_verbose"):
+        try:
+            litellm.set_verbose = False
+        except (AttributeError, TypeError):
+            pass
+    elif hasattr(litellm, "suppress_debug_info"):
+        litellm.suppress_debug_info = True
     litellm.drop_params = True
     if USE_EMBEDDING_BATCHER:
         batcher = EmbeddingBatcher(client=client)
@@ -977,6 +983,128 @@ async def responses_endpoint(
         return JSONResponse(content=new_response)
 
     return response
+
+
+@app.post("/v1/responses")
+async def responses_endpoint(
+    request: Request,
+    client: RotatingClient = Depends(get_rotating_client),
+    _=Depends(verify_api_key),
+):
+    """
+    OpenAI Responses API endpoint.
+    Translates responses format to chat completions format, calls the router,
+    then translates the response back to Responses API format.
+    """
+    try:
+        body = await request.json()
+
+        # Extract data from responses format
+        model = body.get("model", "coding-elite")
+        input_data = body.get("input", [])
+
+        # Convert to chat completions format
+        messages = []
+        for item in input_data:
+            if isinstance(item, dict):
+                if item.get("type") == "message":
+                    role = item.get("role", "user")
+                    content = item.get("content", [])
+
+                    # Handle content array
+                    if isinstance(content, list):
+                        text_content = ""
+                        for c in content:
+                            if isinstance(c, dict) and c.get("type") == "text":
+                                text_content += c.get("text", "")
+                        content = text_content
+
+                    messages.append({"role": role, "content": content})
+                elif "role" in item and "content" in item:
+                    messages.append({"role": item["role"], "content": item["content"]})
+            elif isinstance(item, str):
+                messages.append({"role": "user", "content": item})
+
+        # If no messages parsed, use input as-is
+        if not messages and input_data:
+            if isinstance(input_data, str):
+                messages = [{"role": "user", "content": input_data}]
+            elif isinstance(input_data, list) and len(input_data) > 0:
+                messages = [{"role": "user", "content": str(input_data[0])}]
+
+        # Default message if still empty
+        if not messages:
+            messages = [{"role": "user", "content": "Hello"}]
+
+        # Get other parameters
+        max_tokens = body.get("max_tokens", 4096)
+        temperature = body.get("temperature", 0.7)
+        stream = body.get("stream", False)
+
+        # Build chat completions request
+        chat_request = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "stream": stream,
+        }
+
+        # Forward to chat completions endpoint using the router
+        try:
+            router = get_router()
+            chat_response = await router.handle_chat_completions(chat_request, request)
+        except Exception as e:
+            logging.error(f"Router delegation failed for /v1/responses: {e}. Falling back to legacy path.")
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(status_code=500, detail=f"Router Error: {str(e)}")
+
+        # Extract content from the chat response
+        response_content = ""
+        if hasattr(chat_response, 'body'):
+            # For JSONResponse
+            import json
+            response_body = json.loads(chat_response.body)
+            if "choices" in response_body and len(response_body["choices"]) > 0:
+                response_content = response_body["choices"][0].get("message", {}).get("content", "")
+        elif hasattr(chat_response, 'choices'):
+            # For ModelResponse - add safe iteration
+            try:
+                choices = chat_response.choices
+                if choices and len(choices) > 0:
+                    response_content = choices[0].message.content or ""
+            except (TypeError, AttributeError, IndexError):
+                # Handle case where choices is not properly iterable
+                logging.warning("Could not extract content from ModelResponse choices")
+
+        # Convert to Responses API format
+        import asyncio
+        return {
+            "id": "resp_" + str(hash(json.dumps(body)))[:12],
+            "object": "response",
+            "created": int(time.time()),
+            "model": model,
+            "output": [
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": response_content}],
+                }
+            ],
+            "usage": {
+                "input_tokens": len(str(messages)) // 4,
+                "output_tokens": len(response_content) // 4,
+                "total_tokens": (len(str(messages)) + len(response_content)) // 4,
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error processing request: {str(e)}"
+        )
 
 
 @app.post("/v1/chat/completions")
