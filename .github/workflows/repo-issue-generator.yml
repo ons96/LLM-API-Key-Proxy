@@ -14,6 +14,12 @@ permissions:
   contents: read
   issues: write
 
+env:
+  # Rate limiting configuration
+  MAX_RETRIES: 5
+  INITIAL_BACKOFF: 2
+  MAX_BACKOFF: 60
+
 jobs:
   generate-repo-list:
     runs-on: ubuntu-latest
@@ -48,6 +54,68 @@ jobs:
         run: |
           set -uo pipefail
 
+          # ==============================================================================
+          # Helper function: API request with rate limiting and exponential backoff
+          # Checks X-RateLimit-Remaining header and retries when rate limited
+          # ==============================================================================
+          api_request_with_retry() {
+            local endpoint="$1"
+            local jq_filter="$2"
+            local max_attempts=${MAX_RETRIES:-5}
+            local backoff=${INITIAL_BACKOFF:-2}
+            local attempt=1
+
+            while [ $attempt -le $max_attempts ]; do
+              # Make the API request and capture both body and headers
+              local response
+              response=$(gh api "$endpoint" --jq "$jq_filter" --include 2>&1) || true
+              
+              # Extract rate limit info from headers
+              local rate_remaining
+              rate_remaining=$(echo "$response" | grep -i "x-ratelimit-remaining:" | tail -1 | cut -d: -f2 | tr -d ' ' || echo "999")
+              
+              # Check for rate limit exceeded
+              if echo "$response" | grep -q "API rate limit exceeded"; then
+                echo "Rate limit exceeded (attempt $attempt/$max_attempts). Waiting ${backoff}s..."
+                sleep "$backoff"
+                backoff=$((backoff * 2))
+                if [ $backoff -gt ${MAX_BACKOFF:-60} ]; then
+                  backoff=${MAX_BACKOFF:-60}
+                fi
+                attempt=$((attempt + 1))
+                continue
+              fi
+              
+              # Check if rate_remaining is 0
+              if [ "${rate_remaining:-999}" = "0" ]; then
+                echo "Rate limit reached (attempt $attempt/$max_attempts). Waiting ${backoff}s..."
+                sleep "$backoff"
+                backoff=$((backoff * 2))
+                if [ $backoff -gt ${MAX_BACKOFF:-60} ]; then
+                  backoff=${MAX_BACKOFF:-60}
+                fi
+                attempt=$((attempt + 1))
+                continue
+              fi
+
+              # Check for other retryable errors (5xx server errors)
+              if echo "$response" | grep -qE "(502|503|504)"; then
+                echo "Server error (attempt $attempt/$max_attempts). Waiting ${backoff}s..."
+                sleep "$backoff"
+                backoff=$((backoff * 2))
+                attempt=$((attempt + 1))
+                continue
+              fi
+
+              # Success - return the response body (skip headers)
+              echo "$response" | sed '1,/^\r*$/d'
+              return 0
+            done
+
+            echo "ERROR: Max retries exceeded for $endpoint" >&2
+            return 1
+          }
+
           MODELS_CONFIG=""
           MODELS_CONFIG="${MODELS_CONFIG}moonshotai/kimi-k2.5:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}\n"
           MODELS_CONFIG="${MODELS_CONFIG}minimax/minimax-m2.5:free|https://api.kilo.ai/api/gateway/chat/completions|${KILOCODE_API_KEY:-free}\n"
@@ -59,16 +127,18 @@ jobs:
 
           echo "=== Analyzing repo: $REPO ==="
 
-          # Step 1: Fetch file tree via GitHub API (extract paths directly with jq, no Python JSON parsing)
+          # Step 1: Fetch file tree via GitHub API with per_page=100 for pagination
           KEEP_EXTS="py|ts|tsx|js|jsx|html|css|yaml|yml|json|md|sh|toml|txt|dockerfile"
-          FILTERED_FILES=$(gh api "repos/${REPO}/git/trees/HEAD?recursive=1" \
+          
+          # Use per_page=100 for more efficient pagination
+          FILTERED_FILES=$(gh api "repos/${REPO}/git/trees/HEAD?recursive=1&per_page=100" \
             --jq '.tree[] | select(.type == "blob") | .path' 2>/dev/null \
             | grep -iE "\.(${KEEP_EXTS})$|^Dockerfile$|^\.env\.example$" \
             | grep -viE "(node_modules|/\.git/|/dist/|/build/|/__pycache__/|/\.venv/|/venv/|\.min\.js$|\.min\.css$|package-lock\.json|yarn\.lock|poetry\.lock)" \
             | head -150 || echo "")
           echo "Files to fetch: $(echo "$FILTERED_FILES" | grep -c . || echo 0)"
 
-          # Step 2: Fetch file contents
+          # Step 2: Fetch file contents (with rate limiting for each request)
           CODEBASE=""
           TOTAL_CHARS=0
           MAX_CHARS=80000
@@ -76,7 +146,9 @@ jobs:
           while IFS= read -r FILE_PATH; do
             [ -z "$FILE_PATH" ] && continue
             [ "$TOTAL_CHARS" -ge "$MAX_CHARS" ] && break
-            CONTENT=$(gh api "repos/${REPO}/contents/${FILE_PATH}" --jq '.content' 2>/dev/null | base64 -d 2>/dev/null | head -c 3000 || echo "")
+            
+            # Use rate-limited API request
+            CONTENT=$(api_request_with_retry "repos/${REPO}/contents/${FILE_PATH}" '.content' | base64 -d 2>/dev/null | head -c 3000 || echo "")
             if [ -n "$CONTENT" ]; then
               CODEBASE="${CODEBASE}--- ${FILE_PATH} ---
           ${CONTENT}
@@ -88,8 +160,26 @@ jobs:
 
           echo "Total codebase chars: ${#CODEBASE}"
 
-          # Step 3: Get existing issues for deduplication
-          EXISTING_ISSUES=$(gh api "repos/${REPO}/issues?state=all&per_page=100" --jq '[.[].title]' 2>/dev/null || echo '[]')
+          # Step 3: Get existing issues for deduplication WITH PAGINATION
+          # Fetch ALL issues (open and closed) across multiple pages
+          echo "Fetching existing issues (with pagination)..."
+          ALL_EXISTING_ISSUES="[]"
+          PAGE=1
+          while [ $PAGE -le 10 ]; do
+            PAGE_ISSUES=$(gh api "repos/${REPO}/issues?state=all&per_page=100&page=$PAGE" \
+              --jq '[.[] | {number: .number, title: .title, labels: [.labels[].name]}]' 2>/dev/null || echo "[]")
+            if [ "$PAGE_ISSUES" = "[]" ] || [ -z "$PAGE_ISSUES" ]; then
+              break
+            fi
+            ALL_EXISTING_ISSUES=$(echo "$ALL_EXISTING_ISSUES" | jq -s '.[0] + .[1]' <(echo "$PAGE_ISSUES") 2>/dev/null || echo "$ALL_EXISTING_ISSUES")
+            PAGE=$((PAGE + 1))
+          done
+          
+          # Extract titles and labels for deduplication
+          EXISTING_TITLES=$(echo "$ALL_EXISTING_ISSUES" | jq -r '.[].title | ascii_downcase' 2>/dev/null || echo '')
+          EXISTING_LABELS=$(echo "$ALL_EXISTING_ISSUES" | jq -r '.[] | .labels[] | ascii_downcase' 2>/dev/null || echo '')
+          
+          echo "Found $(echo "$ALL_EXISTING_ISSUES" | jq 'length') total existing issues in $REPO"
 
           # Step 4: Build prompt
           printf '%s\n' "You are a senior software engineer performing a code review of the GitHub repository: ${REPO}" > prompt.txt
@@ -157,21 +247,62 @@ jobs:
           printf '%s\n' '    body = body_m.group(1).strip() if body_m else ""' >> parse_issues.py
           printf '%s\n' '    print(json.dumps({"title": title, "labels": labels, "body": body}))' >> parse_issues.py
 
-          # Step 7: Create issues with deduplication
+          # Step 7: Create issues with IMPROVED deduplication
+          # Deduplication checks: exact title OR (similar title + matching label)
           while IFS= read -r issue_json; do
             [ -z "$issue_json" ] && continue
             TITLE=$(echo "$issue_json" | jq -r '.title')
             LABELS=$(echo "$issue_json" | jq -r '.labels')
             BODY=$(echo "$issue_json" | jq -r '.body')
-            ALREADY_EXISTS=$(echo "$EXISTING_ISSUES" | jq --arg t "$TITLE" 'map(ascii_downcase) | index($t | ascii_downcase) != null')
-            if [ "$ALREADY_EXISTS" = "true" ]; then
-              echo "Skipping duplicate: $TITLE"
+            
+            # Normalize title for comparison (case-insensitive)
+            NORMALIZED_TITLE=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]')
+            
+            # Check if issue with same title already exists (case-insensitive exact match)
+            TITLE_EXISTS=$(echo "$EXISTING_TITLES" | grep -c "^${NORMALIZED_TITLE}$" || echo "0")
+            
+            # Check if issue with similar title exists (fuzzy match - contains key words)
+            KEY_WORDS=$(echo "$TITLE" | tr -cs 'a-zA-Z0-9' '\n' | grep -v '^.\{1,2\}$' | head -3 | tr '\n' '|')
+            SIMILAR_EXISTS=0
+            if [ -n "$KEY_WORDS" ]; then
+              SIMILAR_EXISTS=$(echo "$EXISTING_TITLES" | grep -iE "$KEY_WORDS" | wc -l || echo "0")
+            fi
+            
+            # Check for existing issues with matching labels
+            LABEL_WORDS=$(echo "$LABELS" | tr ',' '\n' | tr -d ' ' | grep -v '^$')
+            LABEL_MATCH=0
+            for label in $LABEL_WORDS; do
+              LABEL_LOWER=$(echo "$label" | tr '[:upper:]' '[:lower:]')
+              if echo "$EXISTING_LABELS" | grep -qi "^${LABEL_LOWER}$"; then
+                LABEL_MATCH=1
+                break
+              fi
+            done
+            
+            # Skip if: exact title match OR (similar title AND label match)
+            if [ "$TITLE_EXISTS" -gt 0 ]; then
+              echo "Skipping duplicate (exact title match): $TITLE"
               continue
             fi
+            
+            if [ "$SIMILAR_EXISTS" -gt 0 ] && [ "$LABEL_MATCH" -eq 1 ]; then
+              echo "Skipping duplicate (similar title + label match): $TITLE"
+              # Optionally add comment to existing similar issue
+              SIMILAR_ISSUE=$(echo "$ALL_EXISTING_ISSUES" | jq -r --arg title "$TITLE" '.[] | select(.title | ascii_downcase | contains($title | ascii_downcase)) | .number' 2>/dev/null | head -1)
+              if [ -n "$SIMILAR_ISSUE" ] && [ "$SIMILAR_ISSUE" != "null" ]; then
+                echo "Adding comment to existing issue #$SIMILAR_ISSUE"
+                gh issue comment "$REPO" --issue "$SIMILAR_ISSUE" --body "🤖 AI Issue Generator found a similar issue: $TITLE. Consider reviewing this new issue suggestion." 2>/dev/null || true
+              fi
+              continue
+            fi
+            
+            # Create the issue
             gh issue create --repo "$REPO" --title "$TITLE" --label "$LABELS" --body "$BODY" || \
               gh issue create --repo "$REPO" --title "$TITLE" --body "$BODY" || true
             echo "Created issue: $TITLE"
-            sleep 1
+            
+            # Small delay to avoid rate limiting when creating multiple issues
+            sleep 2
           done < <(python3 parse_issues.py)
 
           echo "=== Done with $REPO ==="

@@ -1,4 +1,4 @@
-name: AI Single-Issue Fixer (Manual / Fallback — needs ANTHROPIC_API_KEY)
+name: AI Single-Issue Fixer (Manual / Fallback)
 
 on:
   issue_comment:
@@ -43,6 +43,24 @@ jobs:
             echo "issue_number=$DISPATCH_ISSUE" >> "$GITHUB_OUTPUT"
           fi
 
+      # Get issue details for branch naming
+      - name: Get issue details
+        id: issue-details
+        env:
+          ISSUE_NUM: ${{ steps.resolve.outputs.issue_number }}
+        run: |
+          ISSUE_TITLE=$(gh issue view "$ISSUE_NUM" --json title --jq '.title')
+          ISSUE_BODY=$(gh issue view "$ISSUE_NUM" --json body --jq '.body')
+          echo "title=$ISSUE_TITLE" >> "$GITHUB_OUTPUT"
+          # Create a kebab-case slug from issue title (max 20 chars for slug portion)
+          SLUG=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//' | cut -c1-20)
+          BRANCH="fix/issue-${ISSUE_NUM}-${SLUG}"
+          # Ensure branch name doesn't exceed 40 chars
+          if [ ${#BRANCH} -gt 40 ]; then
+            BRANCH="fix/issue-${ISSUE_NUM}-${SLUG:0:$((40 - 14))}"
+          fi
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
       - name: Run OpenCode Agent
         uses: opencode-ai/opencode-action@v1
         env:
@@ -54,8 +72,14 @@ jobs:
           prompt: >
             Fix issue number ${{ steps.resolve.outputs.issue_number }}
             in this repository. Investigate the root cause, implement
-            a fix, commit the changes to a new branch, and open a
-            pull request referencing the issue.
+            a fix, commit the changes to a new branch called "${{ steps.issue-details.outputs.branch }}",
+            and open a pull request referencing the issue.
+
+      # Ensure ai-fix label exists
+      - name: Ensure labels exist
+        run: |
+          gh label create "ai-fix" --repo "${{ github.repository }}" --color "28a745" --description "AI-generated fix" 2>/dev/null || true
+          gh label create "ai-fix-pending" --repo "${{ github.repository }}" --color "0075ca" --description "AI fix PR is open" 2>/dev/null || true
 
       # Auto-merge the PR if all checks pass (requires branch protection
       # rules to allow auto-merge, or use merge-queue).
@@ -64,6 +88,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUM: ${{ steps.resolve.outputs.issue_number }}
+          BRANCH_NAME: ${{ steps.issue-details.outputs.branch }}
         run: |
           set -euo pipefail
 
@@ -71,15 +96,17 @@ jobs:
 
           # Poll up to 3 minutes for OpenCode to open the PR
           PR_URL=""
+          PR_NUM=""
           for i in $(seq 1 18); do
-            PR_URL=$(gh pr list \
+            # Look for PR with our branch name pattern
+            PR_DATA=$(gh pr list \
               --state open \
               --json number,headRefName,url \
-              --jq \
-                ".[] | select(.headRefName | test("${ISSUE_NUM}")) | .url" \
-              | head -n 1)
-
-            if [ -n "$PR_URL" ]; then
+              --jq ".[] | select(.headRefName | contains(\"${ISSUE_NUM}\"))" 2>/dev/null || echo "")
+            
+            if [ -n "$PR_DATA" ]; then
+              PR_URL=$(echo "$PR_DATA" | jq -r '.url')
+              PR_NUM=$(echo "$PR_DATA" | jq -r '.number')
               echo "Found PR: $PR_URL"
               break
             fi
@@ -90,10 +117,76 @@ jobs:
 
           if [ -z "$PR_URL" ]; then
             echo "No PR found for issue #${ISSUE_NUM} after 3 minutes. Skipping auto-merge."
+            # Post failure comment on issue
+            gh issue comment "$ISSUE_NUM" --body "❌ Could not fix — manual review needed
+
+**Reason:** PR was not created within expected timeframe.
+
+The AI agent may have encountered issues during the fix process. Please review manually." 2>/dev/null || true
             exit 0
           fi
 
-          gh pr merge "$PR_URL" \
-            --auto \
-            --squash \
-            --delete-branch
+          # Add ai-fix label to PR
+          gh pr edit "$PR_URL" --add-label "ai-fix" 2>/dev/null || true
+          
+          # Try to assign the repo owner as reviewer
+          REPO_OWNER=$(echo "${{ github.repository }}" | cut -d'/' -f1)
+          gh pr edit "$PR_URL" --add-reviewer "$REPO_OWNER" 2>/dev/null || true
+
+          # Wait for CI checks to complete (up to 5 minutes)
+          echo "Waiting for CI checks..."
+          for i in $(seq 1 30); do
+            # Check if all required checks have passed
+            STATUS=$(gh pr view "$PR_URL" --json statusCheckRollup --jq '.statusCheckRollup[]?.state' 2>/dev/null || echo "")
+            if echo "$STATUS" | grep -q "FAILURE"; then
+              echo "CI checks failed!"
+              # Post failure comment on issue
+              gh issue comment "$ISSUE_NUM" --body "⚠️ Fix attempted — CI failing
+
+**Branch:** \`$BRANCH_NAME\`
+**PR:** $PR_URL
+
+**Status:** CI checks are failing.
+
+The AI agent generated a fix but some CI checks are failing. The PR has been left open for manual review. Please check the CI failures and fix as needed." 2>/dev/null || true
+              exit 0
+            fi
+            
+            # Check if we're pending
+            PENDING=$(gh pr view "$PR_URL" --json statusCheckRollup --jq '.statusCheckRollup[]?.state' 2>/dev/null | grep -c "PENDING" || echo "0")
+            if [ "$PENDING" -eq 0 ]; then
+              # No pending checks, assume success
+              break
+            fi
+            
+            echo "Waiting for CI... attempt $i/30"
+            sleep 10
+          done
+
+          # Try to auto-merge
+          if gh pr merge "$PR_URL" --auto --squash --delete-branch 2>/dev/null; then
+            # Post success comment on issue
+            gh issue comment "$ISSUE_NUM" --body "✅ Fix PR opened
+
+**Branch:** \`$BRANCH_NAME\`
+**PR:** $PR_URL
+
+**Status:** Fix merged successfully!
+
+The AI agent successfully fixed this issue and the changes have been merged." 2>/dev/null || true
+            
+            # Update issue labels
+            gh issue edit "$ISSUE_NUM" --add-label "ai-fix" --remove-label "ai-fix-pending" 2>/dev/null || true
+          else
+            # Could not auto-merge (may require manual review or checks not passing)
+            echo "Could not auto-merge, PR may need manual review"
+            # Post status comment on issue
+            gh issue comment "$ISSUE_NUM" --body "✅ Fix PR opened
+
+**Branch:** \`$BRANCH_NAME\`
+**PR:** $PR_URL
+
+**Status:** PR created but could not be auto-merged.
+
+The AI agent has created a fix for this issue. The PR is ready for review. Please review the changes and merge when ready." 2>/dev/null || true
+          fi

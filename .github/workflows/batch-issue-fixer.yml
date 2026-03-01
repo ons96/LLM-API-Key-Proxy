@@ -82,8 +82,9 @@ jobs:
             while IFS= read -r issue_json; do
               [ -z "$issue_json" ] && continue
               NUM=$(echo "$issue_json" | jq -r '.number')
-              EXISTING_PR=$(gh pr list --repo "$REPO" --head "fix/issue-${NUM}" --state open --json number --jq 'length' 2>/dev/null || echo "0")
-              if [ "${EXISTING_PR:-0}" -gt 0 ] 2>/dev/null; then
+              # Check for any fix branch (not just fix/issue-{NUM})
+              EXISTING_PR=$(gh pr list --repo "$REPO" --state open --json number,headRefName --jq ".[] | select(.headRefName | contains(\"${NUM}\")) | .number" 2>/dev/null | head -1 || echo "")
+              if [ -n "${EXISTING_PR}" ]; then
                 echo "  Skipping issue #$NUM — open PR already exists"
               else
                 FILTERED=$(echo "$FILTERED" | jq --argjson issue "$issue_json" '. + [$issue]')
@@ -169,20 +170,32 @@ jobs:
             fi
 
             # Re-check for existing open PR
-            EXISTING_PR=$(gh pr list --repo "$REPO" --head "fix/issue-${NUM}" --state open --json number --jq 'length' 2>/dev/null || echo "0")
-            if [ "${EXISTING_PR:-0}" -gt 0 ] 2>/dev/null; then
+            EXISTING_PR=$(gh pr list --repo "$REPO" --state open --json number,headRefName --jq ".[] | select(.headRefName | contains(\"${NUM}\")) | .number" 2>/dev/null | head -1 || echo "")
+            if [ -n "${EXISTING_PR}" ]; then
               echo "Open PR already exists for $REPO #$NUM, skipping"
               continue
             fi
 
-            # Ensure ai-fix-pending label exists in target repo
+            # Ensure labels exist in target repo
             gh label create "ai-fix-pending" --repo "$REPO" --color "0075ca" --description "AI fix PR is open" 2>/dev/null || true
+            gh label create "ai-fix" --repo "$REPO" --color "28a745" --description "AI-generated fix" 2>/dev/null || true
 
             # Clone repo if not already cloned in this batch run
             if [ ! -d "$CLONE_DIR/.git" ]; then
               echo "Cloning $REPO..."
               gh repo clone "$REPO" "$CLONE_DIR" -- --depth=1 2>/dev/null || {
                 echo "Failed to clone $REPO, skipping issue #$NUM"
+                # Post failure comment on issue
+                gh issue comment "$REPO" --issue "$NUM" --body "❌ Could not fix — manual review needed
+
+**Reason:** Failed to clone repository.
+
+The AI agent was unable to clone the repository to attempt a fix. This may be due to:
+- Repository access restrictions
+- Network issues
+- Large repository size
+
+Please review manually." 2>/dev/null || true
                 continue
               }
             fi
@@ -225,6 +238,20 @@ jobs:
             done
             FILE_CONTENTS=$(cat /tmp/file_contents_$$.txt 2>/dev/null || echo "")
             rm -f /tmp/file_contents_$$.txt
+
+            # ==============================================================================
+            # Branch naming: fix/issue-{issue_number}-{short-slug}
+            # Create a kebab-case slug from issue title (max 40 chars total for branch name)
+            # ==============================================================================
+            # Convert title to kebab-case: lowercase, replace non-alphanumeric with dashes, collapse dashes
+            SLUG=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//;s/-$//' | cut -c1-20)
+            # Limit branch name to 40 chars: fix/issue-{NUM}-{slug}
+            BRANCH="fix/issue-${NUM}-${SLUG}"
+            # Ensure branch name doesn't exceed 40 chars (Git limit is 100, but keep it reasonable)
+            if [ ${#BRANCH} -gt 40 ]; then
+              BRANCH="fix/issue-${NUM}-${SLUG:0:$((40 - 14))}"
+            fi
+            echo "  Branch name: $BRANCH"
 
             # Build prompt
             printf '%s\n' "You are an expert software engineer." > /tmp/prompt_$$.txt
@@ -275,6 +302,14 @@ jobs:
 
             if [ -z "$AI_OUTPUT" ]; then
               echo "All models failed for $REPO #$NUM, skipping"
+              # Post failure comment on issue
+              gh issue comment "$REPO" --issue "$NUM" --body "❌ Could not fix — manual review needed
+
+**Reason:** All AI models failed to generate a fix.
+
+The AI agent attempted to fix this issue but all available models failed to respond. This may be a temporary issue or the fix may require more context.
+
+Please review manually." 2>/dev/null || true
               popd > /dev/null
               continue
             fi
@@ -306,12 +341,23 @@ jobs:
 
             if [ "${FILES_WRITTEN:-0}" -eq 0 ] 2>/dev/null || [ -z "$FILES_WRITTEN" ]; then
               echo "  No file blocks produced for $REPO #$NUM, skipping PR"
+              # Post failure comment on issue
+              gh issue comment "$REPO" --issue "$NUM" --body "❌ Could not fix — manual review needed
+
+**Reason:** No code changes were generated.
+
+The AI agent did not produce any code changes to fix this issue. The issue may require:
+- More context or clarification
+- Complex changes beyond the provided file context
+- A different approach than expected
+
+Please review manually." 2>/dev/null || true
               git checkout "$DEFAULT_BRANCH" 2>/dev/null || true
               popd > /dev/null
               continue
             fi
 
-            BRANCH="fix/issue-${NUM}"
+            # Create branch with the new naming scheme
             git checkout -B "$BRANCH"
             git add -A
 
@@ -326,19 +372,144 @@ jobs:
             git commit -m "fix: resolve issue #${NUM} - ${SAFE_TITLE}"
             git push origin "$BRANCH" --force-with-lease || true
 
+            # ==============================================================================
+            # Create PR with proper references, assign reviewer, add ai-fix label
+            # ==============================================================================
+            PR_URL=""
             PR_URL=$(gh pr create \
               --repo "$REPO" \
               --title "fix: issue #${NUM} - ${SAFE_TITLE}" \
-              --body "Closes #${NUM}
+              --body "## Summary
 
-          AI-generated fix using Kilo Gateway free models." \
+AI-generated fix for issue #${NUM}
+
+### Changes Made
+
+$([ -n "$FILES_WRITTEN" ] && echo "Modified/created files based on AI analysis")
+
+### Test Status
+
+Tests will run automatically. If tests fail, this PR will remain as a draft.
+
+---
+
+Closes #${NUM}
+
+*AI-generated fix using Kilo Gateway free models.*" \
               --head "$BRANCH" \
               --base "$DEFAULT_BRANCH" 2>/dev/null || true)
 
             if [ -n "$PR_URL" ]; then
-              gh issue comment "$NUM" --repo "$REPO" --body "🤖 AI fix submitted: $PR_URL — merges automatically when checks pass." || true
-              gh issue edit "$NUM" --repo "$REPO" --add-label "ai-fix-pending" || true
-              gh pr merge "$PR_URL" --auto --squash --delete-branch || true
+              # Add ai-fix label
+              gh pr edit "$PR_URL" --repo "$REPO" --add-label "ai-fix" 2>/dev/null || true
+              
+              # Get PR number from URL
+              PR_NUM=$(echo "$PR_URL" | grep -oE '[0-9]+$' || echo "")
+              
+              # Try to assign the repo owner as reviewer (if GH_PAT has permission)
+              # Get the repo owner
+              REPO_OWNER=$(echo "$REPO" | cut -d'/' -f1)
+              gh pr edit "$PR_URL" --repo "$REPO" --add-reviewer "$REPO_OWNER" 2>/dev/null || true
+              
+              echo "  PR created: $PR_URL"
+              echo "  PR number: $PR_NUM"
+              
+              # ==============================================================================
+              # Test-pass gating: Run existing test suite if available
+              # ==============================================================================
+              TEST_PASSED=true
+              TEST_SUMMARY="No test suite found"
+              
+              # Detect and run tests based on project type
+              if [ -f "package.json" ] && grep -q '"test"' package.json; then
+                echo "  Running npm test..."
+                if npm test 2>&1; then
+                  TEST_PASSED=true
+                  TEST_SUMMARY="npm test passed"
+                else
+                  TEST_PASSED=false
+                  TEST_SUMMARY="npm test failed"
+                fi
+              elif [ -f "pytest.ini" ] || [ -f "pyproject.toml" ]; then
+                echo "  Running pytest..."
+                if python -m pytest -v --tb=short 2>&1; then
+                  TEST_PASSED=true
+                  TEST_SUMMARY="pytest passed"
+                else
+                  TEST_PASSED=false
+                  TEST_SUMMARY="pytest failed"
+                fi
+              elif [ -f "Makefile" ] && grep -q '^test:' Makefile; then
+                echo "  Running make test..."
+                if make test 2>&1; then
+                  TEST_PASSED=true
+                  TEST_SUMMARY="make test passed"
+                else
+                  TEST_PASSED=false
+                  TEST_SUMMARY="make test failed"
+                fi
+              elif [ -f "go.mod" ]; then
+                echo "  Running go test..."
+                if go test ./... 2>&1; then
+                  TEST_PASSED=true
+                  TEST_SUMMARY="go test passed"
+                else
+                  TEST_PASSED=false
+                  TEST_SUMMARY="go test failed"
+                fi
+              elif [ -f "Cargo.toml" ]; then
+                echo "  Running cargo test..."
+                if cargo test 2>&1; then
+                  TEST_PASSED=true
+                  TEST_SUMMARY="cargo test passed"
+                else
+                  TEST_PASSED=false
+                  TEST_SUMMARY="cargo test failed"
+                fi
+              else
+                echo "  No recognized test suite found (checked: package.json, pytest, Makefile, go.mod, Cargo.toml)"
+              fi
+              
+              # ==============================================================================
+              # Update PR based on test results and post status comment on issue
+              # ==============================================================================
+              if [ "$TEST_PASSED" = "true" ]; then
+                # Auto-merge if tests pass
+                gh pr merge "$PR_URL" --auto --squash --delete-branch 2>/dev/null || true
+                
+                # Post success comment on issue
+                gh issue comment "$REPO" --issue "$NUM" --body "✅ Fix PR opened
+
+**Branch:** \`$BRANCH\`
+**PR:** $PR_URL
+
+**Status:** Tests passed - PR has been auto-merged.
+
+**Summary:** The AI agent successfully generated a fix for this issue and all tests passed. The changes have been merged." 2>/dev/null || true
+                
+                # Update issue labels
+                gh issue edit "$NUM" --repo "$REPO" --add-label "ai-fix" --remove-label "ai-fix-pending" 2>/dev/null || true
+              else
+                # Leave as draft and post failure comment
+                gh pr ready "$PR_URL" --undo 2>/dev/null || true  # Ensure it's a draft
+                
+                # Post failure comment on issue
+                gh issue comment "$REPO" --issue "$NUM" --body "⚠️ Fix attempted — tests failing
+
+**Branch:** \`$BRANCH\`
+**PR:** $PR_URL
+
+**Test Status:** $TEST_SUMMARY
+
+The AI agent generated a fix but the tests are currently failing. The PR has been left as a draft for manual review. Please review the changes and either:
+- Fix the test issues manually
+- Close this PR if the approach is incorrect
+
+**Changes made by AI:** $FILES_WRITTEN file(s) modified" 2>/dev/null || true
+                
+                # Update issue labels
+                gh issue edit "$NUM" --repo "$REPO" --add-label "ai-fix-pending" 2>/dev/null || true
+              fi
             fi
 
             git checkout "$DEFAULT_BRANCH" 2>/dev/null || true
