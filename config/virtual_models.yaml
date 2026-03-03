@@ -3,173 +3,228 @@ free_only_mode: false
 
 virtual_models:
   # =============================================================================
-  # CODING ELITE (Best Agentic Coding - benchmark-based ordering)
+  # CODING ELITE (Best Agentic Coding - prioritizes reliable free providers)
   # =============================================================================
   coding-elite:
     description: "Best agentic coding models (benchmark-based)"
     fallback_chain:
-    # Tier 1: Best via g4f (free, uses g4f library)
-    - provider: g4f
-      model: claude-opus-4-5
-      priority: 1
-    - provider: g4f
-      model: claude-opus-4-6
-      priority: 2
-    - provider: g4f
-      model: claude-sonnet-4-5
-      priority: 3
-    - provider: g4f
-      model: gpt-5-2
-      priority: 4
-    - provider: g4f
-      model: gemini-3-flash
-      priority: 5
-    - provider: g4f
-      model: minimax-m2-5
-      priority: 6
-    # Tier 2: Direct API fallbacks
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 7
-    - provider: gemini
-      model: gemini-2.5-flash
-      priority: 8
-    - provider: together
-      model: deepseek-chat
-      priority: 9
+      # Tier 1: Reliable API providers (work on VPS/datacenter)
+      - provider: antigravity
+        model: claude-opus-4-5
+        priority: 1
+      - provider: antigravity
+        model: claude-sonnet-4-5
+        priority: 2
+      - provider: iflow
+        model: deepseek-v3
+        priority: 3
+      - provider: groq
+        model: llama-3.3-70b-versatile
+        priority: 4
+      - provider: gemini
+        model: gemini-2.5-pro
+        priority: 5
+      # Tier 2: Fast free providers
+      - provider: cerebras
+        model: llama-3.3-70b
+        priority: 6
+      # Tier 3: G4F fallback (may be blocked on VPS)
+      - provider: g4f
+        model: claude-opus-4-5
+        priority: 7
+      - provider: g4f
+        model: gpt-4o
+        priority: 8
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
 
+  # =============================================================================
+  # CODING SMART (High-quality coding with balanced performance)
+  # =============================================================================
   coding-smart:
     description: "High-quality coding with balanced performance"
     fallback_chain:
-    - provider: g4f
-      model: gemini-3-flash
-      priority: 1
-    - provider: g4f
-      model: claude-opus-4-5
-      priority: 2
-    - provider: g4f
-      model: gpt-5-2
-      priority: 3
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 4
-    - provider: together
-      model: deepseek-chat
-      priority: 5
+      # Tier 1: Reliable API providers
+      - provider: iflow
+        model: deepseek-v3
+        priority: 1
+      - provider: antigravity
+        model: claude-sonnet-4-5
+        priority: 2
+      - provider: groq
+        model: llama-3.3-70b-versatile
+        priority: 3
+      - provider: gemini
+        model: gemini-2.5-flash
+        priority: 4
+      # Tier 2: Fast free providers
+      - provider: cerebras
+        model: llama-3.3-70b
+        priority: 5
+      # Tier 3: G4F fallback
+      - provider: g4f
+        model: claude-sonnet-4
+        priority: 6
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
 
+  # =============================================================================
+  # CODING FAST (Fastest coding models)
+  # =============================================================================
   coding-fast:
     description: "Fastest coding models"
     fallback_chain:
-    - provider: groq
-      model: llama-3.1-8b-instant
-      priority: 1
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 2
-    - provider: g4f
-      model: gemini-2.5-flash
-      priority: 3
-    - provider: gemini
-      model: gemini-2.5-flash
-      priority: 4
+      # Tier 1: Fastest providers (lowest latency)
+      - provider: cerebras
+        model: llama-3.3-70b
+        priority: 1
+      - provider: groq
+        model: llama-3.1-8b-instant
+        priority: 2
+      - provider: groq
+        model: llama-3.3-70b-versatile
+        priority: 3
+      - provider: gemini
+        model: gemini-2.0-flash
+        priority: 4
+      # Tier 2: G4F fallback
+      - provider: g4f
+        model: gemini-2.0-flash
+        priority: 5
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
 
-  chat-smart:
-    description: "Best intelligence-to-speed ratio"
-    fallback_chain:
-    - provider: g4f
-      model: gemini-3-pro
-      priority: 1
-    - provider: g4f
-      model: gemini-3-flash
-      priority: 2
-    - provider: g4f
-      model: gpt-5-xhigh
-      priority: 3
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 4
-    settings:
-      timeout_ms: 120000
-      retry_on_rate_limit: true
-
+  # =============================================================================
+  # CHAT ELITE (Most intelligent models)
+  # =============================================================================
   chat-elite:
     description: "Most intelligent models"
     fallback_chain:
-    - provider: g4f
-      model: gemini-3-pro
-      priority: 1
-    - provider: g4f
-      model: claude-opus-4-5-thinking-32k
-      priority: 2
-    - provider: g4f
-      model: gpt-5-xhigh
-      priority: 3
-    - provider: g4f
-      model: gemini-3-flash
-      priority: 4
+      # Tier 1: Reliable API providers
+      - provider: antigravity
+        model: claude-opus-4-5
+        priority: 1
+      - provider: iflow
+        model: deepseek-r1
+        priority: 2
+      - provider: antigravity
+        model: gemini-3-pro-preview
+        priority: 3
+      - provider: gemini
+        model: gemini-2.5-pro
+        priority: 4
+      # Tier 2: G4F fallback
+      - provider: g4f
+        model: claude-opus-4
+        priority: 5
     settings:
       timeout_ms: 300000
       retry_on_rate_limit: true
 
-  chat-fast:
-    description: "Fastest models"
+  # =============================================================================
+  # CHAT SMART (Best intelligence-to-speed ratio)
+  # =============================================================================
+  chat-smart:
+    description: "Best intelligence-to-speed ratio"
     fallback_chain:
-    - provider: groq
-      model: llama-3.1-8b-instant
-      priority: 1
-    - provider: gemini
-      model: gemini-2.5-flash
-      priority: 2
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 3
+      # Tier 1: Reliable API providers
+      - provider: antigravity
+        model: gemini-3-pro-preview
+        priority: 1
+      - provider: iflow
+        model: deepseek-v3
+        priority: 2
+      - provider: groq
+        model: llama-3.3-70b-versatile
+        priority: 3
+      - provider: gemini
+        model: gemini-2.5-flash
+        priority: 4
+      # Tier 2: G4F fallback
+      - provider: g4f
+        model: gemini-2.0-flash
+        priority: 5
+    settings:
+      timeout_ms: 120000
+      retry_on_rate_limit: true
+
+  # =============================================================================
+  # CHAT FAST (Fastest chat models)
+  # =============================================================================
+  chat-fast:
+    description: "Fastest chat models"
+    fallback_chain:
+      # Tier 1: Fastest providers
+      - provider: cerebras
+        model: llama-3.1-8b
+        priority: 1
+      - provider: groq
+        model: llama-3.1-8b-instant
+        priority: 2
+      - provider: gemini
+        model: gemini-2.0-flash
+        priority: 3
+      - provider: groq
+        model: llama-3.3-70b-versatile
+        priority: 4
     settings:
       timeout_ms: 15000
       retry_on_rate_limit: true
 
+  # =============================================================================
+  # CHAT RP (Roleplay models)
+  # =============================================================================
   chat-rp:
-    description: "Roleplay models"
+    description: "Roleplay and creative writing models"
     fallback_chain:
-    - provider: g4f
-      model: mn-violet-lotus-12b
-      priority: 1
-    - provider: g4f
-      model: cydonia-24b-v4.1
-      priority: 2
-    - provider: groq
-      model: llama-3.1-8b-instant
-      priority: 3
+      # Tier 1: Use capable general models for RP
+      - provider: groq
+        model: llama-3.3-70b-versatile
+        priority: 1
+      - provider: gemini
+        model: gemini-2.5-flash
+        priority: 2
+      # Tier 2: G4F specialized models (may not work on VPS)
+      - provider: g4f
+        model: llama-3.3-70b
+        priority: 3
     settings:
-      timeout_ms: 30000
+      timeout_ms: 60000
       retry_on_rate_limit: true
 
+# =============================================================================
+# PROVIDER CONFIGURATIONS
+# =============================================================================
 providers:
   groq:
     base_url: https://api.groq.com/openai/v1
-    api_key_env: GROQ_API_KEY
+    api_key_env: GROQ_API_KEY_1
     rate_limits:
       rpm: 30
       daily: 14400
+
   gemini:
     base_url: https://generativelanguage.googleapis.com/v1beta
-    api_key_env: GEMINI_API_KEY
+    api_key_env: GEMINI_API_KEY_1
     rate_limits:
       rpm: 15
       daily: 1500
+
+  cerebras:
+    base_url: https://api.cerebras.ai/v1
+    api_key_env: CEREBRAS_API_KEY_1
+    rate_limits:
+      rpm: 30
+
   together:
     base_url: https://api.together.xyz/v1
     api_key_env: TOGETHER_API_KEY
     rate_limits:
       rpm: 60
+
   g4f:
     base_url: https://g4f.space/v1
     api_key_env: G4F_API_KEY

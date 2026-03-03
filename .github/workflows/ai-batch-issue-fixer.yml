@@ -1,0 +1,338 @@
+name: AI Batch Issue Fixer
+
+on:
+  schedule:
+  - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      max_issues:
+        description: 'Maximum number of issues to process in this run'
+        required: false
+        default: '20'
+      issue_numbers:
+        description: 'Specific issue numbers to fix (comma-separated, optional)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Dry run - analyze only, do not create PRs'
+        required: false
+        default: 'false'
+      scan_all_repos:
+        description: 'Scan all repos for issues first'
+        required: false
+        default: 'false'
+
+concurrency:
+  group: batch-issue-fixer
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  issues: write
+  pull_requests: write
+  actions: read
+
+jobs:
+  scan-multi-repo:
+    if: github.event.inputs.scan_all_repos == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      repos_with_issues: ${{ steps.scan.outputs.repos }}
+    
+    steps:
+      - name: Scan all repos for issues
+        id: scan
+        run: |
+          REPOS_WITH_ISSUES="[]"
+          for repo in $(gh repo list ${{ github.repository_owner }} --json name --jq '.[].name' --limit 100); do
+            ISSUE_COUNT=$(gh issue list --repo "${{ github.repository_owner }}/$repo" --state open \
+              --search "-label:wontfix -label:invalid -label:duplicate -label:in-progress" \
+              --json number | jq 'length')
+            if [ "$ISSUE_COUNT" -gt 0 ]; then
+              REPOS_WITH_ISSUES=$(echo "$REPOS_WITH_ISSUES" | jq --arg repo "$repo" --arg count "$ISSUE_COUNT" \
+                '. + [{"repo": $repo, "count": ($count | tonumber)}]')
+            fi
+          done
+          echo "repos=${REPOS_WITH_ISSUES}" >> $GITHUB_OUTPUT
+          echo "Found repos with issues: $(echo "$REPOS_WITH_ISSUES" | jq '. | length')"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  discover-issues:
+    runs-on: ubuntu-latest
+    outputs:
+      issues: ${{ steps.find-issues.outputs.issues }}
+      count: ${{ steps.find-issues.outputs.count }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find open issues
+        id: find-issues
+        run: |
+          MAX=${{ github.event.inputs.max_issues || '20' }}
+          if [ -n "${{ github.event.inputs.issue_numbers }}" ]; then
+            IFS=',' read -ra NUMS <<< "${{ github.event.inputs.issue_numbers }}"
+            ISSUES_JSON="[]"
+            for num in "${NUMS[@]}"; do
+              num=$(echo "$num" | tr -d ' ')
+              issue_data=$(gh issue view "$num" --json number,title,body,labels,state 2>/dev/null || echo '')
+              if [ -n "$issue_data" ]; then
+                ISSUES_JSON=$(echo "$ISSUES_JSON" | jq --argjson issue "$issue_data" '. + [$issue]')
+              fi
+            done
+          else
+            ISSUES_JSON=$(gh issue list \
+              --state open \
+              --json number,title,body,labels \
+              --search "-label:wontfix -label:invalid -label:duplicate -label:in-progress -label:needs-triage" \
+              --limit "$MAX" \
+              --jq '.')
+          fi
+
+          COUNT=$(echo "$ISSUES_JSON" | jq 'length')
+          echo "issues=${ISSUES_JSON}" >> $GITHUB_OUTPUT
+          echo "count=${COUNT}" >> $GITHUB_OUTPUT
+          echo "Found $COUNT issues to process (max parallel: 20)"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  process-issues:
+    needs: discover-issues
+    if: needs.discover-issues.outputs.count > 0
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 20
+      fail-fast: false
+      matrix:
+        issue: ${{ fromJson(needs.discover-issues.outputs.issues) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup bot
+        id: bot-setup
+        uses: ./.github/actions/bot-setup
+        with:
+          bot-app-id: ${{ secrets.BOT_APP_ID }}
+          bot-private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          opencode-api-key: ${{ secrets.PROXY_API_KEY }}
+          opencode-model: ${{ secrets.OPENCODE_MODEL || 'kilocode/auto' }}
+          opencode-fast-model: ${{ secrets.OPENCODE_FAST_MODEL || 'kilocode/auto-fast' }}
+          custom-providers-json: |
+            {
+              "kilocode": {
+                "name": "Kilo Code Gateway",
+                "options": {
+                  "baseURL": "${{ secrets.KILO_BASE_URL || 'https://gateway.kilo.ai/v1' }}",
+                  "apiKey": "${{ secrets.KILOCODE_API_KEY || secrets.PROXY_API_KEY }}"
+                },
+                "models": {
+                  "auto": { "context_length": 128000, "options": { "temperature": 0.7 } },
+                  "auto-fast": { "context_length": 32000, "options": { "temperature": 0.5 } },
+                  "claude-3.5-sonnet": { "context_length": 200000 },
+                  "gpt-4o": { "context_length": 128000 },
+                  "gemini-2.0-flash": { "context_length": 1000000 }
+                }
+              },
+              "zen": {
+                "name": "OpenCode Zen",
+                "options": {
+                  "baseURL": "${{ secrets.ZEN_BASE_URL || 'https://opencode.ai/zen/v1' }}",
+                  "apiKey": "${{ secrets.ZEN_API_KEY || secrets.PROXY_API_KEY }}"
+                },
+                "models": {
+                  "auto": { "context_length": 128000 },
+                  "fast": { "context_length": 32000 }
+                }
+              },
+              "openrouter": {
+                "name": "OpenRouter",
+                "options": {
+                  "baseURL": "https://openrouter.ai/api/v1",
+                  "apiKey": "${{ secrets.OPENROUTER_API_KEY || secrets.PROXY_API_KEY }}"
+                },
+                "models": {
+                  "auto": { "context_length": 128000, "options": { "provider": { "only": ["groq", "together", "cerebras"] } } },
+                  "meta-llama/llama-3.3-70b-instruct:free": { "context_length": 128000 },
+                  "google/gemma-3-27b-it:free": { "context_length": 32000 },
+                  "qwen/qwen-2.5-72b-instruct:free": { "context_length": 32000 }
+                }
+              },
+              "together": {
+                "name": "Together AI",
+                "options": {
+                  "baseURL": "https://api.together.xyz/v1",
+                  "apiKey": "${{ secrets.TOGETHER_API_KEY || secrets.PROXY_API_KEY }}"
+                },
+                "models": {
+                  "meta-llama/Llama-3.3-70B-Instruct-Turbo": { "context_length": 128000, "options": { "temperature": 0.7 } },
+                  "meta-llama/Llama-3.2-3B-Instruct-Turbo": { "context_length": 32000 }
+                }
+              },
+              "groq": {
+                "name": "Groq",
+                "options": {
+                  "baseURL": "https://api.groq.com/openai/v1",
+                  "apiKey": "${{ secrets.GROQ_API_KEY || secrets.PROXY_API_KEY }}"
+                },
+                "models": {
+                  "llama-3.3-70b-versatile": { "context_length": 128000 },
+                  "llama-3.1-8b-instant": { "context_length": 32000 }
+                }
+              },
+              "cerebras": {
+                "name": "Cerebras",
+                "options": {
+                  "baseURL": "https://api.cerebras.ai/v1",
+                  "apiKey": "${{ secrets.CEREBRAS_API_KEY || secrets.PROXY_API_KEY }}"
+                },
+                "models": {
+                  "llama-3.3-70b": { "context_length": 128000 },
+                  "llama-3.1-8b": { "context_length": 32000 }
+                }
+              }
+            }
+      
+      - name: Add in-progress label
+        run: |
+          gh issue edit "${{ matrix.issue.number }}" --add-label "in-progress"
+          gh issue comment "${{ matrix.issue.number }}" --body "🤖 AI agent is analyzing this issue and will propose a fix shortly."
+        env:
+          GH_TOKEN: ${{ steps.bot-setup.outputs.token }}
+      
+      - name: Create work branch
+        run: |
+          BRANCH_NAME="fix/issue-${{ matrix.issue.number }}-$(date +%s)"
+          git checkout -b "$BRANCH_NAME"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+      
+      - name: Generate fix prompt
+        run: |
+          cat > /tmp/fix-prompt.md << 'PROMPT_EOF'
+          # Issue Fix Task
+          
+          You are an autonomous AI agent tasked with fixing a GitHub issue.
+          
+          ## Issue Details
+          - **Number**: ${{ matrix.issue.number }}
+          - **Title**: ${{ matrix.issue.title }}
+          - **Body**: 
+          ${{ matrix.issue.body }}
+          
+          ## Your Task
+          
+          1. **Analyze the issue**: Understand what's wrong or what needs to be added
+          2. **Explore the codebase**: Find relevant files using `grep`, `find`, `git log`
+          3. **Implement the fix**: Make minimal, focused changes
+          4. **Test the changes**: If tests exist, run them. If not, verify manually.
+          5. **Create a PR**: Commit and push changes, then create a pull request
+          
+          ## Rules
+          
+          - Make minimal changes - fix the issue, don't refactor
+          - Follow existing code patterns and conventions
+          - Add tests if the issue is a bug fix
+          - Write clear commit messages: `fix: description (closes #${{ matrix.issue.number }})`
+          - If you cannot fix the issue, add a comment explaining why
+          
+          ## Security
+          
+          - NEVER expose secrets or tokens
+          - Do not commit sensitive files (.env, credentials, etc.)
+          - Do not use `rm -rf` or destructive commands
+          
+          ## Completion
+          
+          When done, use `gh pr create` to open a pull request with:
+          - Title that references the issue
+          - Body with "Fixes #${{ matrix.issue.number }}"
+          - Clear summary of changes
+          
+          PROMPT_EOF
+      
+      - name: Run OpenCode to fix issue
+        run: |
+          opencode --prompt "$(cat /tmp/fix-prompt.md)" \
+            --non-interactive \
+            --timeout 1800 \
+            2>&1 | tee /tmp/opencode-output.log || true
+
+          PR_URL=$(grep -o 'https://github.com.*pull/[0-9]*' /tmp/opencode-output.log 2>/dev/null | head -1 || echo '')
+          echo "PR_URL=${PR_URL}" >> $GITHUB_ENV
+        timeout-minutes: 30
+      
+      - name: Check for changes and create PR if needed
+        if: env.PR_URL == '' && github.event.inputs.dry_run != 'true'
+        run: |
+          # Check if there are any changes
+          if git diff --exit-code && git diff --cached --exit-code; then
+            echo "No changes made - marking issue as needs-discussion"
+            gh issue comment "${{ matrix.issue.number }}" --body \
+              "🤖 AI agent analyzed this issue but could not determine a fix automatically. \
+               Please provide more context or this may need human intervention."
+            gh issue edit "${{ matrix.issue.number }}" --remove-label "in-progress" --add-label "needs-discussion"
+          else
+            # Commit and create PR
+            git config user.name "mirrobot-agent[bot]"
+            git config user.email "mirrobot-agent[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "fix: ${{ matrix.issue.title }} (closes #${{ matrix.issue.number }})"
+            git push origin "${{ env.BRANCH_NAME }}"
+            
+            gh pr create \
+              --title "Fix: ${{ matrix.issue.title }}" \
+              --body "$(cat <<EOF
+          ## Summary
+          Automated fix for issue #${{ matrix.issue.number }}
+          
+          ## Changes
+          [AI agent will describe changes here]
+          
+          ## Testing
+          [Describe how this was tested]
+          
+          Fixes #${{ matrix.issue.number }}
+          EOF
+          )" \
+              --label "ai-generated"
+          fi
+        env:
+          GH_TOKEN: ${{ steps.bot-setup.outputs.token }}
+      
+      - name: Update issue status on success
+        if: success()
+        run: |
+          if [ -n "${{ env.PR_URL }}" ]; then
+            gh issue comment "${{ matrix.issue.number }}" --body \
+              "✅ AI agent has created a fix: ${{ env.PR_URL }}"
+          fi
+        env:
+          GH_TOKEN: ${{ steps.bot-setup.outputs.token }}
+      
+      - name: Handle failure
+        if: failure()
+        run: |
+          gh issue comment "${{ matrix.issue.number }}" --body \
+            "⚠️ AI agent encountered an error while processing this issue. Please check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
+          gh issue edit "${{ matrix.issue.number }}" --remove-label "in-progress" --add-label "needs-triage"
+        env:
+          GH_TOKEN: ${{ steps.bot-setup.outputs.token }}
+
+  summary:
+    needs: [discover-issues, process-issues]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Workflow summary
+        run: |
+          echo "## Issue Processing Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Issues found: ${{ needs.discover-issues.outputs.count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Processing status: ${{ needs.process-issues.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check individual job results for details." >> $GITHUB_STEP_SUMMARY

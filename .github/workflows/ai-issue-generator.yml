@@ -1,0 +1,210 @@
+name: AI Issue Generator
+
+# Scans codebase for potential issues and creates GitHub issues
+# Runs weekly to proactively identify areas for improvement
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Type of scan to perform'
+        required: false
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - security
+          - performance
+          - documentation
+          - code-quality
+      max_issues:
+        description: 'Maximum issues to create (0 = no limit)'
+        required: false
+        default: '3'
+
+concurrency:
+  group: issue-generator
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+  pull_requests: read
+
+env:
+  OPENCODE_MODEL: openai/coding-elite
+  OPENCODE_FAST_MODEL: openai/coding-fast
+
+jobs:
+  analyze-codebase:
+    runs-on: ubuntu-latest
+    outputs:
+      findings: ${{ steps.analyze.outputs.findings }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup bot
+        uses: ./.github/actions/bot-setup
+        with:
+          bot-app-id: ${{ secrets.BOT_APP_ID }}
+          bot-private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          opencode-api-key: ${{ secrets.PROXY_API_KEY }}
+          opencode-model: ${{ env.OPENCODE_MODEL }}
+          opencode-fast-model: ${{ env.OPENCODE_FAST_MODEL }}
+          custom-providers-json: |
+            {
+              "openai": {
+                "name": "LLM Gateway",
+                "options": {
+                  "baseURL": "${{ secrets.PROXY_URL || 'http://40.233.101.233:8000/v1' }}",
+                  "apiKey": "${{ secrets.PROXY_API_KEY }}"
+                }
+              }
+            }
+      
+      - name: Run analysis
+        id: analyze
+        run: |
+          SCAN_TYPE="${{ github.event.inputs.scan_type || 'full' }}"
+          MAX_ISSUES="${{ github.event.inputs.max_issues || '3' }}"
+          
+          cat > /tmp/analysis-prompt.md << 'EOF'
+          # Codebase Analysis Task
+          
+          Analyze this codebase and identify potential issues that should be addressed.
+          
+          ## Scan Type: ${{ github.event.inputs.scan_type || 'full' }}
+          
+          Focus areas based on scan type:
+          - **full**: All categories below
+          - **security**: Security vulnerabilities, exposed secrets, insecure patterns
+          - **performance**: Performance bottlenecks, inefficient algorithms, N+1 queries
+          - **documentation**: Missing docs, outdated README, unclear code comments
+          - **code-quality**: Code smells, duplicate code, complex functions, missing tests
+          
+          ## Your Task
+          
+          1. Explore the codebase structure
+          2. Identify potential issues in the focus areas
+          3. For each issue found, provide:
+             - Title (concise, actionable)
+             - Category (security/performance/documentation/code-quality)
+             - Priority (high/medium/low)
+             - Description of the problem
+             - Affected files
+             - Suggested fix approach
+          
+          ## Output Format
+          
+          Output a JSON array of findings:
+          ```json
+          [
+            {
+              "title": "Issue title",
+              "category": "security|performance|documentation|code-quality",
+              "priority": "high|medium|low",
+              "description": "Detailed description",
+              "files": ["file1.py", "file2.py"],
+              "suggestion": "How to fix it"
+            }
+          ]
+          ```
+          
+          ## Rules
+          
+          - Only report actionable, real issues
+          - Do NOT duplicate existing open issues
+          - Focus on high-impact improvements
+          - Be specific about affected files and locations
+          
+          EOF
+          
+          opencode --prompt "$(cat /tmp/analysis-prompt.md)" \
+            --non-interactive \
+            --timeout 1200 \
+            2>&1 | tee /tmp/analysis-output.log
+          
+          FINDINGS=$(grep -o '\[.*\]' /tmp/analysis-output.log | tail -1 || echo '[]')
+          echo "findings=${FINDINGS}" >> $GITHUB_OUTPUT
+        timeout-minutes: 20
+
+  create-issues:
+    needs: analyze-codebase
+    if: needs.analyze-codebase.outputs.findings != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 2
+      fail-fast: false
+      matrix:
+        finding: ${{ fromJson(needs.analyze-codebase.outputs.findings) }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup bot
+        id: bot-setup
+        uses: ./.github/actions/bot-setup
+        with:
+          bot-app-id: ${{ secrets.BOT_APP_ID }}
+          bot-private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          opencode-api-key: ${{ secrets.PROXY_API_KEY }}
+          opencode-model: ${{ env.OPENCODE_FAST_MODEL }}
+          custom-providers-json: |
+            {
+              "openai": {
+                "name": "LLM Gateway",
+                "options": {
+                  "baseURL": "${{ secrets.PROXY_URL || 'http://40.233.101.233:8000/v1' }}",
+                  "apiKey": "${{ secrets.PROXY_API_KEY }}"
+                }
+              }
+            }
+      
+      - name: Check for duplicate issues
+        id: check-duplicate
+        run: |
+          TITLE="${{ matrix.finding.title }}"
+          EXISTING=$(gh issue list --state open --search "$TITLE" --json number,title --jq 'length')
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "duplicate=true" >> $GITHUB_OUTPUT
+          else
+            echo "duplicate=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ steps.bot-setup.outputs.token }}
+      
+      - name: Create issue
+        if: steps.check-duplicate.outputs.duplicate == 'false'
+        run: |
+          gh issue create \
+            --title "${{ matrix.finding.title }}" \
+            --body "$(cat <<EOF
+          ## Category
+          ${{ matrix.finding.category }}
+          
+          ## Priority
+          ${{ matrix.finding.priority }}
+          
+          ## Description
+          ${{ matrix.finding.description }}
+          
+          ## Affected Files
+          ${{ join(matrix.finding.files, '\n') }}
+          
+          ## Suggested Fix
+          ${{ matrix.finding.suggestion }}
+          
+          ---
+          *This issue was automatically generated by the AI Issue Generator workflow.*
+          EOF
+          )" \
+            --label "${{ matrix.finding.category }},${{ matrix.finding.priority }}-priority,ai-generated"
+        env:
+          GH_TOKEN: ${{ steps.bot-setup.outputs.token }}

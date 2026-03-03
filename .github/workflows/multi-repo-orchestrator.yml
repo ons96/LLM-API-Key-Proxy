@@ -1,0 +1,108 @@
+name: Multi-Repo Issue Orchestrator
+
+on:
+  schedule:
+  - cron: '0 */12 * * *'
+  workflow_dispatch:
+    inputs:
+      repos:
+        description: 'Repositories to process (comma-separated, or leave empty for all)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Dry run mode'
+        required: false
+        default: false
+        type: boolean
+  repository_dispatch:
+    types:
+    - scan-all-repos
+
+concurrency:
+  group: multi-repo-orchestrator
+  cancel-in-progress: true
+
+jobs:
+  discover-repos:
+    runs-on: ubuntu-latest
+    outputs:
+      repos: ${{ steps.find.outputs.repos }}
+
+    steps:
+    - name: Determine repositories
+      id: find
+      run: |
+        if [ -n "${{ github.event.inputs.repos }}" ]; then
+          REPOS='${{ github.event.inputs.repos }}'
+        elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+          REPOS=$(gh repo list ${{ github.repository_owner }} \
+            --json name \
+            --jq '[.[].name | "${{ github.repository_owner }}/" + .]' \
+            --limit 100)
+        else
+          REPOS=$(gh repo list ${{ github.repository_owner }} \
+            --json name \
+            --jq '[.[].name | "${{ github.repository_owner }}/" + .]' \
+            --limit 100)
+        fi
+        echo "repos=${REPOS}" >> $GITHUB_OUTPUT
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+  process-repos:
+    needs: discover-repos
+    strategy:
+      max-parallel: 20
+      fail-fast: false
+      matrix:
+        repo: ${{ fromJson(needs.discover-repos.outputs.repos) }}
+
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout ${{ matrix.repo }}
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ matrix.repo }}
+        fetch-depth: 0
+
+    - name: Check for open issues
+      id: check
+      run: |
+        COUNT=$(gh issue list --state open \
+          --search "-label:wontfix -label:invalid -label:duplicate -label:in-progress" \
+          --json number | jq 'length')
+        echo "issue_count=${COUNT}" >> $GITHUB_OUTPUT
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Trigger issue processor
+      if: steps.check.outputs.issue_count > 0
+      run: |
+        curl -X POST \
+          -H "Authorization: token ${{ github.token }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          https://api.github.com/repos/${{ matrix.repo }}/dispatches \
+          -d '{"event_type": "process-issues", "client_payload": {"dry_run": ${{ github.event.inputs.dry_run || false }}}}'
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Report status
+      run: |
+        echo "## ${{ matrix.repo }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Open issues: ${{ steps.check.outputs.issue_count }}" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.check.outputs.issue_count }}" -gt 0 ]; then
+          echo "- Status: Triggered issue processor" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- Status: No issues to process" >> $GITHUB_STEP_SUMMARY
+        fi
+
+  summary:
+    needs: process-repos
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - name: Final summary
+      run: |
+        echo "## Multi-Repo Processing Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Processed up to 20 repos in parallel using free LLMs." >> $GITHUB_STEP_SUMMARY
