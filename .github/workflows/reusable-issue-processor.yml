@@ -3,20 +3,15 @@ name: Reusable Autonomous Issue Processor
 on:
   workflow_call:
     inputs:
-      proxy_url:
-        description: 'URL of the LLM proxy'
-        required: false
-        default: 'http://40.233.101.233:8000/v1'
-        type: string
       max_issues:
         description: 'Maximum issues to process'
         required: false
-        default: 5
+        default: 20
         type: number
       max_parallel:
-        description: 'Maximum parallel jobs'
+        description: 'Maximum parallel jobs (GitHub free tier: 20)'
         required: false
-        default: 3
+        default: 20
         type: number
       timeout_minutes:
         description: 'Timeout per issue in minutes'
@@ -35,10 +30,16 @@ on:
         required: true
       PROXY_API_KEY:
         required: true
-    outputs:
-      issues_processed:
-        description: 'Number of issues processed'
-        value: ${{ jobs.discover.outputs.count }}
+      OPENCODE_MODEL:
+        required: false
+      OPENCODE_FAST_MODEL:
+        required: false
+      CUSTOM_PROVIDERS_JSON:
+        required: false
+  outputs:
+    issues_processed:
+      description: 'Number of issues processed'
+      value: ${{ jobs.discover.outputs.count }}
 
 jobs:
   discover:
@@ -46,24 +47,25 @@ jobs:
     outputs:
       issues: ${{ steps.find.outputs.issues }}
       count: ${{ steps.find.outputs.count }}
-    
+
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Find eligible issues
-        id: find
-        run: |
-          ISSUES=$(gh issue list \
-            --state open \
-            --json number,title,body,labels \
-            --search "-label:wontfix -label:invalid -label:duplicate -label:in-progress" \
-            --limit ${{ inputs.max_issues }})
-          
-          COUNT=$(echo "$ISSUES" | jq 'length')
-          echo "issues=${ISSUES}" >> $GITHUB_OUTPUT
-          echo "count=${COUNT}" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ github.token }}
+    - uses: actions/checkout@v4
+
+    - name: Find eligible issues
+      id: find
+      run: |
+        ISSUES=$(gh issue list \
+          --state open \
+          --json number,title,body,labels \
+          --search "-label:wontfix -label:invalid -label:duplicate -label:in-progress" \
+          --limit ${{ inputs.max_issues }})
+
+        COUNT=$(echo "$ISSUES" | jq 'length')
+        echo "issues=${ISSUES}" >> $GITHUB_OUTPUT
+        echo "count=${COUNT}" >> $GITHUB_OUTPUT
+        echo "Found $COUNT issues, processing up to ${{ inputs.max_parallel }} in parallel"
+      env:
+        GH_TOKEN: ${{ github.token }}
 
   process:
     needs: discover
@@ -74,100 +76,98 @@ jobs:
       fail-fast: false
       matrix:
         issue: ${{ fromJson(needs.discover.outputs.issues) }}
-    
+
     timeout-minutes: ${{ inputs.timeout_minutes }}
-    
+
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Generate App Token
-        id: token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.BOT_APP_ID }}
-          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
-      
-      - name: Configure OpenCode
-        run: |
-          mkdir -p ~/.config/opencode
-          cat > ~/.config/opencode/opencode.json << 'EOF'
-          {
-            "model": "openai/coding-elite",
-            "provider": {
-              "openai": {
-                "name": "LLM Gateway",
-                "options": {
-                  "baseURL": "${{ inputs.proxy_url }}",
-                  "apiKey": "${{ secrets.PROXY_API_KEY }}"
-                }
-              }
-            }
-          }
-          EOF
-      
-      - name: Install OpenCode
-        run: curl -fsSL https://opencode.ai/install | bash
-      
-      - name: Mark issue in-progress
-        run: |
-          gh issue edit "${{ matrix.issue.number }}" --add-label "in-progress"
-        env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
-      
-      - name: Process issue
-        id: process
-        run: |
-          BRANCH="fix/issue-${{ matrix.issue.number }}-$(date +%s)"
-          git checkout -b "$BRANCH"
-          
-          PROMPT="Fix GitHub issue #${{ matrix.issue.number }}: ${{ matrix.issue.title }}
-          
-          Issue body:
-          ${{ matrix.issue.body }}
-          
-          Rules:
-          1. Make minimal changes to fix the issue
-          2. Follow existing code patterns
-          3. If you cannot fix it, explain why in a comment
-          4. Create a PR with 'Fixes #${{ matrix.issue.number }}' in the body
-          "
-          
-          opencode --prompt "$PROMPT" --non-interactive --timeout 1800 2>&1 | tee output.log || true
-          
-          if git diff --exit-code; then
-            echo "status=no-changes" >> $GITHUB_OUTPUT
-          else
-            echo "status=changes" >> $GITHUB_OUTPUT
-          fi
-          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
-        env:
-          OPENCODE_MODEL: openai/coding-elite
-      
-      - name: Create PR
-        if: steps.process.outputs.status == 'changes' && inputs.dry_run == false
-        run: |
-          git config user.name "mirrobot-agent[bot]"
-          git config user.email "mirrobot-agent[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix: ${{ matrix.issue.title }} (closes #${{ matrix.issue.number }})"
-          git push origin ${{ steps.process.outputs.branch }}
-          
-          gh pr create \
-            --title "Fix: ${{ matrix.issue.title }}" \
-            --body "Automated fix for issue #${{ matrix.issue.number }}. Fixes #${{ matrix.issue.number }}" \
-            --label "ai-generated"
-        env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
-      
-      - name: Handle no changes
-        if: steps.process.outputs.status == 'no-changes'
-        run: |
-          gh issue comment "${{ matrix.issue.number }}" \
-            --body "AI analyzed but could not determine an automated fix."
-          gh issue edit "${{ matrix.issue.number }}" \
-            --remove-label "in-progress" \
-            --add-label "needs-discussion"
-        env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate App Token
+      id: token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ secrets.BOT_APP_ID }}
+        private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+
+    - name: Configure OpenCode
+      run: |
+        mkdir -p ~/.config/opencode
+        
+        MODEL="${{ secrets.OPENCODE_MODEL || 'openai/coding-elite' }}"
+        FAST_MODEL="${{ secrets.OPENCODE_FAST_MODEL || 'openai/coding-fast' }}"
+        CUSTOM_PROVIDERS='${{ secrets.CUSTOM_PROVIDERS_JSON || '{}' }}'
+        
+        cat > ~/.config/opencode/opencode.json << EOF
+        {
+          "model": "$MODEL",
+          "provider": $CUSTOM_PROVIDERS
+        }
+        EOF
+        
+        echo "Using model: $MODEL"
+
+    - name: Install OpenCode
+      run: curl -fsSL https://opencode.ai/install | bash
+
+    - name: Mark issue in-progress
+      run: |
+        gh issue edit "${{ matrix.issue.number }}" --add-label "in-progress"
+      env:
+        GH_TOKEN: ${{ steps.token.outputs.token }}
+
+    - name: Process issue
+      id: process
+      run: |
+        BRANCH="fix/issue-${{ matrix.issue.number }}-$(date +%s)"
+        git checkout -b "$BRANCH"
+
+        cat > /tmp/fix-prompt.md << 'PROMPT_EOF'
+        Fix GitHub issue #${{ matrix.issue.number }}: ${{ matrix.issue.title }}
+        
+        Issue body:
+        ${{ matrix.issue.body }}
+        
+        Rules:
+        1. Make minimal changes to fix the issue
+        2. Follow existing code patterns in the repository
+        3. If you cannot fix it, explain why in a comment
+        4. Create a PR with 'Fixes #${{ matrix.issue.number }}' in the body
+        PROMPT_EOF
+
+        opencode --prompt "$(cat /tmp/fix-prompt.md)" --non-interactive --timeout 1800 2>&1 | tee output.log || true
+
+        if git diff --exit-code; then
+          echo "status=no-changes" >> $GITHUB_OUTPUT
+        else
+          echo "status=changes" >> $GITHUB_OUTPUT
+        fi
+        echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+    - name: Create PR
+      if: steps.process.outputs.status == 'changes' && inputs.dry_run == false
+      run: |
+        git config user.name "mirrobot-agent[bot]"
+        git config user.email "mirrobot-agent[bot]@users.noreply.github.com"
+        git add -A
+        git commit -m "fix: ${{ matrix.issue.title }} (closes #${{ matrix.issue.number }})"
+        git push origin ${{ steps.process.outputs.branch }}
+
+        gh pr create \
+          --title "Fix: ${{ matrix.issue.title }}" \
+          --body "Automated fix for issue #${{ matrix.issue.number }}. Fixes #${{ matrix.issue.number }}" \
+          --label "ai-generated"
+      env:
+        GH_TOKEN: ${{ steps.token.outputs.token }}
+
+    - name: Handle no changes
+      if: steps.process.outputs.status == 'no-changes'
+      run: |
+        gh issue comment "${{ matrix.issue.number }}" \
+          --body "AI analyzed but could not determine an automated fix. This issue may require human discussion."
+        gh issue edit "${{ matrix.issue.number }}" \
+          --remove-label "in-progress" \
+          --add-label "needs-discussion"
+      env:
+        GH_TOKEN: ${{ steps.token.outputs.token }}

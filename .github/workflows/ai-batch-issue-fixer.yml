@@ -1,18 +1,14 @@
 name: AI Batch Issue Fixer
 
-# Autonomously processes and fixes open issues using free LLMs
-# Runs on schedule and can be manually triggered
-
 on:
   schedule:
-    # Run every 6 hours to check for new issues
-    - cron: '0 */6 * * *'
+  - cron: '0 */6 * * *'
   workflow_dispatch:
     inputs:
       max_issues:
         description: 'Maximum number of issues to process in this run'
         required: false
-        default: '5'
+        default: '20'
       issue_numbers:
         description: 'Specific issue numbers to fix (comma-separated, optional)'
         required: false
@@ -21,8 +17,11 @@ on:
         description: 'Dry run - analyze only, do not create PRs'
         required: false
         default: 'false'
+      scan_all_repos:
+        description: 'Scan all repos for issues first'
+        required: false
+        default: 'false'
 
-# Cancel in-progress runs to save resources
 concurrency:
   group: batch-issue-fixer
   cancel-in-progress: true
@@ -33,30 +32,47 @@ permissions:
   pull_requests: write
   actions: read
 
-env:
-  # Use free LLM providers via the proxy
-  # These are high-quality free models available through Groq/Gemini
-  OPENCODE_MODEL: openai/coding-elite
-  OPENCODE_FAST_MODEL: openai/coding-fast
-
 jobs:
+  scan-multi-repo:
+    if: github.event.inputs.scan_all_repos == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      repos_with_issues: ${{ steps.scan.outputs.repos }}
+    
+    steps:
+      - name: Scan all repos for issues
+        id: scan
+        run: |
+          REPOS_WITH_ISSUES="[]"
+          for repo in $(gh repo list ${{ github.repository_owner }} --json name --jq '.[].name' --limit 100); do
+            ISSUE_COUNT=$(gh issue list --repo "${{ github.repository_owner }}/$repo" --state open \
+              --search "-label:wontfix -label:invalid -label:duplicate -label:in-progress" \
+              --json number | jq 'length')
+            if [ "$ISSUE_COUNT" -gt 0 ]; then
+              REPOS_WITH_ISSUES=$(echo "$REPOS_WITH_ISSUES" | jq --arg repo "$repo" --arg count "$ISSUE_COUNT" \
+                '. + [{"repo": $repo, "count": ($count | tonumber)}]')
+            fi
+          done
+          echo "repos=${REPOS_WITH_ISSUES}" >> $GITHUB_OUTPUT
+          echo "Found repos with issues: $(echo "$REPOS_WITH_ISSUES" | jq '. | length')"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   discover-issues:
     runs-on: ubuntu-latest
     outputs:
       issues: ${{ steps.find-issues.outputs.issues }}
       count: ${{ steps.find-issues.outputs.count }}
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Find open issues
         id: find-issues
         run: |
-          # Get open issues, excluding those with 'wontfix', 'invalid', 'duplicate' labels
-          # and excluding issues already being worked on (has 'in-progress' label)
+          MAX=${{ github.event.inputs.max_issues || '20' }}
           if [ -n "${{ github.event.inputs.issue_numbers }}" ]; then
-            # Process specific issues
             IFS=',' read -ra NUMS <<< "${{ github.event.inputs.issue_numbers }}"
             ISSUES_JSON="[]"
             for num in "${NUMS[@]}"; do
@@ -67,19 +83,18 @@ jobs:
               fi
             done
           else
-            # Find all eligible open issues
             ISSUES_JSON=$(gh issue list \
               --state open \
               --json number,title,body,labels \
               --search "-label:wontfix -label:invalid -label:duplicate -label:in-progress -label:needs-triage" \
-              --limit ${{ github.event.inputs.max_issues || '5' }} \
+              --limit "$MAX" \
               --jq '.')
           fi
-          
+
           COUNT=$(echo "$ISSUES_JSON" | jq 'length')
           echo "issues=${ISSUES_JSON}" >> $GITHUB_OUTPUT
           echo "count=${COUNT}" >> $GITHUB_OUTPUT
-          echo "Found $COUNT issues to process"
+          echo "Found $COUNT issues to process (max parallel: 20)"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -88,18 +103,17 @@ jobs:
     if: needs.discover-issues.outputs.count > 0
     runs-on: ubuntu-latest
     strategy:
-      # Process issues in parallel (max 3 concurrent to stay within free limits)
-      max-parallel: 3
+      max-parallel: 20
       fail-fast: false
       matrix:
         issue: ${{ fromJson(needs.discover-issues.outputs.issues) }}
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for better context
-      
+          fetch-depth: 0
+
       - name: Setup bot
         id: bot-setup
         uses: ./.github/actions/bot-setup
@@ -107,16 +121,9 @@ jobs:
           bot-app-id: ${{ secrets.BOT_APP_ID }}
           bot-private-key: ${{ secrets.BOT_PRIVATE_KEY }}
           opencode-api-key: ${{ secrets.PROXY_API_KEY }}
-          opencode-model: ${{ env.OPENCODE_MODEL }}
-          opencode-fast-model: ${{ env.OPENCODE_FAST_MODEL }}
-          custom-providers-json: |
-            {
-              "openai": {
-                "name": "LLM Gateway",
-                "options": {
-                  "baseURL": "${{ secrets.PROXY_URL || 'http://40.233.101.233:8000/v1' }}",
-                  "apiKey": "${{ secrets.PROXY_API_KEY }}"
-                }
+          opencode-model: ${{ secrets.OPENCODE_MODEL || 'openai/coding-elite' }}
+          opencode-fast-model: ${{ secrets.OPENCODE_FAST_MODEL || 'openai/coding-fast' }}
+          custom-providers-json: ${{ secrets.CUSTOM_PROVIDERS_JSON || '{}' }}
               }
             }
       
@@ -183,13 +190,9 @@ jobs:
             --non-interactive \
             --timeout 1800 \
             2>&1 | tee /tmp/opencode-output.log || true
-          
-          # Check if a PR was created
-          PR_URL=$(grep -o 'https://github.com.*pull/[0-9*' /tmp/opencode-output.log 2>/dev/null | head -1 || echo '')
+
+          PR_URL=$(grep -o 'https://github.com.*pull/[0-9]*' /tmp/opencode-output.log 2>/dev/null | head -1 || echo '')
           echo "PR_URL=${PR_URL}" >> $GITHUB_ENV
-        env:
-          OPENCODE_MODEL: ${{ env.OPENCODE_MODEL }}
-          OPENCODE_FAST_MODEL: ${{ env.OPENCODE_FAST_MODEL }}
         timeout-minutes: 30
       
       - name: Check for changes and create PR if needed
