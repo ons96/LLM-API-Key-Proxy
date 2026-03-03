@@ -98,7 +98,7 @@ jobs:
         app-id: ${{ secrets.BOT_APP_ID }}
         private-key: ${{ secrets.BOT_PRIVATE_KEY }}
 
-    - name: Configure OpenCode with Multi-Provider Fallback
+    - name: Configure OpenCode with SOTA Free Coding Models
       shell: bash
       run: |
         mkdir -p ~/.config/opencode
@@ -116,18 +116,8 @@ jobs:
                 "apiKey": "${{ secrets.KILOCODE_API_KEY || secrets.PROXY_API_KEY }}"
               },
               "models": {
-                "auto": { "context_length": 128000 },
-                "auto-fast": { "context_length": 32000 }
-              }
-            },
-            "zen": {
-              "name": "OpenCode Zen",
-              "options": {
-                "baseURL": "https://opencode.ai/zen/v1",
-                "apiKey": "${{ secrets.ZEN_API_KEY || secrets.PROXY_API_KEY }}"
-              },
-              "models": {
-                "auto": { "context_length": 128000 }
+                "minimax-m2.5": { "context_length": 200000 },
+                "kimi-k2.5": { "context_length": 256000 }
               }
             },
             "openrouter": {
@@ -137,7 +127,9 @@ jobs:
                 "apiKey": "${{ secrets.OPENROUTER_API_KEY || secrets.PROXY_API_KEY }}"
               },
               "models": {
-                "meta-llama/llama-3.3-70b-instruct:free": { "context_length": 128000 }
+                "qwen3-coder:free": { "context_length": 262000 },
+                "qwen-2.5-coder-32b-instruct:free": { "context_length": 32000 },
+                "deepseek/deepseek-v3-base:free": { "context_length": 64000 }
               }
             },
             "groq": {
@@ -147,17 +139,8 @@ jobs:
                 "apiKey": "${{ secrets.GROQ_API_KEY || secrets.PROXY_API_KEY }}"
               },
               "models": {
-                "llama-3.3-70b-versatile": { "context_length": 128000 }
-              }
-            },
-            "together": {
-              "name": "Together AI",
-              "options": {
-                "baseURL": "https://api.together.xyz/v1",
-                "apiKey": "${{ secrets.TOGETHER_API_KEY || secrets.PROXY_API_KEY }}"
-              },
-              "models": {
-                "meta-llama/Llama-3.3-70B-Instruct-Turbo": { "context_length": 128000 }
+                "llama-3.3-70b-versatile": { "context_length": 128000 },
+                "llama-3.1-8b-instant": { "context_length": 128000 }
               }
             },
             "cerebras": {
@@ -176,7 +159,12 @@ jobs:
         )
 
         echo "$PROVIDER_JSON" > ~/.config/opencode/opencode.json
-        echo "Configured multi-provider fallback system"
+        echo "Configured SOTA free coding models:"
+        echo "  1. MiniMax M2.5 (80.2% SWE-Bench) via Kilo"
+        echo "  2. Kimi K2.5 (76.8% SWE-Bench, 85% LiveCodeBench) via Kilo"
+        echo "  3. Qwen3 Coder (262K context) via OpenRouter FREE"
+        echo "  4. DeepSeek V3 (86.6% HumanEval+) via OpenRouter FREE"
+        echo "  5. Llama-3.3-70B via Groq/Cerebras"
 
     - name: Install OpenCode
       run: curl -fsSL https://opencode.ai/install | bash
