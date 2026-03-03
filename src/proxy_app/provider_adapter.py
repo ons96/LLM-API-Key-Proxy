@@ -570,7 +570,16 @@ class G4FAdapter(BaseProviderAdapter):
                 raise ValueError("No user message found for G4F")
 
             # Create G4F request
-            model_str = request.get("model", "").replace("g4f/", "")
+            model_str = request.get("model", "")
+            for prefix in [
+                "g4f/",
+                "g4f_ollama/",
+                "g4f_pollinations/",
+                "g4f_nvidia/",
+                "g4f_gemini/",
+                "g4f_groq/",
+            ]:
+                model_str = model_str.replace(prefix, "")
 
             if stream:
                 return self._stream_g4f_completion(user_content, model_str)
