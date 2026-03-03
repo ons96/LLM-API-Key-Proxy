@@ -1,0 +1,198 @@
+name: PR Manager - Auto Merge and Cleanup
+
+on:
+  schedule:
+  - cron: '0 */8 * * *'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - merge-ready
+        - cleanup-stale
+        - close-draft
+        - review-all
+      dry_run:
+        description: 'Dry run - no actual changes'
+        required: false
+        default: true
+        type: boolean
+      max_prs:
+        description: 'Maximum PRs to process per repo'
+        required: false
+        default: '10'
+      repos:
+        description: 'Specific repos (comma-separated, or empty for all)'
+        required: false
+        default: ''
+
+concurrency:
+  group: pr-manager
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull_requests: write
+  actions: read
+
+jobs:
+  discover-repos:
+    runs-on: ubuntu-latest
+    outputs:
+      repos: ${{ steps.find.outputs.repos }}
+
+    steps:
+    - name: Discover repositories
+      id: find
+      run: |
+        if [ -n "${{ github.event.inputs.repos }}" ]; then
+          REPOS='${{ github.event.inputs.repos }}'
+        else
+          REPOS=$(gh repo list ${{ github.repository_owner }} \
+            --json name \
+            --jq '[.[].name | "${{ github.repository_owner }}/" + .]' \
+            --limit 100)
+        fi
+        echo "repos=${REPOS}" >> $GITHUB_OUTPUT
+        echo "Found repos: $(echo "$REPOS" | jq '. | length')"
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+  process-repos:
+    needs: discover-repos
+    strategy:
+      max-parallel: 20
+      fail-fast: false
+      matrix:
+        repo: ${{ fromJson(needs.discover-repos.outputs.repos) }}
+
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout ${{ matrix.repo }}
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ matrix.repo }}
+        fetch-depth: 0
+
+    - name: Get open PRs
+      id: prs
+      run: |
+        PRS=$(gh pr list --repo ${{ matrix.repo }} --state open \
+          --json number,title,mergeable,mergeable_state,draft,labels,updatedAt,createdAt,author \
+          --jq '.')
+        echo "prs=${PRS}" >> $GITHUB_OUTPUT
+        COUNT=$(echo "$PRS" | jq 'length')
+        echo "Found $COUNT open PRs in ${{ matrix.repo }}"
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Process ready-to-merge PRs
+      if: github.event.inputs.action == 'all' || github.event.inputs.action == 'merge-ready'
+      run: |
+        DRY_RUN="${{ github.event.inputs.dry_run }}"
+        MAX="${{ github.event.inputs.max_prs }}"
+
+        READY_PRS=$(echo '${{ steps.prs.outputs.prs }}' | jq \
+          '[.[] | select(.mergeable == true and .mergeable_state == "clean" and .draft == false)] | .[:$MAX]' \
+          --argjson MAX "$MAX")
+
+        echo "Processing $(echo "$READY_PRS" | jq 'length') ready-to-merge PRs..."
+
+        for pr in $(echo "$READY_PRS" | jq -c '.[]'); do
+          NUMBER=$(echo "$pr" | jq -r '.number')
+          TITLE=$(echo "$pr" | jq -r '.title')
+
+          if [ "$DRY_RUN" == "true" ]; then
+            echo "[DRY RUN] Would merge PR #$NUMBER: $TITLE"
+          else
+            echo "Merging PR #$NUMBER: $TITLE"
+            gh pr merge "$NUMBER" --repo "${{ matrix.repo }}" --squash --delete-branch || true
+          fi
+        done
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Close stale PRs
+      if: github.event.inputs.action == 'all' || github.event.inputs.action == 'cleanup-stale'
+      run: |
+        DRY_RUN="${{ github.event.inputs.dry_run }}"
+
+        STALE_PRS=$(echo '${{ steps.prs.outputs.prs }}' | jq \
+          '[.[] | select(.labels[]?.name | IN("wontfix", "invalid", "outdated", "stale")) or (.updatedAt | fromdateiso8601 < (now - 2592000))]' \
+          2>/dev/null || echo '[]')
+
+        echo "Processing $(echo "$STALE_PRS" | jq 'length') stale PRs..."
+
+        for pr in $(echo "$STALE_PRS" | jq -c '.[]'); do
+          NUMBER=$(echo "$pr" | jq -r '.number')
+          TITLE=$(echo "$pr" | jq -r '.title')
+
+          if [ "$DRY_RUN" == "true" ]; then
+            echo "[DRY RUN] Would close stale PR #$NUMBER: $TITLE"
+          else
+            echo "Closing stale PR #$NUMBER: $TITLE"
+            gh pr close "$NUMBER" --repo "${{ matrix.repo }}" --comment "Automatically closed: stale or marked as wontfix/invalid" || true
+          fi
+        done
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Close draft PRs older than 30 days
+      if: github.event.inputs.action == 'all' || github.event.inputs.action == 'close-draft'
+      run: |
+        DRY_RUN="${{ github.event.inputs.dry_run }}"
+
+        OLD_DRAFTS=$(echo '${{ steps.prs.outputs.prs }}' | jq \
+          '[.[] | select(.draft == true and (.updatedAt | fromdateiso8601 < (now - 2592000)))]' \
+          2>/dev/null || echo '[]')
+
+        echo "Processing $(echo "$OLD_DRAFTS" | jq 'length') old draft PRs..."
+
+        for pr in $(echo "$OLD_DRAFTS" | jq -c '.[]'); do
+          NUMBER=$(echo "$pr" | jq -r '.number')
+          TITLE=$(echo "$pr" | jq -r '.title')
+
+          if [ "$DRY_RUN" == "true" ]; then
+            echo "[DRY RUN] Would close draft PR #$NUMBER: $TITLE"
+          else
+            echo "Closing old draft PR #$NUMBER: $TITLE"
+            gh pr close "$NUMBER" --repo "${{ matrix.repo }}" --comment "Automatically closed: draft PR older than 30 days" || true
+          fi
+        done
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Report results
+      run: |
+        echo "## ${{ matrix.repo }} PR Management" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        TOTAL=$(echo '${{ steps.prs.outputs.prs }}' | jq 'length')
+        READY=$(echo '${{ steps.prs.outputs.prs }}' | jq '[.[] | select(.mergeable == true and .mergeable_state == "clean" and .draft == false)] | length')
+        DRAFTS=$(echo '${{ steps.prs.outputs.prs }}' | jq '[.[] | select(.draft == true)] | length')
+
+        echo "- Total open PRs: $TOTAL" >> $GITHUB_STEP_SUMMARY
+        echo "- Ready to merge: $READY" >> $GITHUB_STEP_SUMMARY
+        echo "- Draft PRs: $DRAFTS" >> $GITHUB_STEP_SUMMARY
+        echo "- Dry run: ${{ github.event.inputs.dry_run }}" >> $GITHUB_STEP_SUMMARY
+
+  summary:
+    needs: process-repos
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - name: Final summary
+      run: |
+        echo "## PR Management Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Processed up to 20 repos in parallel." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Actions Available:" >> $GITHUB_STEP_SUMMARY
+        echo "- \`merge-ready\`: Merge all clean, non-draft PRs" >> $GITHUB_STEP_SUMMARY
+        echo "- \`cleanup-stale\`: Close PRs marked wontfix/invalid or >30 days old" >> $GITHUB_STEP_SUMMARY
+        echo "- \`close-draft\`: Close draft PRs older than 30 days" >> $GITHUB_STEP_SUMMARY
+        echo "- \`all\": Run all cleanup actions" >> $GITHUB_STEP_SUMMARY
