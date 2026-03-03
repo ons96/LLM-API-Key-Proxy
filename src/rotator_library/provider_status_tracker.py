@@ -77,6 +77,11 @@ class ProviderStatusTracker:
 
         # List of known free/non-paid providers
         free_providers = [
+        "g4f_ollama",
+        "g4f_pollinations",
+        "g4f_nvidia",
+        "g4f_gemini",
+        "g4f_groq",
             "groq",
             "openrouter",
             "together",
