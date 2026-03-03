@@ -89,7 +89,10 @@ def _register_providers():
                     provider_name = "nvidia_nim"
                 PROVIDER_PLUGINS[provider_name] = attribute
                 import logging
-                logging.getLogger('rotator_library').debug(f"Registered provider: {provider_name}")
+
+                logging.getLogger("rotator_library").debug(
+                    f"Registered provider: {provider_name}"
+                )
 
     # Then, create dynamic plugins for custom OpenAI-compatible providers
     # Use environment variables directly (load_dotenv already called in main.py)
@@ -115,6 +118,11 @@ def _register_providers():
                 "gemini_cli",
                 "antigravity",
                 "g4f",
+                "g4f_ollama",
+                "g4f_pollinations",
+                "g4f_nvidia",
+                "g4f_gemini",
+                "g4f_groq",
             ]:
                 continue
 
@@ -130,7 +138,10 @@ def _register_providers():
             plugin_class = create_plugin_class(provider_name)
             PROVIDER_PLUGINS[provider_name] = plugin_class
             import logging
-            logging.getLogger('rotator_library').debug(f"Registered dynamic provider: {provider_name}")
+
+            logging.getLogger("rotator_library").debug(
+                f"Registered dynamic provider: {provider_name}"
+            )
 
 
 # Discover and register providers when the package is imported
