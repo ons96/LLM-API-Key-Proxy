@@ -9,6 +9,11 @@ from .providers.qwen_auth_base import QwenAuthBase
 from .providers.iflow_auth_base import IFlowAuthBase
 from .providers.antigravity_auth_base import AntigravityAuthBase
 from .providers.g4f_provider import G4FProvider
+from .providers.g4f_ollama_provider import G4FOllamaProvider
+from .providers.g4f_pollinations_provider import G4FPollinationsProvider
+from .providers.g4f_nvidia_provider import G4FNvidiaProvider
+from .providers.g4f_gemini_provider import G4FGeminiProvider
+from .providers.g4f_groq_provider import G4FGroqProvider
 from .providers.agentrouter_provider import AgentRouterProvider
 from .providers.cerebras_provider import CerebrasProvider
 from .providers.puter_provider import PuterProvider
@@ -30,6 +35,11 @@ OAUTH_PROVIDER_MAP = {
 # Direct provider implementations (use API keys or environment config)
 DIRECT_PROVIDER_MAP = {
     "g4f": G4FProvider,
+    "g4f_ollama": G4FOllamaProvider,
+    "g4f_pollinations": G4FPollinationsProvider,
+    "g4f_nvidia": G4FNvidiaProvider,
+    "g4f_gemini": G4FGeminiProvider,
+    "g4f_groq": G4FGroqProvider,
     "agentrouter": AgentRouterProvider,
     "cerebras": CerebrasProvider,
     "puter": PuterProvider,
