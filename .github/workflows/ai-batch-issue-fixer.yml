@@ -121,9 +121,80 @@ jobs:
           bot-app-id: ${{ secrets.BOT_APP_ID }}
           bot-private-key: ${{ secrets.BOT_PRIVATE_KEY }}
           opencode-api-key: ${{ secrets.PROXY_API_KEY }}
-          opencode-model: ${{ secrets.OPENCODE_MODEL || 'openai/coding-elite' }}
-          opencode-fast-model: ${{ secrets.OPENCODE_FAST_MODEL || 'openai/coding-fast' }}
-          custom-providers-json: ${{ secrets.CUSTOM_PROVIDERS_JSON || '{}' }}
+          opencode-model: ${{ secrets.OPENCODE_MODEL || 'kilocode/auto' }}
+          opencode-fast-model: ${{ secrets.OPENCODE_FAST_MODEL || 'kilocode/auto-fast' }}
+          custom-providers-json: |
+            {
+              "kilocode": {
+                "name": "Kilo Code Gateway",
+                "options": {
+                  "baseURL": "${{ secrets.KILO_BASE_URL || 'https://gateway.kilo.ai/v1' }}",
+                  "apiKey": "${{ secrets.KILOCODE_API_KEY || secrets.PROXY_API_KEY }}"
+                },
+                "models": {
+                  "auto": { "context_length": 128000, "options": { "temperature": 0.7 } },
+                  "auto-fast": { "context_length": 32000, "options": { "temperature": 0.5 } },
+                  "claude-3.5-sonnet": { "context_length": 200000 },
+                  "gpt-4o": { "context_length": 128000 },
+                  "gemini-2.0-flash": { "context_length": 1000000 }
+                }
+              },
+              "zen": {
+                "name": "OpenCode Zen",
+                "options": {
+                  "baseURL": "${{ secrets.ZEN_BASE_URL || 'https://opencode.ai/zen/v1' }}",
+                  "apiKey": "${{ secrets.ZEN_API_KEY || secrets.PROXY_API_KEY }}"
+                },
+                "models": {
+                  "auto": { "context_length": 128000 },
+                  "fast": { "context_length": 32000 }
+                }
+              },
+              "openrouter": {
+                "name": "OpenRouter",
+                "options": {
+                  "baseURL": "https://openrouter.ai/api/v1",
+                  "apiKey": "${{ secrets.OPENROUTER_API_KEY || secrets.PROXY_API_KEY }}"
+                },
+                "models": {
+                  "auto": { "context_length": 128000, "options": { "provider": { "only": ["groq", "together", "cerebras"] } } },
+                  "meta-llama/llama-3.3-70b-instruct:free": { "context_length": 128000 },
+                  "google/gemma-3-27b-it:free": { "context_length": 32000 },
+                  "qwen/qwen-2.5-72b-instruct:free": { "context_length": 32000 }
+                }
+              },
+              "together": {
+                "name": "Together AI",
+                "options": {
+                  "baseURL": "https://api.together.xyz/v1",
+                  "apiKey": "${{ secrets.TOGETHER_API_KEY || secrets.PROXY_API_KEY }}"
+                },
+                "models": {
+                  "meta-llama/Llama-3.3-70B-Instruct-Turbo": { "context_length": 128000, "options": { "temperature": 0.7 } },
+                  "meta-llama/Llama-3.2-3B-Instruct-Turbo": { "context_length": 32000 }
+                }
+              },
+              "groq": {
+                "name": "Groq",
+                "options": {
+                  "baseURL": "https://api.groq.com/openai/v1",
+                  "apiKey": "${{ secrets.GROQ_API_KEY || secrets.PROXY_API_KEY }}"
+                },
+                "models": {
+                  "llama-3.3-70b-versatile": { "context_length": 128000 },
+                  "llama-3.1-8b-instant": { "context_length": 32000 }
+                }
+              },
+              "cerebras": {
+                "name": "Cerebras",
+                "options": {
+                  "baseURL": "https://api.cerebras.ai/v1",
+                  "apiKey": "${{ secrets.CEREBRAS_API_KEY || secrets.PROXY_API_KEY }}"
+                },
+                "models": {
+                  "llama-3.3-70b": { "context_length": 128000 },
+                  "llama-3.1-8b": { "context_length": 32000 }
+                }
               }
             }
       

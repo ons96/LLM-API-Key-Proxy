@@ -29,17 +29,24 @@ on:
       BOT_PRIVATE_KEY:
         required: true
       PROXY_API_KEY:
-        required: true
-      OPENCODE_MODEL:
         required: false
-      OPENCODE_FAST_MODEL:
+      KILOCODE_API_KEY:
         required: false
-      CUSTOM_PROVIDERS_JSON:
+      ZEN_API_KEY:
         required: false
-  outputs:
-    issues_processed:
-      description: 'Number of issues processed'
-      value: ${{ jobs.discover.outputs.count }}
+      OPENROUTER_API_KEY:
+        required: false
+      GROQ_API_KEY:
+        required: false
+      TOGETHER_API_KEY:
+        required: false
+      CEREBRAS_API_KEY:
+        required: false
+
+outputs:
+  issues_processed:
+    description: 'Number of issues processed'
+    value: ${{ jobs.discover.outputs.count }}
 
 jobs:
   discover:
@@ -91,22 +98,85 @@ jobs:
         app-id: ${{ secrets.BOT_APP_ID }}
         private-key: ${{ secrets.BOT_PRIVATE_KEY }}
 
-    - name: Configure OpenCode
+    - name: Configure OpenCode with Multi-Provider Fallback
+      shell: bash
       run: |
         mkdir -p ~/.config/opencode
-        
-        MODEL="${{ secrets.OPENCODE_MODEL || 'openai/coding-elite' }}"
-        FAST_MODEL="${{ secrets.OPENCODE_FAST_MODEL || 'openai/coding-fast' }}"
-        CUSTOM_PROVIDERS='${{ secrets.CUSTOM_PROVIDERS_JSON || '{}' }}'
-        
-        cat > ~/.config/opencode/opencode.json << EOF
+
+        PROVIDER_JSON=$(cat << 'EOF'
         {
-          "model": "$MODEL",
-          "provider": $CUSTOM_PROVIDERS
+          "$schema": "https://opencode.ai/config.json",
+          "username": "mirrobot-agent",
+          "autoupdate": true,
+          "provider": {
+            "kilocode": {
+              "name": "Kilo Code Gateway",
+              "options": {
+                "baseURL": "https://gateway.kilo.ai/v1",
+                "apiKey": "${{ secrets.KILOCODE_API_KEY || secrets.PROXY_API_KEY }}"
+              },
+              "models": {
+                "auto": { "context_length": 128000 },
+                "auto-fast": { "context_length": 32000 }
+              }
+            },
+            "zen": {
+              "name": "OpenCode Zen",
+              "options": {
+                "baseURL": "https://opencode.ai/zen/v1",
+                "apiKey": "${{ secrets.ZEN_API_KEY || secrets.PROXY_API_KEY }}"
+              },
+              "models": {
+                "auto": { "context_length": 128000 }
+              }
+            },
+            "openrouter": {
+              "name": "OpenRouter Free",
+              "options": {
+                "baseURL": "https://openrouter.ai/api/v1",
+                "apiKey": "${{ secrets.OPENROUTER_API_KEY || secrets.PROXY_API_KEY }}"
+              },
+              "models": {
+                "meta-llama/llama-3.3-70b-instruct:free": { "context_length": 128000 }
+              }
+            },
+            "groq": {
+              "name": "Groq",
+              "options": {
+                "baseURL": "https://api.groq.com/openai/v1",
+                "apiKey": "${{ secrets.GROQ_API_KEY || secrets.PROXY_API_KEY }}"
+              },
+              "models": {
+                "llama-3.3-70b-versatile": { "context_length": 128000 }
+              }
+            },
+            "together": {
+              "name": "Together AI",
+              "options": {
+                "baseURL": "https://api.together.xyz/v1",
+                "apiKey": "${{ secrets.TOGETHER_API_KEY || secrets.PROXY_API_KEY }}"
+              },
+              "models": {
+                "meta-llama/Llama-3.3-70B-Instruct-Turbo": { "context_length": 128000 }
+              }
+            },
+            "cerebras": {
+              "name": "Cerebras",
+              "options": {
+                "baseURL": "https://api.cerebras.ai/v1",
+                "apiKey": "${{ secrets.CEREBRAS_API_KEY || secrets.PROXY_API_KEY }}"
+              },
+              "models": {
+                "llama-3.3-70b": { "context_length": 128000 }
+              }
+            }
+          }
         }
         EOF
-        
-        echo "Using model: $MODEL"
+        )
+
+        echo "$PROVIDER_JSON" > ~/.config/opencode/opencode.json
+        echo "Configured multi-provider fallback system"
 
     - name: Install OpenCode
       run: curl -fsSL https://opencode.ai/install | bash
@@ -123,20 +193,26 @@ jobs:
         BRANCH="fix/issue-${{ matrix.issue.number }}-$(date +%s)"
         git checkout -b "$BRANCH"
 
-        cat > /tmp/fix-prompt.md << 'PROMPT_EOF'
-        Fix GitHub issue #${{ matrix.issue.number }}: ${{ matrix.issue.title }}
-        
-        Issue body:
-        ${{ matrix.issue.body }}
-        
+        ISSUE_TITLE="${{ matrix.issue.title }}"
+        ISSUE_BODY="${{ matrix.issue.body }}"
+
+        PROMPT=$(cat << HEREDOC
+        Fix GitHub issue #${{ matrix.issue.number }}
+
+        Title: $ISSUE_TITLE
+
+        Body:
+        $ISSUE_BODY
+
         Rules:
         1. Make minimal changes to fix the issue
-        2. Follow existing code patterns in the repository
-        3. If you cannot fix it, explain why in a comment
+        2. Follow existing code patterns
+        3. If you cannot fix it, explain why
         4. Create a PR with 'Fixes #${{ matrix.issue.number }}' in the body
-        PROMPT_EOF
+        HEREDOC
+        )
 
-        opencode --prompt "$(cat /tmp/fix-prompt.md)" --non-interactive --timeout 1800 2>&1 | tee output.log || true
+        opencode --prompt "$PROMPT" --non-interactive --timeout 1800 2>&1 | tee output.log || true
 
         if git diff --exit-code; then
           echo "status=no-changes" >> $GITHUB_OUTPUT
