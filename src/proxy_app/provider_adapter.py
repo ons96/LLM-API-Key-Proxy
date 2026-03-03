@@ -390,32 +390,146 @@ class GeminiAdapter(BaseProviderAdapter):
 class G4FAdapter(BaseProviderAdapter):
     """Adapter for G4F (Free GPT) provider."""
 
+    def __init__(self, provider_name: str = "g4f", api_key: Optional[str] = None):
+        """Initialize G4F adapter."""
+        self.provider_name = provider_name
+        self.api_key = api_key
+        self.models: Dict[str, ModelCapabilities] = {}
+        self._initialize_models()
+
     def _initialize_models(self):
         """Initialize G4F model capabilities."""
-        g4f_models = {
-            "gpt-4": ModelCapabilities(
-                provider="g4f",
-                model="gpt-4",
-                supports_tools=False,  # Limited tool support
-                supports_streaming=True,
-                max_context_tokens=8192,
-                max_output_tokens=4096,
-                free_tier_available=True,  # Completely free
-                rate_limit_requests_per_minute=10,  # Conservative estimate
-                tags=["general", "fallback"],
-            ),
-            "gpt-3.5-turbo": ModelCapabilities(
-                provider="g4f",
-                model="gpt-3.5-turbo",
-                supports_tools=False,
-                supports_streaming=True,
-                max_context_tokens=4096,
-                max_output_tokens=2048,
-                free_tier_available=True,
-                rate_limit_requests_per_minute=15,
-                tags=["fast", "general", "fallback"],
-            ),
-        }
+        if self.provider_name == "g4f":
+            g4f_models = {
+                "gpt-4": ModelCapabilities(
+                    provider="g4f",
+                    model="gpt-4",
+                    supports_tools=False,
+                    supports_streaming=True,
+                    max_context_tokens=8192,
+                    max_output_tokens=4096,
+                    free_tier_available=True,
+                    rate_limit_requests_per_minute=10,
+                    tags=["general", "fallback"],
+                ),
+                "gpt-3.5-turbo": ModelCapabilities(
+                    provider="g4f",
+                    model="gpt-3.5-turbo",
+                    supports_tools=False,
+                    supports_streaming=True,
+                    max_context_tokens=4096,
+                    max_output_tokens=2048,
+                    free_tier_available=True,
+                    rate_limit_requests_per_minute=15,
+                    tags=["fast", "general", "fallback"],
+                ),
+            }
+        elif self.provider_name == "g4f_nvidia":
+            g4f_models = {
+                "meta/llama-3.3-70b-instruct": ModelCapabilities(
+                    provider="g4f_nvidia",
+                    model="meta/llama-3.3-70b-instruct",
+                    supports_tools=True,
+                    supports_streaming=True,
+                    max_context_tokens=131072,
+                    max_output_tokens=8192,
+                    free_tier_available=True,
+                    rate_limit_requests_per_minute=30,
+                    tags=["coding", "general"],
+                ),
+                "deepseek-ai/deepseek-v3.1": ModelCapabilities(
+                    provider="g4f_nvidia",
+                    model="deepseek-ai/deepseek-v3.1",
+                    supports_tools=True,
+                    supports_streaming=True,
+                    max_context_tokens=65536,
+                    max_output_tokens=8192,
+                    free_tier_available=True,
+                    rate_limit_requests_per_minute=30,
+                    tags=["coding", "general"],
+                ),
+            }
+        elif self.provider_name == "g4f_pollinations":
+            g4f_models = {
+                "openai": ModelCapabilities(
+                    provider="g4f_pollinations",
+                    model="openai",
+                    supports_tools=False,
+                    supports_streaming=True,
+                    max_context_tokens=8192,
+                    max_output_tokens=4096,
+                    free_tier_available=True,
+                    rate_limit_requests_per_minute=60,
+                    tags=["general", "fast"],
+                ),
+                "openai-fast": ModelCapabilities(
+                    provider="g4f_pollinations",
+                    model="openai-fast",
+                    supports_tools=False,
+                    supports_streaming=True,
+                    max_context_tokens=4096,
+                    max_output_tokens=2048,
+                    free_tier_available=True,
+                    rate_limit_requests_per_minute=60,
+                    tags=["fast"],
+                ),
+            }
+        elif self.provider_name == "g4f_ollama":
+            g4f_models = {
+                "deepseek-v3.2": ModelCapabilities(
+                    provider="g4f_ollama",
+                    model="deepseek-v3.2",
+                    supports_tools=True,
+                    supports_streaming=True,
+                    max_context_tokens=65536,
+                    max_output_tokens=8192,
+                    free_tier_available=True,
+                    rate_limit_requests_per_minute=30,
+                    tags=["coding", "general"],
+                ),
+            }
+        elif self.provider_name == "g4f_gemini":
+            g4f_models = {
+                "gemini-2.5-flash": ModelCapabilities(
+                    provider="g4f_gemini",
+                    model="gemini-2.5-flash",
+                    supports_tools=True,
+                    supports_streaming=True,
+                    max_context_tokens=32768,
+                    max_output_tokens=4096,
+                    free_tier_available=True,
+                    rate_limit_requests_per_minute=30,
+                    tags=["fast", "general"],
+                ),
+            }
+        elif self.provider_name == "g4f_groq":
+            g4f_models = {
+                "llama-3.3-70b-versatile": ModelCapabilities(
+                    provider="g4f_groq",
+                    model="llama-3.3-70b-versatile",
+                    supports_tools=True,
+                    supports_streaming=True,
+                    max_context_tokens=131072,
+                    max_output_tokens=8192,
+                    free_tier_available=True,
+                    rate_limit_requests_per_minute=30,
+                    tags=["coding", "general", "fast"],
+                ),
+            }
+        else:
+            g4f_models = {
+                "gpt-4": ModelCapabilities(
+                    provider=self.provider_name,
+                    model="gpt-4",
+                    supports_tools=False,
+                    supports_streaming=True,
+                    max_context_tokens=8192,
+                    max_output_tokens=4096,
+                    free_tier_available=True,
+                    rate_limit_requests_per_minute=10,
+                    tags=["general"],
+                ),
+            }
 
         self.models.update(g4f_models)
 
