@@ -60,7 +60,7 @@ jobs:
         echo "repos=${REPOS}" >> $GITHUB_OUTPUT
         echo "total=${TOTAL}" >> $GITHUB_OUTPUT
 
-        echo "## 📋 Discovered $TOTAL repositories" >> $GITHUB_STEP_SUMMARY
+        echo "## Discovered $TOTAL repositories" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "$REPOS" | jq -r '.[] | "- \(.name): \(.open_issues_count) open issues"' >> $GITHUB_STEP_SUMMARY
       env:
@@ -82,16 +82,74 @@ jobs:
         repository: ${{ github.repository_owner }}/${{ matrix.repo.name }}
         fetch-depth: 0
 
-    - name: Setup bot
-      uses: ./.github/actions/bot-setup
+    - name: Generate token
+      id: token
+      uses: actions/create-github-app-token@v1
       with:
-        bot-app-id: ${{ secrets.BOT_APP_ID }}
-        bot-private-key: ${{ secrets.BOT_PRIVATE_KEY }}
-        opencode-api-key: ${{ secrets.KILOCODE_API_KEY }}
-        opencode-model: ${{ secrets.OPENCODE_MODEL || 'kilocode/minimax-m2.5' }}
-        opencode-fast-model: ${{ secrets.OPENCODE_FAST_MODEL || 'openrouter/qwen3-coder:free' }}
-        custom-providers-json: ${{ secrets.CUSTOM_PROVIDERS_JSON || '{}' }}
-      continue-on-error: true
+        app-id: ${{ secrets.BOT_APP_ID }}
+        private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+
+    - name: Configure OpenCode with FREE coding models
+      run: |
+        mkdir -p ~/.config/opencode
+
+        cat > ~/.config/opencode/opencode.json << 'OPENCODE_EOF'
+        {
+          "$schema": "https://opencode.ai/config.json",
+          "username": "mirrobot-agent",
+          "model": "openrouter/qwen3-coder:free",
+          "small_model": "openrouter/deepseek/deepseek-chat-v3-0324:free",
+          "provider": {
+            "openrouter": {
+              "name": "OpenRouter FREE Models",
+              "options": {
+                "baseURL": "https://openrouter.ai/api/v1",
+                "apiKey": "${{ secrets.OPENROUTER_API_KEY || secrets.PROXY_API_KEY }}"
+              },
+              "models": {
+                "qwen3-coder:free": { "context_length": 262000 },
+                "qwen-2.5-coder-32b-instruct:free": { "context_length": 32000 },
+                "deepseek/deepseek-chat-v3-0324:free": { "context_length": 64000 },
+                "deepseek/deepseek-r1:free": { "context_length": 16000 },
+                "qwen/qwen3-235b-a22b:free": { "context_length": 128000 },
+                "google/gemini-2.5-flash-preview-05-20:free": { "context_length": 1000000 }
+              }
+            },
+            "groq": {
+              "name": "Groq",
+              "options": {
+                "baseURL": "https://api.groq.com/openai/v1",
+                "apiKey": "${{ secrets.GROQ_API_KEY || secrets.PROXY_API_KEY }}"
+              },
+              "models": {
+                "llama-3.3-70b-versatile": { "context_length": 128000 },
+                "llama-3.1-8b-instant": { "context_length": 128000 }
+              }
+            },
+            "cerebras": {
+              "name": "Cerebras",
+              "options": {
+                "baseURL": "https://api.cerebras.ai/v1",
+                "apiKey": "${{ secrets.CEREBRAS_API_KEY || secrets.PROXY_API_KEY }}"
+              },
+              "models": {
+                "llama-3.3-70b": { "context_length": 128000 }
+              }
+            }
+          }
+        }
+        OPENCODE_EOF
+
+        echo "Configured FREE coding models:"
+        echo "  1. Qwen3 Coder (262K context) - FREE via OpenRouter"
+        echo "  2. DeepSeek V3 Chat (64K) - FREE via OpenRouter"
+        echo "  3. Qwen2.5-Coder-32B - FREE via OpenRouter"
+        echo "  4. DeepSeek R1 (reasoning) - FREE via OpenRouter"
+        echo "  5. Gemini 2.5 Flash - FREE via OpenRouter"
+        echo "  6. Llama-3.3-70B - FREE via Groq/Cerebras"
+
+    - name: Install OpenCode
+      run: curl -fsSL https://opencode.ai/install | bash
 
     - name: Scan for issues
       id: scan
@@ -123,6 +181,8 @@ jobs:
         echo "issues_created=${ISSUES_CREATED}" >> $GITHUB_OUTPUT
       timeout-minutes: 15
       continue-on-error: true
+      env:
+        GH_TOKEN: ${{ steps.token.outputs.token }}
 
     - name: Report scan results
       run: |
@@ -145,16 +205,66 @@ jobs:
         repository: ${{ github.repository_owner }}/${{ matrix.repo.name }}
         fetch-depth: 0
 
-    - name: Setup bot
-      uses: ./.github/actions/bot-setup
+    - name: Generate token
+      id: token
+      uses: actions/create-github-app-token@v1
       with:
-        bot-app-id: ${{ secrets.BOT_APP_ID }}
-        bot-private-key: ${{ secrets.BOT_PRIVATE_KEY }}
-        opencode-api-key: ${{ secrets.KILOCODE_API_KEY }}
-        opencode-model: ${{ secrets.OPENCODE_MODEL || 'kilocode/minimax-m2.5' }}
-        opencode-fast-model: ${{ secrets.OPENCODE_FAST_MODEL || 'openrouter/qwen3-coder:free' }}
-        custom-providers-json: ${{ secrets.CUSTOM_PROVIDERS_JSON || '{}' }}
-      continue-on-error: true
+        app-id: ${{ secrets.BOT_APP_ID }}
+        private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+
+    - name: Configure OpenCode with FREE coding models
+      run: |
+        mkdir -p ~/.config/opencode
+
+        cat > ~/.config/opencode/opencode.json << 'OPENCODE_EOF'
+        {
+          "$schema": "https://opencode.ai/config.json",
+          "username": "mirrobot-agent",
+          "model": "openrouter/qwen3-coder:free",
+          "small_model": "openrouter/deepseek/deepseek-chat-v3-0324:free",
+          "provider": {
+            "openrouter": {
+              "name": "OpenRouter FREE Models",
+              "options": {
+                "baseURL": "https://openrouter.ai/api/v1",
+                "apiKey": "${{ secrets.OPENROUTER_API_KEY || secrets.PROXY_API_KEY }}"
+              },
+              "models": {
+                "qwen3-coder:free": { "context_length": 262000 },
+                "qwen-2.5-coder-32b-instruct:free": { "context_length": 32000 },
+                "deepseek/deepseek-chat-v3-0324:free": { "context_length": 64000 },
+                "deepseek/deepseek-r1:free": { "context_length": 16000 },
+                "qwen/qwen3-235b-a22b:free": { "context_length": 128000 },
+                "google/gemini-2.5-flash-preview-05-20:free": { "context_length": 1000000 }
+              }
+            },
+            "groq": {
+              "name": "Groq",
+              "options": {
+                "baseURL": "https://api.groq.com/openai/v1",
+                "apiKey": "${{ secrets.GROQ_API_KEY || secrets.PROXY_API_KEY }}"
+              },
+              "models": {
+                "llama-3.3-70b-versatile": { "context_length": 128000 },
+                "llama-3.1-8b-instant": { "context_length": 128000 }
+              }
+            },
+            "cerebras": {
+              "name": "Cerebras",
+              "options": {
+                "baseURL": "https://api.cerebras.ai/v1",
+                "apiKey": "${{ secrets.CEREBRAS_API_KEY || secrets.PROXY_API_KEY }}"
+              },
+              "models": {
+                "llama-3.3-70b": { "context_length": 128000 }
+              }
+            }
+          }
+        }
+        OPENCODE_EOF
+
+    - name: Install OpenCode
+      run: curl -fsSL https://opencode.ai/install | bash
 
     - name: Get open issues
       id: issues
@@ -174,7 +284,7 @@ jobs:
         echo "count=${COUNT}" >> $GITHUB_OUTPUT
         echo "Found $COUNT issues to fix"
       env:
-        GH_TOKEN: ${{ steps.generate_token.outputs.token || github.token }}
+        GH_TOKEN: ${{ steps.token.outputs.token }}
 
     - name: Fix issues with OpenCode
       if: steps.issues.outputs.count > 0
@@ -217,7 +327,7 @@ jobs:
           if [ -n "$PR_URL" ]; then
             echo "Created PR: $PR_URL"
             gh issue comment "$NUMBER" --repo "${{ github.repository_owner }}/${{ matrix.repo.name }}" \
-              --body "🔧 AI has created a fix: $PR_URL" || true
+              --body "AI has created a fix: $PR_URL" || true
             gh issue edit "$NUMBER" --repo "${{ github.repository_owner }}/${{ matrix.repo.name }}" \
               --add-label "ai-generated" || true
           fi
@@ -225,7 +335,7 @@ jobs:
       timeout-minutes: 30
       continue-on-error: true
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ steps.token.outputs.token }}
 
     - name: Report fix results
       run: |
@@ -247,6 +357,13 @@ jobs:
       with:
         repository: ${{ github.repository_owner }}/${{ matrix.repo.name }}
 
+    - name: Generate token
+      id: token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ secrets.BOT_APP_ID }}
+        private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+
     - name: Get open PRs
       id: prs
       run: |
@@ -258,7 +375,7 @@ jobs:
 
         echo "prs=${PRS}" >> $GITHUB_OUTPUT
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ steps.token.outputs.token }}
 
     - name: Merge ready PRs
       if: github.event.inputs.merge_prs == 'true'
@@ -281,7 +398,7 @@ jobs:
           fi
         done
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ steps.token.outputs.token }}
 
     - name: Close stale PRs
       run: |
@@ -304,7 +421,7 @@ jobs:
           fi
         done
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ steps.token.outputs.token }}
 
   final-summary:
     needs: [discover-repos, generate-issues, fix-issues, manage-prs]
@@ -313,7 +430,7 @@ jobs:
     steps:
     - name: Generate final summary
       run: |
-        echo "## 🎉 Autonomous Agentic Coding Cycle Complete" >> $GITHUB_STEP_SUMMARY
+        echo "## Autonomous Agentic Coding Cycle Complete" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Processed:" >> $GITHUB_STEP_SUMMARY
         echo "- Repositories: ${{ needs.discover-repos.outputs.total }}" >> $GITHUB_STEP_SUMMARY
@@ -322,8 +439,12 @@ jobs:
         echo "- Auto-merge PRs: ${{ github.event.inputs.merge_prs }}" >> $GITHUB_STEP_SUMMARY
         echo "- Dry run PRs: ${{ github.event.inputs.dry_run_prs }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Models Used:" >> $GITHUB_STEP_SUMMARY
-        echo "- Primary: MiniMax M2.5 (80.2% SWE-Bench)" >> $GITHUB_STEP_SUMMARY
-        echo "- Fallback: Kimi K2.5, Qwen3 Coder, DeepSeek V3" >> $GITHUB_STEP_SUMMARY
+        echo "### FREE Models Used (OpenRouter + Groq + Cerebras):" >> $GITHUB_STEP_SUMMARY
+        echo "- Qwen3 Coder (262K context) - Best FREE coding model" >> $GITHUB_STEP_SUMMARY
+        echo "- DeepSeek V3 Chat (64K) - Excellent coding + reasoning" >> $GITHUB_STEP_SUMMARY
+        echo "- Qwen2.5-Coder-32B - 87.2% HumanEval+" >> $GITHUB_STEP_SUMMARY
+        echo "- DeepSeek R1 - Best FREE reasoning model" >> $GITHUB_STEP_SUMMARY
+        echo "- Gemini 2.5 Flash - 1M context FREE" >> $GITHUB_STEP_SUMMARY
+        echo "- Llama-3.3-70B - Fast fallback via Groq/Cerebras" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "✅ All repos have been scanned, issues generated, and fixes attempted." >> $GITHUB_STEP_SUMMARY
+        echo "All repos have been scanned, issues generated, and fixes attempted." >> $GITHUB_STEP_SUMMARY
