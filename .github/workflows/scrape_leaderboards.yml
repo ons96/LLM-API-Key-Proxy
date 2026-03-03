@@ -1,13 +1,15 @@
 name: Scrape LLM Leaderboards
+
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 2 * * *'
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup
-        run: echo "Syntax fix applied. Ready for AI agents."
-        
+        run: echo "Leaderboard scraper placeholder"
