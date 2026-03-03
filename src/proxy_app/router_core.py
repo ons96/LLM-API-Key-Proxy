@@ -1126,7 +1126,7 @@ class RouterCore:
                 )
             else:
                 # Assume provider-agnostic model, check all providers
-                for provider_name in ["groq", "gemini", "g4f"]:
+                for provider_name in ["groq", "gemini", "g4f", "g4f_ollama", "g4f_pollinations", "g4f_nvidia", "g4f_gemini", "g4f_groq"]:
                     candidates.append(
                         ProviderCandidate(
                             provider=provider_name, model=model_id, priority=5
