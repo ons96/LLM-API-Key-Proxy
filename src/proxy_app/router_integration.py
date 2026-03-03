@@ -45,7 +45,12 @@ class RouterIntegration:
             "groq": "GROQ_API_KEY",
             "gemini": "GEMINI_API_KEY",
             "together": "TOGETHER_API_KEY",
-            "g4f": None,  # g4f doesn't need API key
+            "g4f": None,
+            "g4f_ollama": None,
+            "g4f_pollinations": None,
+            "g4f_nvidia": None,
+            "g4f_gemini": None,
+            "g4f_groq": None,
         }
 
         for provider_name, env_var in provider_configs.items():
