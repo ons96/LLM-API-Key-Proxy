@@ -230,3 +230,32 @@ providers:
     api_key_env: G4F_API_KEY
     rate_limits:
       rpm: 10
+  g4f_ollama:
+    base_url: https://g4f.space/api/ollama
+    api_key_env: G4F_OLLAMA_API_KEY
+    rate_limits:
+      rpm: 30
+
+  g4f_pollinations:
+    base_url: https://g4f.space/api/pollinations
+    api_key_env: G4F_POLLINATIONS_API_KEY
+    rate_limits:
+      rpm: 60
+
+  g4f_nvidia:
+    base_url: https://g4f.space/api/nvidia
+    api_key_env: G4F_NVIDIA_API_KEY
+    rate_limits:
+      rpm: 30
+
+  g4f_gemini:
+    base_url: https://g4f.space/api/gemini
+    api_key_env: G4F_GEMINI_API_KEY
+    rate_limits:
+      rpm: 30
+
+  g4f_groq:
+    base_url: https://g4f.space/api/groq
+    api_key_env: G4F_GROQ_API_KEY
+    rate_limits:
+      rpm: 30
