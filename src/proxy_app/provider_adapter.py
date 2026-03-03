@@ -692,6 +692,11 @@ class ProviderAdapterFactory:
             "groq": GroqAdapter,
             "gemini": GeminiAdapter,
             "g4f": G4FAdapter,
+            "g4f_ollama": G4FAdapter,
+            "g4f_pollinations": G4FAdapter,
+            "g4f_nvidia": G4FAdapter,
+            "g4f_gemini": G4FAdapter,
+            "g4f_groq": G4FAdapter,
             "together": TogetherAdapter,
         }
 
@@ -704,4 +709,14 @@ class ProviderAdapterFactory:
     @staticmethod
     def list_supported_providers() -> List[str]:
         """List all supported providers."""
-        return ["groq", "gemini", "g4f", "together"]
+        return [
+            "groq",
+            "gemini",
+            "g4f",
+            "g4f_ollama",
+            "g4f_pollinations",
+            "g4f_nvidia",
+            "g4f_gemini",
+            "g4f_groq",
+            "together",
+        ]
