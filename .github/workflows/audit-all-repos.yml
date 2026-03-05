@@ -34,15 +34,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           export GH_TOKEN
-          REPOS_RAW=$(gh repo list --limit $MAX_REPOS --json nameWithOwner)
-          python3 -c "
+          python3 << 'PYEOF'
           import json
+          import subprocess
           import os
-          repos = json.loads(os.environ['REPOS_RAW'])
+          
+          result = subprocess.run(['gh', 'repo', 'list', '--limit', os.environ['MAX_REPOS'], '--json', 'nameWithOwner'], 
+                                capture_output=True, text=True, env=dict(os.environ))
+          repos = json.loads(result.stdout)
           repo_list = [r['nameWithOwner'] for r in repos]
-          print('::set-output name=repo_list::' + json.dumps(repo_list))
-          print('::set-output name=count::' + str(len(repo_list)))
-          "
+          
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"repo_list={json.dumps(repo_list)}\n")
+              f.write(f"count={len(repo_list)}\n")
+          print(f"Found {len(repo_list)} repos to audit")
+          PYEOF
 
   audit-repo:
     needs: get-repos

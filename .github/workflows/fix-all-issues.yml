@@ -34,15 +34,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
           export GH_TOKEN
-          
-          python3 -c "
+          python3 << 'PYEOF'
           import json
-          import os
           import subprocess
+          import os
           
-          # Get repos
           result = subprocess.run(['gh', 'repo', 'list', '--limit', os.environ['MAX_REPOS'], '--json', 'nameWithOwner'], 
                                 capture_output=True, text=True, env=dict(os.environ))
           repos = json.loads(result.stdout)
@@ -59,9 +56,11 @@ jobs:
                 repo_issues.append({'repo': repo['nameWithOwner'], 'issues': issue_nums})
                 total += len(issue_nums)
           
-          print(f'::set-output name=repo_issues::{json.dumps(repo_issues)}')
-          print(f'::set-output name=total::{total}')
-          "
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"repo_issues={json.dumps(repo_issues)}\n")
+              f.write(f"total={total}\n")
+          print(f"Found {total} issues across {len(repo_issues)} repos")
+          PYEOF
 
   fix-issue:
     needs: get-repos-with-issues
