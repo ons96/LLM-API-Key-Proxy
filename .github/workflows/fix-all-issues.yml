@@ -31,8 +31,11 @@ jobs:
     steps:
       - name: Get repos with open issues
         id: repos
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          export GH_TOKEN
           
           REPO_ISSUES='[]'
           TOTAL=0
@@ -62,15 +65,21 @@ jobs:
         include: ${{ fromJson(needs.get-repos-with-issues.outputs.repo-issues) }}
     steps:
       - name: Checkout target repo
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          export GH_TOKEN
           gh repo clone "${{ matrix.repo }}" repo-to-fix -- --depth 1
           cd repo-to-fix
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Get issue details
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          export GH_TOKEN
           cd repo-to-fix
           ISSUE_NUM=${{ matrix.issues }}
           
@@ -245,8 +254,11 @@ jobs:
           steps.llm_4.outcome == 'success' ||
           steps.llm_5.outcome == 'success' ||
           steps.llm_6.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          export GH_TOKEN
           cd repo-to-fix
           
           ISSUE_NUM=${{ matrix.issues }}
