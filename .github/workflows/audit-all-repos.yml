@@ -35,10 +35,10 @@ jobs:
         run: |
           export GH_TOKEN
           REPOS=$(gh repo list --limit $MAX_REPOS --json nameWithOwner --jq '.[].nameWithOwner')
-          REPO_JSON=$(echo "$REPOS" | jq -R -s 'split("\n") | map(select(length > 0))')
-          echo "Found $(echo "$REPOS" | wc -l) repos to audit"
-          echo "repo_list=$REPO_JSON" >> $GITHUB_OUTPUT
-          echo "count=$(echo "$REPOS" | wc -l)" >> $GITHUB_OUTPUT
+          COUNT=$(echo "$REPOS" | wc -l)
+          echo "Found $COUNT repos to audit"
+          echo "repo_list=$(echo "$REPOS" | jq -R . | jq -s .)" >> $GITHUB_OUTPUT
+          echo "count=$COUNT" >> $GITHUB_OUTPUT
 
   audit-repo:
     needs: get-repos
