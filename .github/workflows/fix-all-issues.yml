@@ -37,23 +37,31 @@ jobs:
           set -euo pipefail
           export GH_TOKEN
           
-          REPO_ISSUES='[]'
-          TOTAL=0
+          python3 -c "
+          import json
+          import os
+          import subprocess
           
-          for REPO in $(gh repo list --limit $MAX_REPOS --json nameWithOwner --jq '.[].nameWithOwner'); do
-            ISSUES=$(gh issue list --repo "$REPO" --state open --json number --jq '[.[].number]' | head -n $MAX_ISSUES_PER_REPO)
-            COUNT=$(echo "$ISSUES" | jq 'length')
-            
-            if [ "$COUNT" -gt 0 ]; then
-              REPO_ISSUES=$(echo "$REPO_ISSUES" | jq --arg repo "$REPO" --argjson issues "$ISSUES" \
-                '. + [{"repo": $repo, "issues": $issues}]')
-              TOTAL=$((TOTAL + COUNT))
-            fi
-          done
+          # Get repos
+          result = subprocess.run(['gh', 'repo', 'list', '--limit', os.environ['MAX_REPOS'], '--json', 'nameWithOwner'], 
+                                capture_output=True, text=True, env=dict(os.environ))
+          repos = json.loads(result.stdout)
           
-          echo "Found $TOTAL issues across $(echo "$REPO_ISSUES" | jq 'length') repos"
-          echo "repo_issues=$REPO_ISSUES" >> $GITHUB_OUTPUT
-          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          repo_issues = []
+          total = 0
+          
+          for repo in repos:
+            result = subprocess.run(['gh', 'issue', 'list', '--repo', repo['nameWithOwner'], '--state', 'open', '--json', 'number'],
+                                  capture_output=True, text=True, env=dict(os.environ))
+            issues = json.loads(result.stdout)
+            if issues:
+                issue_nums = [i['number'] for i in issues[:int(os.environ.get('MAX_ISSUES_PER_REPO', '5'))]]
+                repo_issues.append({'repo': repo['nameWithOwner'], 'issues': issue_nums})
+                total += len(issue_nums)
+          
+          print(f'::set-output name=repo_issues::{json.dumps(repo_issues)}')
+          print(f'::set-output name=total::{total}')
+          "
 
   fix-issue:
     needs: get-repos-with-issues

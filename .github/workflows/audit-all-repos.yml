@@ -34,11 +34,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           export GH_TOKEN
-          REPOS=$(gh repo list --limit $MAX_REPOS --json nameWithOwner --jq '.[].nameWithOwner')
-          COUNT=$(echo "$REPOS" | wc -l)
-          echo "Found $COUNT repos to audit"
-          echo "repo_list=$(echo "$REPOS" | jq -R . | jq -s .)" >> $GITHUB_OUTPUT
-          echo "count=$COUNT" >> $GITHUB_OUTPUT
+          REPOS_RAW=$(gh repo list --limit $MAX_REPOS --json nameWithOwner)
+          python3 -c "
+          import json
+          import os
+          repos = json.loads(os.environ['REPOS_RAW'])
+          repo_list = [r['nameWithOwner'] for r in repos]
+          print('::set-output name=repo_list::' + json.dumps(repo_list))
+          print('::set-output name=count::' + str(len(repo_list)))
+          "
 
   audit-repo:
     needs: get-repos
