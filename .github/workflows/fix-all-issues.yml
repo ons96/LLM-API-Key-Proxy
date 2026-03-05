@@ -35,12 +35,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
+          export GH_TOKEN="$GH_TOKEN"
+          export GH_HOST=github.com
           
           REPO_ISSUES='[]'
           TOTAL=0
           
-          for REPO in $(gh repo list --json nameWithOwner --jq '.[].nameWithOwner' | head -n ${{ env.MAX_REPOS }}); do
-            ISSUES=$(gh issue list --repo "$REPO" --state open --json number --jq '[.[].number]' | head -n ${{ env.MAX_ISSUES_PER_REPO }})
+          for REPO in $(gh repo list --limit $MAX_REPOS --json nameWithOwner --jq '.[].nameWithOwner'); do
+            ISSUES=$(gh issue list --repo "$REPO" --state open --json number --jq '[.[].number]' | head -n $MAX_ISSUES_PER_REPO)
             COUNT=$(echo "$ISSUES" | jq 'length')
             
             if [ "$COUNT" -gt 0 ]; then
@@ -56,7 +58,7 @@ jobs:
 
   fix-issue:
     needs: get-repos-with-issues
-    if: needs.get-repos-with-issues.outputs.total != '0'
+    if: needs.get-repos-with-issues.outputs.total-issues != '0'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -67,6 +69,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
+          export GH_TOKEN="$GH_TOKEN"
+          export GH_HOST=github.com
           gh repo clone "${{ matrix.repo }}" repo-to-fix -- --depth 1
           cd repo-to-fix
           git config user.name "github-actions[bot]"
@@ -76,6 +80,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
+          set -euo pipefail
+          export GH_TOKEN="$GH_TOKEN"
+          export GH_HOST=github.com
           cd repo-to-fix
           ISSUE_NUM=${{ matrix.issues }}
           
@@ -254,6 +261,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
+          export GH_TOKEN="$GH_TOKEN"
+          export GH_HOST=github.com
           cd repo-to-fix
           
           ISSUE_NUM=${{ matrix.issues }}

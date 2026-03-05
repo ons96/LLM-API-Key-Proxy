@@ -33,7 +33,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          REPOS=$(gh repo list --json nameWithOwner --jq '.[].nameWithOwner' | head -n ${{ env.MAX_REPOS }})
+          export GH_TOKEN="$GH_TOKEN"
+          export GH_HOST=github.com
+          REPOS=$(gh repo list --limit $MAX_REPOS --json nameWithOwner --jq '.[].nameWithOwner')
           REPO_JSON=$(echo "$REPOS" | jq -R -s 'split("\n") | map(select(length > 0))')
           echo "Found $(echo "$REPOS" | wc -l) repos to audit"
           echo "repo_list=$REPO_JSON" >> $GITHUB_OUTPUT
@@ -52,13 +54,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
+          export GH_TOKEN="$GH_TOKEN"
+          export GH_HOST=github.com
           gh repo clone "${{ matrix.repo }}" repo-to-audit -- --depth 1
 
       - name: Build audit prompt
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
+          export GH_TOKEN="$GH_TOKEN"
+          export GH_HOST=github.com
           cd repo-to-audit
-          FILE_COUNT=$(find . -type f -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name '*.go' -o -name '*.rs' 2>/dev/null | wc -l)
-          LANGUAGES=$(gh repo view ${{ matrix.repo }} --json languages --jq '.languages.nodes | map("\(.name): \(.size)") | join(", ")')
+          LANGUAGES=$(gh repo view "${{ matrix.repo }}" --json languages --jq '.languages.nodes | map("\(.name): \(.size)") | join(", ")')
           
           cat > /tmp/audit_prompt.txt << 'ENDPROMPT'
           You are an expert software engineer and security auditor. Analyze this codebase for issues.
@@ -239,6 +246,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
+          export GH_TOKEN="$GH_TOKEN"
+          export GH_HOST=github.com
           RESULT=$(cat /tmp/audit_result.txt)
           
           if echo "$RESULT" | grep -q "AUDIT_COMPLETE: No significant issues found"; then
