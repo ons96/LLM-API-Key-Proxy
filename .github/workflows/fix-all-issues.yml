@@ -1,0 +1,292 @@
+name: Fix All Issues
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */4 * * *'
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+env:
+  MAX_REPOS: 10
+  MAX_ISSUES_PER_REPO: 5
+  PRIMARY_MODEL: 'moonshotai/kimi-k2.5:free'
+  FALLBACK_MODEL_1: 'stepfun/step-3.5-flash:free'
+  FALLBACK_MODEL_2: 'minimax/minimax-m2.5:free'
+  FALLBACK_MODEL_3: 'opencode/minimax-m2.5-free'
+  FALLBACK_MODEL_4: 'z.ai/glm-4.7:free'
+  FALLBACK_MODEL_5: 'arceeai/trinity-large-preview:free'
+  KILO_API_URL: 'https://api.kilo.ai/v1/chat/completions'
+  ZEN_API_URL: 'https://opencode.ai/zen/v1/chat/completions'
+
+jobs:
+  get-repos-with-issues:
+    runs-on: ubuntu-latest
+    outputs:
+      repo-issues: ${{ steps.repos.outputs.repo_issues }}
+      total-issues: ${{ steps.repos.outputs.total }}
+    steps:
+      - name: Get repos with open issues
+        id: repos
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          set -euo pipefail
+          
+          REPO_ISSUES='[]'
+          TOTAL=0
+          
+          for REPO in $(gh repo list --json nameWithOwner --jq '.[].nameWithOwner' | head -n ${{ env.MAX_REPOS }}); do
+            ISSUES=$(gh issue list --repo "$REPO" --state open --json number --jq '[.[].number]' | head -n ${{ env.MAX_ISSUES_PER_REPO }})
+            COUNT=$(echo "$ISSUES" | jq 'length')
+            
+            if [ "$COUNT" -gt 0 ]; then
+              REPO_ISSUES=$(echo "$REPO_ISSUES" | jq --arg repo "$REPO" --argjson issues "$ISSUES" \
+                '. + [{"repo": $repo, "issues": $issues}]')
+              TOTAL=$((TOTAL + COUNT))
+            fi
+          done
+          
+          echo "Found $TOTAL issues across $(echo "$REPO_ISSUES" | jq 'length') repos"
+          echo "repo_issues=$REPO_ISSUES" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+
+  fix-issue:
+    needs: get-repos-with-issues
+    if: needs.get-repos-with-issues.outputs.total != '0'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.get-repos-with-issues.outputs.repo-issues) }}
+    steps:
+      - name: Checkout target repo
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          gh repo clone "${{ matrix.repo }}" repo-to-fix -- --depth 1
+          cd repo-to-fix
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get issue details
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          cd repo-to-fix
+          ISSUE_NUM=${{ matrix.issues }}
+          
+          ISSUE_TITLE=$(gh issue view "$ISSUE_NUM" --repo "${{ matrix.repo }}" --json title --jq '.title')
+          ISSUE_BODY=$(gh issue view "$ISSUE_NUM" --repo "${{ matrix.repo }}" --json body --jq '.body' | head -c 2000)
+          
+          cat > /tmp/fix_prompt.txt << ENDPROMPT
+          You are an expert software engineer. Fix GitHub issue #$ISSUE_NUM in this repository.
+          
+          Issue Title: $ISSUE_TITLE
+          
+          Issue Description:
+          $ISSUE_BODY
+          
+          Instructions:
+          1. Analyze the codebase to understand the issue
+          2. Identify the root cause
+          3. Implement the minimal correct fix
+          4. Write clean, well-commented code
+          5. Explain what you changed and why
+          
+          Provide your fix as a detailed explanation with code changes.
+          ENDPROMPT
+
+      - name: 'Try LLM: Kilo Kimi K2.5'
+        id: llm_1
+        continue-on-error: true
+        env:
+          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+        run: |
+          PAYLOAD=$(python3 -c "
+          import json
+          with open('/tmp/fix_prompt.txt') as f:
+              content = f.read()
+          payload = {
+              'model': '${{ env.PRIMARY_MODEL }}',
+              'max_tokens': 8192,
+              'messages': [{'role': 'user', 'content': content}]
+          }
+          print(json.dumps(payload))
+          ")
+          RESP=$(curl -sf --max-time 180 -X POST "${{ env.KILO_API_URL }}" -H "Authorization: Bearer $KILOCODE_API_KEY" -H "Content-Type: application/json" -d "$PAYLOAD") || exit 1
+          echo "$RESP" | jq -r '.choices[0].message.content' > /tmp/fix_result.txt
+          echo "RESULT_SOURCE=llm_1" >> $GITHUB_OUTPUT
+
+      - name: 'Try LLM: Kilo Step 3.5 Flash'
+        id: llm_2
+        if: steps.llm_1.outcome == 'failure'
+        continue-on-error: true
+        env:
+          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+        run: |
+          PAYLOAD=$(python3 -c "
+          import json
+          with open('/tmp/fix_prompt.txt') as f:
+              content = f.read()
+          payload = {
+              'model': '${{ env.FALLBACK_MODEL_1 }}',
+              'max_tokens': 8192,
+              'messages': [{'role': 'user', 'content': content}]
+          }
+          print(json.dumps(payload))
+          ")
+          RESP=$(curl -sf --max-time 180 -X POST "${{ env.KILO_API_URL }}" -H "Authorization: Bearer $KILOCODE_API_KEY" -H "Content-Type: application/json" -d "$PAYLOAD") || exit 1
+          echo "$RESP" | jq -r '.choices[0].message.content' > /tmp/fix_result.txt
+          echo "RESULT_SOURCE=llm_2" >> $GITHUB_OUTPUT
+
+      - name: 'Try LLM: Kilo MiniMax M2.5'
+        id: llm_3
+        if: steps.llm_1.outcome == 'failure' && steps.llm_2.outcome == 'failure'
+        continue-on-error: true
+        env:
+          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+        run: |
+          PAYLOAD=$(python3 -c "
+          import json
+          with open('/tmp/fix_prompt.txt') as f:
+              content = f.read()
+          payload = {
+              'model': '${{ env.FALLBACK_MODEL_2 }}',
+              'max_tokens': 8192,
+              'messages': [{'role': 'user', 'content': content}]
+          }
+          print(json.dumps(payload))
+          ")
+          RESP=$(curl -sf --max-time 180 -X POST "${{ env.KILO_API_URL }}" -H "Authorization: Bearer $KILOCODE_API_KEY" -H "Content-Type: application/json" -d "$PAYLOAD") || exit 1
+          echo "$RESP" | jq -r '.choices[0].message.content' > /tmp/fix_result.txt
+          echo "RESULT_SOURCE=llm_3" >> $GITHUB_OUTPUT
+
+      - name: 'Try LLM: Zen MiniMax M2.5'
+        id: llm_4
+        if: steps.llm_1.outcome == 'failure' && steps.llm_2.outcome == 'failure' && steps.llm_3.outcome == 'failure'
+        continue-on-error: true
+        env:
+          ZEN_API_KEY: ${{ secrets.ZEN_API_KEY }}
+        run: |
+          PAYLOAD=$(python3 -c "
+          import json
+          with open('/tmp/fix_prompt.txt') as f:
+              content = f.read()
+          payload = {
+              'model': '${{ env.FALLBACK_MODEL_3 }}',
+              'max_tokens': 8192,
+              'messages': [{'role': 'user', 'content': content}]
+          }
+          print(json.dumps(payload))
+          ")
+          RESP=$(curl -sf --max-time 180 -X POST "${{ env.ZEN_API_URL }}" -H "Authorization: Bearer $ZEN_API_KEY" -H "Content-Type: application/json" -d "$PAYLOAD") || exit 1
+          echo "$RESP" | jq -r '.choices[0].message.content' > /tmp/fix_result.txt
+          echo "RESULT_SOURCE=llm_4" >> $GITHUB_OUTPUT
+
+      - name: 'Try LLM: Kilo GLM 4.7'
+        id: llm_5
+        if: steps.llm_1.outcome == 'failure' && steps.llm_2.outcome == 'failure' && steps.llm_3.outcome == 'failure' && steps.llm_4.outcome == 'failure'
+        continue-on-error: true
+        env:
+          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+        run: |
+          PAYLOAD=$(python3 -c "
+          import json
+          with open('/tmp/fix_prompt.txt') as f:
+              content = f.read()
+          payload = {
+              'model': '${{ env.FALLBACK_MODEL_4 }}',
+              'max_tokens': 8192,
+              'messages': [{'role': 'user', 'content': content}]
+          }
+          print(json.dumps(payload))
+          ")
+          RESP=$(curl -sf --max-time 180 -X POST "${{ env.KILO_API_URL }}" -H "Authorization: Bearer $KILOCODE_API_KEY" -H "Content-Type: application/json" -d "$PAYLOAD") || exit 1
+          echo "$RESP" | jq -r '.choices[0].message.content' > /tmp/fix_result.txt
+          echo "RESULT_SOURCE=llm_5" >> $GITHUB_OUTPUT
+
+      - name: 'Try LLM: Kilo Trinity Large Preview'
+        id: llm_6
+        if: steps.llm_1.outcome == 'failure' && steps.llm_2.outcome == 'failure' && steps.llm_3.outcome == 'failure' && steps.llm_4.outcome == 'failure' && steps.llm_5.outcome == 'failure'
+        continue-on-error: true
+        env:
+          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+        run: |
+          PAYLOAD=$(python3 -c "
+          import json
+          with open('/tmp/fix_prompt.txt') as f:
+              content = f.read()
+          payload = {
+              'model': '${{ env.FALLBACK_MODEL_5 }}',
+              'max_tokens': 8192,
+              'messages': [{'role': 'user', 'content': content}]
+          }
+          print(json.dumps(payload))
+          ")
+          RESP=$(curl -sf --max-time 180 -X POST "${{ env.KILO_API_URL }}" -H "Authorization: Bearer $KILOCODE_API_KEY" -H "Content-Type: application/json" -d "$PAYLOAD") || exit 1
+          echo "$RESP" | jq -r '.choices[0].message.content' > /tmp/fix_result.txt
+          echo "RESULT_SOURCE=llm_6" >> $GITHUB_OUTPUT
+
+      - name: Check all LLMs failed
+        if: |
+          steps.llm_1.outcome == 'failure' &&
+          steps.llm_2.outcome == 'failure' &&
+          steps.llm_3.outcome == 'failure' &&
+          steps.llm_4.outcome == 'failure' &&
+          steps.llm_5.outcome == 'failure' &&
+          steps.llm_6.outcome == 'failure'
+        run: |
+          echo "All LLMs failed for issue ${{ matrix.issues }} in ${{ matrix.repo }}"
+
+      - name: Create fix branch and PR
+        if: |
+          steps.llm_1.outcome == 'success' ||
+          steps.llm_2.outcome == 'success' ||
+          steps.llm_3.outcome == 'success' ||
+          steps.llm_4.outcome == 'success' ||
+          steps.llm_5.outcome == 'success' ||
+          steps.llm_6.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd repo-to-fix
+          
+          ISSUE_NUM=${{ matrix.issues }}
+          BRANCH="fix/issue-${ISSUE_NUM}-$(date +%s)"
+          
+          RESULT=$(cat /tmp/fix_result.txt)
+          
+          mkdir -p .github/agent-patches
+          cp /tmp/fix_result.txt ".github/agent-patches/issue-${ISSUE_NUM}.md"
+          
+          git checkout -b "$BRANCH"
+          git add -A
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit for issue #$ISSUE_NUM"
+            exit 0
+          fi
+          
+          git commit -m "fix: AI agent patch for issue #$ISSUE_NUM"
+          git push origin "$BRANCH" --force-with-lease
+          
+          MODEL_USED="${{ steps.llm_1.outputs.RESULT_SOURCE || steps.llm_2.outputs.RESULT_SOURCE || steps.llm_3.outputs.RESULT_SOURCE || steps.llm_4.outputs.RESULT_SOURCE || steps.llm_5.outputs.RESULT_SOURCE || steps.llm_6.outputs.RESULT_SOURCE }}"
+          
+          PR_BODY_FILE=$(mktemp)
+          cat > "$PR_BODY_FILE" << EOPR
+          ## Summary
+          Auto-generated fix for issue #$ISSUE_NUM
+          
+          **Fixed with**: $MODEL_USED
+          
+          See \`.github/agent-patches/issue-${ISSUE_NUM}.md\` for AI reasoning.
+          EOPR
+          
+          gh pr create --title "fix: resolve issue #$ISSUE_NUM" --body-file "$PR_BODY_FILE" --head "$BRANCH" --base main || true
+          
+          echo "Created fix for issue #$ISSUE_NUM in ${{ matrix.repo }}"

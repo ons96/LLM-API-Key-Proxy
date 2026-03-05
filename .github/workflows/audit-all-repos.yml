@@ -1,0 +1,282 @@
+name: Audit All Repos
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *'
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+env:
+  MAX_REPOS: 20
+  PRIMARY_MODEL: 'moonshotai/kimi-k2.5:free'
+  FALLBACK_MODEL_1: 'stepfun/step-3.5-flash:free'
+  FALLBACK_MODEL_2: 'minimax/minimax-m2.5:free'
+  FALLBACK_MODEL_3: 'opencode/minimax-m2.5-free'
+  FALLBACK_MODEL_4: 'z.ai/glm-4.7:free'
+  FALLBACK_MODEL_5: 'arceeai/trinity-large-preview:free'
+  KILO_API_URL: 'https://api.kilo.ai/v1/chat/completions'
+  ZEN_API_URL: 'https://opencode.ai/zen/v1/chat/completions'
+
+jobs:
+  get-repos:
+    runs-on: ubuntu-latest
+    outputs:
+      repo-list: ${{ steps.repos.outputs.repo_list }}
+      repo-count: ${{ steps.repos.outputs.count }}
+    steps:
+      - name: Get all repos
+        id: repos
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          REPOS=$(gh repo list --json nameWithOwner --jq '.[].nameWithOwner' | head -n ${{ env.MAX_REPOS }})
+          REPO_JSON=$(echo "$REPOS" | jq -R -s 'split("\n") | map(select(length > 0))')
+          echo "Found $(echo "$REPOS" | wc -l) repos to audit"
+          echo "repo_list=$REPO_JSON" >> $GITHUB_OUTPUT
+          echo "count=$(echo "$REPOS" | wc -l)" >> $GITHUB_OUTPUT
+
+  audit-repo:
+    needs: get-repos
+    if: needs.get-repos.outputs.repo-count != '0'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: ${{ fromJson(needs.get-repos.outputs.repo-list) }}
+    steps:
+      - name: Clone target repo
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          gh repo clone "${{ matrix.repo }}" repo-to-audit -- --depth 1
+
+      - name: Build audit prompt
+        run: |
+          cd repo-to-audit
+          FILE_COUNT=$(find . -type f -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name '*.go' -o -name '*.rs' 2>/dev/null | wc -l)
+          LANGUAGES=$(gh repo view ${{ matrix.repo }} --json languages --jq '.languages.nodes | map("\(.name): \(.size)") | join(", ")')
+          
+          cat > /tmp/audit_prompt.txt << 'ENDPROMPT'
+          You are an expert software engineer and security auditor. Analyze this codebase for issues.
+          REPO: ${{ matrix.repo }}
+          LANGUAGES: $LANGUAGES
+          Analyze the codebase and identify:
+          1. Bugs or logical errors
+          2. Security vulnerabilities
+          3. Code quality issues
+          4. Missing error handling
+          5. Potential performance issues
+          6. Outdated dependencies
+          For each issue found, provide:
+          - File/location
+          - Problem description
+          - Severity (critical/high/medium/low)
+          - Suggested fix
+          If no issues found, respond with "AUDIT_COMPLETE: No significant issues found."
+          Otherwise, provide a detailed list of issues in markdown format.
+          ENDPROMPT
+          
+          echo "=== FILE STRUCTURE ===" >> /tmp/audit_prompt.txt
+          find . -type f \( -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name '*.tsx' -o -name '*.go' -o -name '*.rs' -o -name '*.java' -o -name '*.cs' \) 2>/dev/null | head -100 >> /tmp/audit_prompt.txt
+
+      - name: 'Try LLM: Kilo Kimi K2.5'
+        id: llm_1
+        continue-on-error: true
+        env:
+          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+        run: |
+          PAYLOAD=$(python3 -c "
+          import json
+          with open('/tmp/audit_prompt.txt') as f:
+              content = f.read()
+          payload = {
+              'model': '${{ env.PRIMARY_MODEL }}',
+              'max_tokens': 8192,
+              'messages': [{'role': 'user', 'content': content}]
+          }
+          print(json.dumps(payload))
+          ")
+          RESP=$(curl -sf --max-time 180 -X POST "${{ env.KILO_API_URL }}" -H "Authorization: Bearer $KILOCODE_API_KEY" -H "Content-Type: application/json" -d "$PAYLOAD") || exit 1
+          echo "$RESP" | jq -r '.choices[0].message.content' > /tmp/audit_result.txt
+          echo "RESULT_SOURCE=llm_1" >> $GITHUB_OUTPUT
+
+      - name: 'Try LLM: Kilo Step 3.5 Flash'
+        id: llm_2
+        if: steps.llm_1.outcome == 'failure'
+        continue-on-error: true
+        env:
+          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+        run: |
+          PAYLOAD=$(python3 -c "
+          import json
+          with open('/tmp/audit_prompt.txt') as f:
+              content = f.read()
+          payload = {
+              'model': '${{ env.FALLBACK_MODEL_1 }}',
+              'max_tokens': 8192,
+              'messages': [{'role': 'user', 'content': content}]
+          }
+          print(json.dumps(payload))
+          ")
+          RESP=$(curl -sf --max-time 180 -X POST "${{ env.KILO_API_URL }}" -H "Authorization: Bearer $KILOCODE_API_KEY" -H "Content-Type: application/json" -d "$PAYLOAD") || exit 1
+          echo "$RESP" | jq -r '.choices[0].message.content' > /tmp/audit_result.txt
+          echo "RESULT_SOURCE=llm_2" >> $GITHUB_OUTPUT
+
+      - name: 'Try LLM: Kilo MiniMax M2.5'
+        id: llm_3
+        if: steps.llm_1.outcome == 'failure' && steps.llm_2.outcome == 'failure'
+        continue-on-error: true
+        env:
+          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+        run: |
+          PAYLOAD=$(python3 -c "
+          import json
+          with open('/tmp/audit_prompt.txt') as f:
+              content = f.read()
+          payload = {
+              'model': '${{ env.FALLBACK_MODEL_2 }}',
+              'max_tokens': 8192,
+              'messages': [{'role': 'user', 'content': content}]
+          }
+          print(json.dumps(payload))
+          ")
+          RESP=$(curl -sf --max-time 180 -X POST "${{ env.KILO_API_URL }}" -H "Authorization: Bearer $KILOCODE_API_KEY" -H "Content-Type: application/json" -d "$PAYLOAD") || exit 1
+          echo "$RESP" | jq -r '.choices[0].message.content' > /tmp/audit_result.txt
+          echo "RESULT_SOURCE=llm_3" >> $GITHUB_OUTPUT
+
+      - name: 'Try LLM: Zen MiniMax M2.5'
+        id: llm_4
+        if: steps.llm_1.outcome == 'failure' && steps.llm_2.outcome == 'failure' && steps.llm_3.outcome == 'failure'
+        continue-on-error: true
+        env:
+          ZEN_API_KEY: ${{ secrets.ZEN_API_KEY }}
+        run: |
+          PAYLOAD=$(python3 -c "
+          import json
+          with open('/tmp/audit_prompt.txt') as f:
+              content = f.read()
+          payload = {
+              'model': '${{ env.FALLBACK_MODEL_3 }}',
+              'max_tokens': 8192,
+              'messages': [{'role': 'user', 'content': content}]
+          }
+          print(json.dumps(payload))
+          ")
+          RESP=$(curl -sf --max-time 180 -X POST "${{ env.ZEN_API_URL }}" -H "Authorization: Bearer $ZEN_API_KEY" -H "Content-Type: application/json" -d "$PAYLOAD") || exit 1
+          echo "$RESP" | jq -r '.choices[0].message.content' > /tmp/audit_result.txt
+          echo "RESULT_SOURCE=llm_4" >> $GITHUB_OUTPUT
+
+      - name: 'Try LLM: Kilo GLM 4.7'
+        id: llm_5
+        if: steps.llm_1.outcome == 'failure' && steps.llm_2.outcome == 'failure' && steps.llm_3.outcome == 'failure' && steps.llm_4.outcome == 'failure'
+        continue-on-error: true
+        env:
+          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+        run: |
+          PAYLOAD=$(python3 -c "
+          import json
+          with open('/tmp/audit_prompt.txt') as f:
+              content = f.read()
+          payload = {
+              'model': '${{ env.FALLBACK_MODEL_4 }}',
+              'max_tokens': 8192,
+              'messages': [{'role': 'user', 'content': content}]
+          }
+          print(json.dumps(payload))
+          ")
+          RESP=$(curl -sf --max-time 180 -X POST "${{ env.KILO_API_URL }}" -H "Authorization: Bearer $KILOCODE_API_KEY" -H "Content-Type: application/json" -d "$PAYLOAD") || exit 1
+          echo "$RESP" | jq -r '.choices[0].message.content' > /tmp/audit_result.txt
+          echo "RESULT_SOURCE=llm_5" >> $GITHUB_OUTPUT
+
+      - name: 'Try LLM: Kilo Trinity Large Preview'
+        id: llm_6
+        if: steps.llm_1.outcome == 'failure' && steps.llm_2.outcome == 'failure' && steps.llm_3.outcome == 'failure' && steps.llm_4.outcome == 'failure' && steps.llm_5.outcome == 'failure'
+        continue-on-error: true
+        env:
+          KILOCODE_API_KEY: ${{ secrets.KILOCODE_API_KEY }}
+        run: |
+          PAYLOAD=$(python3 -c "
+          import json
+          with open('/tmp/audit_prompt.txt') as f:
+              content = f.read()
+          payload = {
+              'model': '${{ env.FALLBACK_MODEL_5 }}',
+              'max_tokens': 8192,
+              'messages': [{'role': 'user', 'content': content}]
+          }
+          print(json.dumps(payload))
+          ")
+          RESP=$(curl -sf --max-time 180 -X POST "${{ env.KILO_API_URL }}" -H "Authorization: Bearer $KILOCODE_API_KEY" -H "Content-Type: application/json" -d "$PAYLOAD") || exit 1
+          echo "$RESP" | jq -r '.choices[0].message.content' > /tmp/audit_result.txt
+          echo "RESULT_SOURCE=llm_6" >> $GITHUB_OUTPUT
+
+      - name: Check all LLMs failed
+        id: check_failure
+        if: |
+          steps.llm_1.outcome == 'failure' &&
+          steps.llm_2.outcome == 'failure' &&
+          steps.llm_3.outcome == 'failure' &&
+          steps.llm_4.outcome == 'failure' &&
+          steps.llm_5.outcome == 'failure' &&
+          steps.llm_6.outcome == 'failure'
+        run: |
+          echo "All 6 free LLMs failed for repo ${{ matrix.repo }}. Skipping."
+          echo "ALL_FAILED=true" >> $GITHUB_OUTPUT
+
+      - name: Create issue on audited repo
+        if: |
+          (steps.llm_1.outcome == 'success' ||
+          steps.llm_2.outcome == 'success' ||
+          steps.llm_3.outcome == 'success' ||
+          steps.llm_4.outcome == 'success' ||
+          steps.llm_5.outcome == 'success' ||
+          steps.llm_6.outcome == 'success') && steps.check_failure.outputs.ALL_FAILED != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          set -euo pipefail
+          RESULT=$(cat /tmp/audit_result.txt)
+          
+          if echo "$RESULT" | grep -q "AUDIT_COMPLETE: No significant issues found"; then
+            echo "No issues found in ${{ matrix.repo }}"
+            exit 0
+          fi
+          
+          if [ -z "$RESULT" ] || [ ${#RESULT} -lt 50 ]; then
+            echo "Audit result too short, skipping"
+            exit 0
+          fi
+          
+          MODEL_USED="${{ steps.llm_1.outputs.RESULT_SOURCE || steps.llm_2.outputs.RESULT_SOURCE || steps.llm_3.outputs.RESULT_SOURCE || steps.llm_4.outputs.RESULT_SOURCE || steps.llm_5.outputs.RESULT_SOURCE || steps.llm_6.outputs.RESULT_SOURCE }}"
+          
+          ISSUE_BODY_FILE=$(mktemp)
+          cat > "$ISSUE_BODY_FILE" << EOBODY
+          ## Code Audit Results
+          
+          This issue was automatically created by the Audit All Repos workflow.
+          
+          **Analyzed with**: $MODEL_USED
+          **Date**: $(date -u +"%Y-%m-%d %H:%M UTC")
+          
+          ---
+          
+          $RESULT
+          
+          ---
+          
+          *This is an automated audit finding. Please review and address as needed.*
+          EOBODY
+          
+          EXISTING=$(gh issue list --repo "${{ matrix.repo }}" --state open --search "Code Audit - Issues Found" --json number --jq '.[0].number' 2>/dev/null || true)
+          
+          if [ -z "$EXISTING" ]; then
+            gh issue create --repo "${{ matrix.repo }}" --title "🔍 Code Audit - Issues Found" --body-file "$ISSUE_BODY_FILE"
+            echo "Created audit issue on ${{ matrix.repo }}"
+          else
+            gh issue comment --repo "${{ matrix.repo }}" "$EXISTING" --body "**Re-run audit - $(date -u +"%Y-%m-%d %H:%M UTC")**"$'\n\n'"$RESULT"
+            echo "Updated audit issue on ${{ matrix.repo }}"
+          fi
