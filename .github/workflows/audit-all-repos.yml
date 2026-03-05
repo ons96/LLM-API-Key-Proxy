@@ -31,7 +31,7 @@ jobs:
       - name: Get all repos
         id: repos
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           REPOS=$(gh repo list --json nameWithOwner --jq '.[].nameWithOwner' | head -n ${{ env.MAX_REPOS }})
           REPO_JSON=$(echo "$REPOS" | jq -R -s 'split("\n") | map(select(length > 0))')
@@ -50,7 +50,7 @@ jobs:
     steps:
       - name: Clone target repo
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           gh repo clone "${{ matrix.repo }}" repo-to-audit -- --depth 1
 
@@ -236,7 +236,7 @@ jobs:
           steps.llm_5.outcome == 'success' ||
           steps.llm_6.outcome == 'success') && steps.check_failure.outputs.ALL_FAILED != 'true'
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
           RESULT=$(cat /tmp/audit_result.txt)

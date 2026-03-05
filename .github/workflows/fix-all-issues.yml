@@ -32,7 +32,7 @@ jobs:
       - name: Get repos with open issues
         id: repos
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
           
@@ -65,7 +65,7 @@ jobs:
     steps:
       - name: Checkout target repo
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           gh repo clone "${{ matrix.repo }}" repo-to-fix -- --depth 1
           cd repo-to-fix
@@ -74,7 +74,7 @@ jobs:
 
       - name: Get issue details
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           cd repo-to-fix
           ISSUE_NUM=${{ matrix.issues }}
@@ -251,7 +251,7 @@ jobs:
           steps.llm_5.outcome == 'success' ||
           steps.llm_6.outcome == 'success'
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
           cd repo-to-fix
