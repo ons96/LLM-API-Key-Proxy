@@ -31,12 +31,8 @@ jobs:
     steps:
       - name: Get repos with open issues
         id: repos
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
-          export GH_TOKEN="$GH_TOKEN"
-          export GH_HOST=github.com
           
           REPO_ISSUES='[]'
           TOTAL=0
@@ -66,23 +62,15 @@ jobs:
         include: ${{ fromJson(needs.get-repos-with-issues.outputs.repo-issues) }}
     steps:
       - name: Checkout target repo
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          export GH_TOKEN="$GH_TOKEN"
-          export GH_HOST=github.com
           gh repo clone "${{ matrix.repo }}" repo-to-fix -- --depth 1
           cd repo-to-fix
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Get issue details
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
-          export GH_TOKEN="$GH_TOKEN"
-          export GH_HOST=github.com
           cd repo-to-fix
           ISSUE_NUM=${{ matrix.issues }}
           
@@ -101,7 +89,7 @@ jobs:
           1. Analyze the codebase to understand the issue
           2. Identify the root cause
           3. Implement the minimal correct fix
-          4. Write clean, well-commented code
+          4. Write clean code
           5. Explain what you changed and why
           
           Provide your fix as a detailed explanation with code changes.
@@ -257,12 +245,8 @@ jobs:
           steps.llm_4.outcome == 'success' ||
           steps.llm_5.outcome == 'success' ||
           steps.llm_6.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
-          export GH_TOKEN="$GH_TOKEN"
-          export GH_HOST=github.com
           cd repo-to-fix
           
           ISSUE_NUM=${{ matrix.issues }}

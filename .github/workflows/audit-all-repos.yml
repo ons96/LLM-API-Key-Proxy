@@ -30,11 +30,7 @@ jobs:
     steps:
       - name: Get all repos
         id: repos
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          export GH_TOKEN="$GH_TOKEN"
-          export GH_HOST=github.com
           REPOS=$(gh repo list --limit $MAX_REPOS --json nameWithOwner --jq '.[].nameWithOwner')
           REPO_JSON=$(echo "$REPOS" | jq -R -s 'split("\n") | map(select(length > 0))')
           echo "Found $(echo "$REPOS" | wc -l) repos to audit"
@@ -51,19 +47,11 @@ jobs:
         repo: ${{ fromJson(needs.get-repos.outputs.repo-list) }}
     steps:
       - name: Clone target repo
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          export GH_TOKEN="$GH_TOKEN"
-          export GH_HOST=github.com
           gh repo clone "${{ matrix.repo }}" repo-to-audit -- --depth 1
 
       - name: Build audit prompt
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
-          export GH_TOKEN="$GH_TOKEN"
-          export GH_HOST=github.com
           cd repo-to-audit
           LANGUAGES=$(gh repo view "${{ matrix.repo }}" --json languages --jq '.languages.nodes | map("\(.name): \(.size)") | join(", ")')
           
@@ -242,12 +230,8 @@ jobs:
           steps.llm_4.outcome == 'success' ||
           steps.llm_5.outcome == 'success' ||
           steps.llm_6.outcome == 'success') && steps.check_failure.outputs.ALL_FAILED != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -euo pipefail
-          export GH_TOKEN="$GH_TOKEN"
-          export GH_HOST=github.com
           RESULT=$(cat /tmp/audit_result.txt)
           
           if echo "$RESULT" | grep -q "AUDIT_COMPLETE: No significant issues found"; then
