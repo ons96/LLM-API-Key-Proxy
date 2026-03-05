@@ -67,17 +67,12 @@ jobs:
           gh repo clone "${{ matrix.repo }}" repo-to-audit -- --depth 1
 
       - name: Build audit prompt
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          export GH_TOKEN
           cd repo-to-audit
-          LANGUAGES=$(gh repo view "${{ matrix.repo }}" --json languages --jq '.languages.nodes | map("\(.name): \(.size)") | join(", ")')
           
           cat > /tmp/audit_prompt.txt << 'ENDPROMPT'
           You are an expert software engineer and security auditor. Analyze this codebase for issues.
           REPO: ${{ matrix.repo }}
-          LANGUAGES: $LANGUAGES
           Analyze the codebase and identify:
           1. Bugs or logical errors
           2. Security vulnerabilities
