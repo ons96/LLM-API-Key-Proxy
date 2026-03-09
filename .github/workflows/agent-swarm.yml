@@ -39,7 +39,7 @@ jobs:
 
       - name: Run BMAD Ralph Loop
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GH_TOKEN: ${{ github.token }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL: "coding-elite" # Virtual model pointing to your Gateway
