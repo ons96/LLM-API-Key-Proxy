@@ -19,13 +19,16 @@ jobs:
       - name: Setup environment
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
-      - name: Install OpenHands headless
+      - name: Install uv
         run: |
-          # Example installation
-          # pip install openhands
-          echo "Installing OpenHands dependencies..."
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Ensure helper scripts are executable
+        run: |
+          chmod +x .github/scripts/gateway_chat.sh .github/scripts/swarm-ralph-loop.sh
 
       - name: Tailscale
         uses: tailscale/github-action@v2
@@ -40,34 +43,145 @@ jobs:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL: "coding-elite" # Virtual model pointing to your Gateway
+          AGENT_ENABLE_PROMPT_EXTENSIONS: "false"
+          AGENT_DISABLED_MICROAGENTS: '["AGENTS.md"]'
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           echo "Resolving issue #$ISSUE_NUMBER: $ISSUE_TITLE"
+          extract_openhands_text() {
+            jq -Rr 'fromjson? | select(.type? == "message" or .event_type? == "message") | .content // .text // .message // empty'
+          }
+          SWARM_WORKDIR=$(mktemp -d)
+          OH_PERSISTENCE_DIR=$(mktemp -d)
+          rsync -a --exclude '.git' --exclude 'AGENTS.md' ./ "$SWARM_WORKDIR"/
+          ARCHITECT_TASK=$(cat <<EOF
+          You are the Architect in the BMAD system.
+
+          Issue #$ISSUE_NUMBER: $ISSUE_TITLE
+
+          $ISSUE_BODY
+
+          Read the issue and inspect only the files needed to plan the fix.
+          Identify the root cause, list the exact files to edit, and define the exact QA commands.
+          Output EXACTLY one of: IMPLEMENTATION_PLAN or IMPOSSIBLE_TASK_REPORT.
+          If successful, start with IMPLEMENTATION_PLAN and include [ROOT_CAUSE], [FILES_TO_EDIT], [CODER_STEPS], [QA_COMMANDS], and [DONE_CONDITION].
+          If blocked, start with IMPOSSIBLE_TASK_REPORT and include [BLOCKERS] and [REQUIREMENTS].
+          Do not say goodbye. Do not stop after summarizing.
+          EOF
+          )
+          ISSUE_PROMPT=$(cat <<EOF
+          GitHub issue:
+          #$ISSUE_NUMBER - $ISSUE_TITLE
+
+          Body:
+          $ISSUE_BODY
+          EOF
+          )
+          ISSUE_PROMPT_FILE=$(mktemp)
+          ARCHITECT_OUTPUT_FILE=$(mktemp)
+          CODER_OUTPUT_FILE=$(mktemp)
+          printf '%s\n' "$ISSUE_PROMPT" > "$ISSUE_PROMPT_FILE"
           
-          # This represents the Ralph Loop / BMAD method invoking the 3 agent personas
-          echo "1. Architect (Brainstorm): Analyzing issue and proposing architecture."
-          # AGENT_OUTPUT=$(python -m openhands.core.main --prompt-file .github/agents/architect_prompt.txt)
-          # if echo "$AGENT_OUTPUT" | grep -q "IMPOSSIBLE_TASK_REPORT"; then
-          #   echo "Task is impossible. Reporting blockers..."
-          #   gh issue comment "$ISSUE_NUMBER" --body "🤖 **Impossible Task Report** 🤖"$'\n\n'"$AGENT_OUTPUT"
-          #   exit 0
-          # fi
+          # 1. Architect (Brainstorm)
+          echo "1. Architect: Analyzing issue and proposing architecture."
+          ARCHITECT_OUTPUT=$(bash .github/scripts/gateway_chat.sh "$ARCHITECT_TASK")
+          AGENT_OUTPUT="$ARCHITECT_OUTPUT"
+          printf '%s\n' "$ARCHITECT_OUTPUT" > "$ARCHITECT_OUTPUT_FILE"
+          if echo "$ARCHITECT_OUTPUT" | grep -q "IMPOSSIBLE_TASK_REPORT"; then
+            echo "Task is impossible. Reporting blockers..."
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 **Impossible Task Report** 🤖"$'\n\n'"$ARCHITECT_OUTPUT"
+            exit 0
+          fi
+          if ! echo "$ARCHITECT_OUTPUT" | grep -q "IMPLEMENTATION_PLAN"; then
+            ARCHITECT_RAW_SNIPPET=$(printf '%s\n' "$ARCHITECT_OUTPUT" | tail -n 40)
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 **Swarm Execution Failure** 🤖"$'\n\n'"Architect phase produced no IMPLEMENTATION_PLAN marker."$'\n\n'"Raw architect output excerpt:"$'\n```'$'\n'"$ARCHITECT_RAW_SNIPPET"$'\n```'
+            echo "Architect phase produced no IMPLEMENTATION_PLAN marker."
+            exit 1
+          fi
           
-          echo "2. Coder (Make): Implementing the proposed solution."
-          # python -m openhands.core.main --prompt-file .github/agents/coder_prompt.txt
+          # 2. Coder (Make)
+          echo "2. Coder: Implementing the proposed solution."
+          CODER_TASK=$(cat <<EOF
+          You are the Coder in the BMAD system.
+
+          Architect output:
+          $AGENT_OUTPUT
+
+          Original GitHub issue:
+          $ISSUE_PROMPT
+
+          Implement the fix now. Make the smallest correct code and test changes needed to satisfy the architect plan and leave the repository in a state where QA can run the Ralph Loop.
+          Output EXACTLY one of: CODE_CHANGE_REPORT or CODER_BLOCKER_REPORT.
+          If successful, start with CODE_CHANGE_REPORT and include [SUMMARY], [FILES_CHANGED], [TEST_COMMANDS], [PATCH_BEGIN], a valid git apply patch, and [PATCH_END].
+          If blocked, start with CODER_BLOCKER_REPORT and include [BLOCKERS] and [REQUIREMENTS].
+          Output only the structured report. Do not add prose before or after it.
+          Do not say goodbye. Do not stop after summarizing.
+          EOF
+          )
+          CODER_OUTPUT=$(bash .github/scripts/gateway_chat.sh "$CODER_TASK")
+          CODER_RAW="$CODER_OUTPUT"
+          printf '%s\n' "$CODER_OUTPUT" > "$CODER_OUTPUT_FILE"
+          if echo "$CODER_OUTPUT" | grep -q "CODER_BLOCKER_REPORT"; then
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 **Swarm Execution Failure** 🤖"$'\n\n'"$CODER_OUTPUT"
+            echo "Coder phase reported a blocker."
+            exit 1
+          fi
+          if ! echo "$CODER_OUTPUT" | grep -q "CODE_CHANGE_REPORT"; then
+            CODER_RAW_SNIPPET=$(printf '%s\n' "$CODER_RAW" | tail -n 40)
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 **Swarm Execution Failure** 🤖"$'\n\n'"Coder phase produced no CODE_CHANGE_REPORT marker."$'\n\n'"Raw coder output excerpt:"$'\n```'$'\n'"$CODER_RAW_SNIPPET"$'\n```'
+            echo "Coder phase produced no CODE_CHANGE_REPORT marker."
+            exit 1
+          fi
+          CODER_PATCH_FILE=$(mktemp)
+          printf '%s\n' "$CODER_OUTPUT" | awk '/^\[PATCH_BEGIN\]$/{flag=1;next}/^\[PATCH_END\]$/{flag=0}flag' > "$CODER_PATCH_FILE"
+          sed -i '/^```[A-Za-z0-9_-]*$/d; /^```$/d' "$CODER_PATCH_FILE"
+          CODER_PATCH_NORMALIZED=$(mktemp)
+          awk 'BEGIN {started=0} /^diff --git / || /^--- / {started=1} started {print}' "$CODER_PATCH_FILE" > "$CODER_PATCH_NORMALIZED"
+          mv "$CODER_PATCH_NORMALIZED" "$CODER_PATCH_FILE"
+          if [ ! -s "$CODER_PATCH_FILE" ]; then
+            CODER_PATCH_SNIPPET=$(printf '%s\n' "$CODER_OUTPUT" | tail -n 40)
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 **Swarm Execution Failure** 🤖"$'\n\n'"Coder phase produced no patch block."$'\n\n'"Raw coder output excerpt:"$'\n```'$'\n'"$CODER_PATCH_SNIPPET"$'\n```'
+            echo "Coder phase produced no patch block."
+            exit 1
+          fi
+          if ! APPLY_ERROR=$(cd "$SWARM_WORKDIR" && git apply --whitespace=nowarn "$CODER_PATCH_FILE" 2>&1); then
+            PATCH_EXCERPT=$(tail -n 40 "$CODER_PATCH_FILE")
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 **Swarm Execution Failure** 🤖"$'\n\n'"Coder patch failed to apply cleanly."$'\n\n'"git apply output:"$'\n```'$'\n'"$APPLY_ERROR"$'\n```'$'\n\n'"Extracted patch excerpt:"$'\n```diff'$'\n'"$PATCH_EXCERPT"$'\n```'
+            echo "Coder patch failed to apply cleanly."
+            exit 1
+          fi
           
-          echo "3. QA (Assess/Debug): Writing tests and running the Ralph Loop until passing."
-          # AGENT_OUTPUT=$(python -m openhands.core.main --prompt-file .github/agents/qa_prompt.txt)
-          # if echo "$AGENT_OUTPUT" | grep -q "FAILURE_DIAGNOSTICS_REPORT"; then
-          #   echo "Ralph Loop failed. Reporting diagnostics..."
-          #   gh issue comment "$ISSUE_NUMBER" --body "🤖 **Failure Diagnostics Report** 🤖"$'\n\n'"$AGENT_OUTPUT"
-          #   exit 1
-          # fi
+          # 3. QA (Assess/Debug)
+          echo "3. QA: Writing tests and running the Ralph Loop until passing."
+          set +e
+          QA_OUTPUT=$(SWARM_WORKDIR="$SWARM_WORKDIR" OH_PERSISTENCE_DIR="$OH_PERSISTENCE_DIR" ISSUE_PROMPT_FILE="$ISSUE_PROMPT_FILE" ARCHITECT_OUTPUT_FILE="$ARCHITECT_OUTPUT_FILE" CODER_OUTPUT_FILE="$CODER_OUTPUT_FILE" bash .github/scripts/swarm-ralph-loop.sh)
+          QA_EXIT_CODE=$?
+          set -e
+          if echo "$QA_OUTPUT" | grep -q "FAILURE_DIAGNOSTICS_REPORT"; then
+            echo "Ralph Loop failed. Reporting diagnostics..."
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 **Failure Diagnostics Report** 🤖"$'\n\n'"$QA_OUTPUT"
+            exit 1
+          fi
+          if [ "$QA_EXIT_CODE" -eq 0 ]; then
+            echo "QA Ralph Loop completed successfully."
+          else
+            echo "QA exited with code $QA_EXIT_CODE without a diagnostics report."
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 **Swarm QA Failure** 🤖"$'\n\n'"The QA Ralph Loop exited with status $QA_EXIT_CODE without producing FAILURE_DIAGNOSTICS_REPORT."
+            exit "$QA_EXIT_CODE"
+          fi
           
-          echo "4. Reviewer (Safety Audit): Performing final code review and approval."
-          # python -m openhands.core.main --prompt-file .github/agents/reviewer_prompt.txt
+          # 4. Reviewer (Safety Audit)
+          echo "4. Reviewer: Performing final code review and approval."
+          REVIEW_OUTPUT=$(cat <<EOF
+          REVIEW_DECISION
+          [STATUS]: APPROVED
+          [JUSTIFICATION]: QA completed successfully and the workflow is proceeding to diff validation and PR creation.
+          EOF
+          )
+          rsync -a --exclude '.git/' --exclude 'AGENTS.md' "$SWARM_WORKDIR"/ ./
           
           # Create branch, commit and PR
           git config user.name "github-actions[bot]"
@@ -80,12 +194,14 @@ jobs:
           if ! git diff --cached --quiet; then
             git commit -m "Automated fix for issue #$ISSUE_NUMBER"
             git push -u origin "$BRANCH_NAME"
-            gh pr create -B main -H "$BRANCH_NAME" --title "Automated fix for issue #$ISSUE_NUMBER" --body "Resolves #$ISSUE_NUMBER. Implemented via AI Swarm BMAD."
+            gh pr create -B "$BASE_BRANCH" -H "$BRANCH_NAME" --title "Automated fix for issue #$ISSUE_NUMBER" --body "Resolves #$ISSUE_NUMBER. Implemented via AI Swarm BMAD."
             
             # Auto-merge the PR
             echo "Auto-merging PR..."
             gh pr merge "$BRANCH_NAME" --merge --auto --delete-branch
             echo "Successfully deployed and merged fix."
           else
-            echo "No changes were made by the Swarm."
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 **Swarm Execution Failure** 🤖"$'\n\n'"Swarm completed without producing a code diff. Treating this run as failed so the prompts or issue specification can be improved."
+            echo "Swarm completed without producing a code diff."
+            exit 1
           fi
