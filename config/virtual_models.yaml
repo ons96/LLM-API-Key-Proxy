@@ -205,6 +205,8 @@ providers:
     rate_limits:
       rpm: 30
       daily: 14400
+    reset_window:
+      daily_reset_utc: "00:00"
 
   gemini:
     base_url: https://generativelanguage.googleapis.com/v1beta
@@ -212,18 +214,24 @@ providers:
     rate_limits:
       rpm: 15
       daily: 1500
+    reset_window:
+      daily_reset_utc: "07:00"  # Google resets ~midnight PT (07:00 UTC)
 
   cerebras:
     base_url: https://api.cerebras.ai/v1
     api_key_env: CEREBRAS_API_KEY_1
     rate_limits:
       rpm: 30
+    reset_window:
+      daily_reset_utc: "00:00"
 
   together:
     base_url: https://api.together.xyz/v1
     api_key_env: TOGETHER_API_KEY
     rate_limits:
       rpm: 60
+    reset_window:
+      daily_reset_utc: "00:00"
 
   g4f:
     base_url: https://g4f.space/v1

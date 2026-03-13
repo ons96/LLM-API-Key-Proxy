@@ -1237,6 +1237,38 @@ async def list_providers(_=Depends(verify_api_key)):
     return list(PROVIDER_PLUGINS.keys())
 
 
+@app.get("/v1/tps-stats")
+async def tps_stats(
+    _=Depends(verify_api_key),
+    days: int = 7,
+    min_samples: int = 5,
+    export: bool = False,
+):
+    """
+    Returns aggregated TPS (tokens-per-second) statistics per provider/model pair.
+
+    Query Parameters:
+        days: Number of days to look back (default: 7).
+        min_samples: Minimum sample count to include a provider/model pair (default: 5).
+        export: If True, also writes the results to config/self_tracked_tps.json (default: False).
+
+    Returns:
+        A JSON list of objects with median_tps, avg_tps, p95_tps, avg_ttft_ms, sample_count, etc.
+    """
+    try:
+        from rotator_library.tps_export import aggregate_tps_stats, export_tps_stats
+
+        if export:
+            stats = export_tps_stats(days=days, min_samples=min_samples)
+        else:
+            stats = aggregate_tps_stats(days=days, min_samples=min_samples)
+
+        return {"object": "list", "data": stats, "count": len(stats)}
+    except Exception as e:
+        logging.error(f"TPS stats request failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/v1/token-count")
 async def token_count(
     request: Request,
