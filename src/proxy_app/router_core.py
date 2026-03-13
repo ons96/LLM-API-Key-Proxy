@@ -616,6 +616,7 @@ class DuckDuckGoSearchProvider(SearchProvider):
 from .rate_limiter import RateLimitTracker
 from .model_ranker import ModelRanker
 from .provider_adapter import ProviderAdapterFactory
+from .model_registry import ModelRegistry
 
 
 class RouterCore:
@@ -636,6 +637,7 @@ class RouterCore:
 
         self.rate_limiter = RateLimitTracker()
         self.model_ranker = ModelRanker()
+        self.model_registry = ModelRegistry(self.config_path)
 
         self._initialize_components()
 
@@ -681,6 +683,9 @@ class RouterCore:
             limits["daily"] = conditions["max_daily_requests"]
 
         can_use = await self.rate_limiter.can_use_provider(provider, model, limits)
+        # can_use_provider returns (bool, reason_str) tuple
+        if isinstance(can_use, tuple):
+            return can_use[0]
         return can_use
 
     async def _execute_single_candidate(
@@ -806,6 +811,16 @@ class RouterCore:
                         self.virtual_models[model_id] = model_cfg
 
                 logger.info(f"Loaded {len(new_models)} virtual models from {vm_path}")
+
+                    # Load provider reset windows for rate limit tracking
+                    providers_cfg = data.get("providers", {})
+                    reset_windows = {}
+                    for prov_name, prov_cfg in providers_cfg.items():
+                        rw = prov_cfg.get("reset_window")
+                        if rw and isinstance(rw, dict):
+                            reset_windows[prov_name] = rw
+                    if reset_windows:
+                        self.rate_limiter.configure_reset_windows(reset_windows)
             except Exception as e:
                 logger.error(f"Failed to load virtual models: {e}")
         else:
@@ -1125,13 +1140,35 @@ class RouterCore:
                     ProviderCandidate(provider=provider, model=model, priority=5)
                 )
             else:
-                # Assume provider-agnostic model, check all providers
-                for provider_name in ["groq", "gemini", "g4f", "g4f_ollama", "g4f_pollinations", "g4f_nvidia", "g4f_gemini", "g4f_groq"]:
-                    candidates.append(
-                        ProviderCandidate(
-                            provider=provider_name, model=model_id, priority=5
-                        )
+                # Use model registry to find supporting providers
+                providers = self.model_registry.get_providers(model_id)
+                
+                # Apply free only mode filtering if needed
+                forbidden = []
+                if self.free_only_mode:
+                    forbidden = self.config.get("safety", {}).get(
+                        "forbidden_providers_under_free_mode", []
                     )
+                
+                if providers:
+                    for provider_name in providers:
+                        if provider_name in forbidden:
+                            continue
+                        candidates.append(
+                            ProviderCandidate(
+                                provider=provider_name, model=model_id, priority=5
+                            )
+                        )
+                else:
+                    # Fallback to hardcoded providers if registry has no match
+                    for provider_name in ["groq", "gemini", "g4f", "g4f_ollama", "g4f_pollinations", "g4f_nvidia", "g4f_gemini", "g4f_groq"]:
+                        if provider_name in forbidden:
+                            continue
+                        candidates.append(
+                            ProviderCandidate(
+                                provider=provider_name, model=model_id, priority=5
+                            )
+                        )
 
         # Sort by priority
         candidates.sort(key=lambda c: c.priority)

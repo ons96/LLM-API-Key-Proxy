@@ -1,15 +1,81 @@
-name: Scrape LLM Leaderboards
+name: Update fallback configs from leaderboard
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
   schedule:
-    - cron: '0 2 * * *'
+    # Daily at 04:00 UTC (after leaderboard benchmarks update at 03:00 UTC)
+    - cron: "0 4 * * *"
+
+permissions:
+  contents: write
 
 jobs:
-  scrape:
+  update-fallbacks:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    timeout-minutes: 10
 
-      - name: Setup
-        run: echo "Leaderboard scraper placeholder"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Fetch generated virtual models YAML
+        run: |
+          # Download the generated YAML from llm-leaderboard-aggregate repo
+          YAML_URL="https://raw.githubusercontent.com/ons96/llm-leaderboard-aggregate/main/leaderboards/virtual_models_generated.yaml"
+          HTTP_CODE=$(curl -s -o /tmp/virtual_models_generated.yaml -w "%{http_code}" "$YAML_URL")
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "WARNING: Could not fetch generated YAML (HTTP $HTTP_CODE). Skipping update."
+            echo "skip=true" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          # Basic validation: file should be non-empty and contain 'virtual_models:'
+          if [ ! -s /tmp/virtual_models_generated.yaml ]; then
+            echo "WARNING: Downloaded file is empty. Skipping update."
+            echo "skip=true" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          if ! grep -q "virtual_models:" /tmp/virtual_models_generated.yaml; then
+            echo "WARNING: Downloaded file doesn't look like valid virtual models YAML. Skipping."
+            echo "skip=true" >> $GITHUB_ENV
+            exit 0
+          fi
+
+          echo "Successfully downloaded generated YAML"
+          echo "skip=false" >> $GITHUB_ENV
+
+      - name: Update generated fallback config
+        if: env.skip != 'true'
+        run: |
+          # Store the generated YAML alongside the hand-curated one
+          # The gateway reads both: hand-curated virtual_models.yaml takes precedence,
+          # generated file provides data-driven fallback chains
+          cp /tmp/virtual_models_generated.yaml config/virtual_models_generated.yaml
+          echo "Updated config/virtual_models_generated.yaml"
+
+      - name: Fetch per-virtual-model fallback CSVs
+        if: env.skip != 'true'
+        run: |
+          mkdir -p config/fallbacks
+          BASE_URL="https://raw.githubusercontent.com/ons96/llm-leaderboard-aggregate/main/leaderboards"
+          for vm in coding_elite coding_smart coding_fast chat_elite chat_smart chat_fast; do
+            curl -s -o "config/fallbacks/fallback_${vm}.csv" "${BASE_URL}/fallback_${vm}.csv" || true
+          done
+          echo "Downloaded per-virtual-model fallback CSVs"
+
+      - name: Commit updates
+        if: env.skip != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add config/virtual_models_generated.yaml config/fallbacks/ 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update generated fallback configs from leaderboard ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+            git push
+          fi
