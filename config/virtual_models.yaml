@@ -8,7 +8,6 @@ virtual_models:
   coding-elite:
     description: "Best agentic coding models (benchmark-based)"
     fallback_chain:
-      # Tier 1: Reliable API providers (work on VPS/datacenter)
       - provider: antigravity
         model: claude-opus-4-5
         priority: 1
@@ -24,17 +23,12 @@ virtual_models:
       - provider: gemini
         model: gemini-2.5-pro
         priority: 5
-      # Tier 2: Fast free providers
       - provider: cerebras
-        model: llama-3.3-70b
+        model: llama3.1-8b
         priority: 6
-      # Tier 3: G4F fallback (may be blocked on VPS)
-      - provider: g4f
-        model: claude-opus-4-5
-        priority: 7
       - provider: g4f
         model: gpt-4o
-        priority: 8
+        priority: 7
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
@@ -45,27 +39,46 @@ virtual_models:
   coding-smart:
     description: "High-quality coding with balanced performance"
     fallback_chain:
-      # Tier 1: Reliable API providers
-      - provider: iflow
-        model: deepseek-v3
+      - provider: cerebras
+        model: llama3.1-8b
         priority: 1
-      - provider: antigravity
-        model: claude-sonnet-4-5
+        capabilities: [tools, function_calling, fast]
+        search_enabled: true
+      - provider: cerebras
+        model: qwen-3-235b-a22b-instruct-2507
         priority: 2
+        capabilities: [tools, function_calling, reasoning]
+        search_enabled: true
       - provider: groq
         model: llama-3.3-70b-versatile
         priority: 3
+        capabilities: [tools, function_calling, reasoning]
+        search_enabled: true
+      - provider: groq
+        model: llama-3.1-8b-instant
+        priority: 4
+        capabilities: [tools, function_calling, fast]
+        search_enabled: true
+      - provider: kilo
+        model: x-ai/grok-code-fast-1:optimized:free
+        priority: 5
+        capabilities: [tools, function_calling, fast]
+        search_enabled: true
+      - provider: kilo
+        model: arcee-ai/trinity-large-preview:free
+        priority: 6
+        capabilities: [tools, function_calling]
+        search_enabled: true
       - provider: gemini
         model: gemini-2.5-flash
-        priority: 4
-      # Tier 2: Fast free providers
-      - provider: cerebras
-        model: llama-3.3-70b
-        priority: 5
-      # Tier 3: G4F fallback
-      - provider: g4f
-        model: claude-sonnet-4
-        priority: 6
+        priority: 7
+        capabilities: [tools, function_calling, fast]
+        search_enabled: true
+      - provider: gemini
+        model: gemini-2.5-pro
+        priority: 8
+        capabilities: [tools, function_calling, reasoning]
+        search_enabled: true
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
@@ -76,9 +89,8 @@ virtual_models:
   coding-fast:
     description: "Fastest coding models"
     fallback_chain:
-      # Tier 1: Fastest providers (lowest latency)
       - provider: cerebras
-        model: llama-3.3-70b
+        model: llama3.1-8b
         priority: 1
       - provider: groq
         model: llama-3.1-8b-instant
@@ -157,9 +169,8 @@ virtual_models:
   chat-fast:
     description: "Fastest chat models"
     fallback_chain:
-      # Tier 1: Fastest providers
       - provider: cerebras
-        model: llama-3.1-8b
+        model: llama3.1-8b
         priority: 1
       - provider: groq
         model: llama-3.1-8b-instant

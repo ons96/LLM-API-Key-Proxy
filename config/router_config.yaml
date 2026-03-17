@@ -2,9 +2,33 @@ free_only_mode: true
 proxy_api_keys:
 - ${PROXY_API_KEY}
 providers:
+  kilo:
+    enabled: true
+    env_var: KILO_API_KEY
+    base_url: https://api.kilo.ai/v1
+    free_tier: true
+    free_tier_models:
+    - x-ai/grok-code-fast-1:optimized:free
+    - arcee-ai/trinity-large-preview:free
+    - minimax/minimax-m2.5:free
+    - nvidia/nemotron-3-super-120b-a12b:free
+    - stepfun/step-3.5-flash:free
+    - corethink:free
+    - kilo/auto-free
+    - openrouter/auto
+    - openrouter/free
+    - giga-potato
+    - giga-potato-thinking
+    - kilo-auto/free
+    - morph-warp-grep-v2
+    - openrouter/healer-alpha
+    - openrouter/hunter-alpha
+    - openrouter/bodybuilder
   groq:
     enabled: true
     env_var: GROQ_API_KEY
+    base_url: https://api.groq.com/openai/v1
+    free_tier: true
     free_tier_models:
     - llama-3.1-8b-instant
     - llama-3.3-70b-versatile
@@ -24,9 +48,15 @@ providers:
     - canopylabs/orpheus-v1-english
   g4f:
     enabled: true
+    env_var: G4F_API_KEY
+    base_url: https://g4f.space/v1
+    free_tier: true
+    no_api_key_required: true
   gemini:
     enabled: true
     env_var: GEMINI_API_KEY
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    free_tier: true
     free_tier_models:
     - gemini-2.5-flash
     - gemini-2.5-pro
@@ -38,6 +68,8 @@ providers:
   cerebras:
     enabled: true
     env_var: CEREBRAS_API_KEY
+    base_url: https://api.cerebras.ai/v1
+    free_tier: true
     free_tier_models:
     - llama-3.3-70b
     - llama3.1-8b
@@ -48,12 +80,15 @@ providers:
   openai:
     enabled: true
     env_var: OPENAI_API_KEY
+    base_url: https://api.openai.com/v1
     free_tier_models:
     - gpt-4o-mini
     - gpt-3.5-turbo
   nvidia:
     enabled: true
     env_var: NVIDIA_API_KEY
+    base_url: https://integrate.api.nvidia.com/v1
+    free_tier: true
     free_tier_models:
     - nvidia/llama-3.3-70b-instruct
     - nvidia/llama-3.1-405b-instruct
@@ -61,6 +96,8 @@ providers:
   mistral:
     enabled: true
     env_var: MISTRAL_API_KEY
+    base_url: https://api.mistral.ai/v1
+    free_tier: true
     free_tier_models:
     - mistral-large-latest
     - codestral-latest
@@ -68,6 +105,8 @@ providers:
   openrouter:
     enabled: true
     env_var: OPENROUTER_API_KEY
+    base_url: https://openrouter.ai/api/v1
+    free_tier: true
     free_tier_models:
     - meta-llama/llama-3.3-70b-instruct
     - deepseek/deepseek-chat
@@ -75,6 +114,8 @@ providers:
   sambanova:
     enabled: false
     env_var: SAMBANOVA_API_KEY
+    base_url: https://api.sambanova.ai/v1
+    free_tier: true
     free_tier_models:
     - DeepSeek-V3.2
     - DeepSeek-R1-Distill-Llama-70B
@@ -87,6 +128,8 @@ providers:
   together:
     enabled: true
     env_var: TOGETHER_API_KEY
+    base_url: https://api.together.xyz/v1
+    free_tier: true
     free_tier_models:
     - togethercomputer/MoA-1
     - togethercomputer/MoA-1-Turbo
@@ -95,6 +138,8 @@ providers:
   github-models:
     enabled: false
     env_var: GITHUB_MODELS_API_KEY
+    base_url: https://models.inference.ai.azure.com
+    free_tier: true
     free_tier_models:
     - grok-3-vision-beta
     - grok-3-mini
@@ -107,6 +152,8 @@ providers:
   cloudflare:
     enabled: false
     env_var: CLOUDFLARE_API_TOKEN
+    base_url: https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/run/
+    free_tier: true
     free_tier_models:
     - '@cf/meta/llama-3.3-70b-instruct'
     - '@cf/meta/llama-3.1-8b-instruct'
@@ -234,13 +281,45 @@ providers:
       - tools
       - function_calling
       - reasoning
-    - provider: gemini
-      model: gemini-1.5-pro
+    - provider: cerebras
+      model: llama-3.3-70b
       priority: 2
+      capabilities:
+      - tools
+      - function_calling
+      - reasoning
+    - provider: gemini
+      model: gemini-2-5-flash
+      priority: 3
+      capabilities:
+      - tools
+      - function_calling
+      - fast
+    - provider: gemini
+      model: gemini-2-5-pro
+      priority: 4
+      capabilities:
+      - tools
+      - function_calling
+      - reasoning
+      fallback_only: true
+    - provider: g4f_nvidia
+      model: meta/llama-3.3-70b-instruct
+      priority: 5
+      capabilities:
+      - tools
+      - function_calling
+      fallback_only: true
+    - provider: g4f_nvidia
+      model: deepseek-ai/deepseek-v3.1
+      priority: 6
+      capabilities:
+      - tools
+      - function_calling
       fallback_only: true
     - provider: g4f
       model: gpt-4
-      priority: 3
+      priority: 7
       fallback_only: true
   coding-fast:
     description: Fastest models for quick coding tasks (Free tier)
@@ -295,6 +374,89 @@ providers:
       model: gpt-3.5-turbo
       priority: 3
       fallback_only: true
+  g4f_nvidia:
+    enabled: true
+    env_var: G4F_NVIDIA_API_KEY
+    base_url: https://g4f.space/api/nvidia
+    free_tier: true
+    no_api_key_required: true
+    free_tier_models:
+    - meta/llama-3.1-405b-instruct
+    - meta/llama-3.3-70b-instruct
+    - meta/llama-4-maverick-17b-128e-instruct
+    - meta/llama-4-scout-17b-16e-instruct
+    - deepseek-ai/deepseek-v3.1
+    - deepseek-ai/deepseek-v3.2
+    - deepseek-ai/deepseek-r1-distill-llama-70b
+    - google/gemma-3-27b-it
+    - google/gemma-3-12b-it
+    - google/gemma-3-4b-it
+    - mistralai/mistral-large-3-675b
+    - mistralai/codestral-2501
+    - qwen/qwen3-235b-a22b
+    - qwen/qwen3-coder-480b
+    - qwen/qwen3.5-397b
+    - nvidia/nemotron-ultra-253b-v1
+    - nvidia/nemotron-super-49b-v1
+    - microsoft/phi-4-mini-instruct
+    - microsoft/phi-3.5-mini
+    - moonshotai/kimi-k2-base
+  g4f_groq:
+    enabled: true
+    env_var: G4F_GROQ_API_KEY
+    base_url: https://g4f.space/api/groq
+    free_tier: true
+    no_api_key_required: true
+    free_tier_models:
+    - llama-3.3-70b-versatile
+    - llama-3.1-8b-instant
+    - llama-3.1-70b-versatile
+    - mixtral-8x7b-32768
+    - gemma2-9b-it
+  g4f_gemini:
+    enabled: true
+    env_var: G4F_GEMINI_API_KEY
+    base_url: https://g4f.space/api/gemini
+    free_tier: true
+    no_api_key_required: true
+    free_tier_models:
+    - gemini-3-pro
+    - gemini-2.5-flash
+    - gemini-2.5-pro
+  g4f_ollama:
+    enabled: true
+    env_var: G4F_OLLAMA_API_KEY
+    base_url: https://g4f.space/api/ollama
+    free_tier: true
+    no_api_key_required: true
+    free_tier_models:
+    - deepseek-v3.2
+    - devstral-small-2:24b
+    - gemini-3-flash-preview
+    - gemma3:27b
+    - qwen3.5:397b
+    - glm-4.7
+    - gpt-oss:120b
+    - minimax-m2
+    - minimax-m2.5
+    - rnj-1:8b
+  g4f_pollinations:
+    enabled: true
+    env_var: G4F_POLLINATIONS_API_KEY
+    base_url: https://g4f.space/api/pollinations
+    free_tier: true
+    no_api_key_required: true
+    free_tier_models:
+    - openai
+    - openai-fast
+    - qwen-coder
+    - mistral
+    - openai-audio
+    - gemini-fast
+    - deepseek
+    - gemini-search
+    - midijourney
+    - claude-fast
 search:
   default_enabled: true
   max_additional_searches: 2

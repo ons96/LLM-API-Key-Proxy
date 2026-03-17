@@ -3,6 +3,7 @@
 import os
 import logging
 from typing import List, Dict, Any, Optional
+import httpx
 
 from .g4f_provider import G4FProvider
 
@@ -29,10 +30,15 @@ class G4FGeminiProvider(G4FProvider):
             "G4F_GEMINI_API_BASE", self._DEFAULT_PUBLIC_BASE
         )
 
-    async def get_models(self) -> List[Dict[str, Any]]:
-        """Return available models from G4F Gemini proxy."""
+    async def get_models(
+        self, api_key: str = None, client: httpx.AsyncClient = None
+    ) -> List[str]:
+        """Return available models from G4F Gemini proxy.
+
+        Models are prefixed with provider name to avoid duplication with other G4F variants.
+        """
         return [
-            {"id": "gemini-3-pro", "object": "model", "owned_by": "google"},
-            {"id": "gemini-2.5-flash", "object": "model", "owned_by": "google"},
-            {"id": "gemini-2.5-pro", "object": "model", "owned_by": "google"},
+            "g4f_gemini/gemini-3-pro",
+            "g4f_gemini/gemini-2.5-flash",
+            "g4f_gemini/gemini-2.5-pro",
         ]

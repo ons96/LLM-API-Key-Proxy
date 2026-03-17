@@ -714,12 +714,16 @@ class RouterCore:
             # Check if we have a custom adapter for this provider
             supported_providers = ProviderAdapterFactory.list_supported_providers()
             if candidate.provider in supported_providers:
-                # Get API key from environment
+                # Get API key from environment with fallback
                 api_key = None
                 if candidate.provider == "groq":
-                    api_key = os.getenv("GROQ_API_KEY")
+                    api_key = os.getenv("GROQ_API_KEY") or os.getenv("GROQ_API_KEY_1")
                 elif candidate.provider == "gemini":
-                    api_key = os.getenv("GEMINI_API_KEY")
+                    api_key = os.getenv("GEMINI_API_KEY") or os.getenv(
+                        "GEMINI_API_KEY_1"
+                    )
+                elif candidate.provider == "kilo":
+                    api_key = os.getenv("KILO_API_KEY") or os.getenv("KILO_API_KEY_1")
 
                 # Create adapter
                 adapter = ProviderAdapterFactory.create_adapter(
@@ -812,15 +816,14 @@ class RouterCore:
 
                 logger.info(f"Loaded {len(new_models)} virtual models from {vm_path}")
 
-                    # Load provider reset windows for rate limit tracking
-                    providers_cfg = data.get("providers", {})
-                    reset_windows = {}
-                    for prov_name, prov_cfg in providers_cfg.items():
-                        rw = prov_cfg.get("reset_window")
-                        if rw and isinstance(rw, dict):
-                            reset_windows[prov_name] = rw
-                    if reset_windows:
-                        self.rate_limiter.configure_reset_windows(reset_windows)
+                providers_cfg = data.get("providers", {})
+                reset_windows = {}
+                for prov_name, prov_cfg in providers_cfg.items():
+                    rw = prov_cfg.get("reset_window")
+                    if rw and isinstance(rw, dict):
+                        reset_windows[prov_name] = rw
+                if reset_windows:
+                    self.rate_limiter.configure_reset_windows(reset_windows)
             except Exception as e:
                 logger.error(f"Failed to load virtual models: {e}")
         else:
@@ -1000,7 +1003,18 @@ class RouterCore:
         # Authentication errors
         if any(
             keyword in error_str
-            for keyword in ["unauthorized", "invalid_api_key", "401", "403"]
+            for keyword in [
+                "unauthorized",
+                "invalid_api_key",
+                "api_key_invalid",
+                "invalid api key",
+                "api key not valid",
+                "authentication credentials",
+                "unauthenticated",
+                "access token",
+                "401",
+                "403",
+            ]
         ):
             return ErrorCategory.AUTH_ERROR, None
 
@@ -1018,7 +1032,15 @@ class RouterCore:
         # Missing model errors - should try next provider (check lowercase for truncated errors)
         if any(
             keyword in error_str.lower()
-            for keyword in ["model not found", "does not exist", "does not ex", "not found", "404", "not supported", "unsupported model"]
+            for keyword in [
+                "model not found",
+                "does not exist",
+                "does not ex",
+                "not found",
+                "404",
+                "not supported",
+                "unsupported model",
+            ]
         ):
             return ErrorCategory.PROVIDER_ERROR, None
 
@@ -1075,6 +1097,15 @@ class RouterCore:
                 "vs",
                 "sources",
                 "citations",
+                "search",
+                "web search",
+                "find",
+                "look up",
+                "lookup",
+                "google",
+                "what is",
+                "who is",
+                "how to",
             ]
             req.search_requested = any(
                 indicator in content for indicator in search_indicators
@@ -1142,14 +1173,14 @@ class RouterCore:
             else:
                 # Use model registry to find supporting providers
                 providers = self.model_registry.get_providers(model_id)
-                
+
                 # Apply free only mode filtering if needed
                 forbidden = []
                 if self.free_only_mode:
                     forbidden = self.config.get("safety", {}).get(
                         "forbidden_providers_under_free_mode", []
                     )
-                
+
                 if providers:
                     for provider_name in providers:
                         if provider_name in forbidden:
@@ -1161,7 +1192,16 @@ class RouterCore:
                         )
                 else:
                     # Fallback to hardcoded providers if registry has no match
-                    for provider_name in ["groq", "gemini", "g4f", "g4f_ollama", "g4f_pollinations", "g4f_nvidia", "g4f_gemini", "g4f_groq"]:
+                    for provider_name in [
+                        "groq",
+                        "gemini",
+                        "g4f",
+                        "g4f_ollama",
+                        "g4f_pollinations",
+                        "g4f_nvidia",
+                        "g4f_gemini",
+                        "g4f_groq",
+                    ]:
                         if provider_name in forbidden:
                             continue
                         candidates.append(
@@ -1363,7 +1403,7 @@ class RouterCore:
         all_candidates = await self._get_candidates(
             request.get("model", ""), self._extract_requirements(request)
         )
-        
+
         # Use first N candidates as experts (already sorted by priority)
         expert_candidates = list(all_candidates)[:max_experts]
 
@@ -1395,7 +1435,7 @@ class RouterCore:
                     {
                         "provider": candidate.provider,
                         "model": candidate.model,
-                        "role": getattr(candidate, 'role', None),
+                        "role": getattr(candidate, "role", None),
                         "output": result["choices"][0]["message"]["content"]
                         if result.get("choices")
                         else "",
@@ -1407,7 +1447,7 @@ class RouterCore:
                     {
                         "provider": candidate.provider,
                         "model": candidate.model,
-                        "role": getattr(candidate, 'role', None),
+                        "role": getattr(candidate, "role", None),
                         "error": str(e),
                     }
                 )
@@ -1598,14 +1638,9 @@ class RouterCore:
                 error_classification = await self._classify_error(e)
                 error_category = error_classification[0]
 
-                if error_category in [
-                    ErrorCategory.INVALID_REQUEST,
-                    ErrorCategory.AUTH_ERROR,
-                ]:
-                    raise e
-
                 logger.warning(
-                    f"[{request_id}] Stream candidate {candidate.provider} failed, trying next..."
+                    f"[{request_id}] Stream candidate {candidate.provider}/{candidate.model} failed "
+                    f"({error_category.value}), trying next..."
                 )
                 continue
 
@@ -1787,19 +1822,21 @@ class RouterCore:
                 )
 
                 if error_category == ErrorCategory.AUTH_ERROR:
-                    logger.warning(f"[{request_id}] Auth error - stopping fallback")
-                    break
+                    logger.warning(
+                        f"[{request_id}] Auth error for {candidate.provider}/{candidate.model} - trying next provider"
+                    )
+                    continue
 
                 if error_category == ErrorCategory.INVALID_REQUEST:
-                    # Fallback on "model not found" even if it's a 400 bad request
-                    if any(k in error_str for k in ["not found", "not supported", "model"]):
-                        logger.warning(f"[{request_id}] Model not found error - trying next provider")
-                        continue
-                    logger.warning(f"[{request_id}] Invalid request (not model related) - stopping fallback")
-                    break
+                    logger.warning(
+                        f"[{request_id}] Request error is recoverable - trying next provider"
+                    )
+                    continue
 
                 if error_category == ErrorCategory.TRANSIENT:
-                    logger.warning(f"[{request_id}] Transient error (500/timeout) - trying next provider")
+                    logger.warning(
+                        f"[{request_id}] Transient error (500/timeout) - trying next provider"
+                    )
                     continue
 
                 # For PROVIDER_ERROR and anything else, also continue

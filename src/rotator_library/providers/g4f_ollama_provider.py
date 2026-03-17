@@ -3,6 +3,7 @@
 import os
 import logging
 from typing import List, Dict, Any, Optional
+import httpx
 
 from .g4f_provider import G4FProvider
 
@@ -29,17 +30,22 @@ class G4FOllamaProvider(G4FProvider):
             "G4F_OLLAMA_API_BASE", self._DEFAULT_PUBLIC_BASE
         )
 
-    async def get_models(self) -> List[Dict[str, Any]]:
-        """Return available models from G4F Ollama proxy."""
+    async def get_models(
+        self, api_key: str = None, client: httpx.AsyncClient = None
+    ) -> List[str]:
+        """Return available models from G4F Ollama proxy.
+
+        Models are prefixed with provider name to avoid duplication with other G4F variants.
+        """
         return [
-            {"id": "deepseek-v3.2", "object": "model", "owned_by": "deepseek"},
-            {"id": "devstral-small-2:24b", "object": "model", "owned_by": "mistral"},
-            {"id": "gemini-3-flash-preview", "object": "model", "owned_by": "google"},
-            {"id": "gemma3:27b", "object": "model", "owned_by": "google"},
-            {"id": "qwen3.5:397b", "object": "model", "owned_by": "alibaba"},
-            {"id": "glm-4.7", "object": "model", "owned_by": "zhipu"},
-            {"id": "gpt-oss:120b", "object": "model", "owned_by": "openai"},
-            {"id": "minimax-m2", "object": "model", "owned_by": "minimax"},
-            {"id": "minimax-m2.5", "object": "model", "owned_by": "minimax"},
-            {"id": "rnj-1:8b", "object": "model", "owned_by": "unknown"},
+            "g4f_ollama/deepseek-v3.2",
+            "g4f_ollama/devstral-small-2:24b",
+            "g4f_ollama/gemini-3-flash-preview",
+            "g4f_ollama/gemma3:27b",
+            "g4f_ollama/qwen3.5:397b",
+            "g4f_ollama/glm-4.7",
+            "g4f_ollama/gpt-oss:120b",
+            "g4f_ollama/minimax-m2",
+            "g4f_ollama/minimax-m2.5",
+            "g4f_ollama/rnj-1:8b",
         ]

@@ -3,6 +3,7 @@
 import os
 import logging
 from typing import List, Dict, Any, Optional
+import httpx
 
 from .g4f_provider import G4FProvider
 
@@ -29,17 +30,22 @@ class G4FPollinationsProvider(G4FProvider):
             "G4F_POLLINATIONS_API_BASE", self._DEFAULT_PUBLIC_BASE
         )
 
-    async def get_models(self) -> List[Dict[str, Any]]:
-        """Return available models from G4F Pollinations proxy."""
+    async def get_models(
+        self, api_key: str = None, client: httpx.AsyncClient = None
+    ) -> List[str]:
+        """Return available models from G4F Pollinations proxy.
+
+        Models are prefixed with provider name to avoid duplication with other G4F variants.
+        """
         return [
-            {"id": "openai", "object": "model", "owned_by": "openai"},
-            {"id": "openai-fast", "object": "model", "owned_by": "openai"},
-            {"id": "qwen-coder", "object": "model", "owned_by": "alibaba"},
-            {"id": "mistral", "object": "model", "owned_by": "mistral"},
-            {"id": "openai-audio", "object": "model", "owned_by": "openai"},
-            {"id": "gemini-fast", "object": "model", "owned_by": "google"},
-            {"id": "deepseek", "object": "model", "owned_by": "deepseek"},
-            {"id": "gemini-search", "object": "model", "owned_by": "google"},
-            {"id": "midijourney", "object": "model", "owned_by": "midijourney"},
-            {"id": "claude-fast", "object": "model", "owned_by": "anthropic"},
+            "g4f_pollinations/openai",
+            "g4f_pollinations/openai-fast",
+            "g4f_pollinations/qwen-coder",
+            "g4f_pollinations/mistral",
+            "g4f_pollinations/openai-audio",
+            "g4f_pollinations/gemini-fast",
+            "g4f_pollinations/deepseek",
+            "g4f_pollinations/gemini-search",
+            "g4f_pollinations/midijourney",
+            "g4f_pollinations/claude-fast",
         ]
