@@ -457,6 +457,33 @@ providers:
     - gemini-search
     - midijourney
     - claude-fast
+  opencode_zen:
+    enabled: true
+    env_var: OPENCODE_ZEN_API_KEY
+    base_url: https://opencode.ai/zen/v1
+    free_tier: true
+    no_api_key_required: true
+    free_tier_models:
+    - minimax/m2.1
+    - trinity/large-preview
+    - moonshot/kimi-k2.5
+    - zhipu/glm-4.7
+    - bigcode/pickle
+  iflow:
+    enabled: true
+    free_tier: true
+    free_tier_models:
+    - deepseek-v3.2
+    - deepseek-v3.1
+    - deepseek-v3
+    - deepseek-r1
+    - glm-4.6
+    - minimax-m2
+    - qwen3-coder-plus
+    - kimi-k2
+    - kimi-k2-thinking
+    - qwen3-max
+    - qwen3-235b-a22b-instruct
 search:
   default_enabled: true
   max_additional_searches: 2

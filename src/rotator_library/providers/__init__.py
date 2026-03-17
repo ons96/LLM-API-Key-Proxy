@@ -123,6 +123,7 @@ def _register_providers():
                 "g4f_nvidia",
                 "g4f_gemini",
                 "g4f_groq",
+                "opencode_zen",
             ]:
                 continue
 

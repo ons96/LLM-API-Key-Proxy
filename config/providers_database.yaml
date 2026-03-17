@@ -833,3 +833,96 @@ providers:
         tps: 500
         capabilities: [chat, fast]
     last_verified: "2026-03-17"
+
+  - id: opencode_zen
+    name: "OpenCode Zen"
+    signup_url: "https://opencode.ai/zen"
+    env_var: OPENCODE_ZEN_API_KEY
+    base_url: "https://opencode.ai/zen/v1"
+    enabled: true
+    free_tier: true
+    no_api_key_required: true
+    capabilities: [chat, code, tools, function_calling]
+    rate_limits:
+      rpm: 60
+    notes: "Free unlimited agentic coding models. No API key required."
+    free_models:
+      - id: minimax/m2.1
+        context: 32768
+        tps: 100
+        capabilities: [chat, code, tools]
+      - id: trinity/large-preview
+        context: 32768
+        tps: 80
+        capabilities: [chat, code, tools]
+      - id: moonshot/kimi-k2.5
+        context: 131072
+        tps: 80
+        capabilities: [chat, code, tools, reasoning]
+      - id: zhipu/glm-4.7
+        context: 32768
+        tps: 100
+        capabilities: [chat, code, tools]
+      - id: bigcode/pickle
+        context: 16384
+        tps: 150
+        capabilities: [chat, code]
+    last_verified: "2026-03-17"
+
+  - id: iflow
+    name: "iFlow (OAuth)"
+    signup_url: "https://iflow.cn"
+    env_var: IFLOW_API_KEY
+    base_url: "https://api.iflow.cn/v1"
+    enabled: true
+    free_tier: true
+    notes: "Free DeepSeek/Qwen/Kimi models via Chinese aggregator. Requires OAuth (WeChat or Chinese phone)."
+    capabilities: [chat, code, tools, function_calling]
+    rate_limits:
+      rpm: 30
+    free_models:
+      - id: deepseek-v3.2
+        context: 65536
+        tps: 80
+        capabilities: [chat, code, tools]
+      - id: deepseek-v3.1
+        context: 65536
+        tps: 80
+        capabilities: [chat, code, tools]
+      - id: deepseek-v3
+        context: 65536
+        tps: 80
+        capabilities: [chat, code, tools]
+      - id: deepseek-r1
+        context: 65536
+        tps: 40
+        capabilities: [chat, code, reasoning]
+      - id: glm-4.6
+        context: 32768
+        tps: 100
+        capabilities: [chat, code, tools]
+      - id: minimax-m2
+        context: 32768
+        tps: 80
+        capabilities: [chat, code, tools]
+      - id: qwen3-coder-plus
+        context: 131072
+        tps: 60
+        capabilities: [chat, code, tools]
+      - id: kimi-k2
+        context: 131072
+        tps: 60
+        capabilities: [chat, code, tools, reasoning]
+      - id: kimi-k2-thinking
+        context: 131072
+        tps: 40
+        capabilities: [chat, code, reasoning]
+      - id: qwen3-max
+        context: 32768
+        tps: 60
+        capabilities: [chat, code, tools, reasoning]
+      - id: qwen3-235b-a22b-instruct
+        context: 32768
+        tps: 40
+        capabilities: [chat, code, tools]
+    last_verified: "2026-03-17"
