@@ -75,8 +75,7 @@ jobs:
             PR_URL=$(gh pr list \
               --state open \
               --json number,headRefName,url \
-              --jq \
-                ".[] | select(.headRefName | test("${ISSUE_NUM}")) | .url" \
+              --jq ".[] | select(.headRefName | test(\"${ISSUE_NUM}\")) | .url" \
               | head -n 1)
 
             if [ -n "$PR_URL" ]; then
