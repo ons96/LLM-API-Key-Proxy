@@ -121,7 +121,7 @@ class ProviderCandidate:
     provider: str
     model: str
     priority: int = 5
-    capabilities: set = field(default_factory=set)
+    capabilities: set[str] = field(default_factory=set)
     fallback_only: bool = False
     role: Optional[str] = None  # For MoE mode
     search_enabled: bool = False
@@ -714,20 +714,42 @@ class RouterCore:
             # Check if we have a custom adapter for this provider
             supported_providers = ProviderAdapterFactory.list_supported_providers()
             if candidate.provider in supported_providers:
-                # Get API key from environment with fallback
                 api_key = None
+                provider_cfg = self.config.get("providers", {}).get(
+                    candidate.provider, {}
+                )
+                env_var = provider_cfg.get("env_var")
+                if env_var:
+                    api_key = os.getenv(env_var) or os.getenv(f"{env_var}_1")
+
                 if candidate.provider == "groq":
-                    api_key = os.getenv("GROQ_API_KEY") or os.getenv("GROQ_API_KEY_1")
+                    api_key = (
+                        api_key
+                        or os.getenv("GROQ_API_KEY")
+                        or os.getenv("GROQ_API_KEY_1")
+                    )
                 elif candidate.provider == "gemini":
-                    api_key = os.getenv("GEMINI_API_KEY") or os.getenv(
-                        "GEMINI_API_KEY_1"
+                    api_key = (
+                        api_key
+                        or os.getenv("GEMINI_API_KEY")
+                        or os.getenv("GEMINI_API_KEY_1")
                     )
                 elif candidate.provider == "kilo":
-                    api_key = os.getenv("KILO_API_KEY") or os.getenv("KILO_API_KEY_1")
+                    api_key = (
+                        api_key
+                        or os.getenv("KILO_API_KEY")
+                        or os.getenv("KILO_API_KEY_1")
+                    )
+
+                api_base = provider_cfg.get("base_url")
+                model_list = provider_cfg.get("free_tier_models", [])
 
                 # Create adapter
                 adapter = ProviderAdapterFactory.create_adapter(
-                    candidate.provider, api_key
+                    candidate.provider,
+                    api_key,
+                    api_base,
+                    model_list,
                 )
 
                 # Execute via adapter
@@ -896,7 +918,7 @@ class RouterCore:
             # Register keys with telemetry and initialize providers
             if api_keys:
                 try:
-                    from rotator_library.telemetry import get_telemetry_manager
+                    from ..rotator_library.telemetry import get_telemetry_manager
 
                     telemetry = get_telemetry_manager()
 
@@ -1229,7 +1251,7 @@ class RouterCore:
         return True
 
     def _determine_search_tier(
-        self, query: str, messages: Optional[List[Dict]] = None
+        self, query: str, messages: Optional[List[Dict[str, Any]]] = None
     ) -> str:
         """Determine appropriate search tier based on query complexity."""
         query_lower = query.lower()
@@ -1311,7 +1333,7 @@ class RouterCore:
             return "basic"
 
     async def _perform_search(
-        self, query: str, messages: Optional[List[Dict]] = None
+        self, query: str, messages: Optional[List[Dict[str, Any]]] = None
     ) -> List[Dict[str, Any]]:
         """Perform search using available providers with intelligent tier selection."""
         if not self._should_perform_search(CapabilityRequirements()):
@@ -1922,19 +1944,21 @@ class RouterCore:
 
     def get_health_status(self) -> Dict[str, Any]:
         """Get health status of all providers."""
-        status = {
+        providers_status: Dict[str, Dict[str, Any]] = {}
+        search_status: Dict[str, Dict[str, Any]] = {}
+        status: Dict[str, Any] = {
             "free_only_mode": self.free_only_mode,
-            "providers": {},
-            "search_providers": {},
+            "providers": providers_status,
+            "search_providers": search_status,
             "timestamp": time.time(),
         }
 
         # Provider metrics
         for (provider, model), metrics in self.provider_metrics.items():
-            if provider not in status["providers"]:
-                status["providers"][provider] = {}
+            if provider not in providers_status:
+                providers_status[provider] = {}
 
-            status["providers"][provider][model] = {
+            providers_status[provider][model] = {
                 "status": ProviderStatus.HEALTHY.value
                 if metrics.is_healthy()
                 else ProviderStatus.COOLDOWN.value,
@@ -1947,7 +1971,7 @@ class RouterCore:
 
         # Search provider metrics
         for name, provider in self.search_providers.items():
-            status["search_providers"][name] = {
+            search_status[name] = {
                 "status": ProviderStatus.HEALTHY.value
                 if provider.metrics.is_healthy()
                 else ProviderStatus.COOLDOWN.value,

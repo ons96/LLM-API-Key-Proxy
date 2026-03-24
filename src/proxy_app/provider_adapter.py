@@ -119,6 +119,108 @@ class BaseProviderAdapter(ABC):
         return True
 
 
+class OpenAICompatibleAdapter(BaseProviderAdapter):
+    def __init__(
+        self,
+        provider_name: str,
+        api_key: Optional[str],
+        api_base: Optional[str],
+        models: Optional[List[str]] = None,
+    ):
+        self.api_base = api_base
+        self.model_list = models or []
+        super().__init__(provider_name, api_key)
+
+    def _initialize_models(self):
+        models: Dict[str, ModelCapabilities] = {}
+        for model in self.model_list:
+            models[model] = ModelCapabilities(
+                provider=self.provider_name,
+                model=model,
+                supports_tools=True,
+                supports_function_calling=True,
+                supports_streaming=True,
+                free_tier_available=True,
+                tags=["openai_compatible", "custom"],
+            )
+        self.models.update(models)
+
+    async def list_models(self) -> List[str]:
+        return list(self.models.keys())
+
+    async def chat_completions(
+        self,
+        request: Dict[str, Any],
+        stream: bool = False,
+        client: Optional[httpx.AsyncClient] = None,
+    ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
+        if not self.api_key:
+            raise ValueError(f"{self.provider_name} API key not configured")
+        if not self.api_base:
+            raise ValueError(f"{self.provider_name} API base not configured")
+
+        request_with_key = request.copy()
+
+        model = request_with_key.get("model")
+        if isinstance(model, str):
+            prefix = f"{self.provider_name}/"
+            if model.startswith(prefix):
+                request_with_key["model"] = model[len(prefix) :]
+
+        request_with_key["api_key"] = self.api_key
+        request_with_key["api_base"] = self.api_base
+        request_with_key["custom_llm_provider"] = "openai"
+
+        if stream:
+            return self._stream_completion(request_with_key)
+        return await self._non_stream_completion(request_with_key)
+
+    async def _non_stream_completion(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            response = await litellm.acompletion(**request)
+            return self._convert_response(response)
+        except Exception as e:
+            logger.error(f"{self.provider_name} completion failed: {e}")
+            raise self._convert_error(e)
+
+    async def _stream_completion(
+        self, request: Dict[str, Any]
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        try:
+            stream_resp: Any = await litellm.acompletion(**request, stream=True)
+            async for chunk in stream_resp:
+                yield self._convert_chunk(chunk)
+        except Exception as e:
+            logger.error(f"{self.provider_name} streaming failed: {e}")
+            raise self._convert_error(e)
+
+    def _convert_response(self, response: Any) -> Dict[str, Any]:
+        if hasattr(response, "dict"):
+            return response.dict()
+        if hasattr(response, "__dict__"):
+            return response.__dict__
+        return response
+
+    def _convert_chunk(self, chunk: Any) -> Dict[str, Any]:
+        if hasattr(chunk, "dict"):
+            return chunk.dict()
+        if hasattr(chunk, "__dict__"):
+            return chunk.__dict__
+        return chunk
+
+    def _convert_error(self, error: Exception) -> HTTPException:
+        error_str = str(error).lower()
+        if "authentication" in error_str or "api_key" in error_str:
+            status_code = 401
+        elif "rate_limit" in error_str or "too many" in error_str:
+            status_code = 429
+        elif "invalid" in error_str or "bad request" in error_str:
+            status_code = 400
+        else:
+            status_code = 500
+        return HTTPException(status_code=status_code, detail=str(error))
+
+
 class GroqAdapter(BaseProviderAdapter):
     """Adapter for Groq provider."""
 
@@ -944,9 +1046,23 @@ class ProviderAdapterFactory:
 
     @staticmethod
     def create_adapter(
-        provider_name: str, api_key: Optional[str] = None
+        provider_name: str,
+        api_key: Optional[str] = None,
+        api_base: Optional[str] = None,
+        model_list: Optional[List[str]] = None,
     ) -> BaseProviderAdapter:
         """Create provider adapter instance."""
+        openai_compatible = {
+            "noobrouter",
+            "supacoder",
+            "wiwi",
+            "aihubmix",
+        }
+
+        provider_key = provider_name.lower()
+        if provider_key in openai_compatible:
+            return OpenAICompatibleAdapter(provider_name, api_key, api_base, model_list)
+
         adapters = {
             "groq": GroqAdapter,
             "gemini": GeminiAdapter,
@@ -960,7 +1076,7 @@ class ProviderAdapterFactory:
             "kilo": KiloAdapter,
         }
 
-        adapter_class = adapters.get(provider_name.lower())
+        adapter_class = adapters.get(provider_key)
         if not adapter_class:
             raise ValueError(f"Unknown provider: {provider_name}")
 
@@ -980,4 +1096,8 @@ class ProviderAdapterFactory:
             "g4f_groq",
             "together",
             "kilo",
+            "noobrouter",
+            "supacoder",
+            "wiwi",
+            "aihubmix",
         ]

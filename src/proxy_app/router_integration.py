@@ -9,7 +9,8 @@ import asyncio
 import logging
 import time
 import uuid
-from typing import Dict, Any, AsyncGenerator, Union
+from collections.abc import AsyncGenerator as AsyncGeneratorABC
+from typing import Dict, Any, AsyncGenerator, Union, List
 
 from fastapi import HTTPException, Request
 
@@ -51,6 +52,10 @@ class RouterIntegration:
             "g4f_nvidia": None,
             "g4f_gemini": None,
             "g4f_groq": None,
+            "noobrouter": "NOOBROUTER_API_KEY",
+            "supacoder": "SUPACODER_API_KEY",
+            "wiwi": "WIWI_API_KEY",
+            "aihubmix": "AIHUBMIX_API_KEY",
         }
 
         for provider_name, env_var in provider_configs.items():
@@ -72,8 +77,17 @@ class RouterIntegration:
 
             if api_key:
                 try:
+                    provider_cfg = self.router.config.get("providers", {}).get(
+                        provider_name, {}
+                    )
+                    api_base = provider_cfg.get("base_url")
+                    model_list = provider_cfg.get("free_tier_models", [])
+
                     adapter = self.adapter_factory.create_adapter(
-                        provider_name, api_key
+                        provider_name,
+                        api_key,
+                        api_base,
+                        model_list,
                     )
                     self.adapters[provider_name] = adapter
                     logger.info(f"Initialized {provider_name} adapter")
@@ -159,6 +173,11 @@ class RouterIntegration:
 
             # Handle streaming response
             if streaming:
+                if not isinstance(response, AsyncGeneratorABC):
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Streaming requested but non-stream response returned",
+                    )
                 return self._wrap_streaming_response(response, request_id, start_time)
             else:
                 # Log completion
@@ -196,7 +215,7 @@ class RouterIntegration:
             logger.error(f"[{request_id}] Stream failed after {duration_ms:.1f}ms: {e}")
             raise
 
-    def get_models(self) -> Dict[str, Any]:
+    def get_models(self) -> List[Dict[str, Any]]:
         """Get available models (combines router and legacy models)."""
 
         # Get models from router
