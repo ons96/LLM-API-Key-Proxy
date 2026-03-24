@@ -9,51 +9,93 @@ virtual_models:
       - provider: antigravity
         model: claude-opus-4-5
         priority: 1
+      - provider: supacoder
+        model: claude-opus-4-6-20260205
+        priority: 2
       - provider: kilo
         model: minimax/minimax-m2.5:free
-        priority: 2
+        priority: 3
       - provider: g4f_ollama
         model: minimax-m2.5
-        priority: 3
+        priority: 4
+      - provider: supacoder
+        model: gpt-5.2
+        priority: 5
+      - provider: noobrouter
+        model: gpt-5.2
+        priority: 6
       - provider: antigravity
         model: claude-sonnet-4-5
-        priority: 4
-      - provider: iflow
-        model: kimi-k2
-        priority: 5
+        priority: 7
       - provider: opencode_zen
         model: moonshot/kimi-k2.5
-        priority: 6
-      - provider: groq
-        model: moonshotai/kimi-k2-instruct
-        priority: 7
-      - provider: antigravity
-        model: gemini-3-pro-preview
         priority: 8
-      - provider: iflow
-        model: deepseek-v3.2
+      - provider: supacoder
+        model: gpt-5.2-codex-xhigh
         priority: 9
-      - provider: iflow
-        model: qwen3-coder-plus
+      - provider: noobrouter
+        model: gpt-5.2-codex
         priority: 10
-      - provider: g4f_nvidia
-        model: qwen/qwen3-coder-480b
+      - provider: supacoder
+        model: gpt-5.1
         priority: 11
+      - provider: noobrouter
+        model: gpt-5.1
+        priority: 12
       - provider: iflow
         model: qwen3-235b-a22b-instruct
-        priority: 12
-      - provider: gemini
-        model: gemini-2.5-pro
         priority: 13
-      - provider: groq
-        model: meta-llama/llama-4-maverick-17b-128e-instruct
+      - provider: supacoder
+        model: gpt-5
         priority: 14
-      - provider: groq
-        model: llama-3.3-70b-versatile
+      - provider: supacoder
+        model: gemini-3-pro-preview
         priority: 15
       - provider: g4f_nvidia
-        model: deepseek-ai/deepseek-v3.2
+        model: qwen/qwen3-coder-480b
         priority: 16
+      - provider: supacoder
+        model: gpt-5.4
+        priority: 17
+      - provider: noobrouter
+        model: gpt-5.4
+        priority: 18
+      - provider: wiwi
+        model: gpt-5.4
+        priority: 19
+      - provider: supacoder
+        model: gpt-5.4-codex-xhigh
+        priority: 20
+      - provider: supacoder
+        model: gpt-5.3-codex-xhigh
+        priority: 21
+      - provider: noobrouter
+        model: gpt-5.3-codex
+        priority: 22
+      - provider: wiwi
+        model: gpt-5.3-codex
+        priority: 23
+      - provider: supacoder
+        model: claude-sonnet-4-6-20260217
+        priority: 24
+      - provider: supacoder
+        model: gemini-3.1-pro-preview
+        priority: 25
+      - provider: aihubmix
+        model: coding-glm-5-free
+        priority: 26
+      - provider: iflow
+        model: deepseek-v3.2
+        priority: 27
+      - provider: cerebras
+        model: qwen-3-235b-a22b-instruct-2507
+        priority: 28
+      - provider: gemini
+        model: gemini-2.5-flash
+        priority: 29
+      - provider: g4f_nvidia
+        model: deepseek-ai/deepseek-v3.2
+        priority: 30
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
@@ -61,43 +103,43 @@ virtual_models:
   coding-smart:
     description: "Agentic coding balanced with speed (agentic 70% + TPS 30%)"
     fallback_chain:
-      - provider: iflow
-        model: kimi-k2
+      - provider: supacoder
+        model: claude-opus-4-6-20260205
         priority: 1
-        capabilities: [tools, function_calling, reasoning]
+        capabilities: [tools, function_calling]
         search_enabled: true
-      - provider: opencode_zen
-        model: moonshot/kimi-k2.5
+      - provider: kilo
+        model: minimax/minimax-m2.5:free
         priority: 2
-        capabilities: [tools, function_calling, reasoning]
+        capabilities: [tools, function_calling]
         search_enabled: true
-      - provider: groq
-        model: moonshotai/kimi-k2-instruct
+      - provider: g4f_ollama
+        model: minimax-m2.5
         priority: 3
-        capabilities: [tools, function_calling, reasoning]
+        capabilities: [tools, function_calling]
         search_enabled: true
-      - provider: iflow
-        model: deepseek-v3.2
+      - provider: antigravity
+        model: claude-opus-4-5
         priority: 4
         capabilities: [tools, function_calling]
         search_enabled: true
-      - provider: iflow
-        model: qwen3-coder-plus
+      - provider: supacoder
+        model: gpt-5.2
         priority: 5
         capabilities: [tools, function_calling]
         search_enabled: true
-      - provider: cerebras
-        model: qwen-3-235b-a22b-instruct-2507
+      - provider: noobrouter
+        model: gpt-5.2
         priority: 6
-        capabilities: [tools, function_calling, reasoning]
-        search_enabled: true
-      - provider: g4f_nvidia
-        model: qwen/qwen3-coder-480b
-        priority: 7
         capabilities: [tools, function_calling]
         search_enabled: true
-      - provider: iflow
-        model: qwen3-235b-a22b-instruct
+      - provider: opencode_zen
+        model: moonshot/kimi-k2.5
+        priority: 7
+        capabilities: [tools, function_calling, reasoning]
+        search_enabled: true
+      - provider: supacoder
+        model: gemini-3-pro-preview
         priority: 8
         capabilities: [tools, function_calling]
         search_enabled: true
@@ -106,39 +148,94 @@ virtual_models:
         priority: 9
         capabilities: [tools, function_calling]
         search_enabled: true
-      - provider: kilo
-        model: x-ai/grok-code-fast-1:optimized:free
+      - provider: supacoder
+        model: gpt-5.2-codex-xhigh
         priority: 10
-        capabilities: [tools, function_calling, fast]
+        capabilities: [tools, function_calling, coding]
         search_enabled: true
-      - provider: groq
-        model: meta-llama/llama-4-maverick-17b-128e-instruct
+      - provider: noobrouter
+        model: gpt-5.2-codex
         priority: 11
+        capabilities: [tools, function_calling, coding]
+        search_enabled: true
+      - provider: iflow
+        model: qwen3-235b-a22b-instruct
+        priority: 12
         capabilities: [tools, function_calling]
         search_enabled: true
-      - provider: groq
-        model: llama-3.3-70b-versatile
-        priority: 12
-        capabilities: [tools, function_calling, reasoning]
-        search_enabled: true
-      - provider: cerebras
-        model: gpt-oss-120b
+      - provider: g4f_nvidia
+        model: qwen/qwen3-coder-480b
         priority: 13
         capabilities: [tools, function_calling]
         search_enabled: true
-      - provider: gemini
-        model: gemini-2.5-flash
+      - provider: supacoder
+        model: gpt-5.4
         priority: 14
-        capabilities: [tools, function_calling, fast]
+        capabilities: [tools, function_calling]
+        search_enabled: true
+      - provider: noobrouter
+        model: gpt-5.4
+        priority: 15
+        capabilities: [tools, function_calling]
+        search_enabled: true
+      - provider: wiwi
+        model: gpt-5.4
+        priority: 16
+        capabilities: [tools, function_calling]
+        search_enabled: true
+      - provider: supacoder
+        model: gpt-5.4-codex-xhigh
+        priority: 17
+        capabilities: [tools, function_calling, coding]
+        search_enabled: true
+      - provider: supacoder
+        model: gpt-5.3-codex-xhigh
+        priority: 18
+        capabilities: [tools, function_calling, coding]
+        search_enabled: true
+      - provider: noobrouter
+        model: gpt-5.3-codex
+        priority: 19
+        capabilities: [tools, function_calling, coding]
+        search_enabled: true
+      - provider: wiwi
+        model: gpt-5.3-codex
+        priority: 20
+        capabilities: [tools, function_calling, coding]
+        search_enabled: true
+      - provider: supacoder
+        model: claude-sonnet-4-6-20260217
+        priority: 21
+        capabilities: [tools, function_calling, reasoning]
+        search_enabled: true
+      - provider: supacoder
+        model: gemini-3.1-pro-preview
+        priority: 22
+        capabilities: [tools, function_calling]
+        search_enabled: true
+      - provider: aihubmix
+        model: coding-glm-5-free
+        priority: 23
+        capabilities: [tools, function_calling]
+        search_enabled: true
+      - provider: iflow
+        model: deepseek-v3.2
+        priority: 24
+        capabilities: [tools, function_calling]
+        search_enabled: true
+      - provider: cerebras
+        model: qwen-3-235b-a22b-instruct-2507
+        priority: 25
+        capabilities: [tools, function_calling, reasoning]
         search_enabled: true
       - provider: gemini
-        model: gemini-2.5-pro
-        priority: 15
-        capabilities: [tools, function_calling, reasoning]
+        model: gemini-2.5-flash
+        priority: 26
+        capabilities: [tools, function_calling, fast]
         search_enabled: true
       - provider: g4f_nvidia
         model: deepseek-ai/deepseek-v3.2
-        priority: 16
+        priority: 27
         capabilities: [tools, function_calling]
         search_enabled: false
     settings:
