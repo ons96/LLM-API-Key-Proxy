@@ -926,3 +926,475 @@ providers:
         tps: 40
         capabilities: [chat, code, tools]
     last_verified: "2026-03-17"
+
+  - id: aihubmix
+    name: "AIHubMix"
+    signup_url: "https://aihubmix.com"
+    env_var: AIHUBMIX_API_KEY
+    base_url: "https://aihubmix.com/v1"
+    enabled: true
+    free_tier: true
+    capabilities: [chat, code, tools, function_calling]
+    rate_limits:
+      rpm: 60
+    free_models:
+      - id: coding-glm-5-free
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: glm-4.7-free
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: glm-4-flash
+        context: 128000
+        tps: 150
+        capabilities: [chat, code, tools, function_calling, fast]
+    last_verified: "2026-03-24"
+
+  - id: noobrouter
+    name: "NoobRouter"
+    signup_url: "https://noobrouter.azurewebsites.net"
+    env_var: NOOBROUTER_API_KEY
+    base_url: "https://noobrouter.azurewebsites.net/v1"
+    enabled: true
+    free_tier: true
+    capabilities: [chat, code, tools, function_calling]
+    rate_limits:
+      rpm: 60
+    free_models:
+      - id: gpt-5.4
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.3-codex
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.2
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.2-codex
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.1
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.1-codex
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.1-codex-max
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gemini-3-flash-preview
+        context: 1000000
+        tps: 150
+        capabilities: [chat, code, tools, function_calling, fast]
+      - id: gemini-2.5-flash
+        context: 1000000
+        tps: 150
+        capabilities: [chat, code, tools, function_calling, fast]
+      - id: glm5
+        context: 200000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: kimi-k2.5
+        context: 131072
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: minimax-m2.5
+        context: 100000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling]
+      - id: minimax-m2.7
+        context: 100000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling]
+      - id: qwen-3.5
+        context: 131072
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+    last_verified: "2026-03-24"
+
+  - id: supacoder
+    name: "Supacoder"
+    signup_url: "https://supacoder.top"
+    env_var: SUPACODER_API_KEY
+    base_url: "https://supacoder.top/v1"
+    enabled: true
+    free_tier: true
+    capabilities: [chat, code, tools, function_calling]
+    rate_limits:
+      rpm: 60
+    free_models:
+      - id: gpt-5.2-xhigh
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.1-minimal
+        context: 128000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.4
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gemini-2.5-flash-thinking
+        context: 1000000
+        tps: 150
+        capabilities: [chat, code, tools, function_calling, fast, reasoning]
+      - id: gpt-5.3-codex
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5-codex-high
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.3-codex-xhigh
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.3-codex-low
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: claude-sonnet-4-6-20260217-thinking
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, reasoning]
+      - id: gpt-5
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.2-low
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.1-codex-max-xhigh
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5-codex
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gemini-3.1-pro-preview
+        context: 1000000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling]
+      - id: claude-opus-4-6-20260205
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: kimi-k2.5
+        context: 131072
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.3-codex-spark-high
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.1-codex-medium
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.1-medium
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.3-codex-high
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.1-codex-mini-high
+        context: 128000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.2-codex
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: qwen3-max
+        context: 131072
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gemini-3-pro-preview
+        context: 1000000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.1-codex-mini
+        context: 128000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.4-codex-xhigh
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.1-codex-max
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.3-codex-spark-xhigh
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: claude-opus-4-6-20260205-thinking
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, reasoning]
+      - id: gpt-5.2-medium
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gemini-2.5-pro
+        context: 1000000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.1-codex-max-low
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.1-codex-high
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.1-codex-low
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5-low
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gemini-2.5-pro-thinking
+        context: 1000000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling, reasoning]
+      - id: gpt-5.3-codex-spark
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: claude-sonnet-4-5-20250929
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5-codex-mini-medium
+        context: 128000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gemini-3-flash-preview-thinking
+        context: 1000000
+        tps: 150
+        capabilities: [chat, code, tools, function_calling, fast, reasoning]
+      - id: gpt-5.2-codex-xhigh
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.3-codex-spark-low
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5-codex-mini-high
+        context: 128000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.1
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.2-codex-high
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: minimax-m2.5
+        context: 100000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling]
+      - id: gemini-2.5-flash
+        context: 1000000
+        tps: 150
+        capabilities: [chat, code, tools, function_calling, fast]
+      - id: gpt-5-codex-low
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.1-high
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: claude-opus-4-1-20250805
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: claude-haiku-4-5-20251001
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.2-codex-low
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5-high
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: claude-sonnet-4-5-20250929-thinking
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, reasoning]
+      - id: gpt-5-codex-medium
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5-codex-mini
+        context: 128000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.1-low
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.4-xhigh
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.2-thinking
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, reasoning]
+      - id: gpt-5-minimal
+        context: 128000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.4-high
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: glm-5
+        context: 200000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: qwen3.5-plus
+        context: 131072
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.2-codex-medium
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: claude-sonnet-4-6-20260217
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.1-codex-max-high
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.2
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: claude-opus-4-5-20251101-thinking
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, reasoning]
+      - id: claude-opus-4-1-20250805-thinking
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, reasoning]
+      - id: gpt-5.2-high
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.1-codex-max-medium
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5.1-codex-mini-medium
+        context: 128000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gemini-3-pro-preview-thinking
+        context: 1000000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling, reasoning]
+      - id: gpt-5.3-codex-medium
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gemini-3-flash-preview
+        context: 1000000
+        tps: 150
+        capabilities: [chat, code, tools, function_calling, fast]
+      - id: claude-opus-4-5-20251101
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.3-codex-spark-medium
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: gpt-5-medium
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: claude-haiku-4-5-20251001-thinking
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, reasoning]
+      - id: gpt-5.1-codex
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+    last_verified: "2026-03-24"
+
+  - id: wiwi
+    name: "WiWi"
+    signup_url: "https://wiwi.up.railway.app"
+    env_var: WIWI_API_KEY
+    base_url: "https://wiwi.up.railway.app/v1"
+    enabled: true
+    free_tier: true
+    capabilities: [chat, code, tools, function_calling]
+    rate_limits:
+      rpm: 60
+    free_models:
+      - id: gpt-5.4
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: gpt-5.3-codex
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling, coding]
+      - id: glm-5
+        context: 200000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: glm-4.7
+        context: 128000
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: kimi-k2.5
+        context: 131072
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: qwen3.5-397b-a17b
+        context: 131072
+        tps: 100
+        capabilities: [chat, code, tools, function_calling]
+      - id: minimax-m2.7
+        context: 100000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling]
+      - id: minimax-m2.1
+        context: 100000
+        tps: 200
+        capabilities: [chat, code, tools, function_calling]
+    last_verified: "2026-03-24"
