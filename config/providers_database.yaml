@@ -200,3 +200,86 @@ providers:
         note: "Free tier with rate limiting under load"
     capabilities: [chat, code]
     last_verified: "2025-01-31"
+
+  - id: wiwi
+    name: "WiWi"
+    signup_url: "https://wiwi.up.railway.app"
+    api_base: "https://wiwi.up.railway.app/v1"
+    free_tier: true
+    note: "OpenAI-compatible gateway with multiple providers (GPT-5, GLM-5, DeepSeek, Qwen, MiniMax, Grok). Merged with NoobRouter."
+    free_models:
+      - id: "gpt-5.4"
+        context: 128000
+        rpm: 60
+        note: "GPT-5.4 via WiWi gateway"
+      - id: "gpt-5.3-codex"
+        context: 128000
+        rpm: 60
+        note: "GPT-5.3 Codex"
+      - id: "gpt-5.2-codex"
+        context: 128000
+        rpm: 60
+      - id: "gpt-5.1-codex"
+        context: 128000
+        rpm: 60
+      - id: "gpt-5-codex"
+        context: 128000
+        rpm: 60
+      - id: "gpt-5-codex-mini"
+        context: 128000
+        rpm: 60
+      - id: "gpt-5.1-codex-mini"
+        context: 128000
+        rpm: 60
+      - id: "gpt-5.1-codex-max"
+        context: 128000
+        rpm: 60
+      - id: "gpt-5"
+        context: 128000
+        rpm: 60
+      - id: "gpt-5.1"
+        context: 128000
+        rpm: 60
+      - id: "gpt-5.2"
+        context: 128000
+        rpm: 60
+      - id: "glm-5"
+        context: 128000
+        rpm: 60
+        note: "GLM-5 from Zhipu AI"
+      - id: "glm-4.7"
+        context: 128000
+        rpm: 60
+      - id: "glm-4.6v-flash"
+        context: 128000
+        rpm: 60
+      - id: "deepseek-v3.2"
+        context: 128000
+        rpm: 60
+        note: "DeepSeek V3.2"
+      - id: "qwen3.5-397b-a17b"
+        context: 128000
+        rpm: 60
+        note: "Qwen 3.5 397B"
+      - id: "grok-code-fast-1"
+        context: 128000
+        rpm: 60
+        note: "Grok Code Fast"
+      - id: "minimax-m2.1"
+        context: 128000
+        rpm: 60
+        note: "MiniMax M2.1"
+      - id: "minimax-m2.5"
+        context: 128000
+        rpm: 60
+      - id: "minimax-m2.7"
+        context: 128000
+        rpm: 60
+      - id: "mimo-v2-pro"
+        context: 128000
+        rpm: 60
+      - id: "mimo-v2-omni"
+        context: 128000
+        rpm: 60
+    capabilities: [chat, code, reasoning]
+    last_verified: "2026-03-26"
