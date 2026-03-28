@@ -985,7 +985,7 @@ class KiloAdapter(BaseProviderAdapter):
 
         request_with_key = request.copy()
         request_with_key["api_key"] = self.api_key
-        request_with_key["api_base"] = "https://api.kilo.ai/api/gateway"
+        request_with_key["api_base"] = self.api_base or "https://api.kilo.ai/api/gateway"
         model = request_with_key.get("model", "")
         if model.startswith("kilo/"):
             request_with_key["model"] = "openai/" + model[len("kilo/") :]
@@ -1057,6 +1057,8 @@ class ProviderAdapterFactory:
             "supacoder",
             "wiwi",
             "aihubmix",
+            "opencode_zen",
+            "iflow",
         }
 
         provider_key = provider_name.lower()
@@ -1100,4 +1102,6 @@ class ProviderAdapterFactory:
             "supacoder",
             "wiwi",
             "aihubmix",
+            "opencode_zen",
+            "iflow",
         ]

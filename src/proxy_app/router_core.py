@@ -1169,13 +1169,8 @@ class RouterCore:
                 "citations",
                 "search",
                 "web search",
-                "find",
                 "look up",
                 "lookup",
-                "google",
-                "what is",
-                "who is",
-                "how to",
             ]
             req.search_requested = any(
                 indicator in content for indicator in search_indicators
