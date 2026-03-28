@@ -5,10 +5,10 @@ Availability is used as a yes/no filter, not a scoring factor.
 """
 
 import logging
+import yaml
+from pathlib import Path
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
-
-from telemetry import TelemetryManager, get_telemetry_manager
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +21,58 @@ class ScoringEngine:
     - Availability is a yes/no filter (excluded providers)
     """
 
-    def __init__(self, telemetry: Optional[TelemetryManager] = None):
-        self.telemetry = telemetry or get_telemetry_manager()
+    def __init__(self, telemetry=None):
+        self._telemetry = telemetry  # lazy-loaded if None
         self.agentic_scores = self._load_agentic_scores()
         self.max_observed_tps = 3000  # Will be updated from telemetry
 
+    @property
+    def telemetry(self):
+        if self._telemetry is None:
+            try:
+                from rotator_library.telemetry import get_telemetry_manager
+                self._telemetry = get_telemetry_manager()
+            except ImportError:
+                try:
+                    from telemetry import get_telemetry_manager
+                    self._telemetry = get_telemetry_manager()
+                except ImportError:
+                    pass
+        return self._telemetry
+
     def _load_agentic_scores(self) -> Dict[str, float]:
-        """Load SWE-bench agentic coding scores for models."""
+        """Load SWE-bench agentic coding scores from model_rankings.yaml.
+        Falls back to hardcoded scores if file not found.
+        """
+        # Resolve path relative to this file
+        config_path = Path(__file__).resolve().parent.parent.parent / "config" / "model_rankings.yaml"
+
+        if config_path.exists():
+            try:
+                with open(config_path) as f:
+                    data = yaml.safe_load(f)
+
+                scores: Dict[str, float] = {}
+                for model in data.get("models", []):
+                    model_id = model.get("id", "")
+                    ag = model.get("scores", {}).get("agentic_coding", -1)
+                    if ag > 0 and model_id:
+                        # Store both full id (provider/model) and bare model name
+                        scores[model_id] = ag
+                        # Also store just the model part for fuzzy matching
+                        if "/" in model_id:
+                            bare = model_id.split("/", 1)[1]
+                            scores[bare] = ag
+
+                if scores:
+                    logger.info(f"Loaded {len(scores)} agentic scores from {config_path}")
+                    return scores
+
+            except Exception as e:
+                logger.warning(f"Failed to load model_rankings.yaml: {e}")
+
+        # Fallback: hardcoded scores
+        logger.warning("Using hardcoded agentic scores (model_rankings.yaml not found)")
         return {
             "claude-opus-4-5": 74.4,
             "claude-opus-4.5": 74.4,
@@ -44,10 +89,19 @@ class ScoringEngine:
             "codestral": 63.5,
         }
 
+    def reload_scores(self):
+        """Reload agentic scores from disk (call after leaderboard update)."""
+        self.agentic_scores = self._load_agentic_scores()
+
     def get_agentic_score(self, model: str) -> float:
         """Get agentic coding score for a model (normalized 0-1)."""
         model_lower = model.lower().strip()
 
+        # Exact match first
+        if model_lower in self.agentic_scores:
+            return self.agentic_scores[model_lower] / 100.0
+
+        # Fuzzy match
         for key, score in self.agentic_scores.items():
             if key.lower() in model_lower or model_lower in key.lower():
                 return score / 100.0
@@ -56,27 +110,27 @@ class ScoringEngine:
 
     def get_average_tps(self, provider: str, model: str, minutes: int = 60) -> float:
         """Get average TPS from telemetry data."""
+        if self.telemetry is None:
+            return 0.0
         try:
-            since = datetime.now() - timedelta(minutes=minutes)
+            import sqlite3
+            from datetime import datetime, timedelta
+            since = (datetime.now() - timedelta(minutes=minutes)).isoformat()
 
-            conn = self.telemetry._connect()
+            conn = sqlite3.connect(self.telemetry.db_path)
             cursor = conn.cursor()
-
             cursor.execute(
                 """
                 SELECT AVG(tokens_per_second)
                 FROM api_calls
                 WHERE provider = ? AND model = ? AND timestamp >= ? AND success = 1
                 AND tokens_per_second IS NOT NULL
-            """,
+                """,
                 (provider, model, since),
             )
-
             result = cursor.fetchone()[0]
             conn.close()
-
-            return result or 0.0
-
+            return float(result) if result else 0.0
         except Exception as e:
             logger.error(f"Failed to get TPS for {provider}/{model}: {e}")
             return 0.0
@@ -86,142 +140,68 @@ class ScoringEngine:
         provider: str,
         model: Optional[str] = None,
     ) -> bool:
-        """
-        Check if provider is available (not rate-limited, not unhealthy).
-        This is a yes/no filter, not a scoring factor.
-        """
-        health = self.telemetry.get_provider_health(provider, model)
-
-        if not health.get("is_healthy", True):
-            logger.debug(f"{provider}/{model or '*'} not available: unhealthy")
-            return False
-
-        if health.get("consecutive_failures", 0) > 5:
-            logger.debug(f"{provider}/{model or '*'} not available: too many failures")
-            return False
-
-        is_limited, _ = self.telemetry.check_rate_limit(provider, model or "*")
-        if is_limited:
-            logger.debug(f"{provider}/{model or '*'} not available: rate limited")
-            return False
-
+        """Check if provider is available (not rate-limited, not unhealthy)."""
+        if self.telemetry is None:
+            return True
+        try:
+            health = self.telemetry.get_provider_health(provider, model)
+            if not health.get("is_healthy", True):
+                return False
+            if health.get("consecutive_failures", 0) > 5:
+                return False
+            is_limited, _ = self.telemetry.check_rate_limit(provider, model or "*")
+            if is_limited:
+                return False
+        except Exception:
+            pass
         return True
 
-    def calculate_virtual_model_score(
-        self,
-        provider: str,
-        model: str,
-    ) -> float:
-        """
-        Calculate score for virtual models:
-        Score = Agentic(70%) + TPS(30%)
-        Availability is a yes/no filter (excluded if not available)
-        """
+    def calculate_virtual_model_score(self, provider: str, model: str) -> float:
+        """Score = Agentic(70%) + TPS(30%). Returns 0.0 if unavailable."""
         if not self.is_provider_available(provider, model):
             return 0.0
-
         agentic_score = self.get_agentic_score(model)
         tps = self.get_average_tps(provider, model, minutes=60)
         tps_score = min(tps / 3000.0, 1.0) if tps else 0.1
+        return (agentic_score * 0.70) + (tps_score * 0.30)
 
-        final_score = (agentic_score * 0.70) + (tps_score * 0.30)
-
-        logger.debug(
-            f"Virtual model score for {provider}/{model}: Agentic={agentic_score:.3f}, TPS={tps_score:.3f}, "
-            f"Final={final_score:.3f}"
-        )
-
-        return final_score
-
-    def calculate_specific_model_score(
-        self,
-        provider: str,
-        model: str,
-    ) -> float:
-        """
-        Calculate score for specific models:
-        Score = TPS(70%) + Agentic(30%)
-        Availability is a yes/no filter (excluded if not available)
-        """
+    def calculate_specific_model_score(self, provider: str, model: str) -> float:
+        """Score = TPS(70%) + Agentic(30%). Returns 0.0 if unavailable."""
         if not self.is_provider_available(provider, model):
             return 0.0
-
         tps = self.get_average_tps(provider, model, minutes=60)
         tps_score = min(tps / 3000.0, 1.0) if tps else 0.1
-
         agentic_score = self.get_agentic_score(model)
-
-        final_score = (tps_score * 0.70) + (agentic_score * 0.30)
-
-        logger.debug(
-            f"Specific model score for {provider}/{model}: TPS={tps_score:.3f}, "
-            f"Agentic={agentic_score:.3f}, Final={final_score:.3f}"
-        )
-
-        return final_score
+        return (tps_score * 0.70) + (agentic_score * 0.30)
 
     def rank_virtual_models(
         self,
         model_candidates: List[str],
         providers_per_model: Dict[str, List[str]],
     ) -> List[Dict[str, Any]]:
-        """
-        Rank provider+model combinations for virtual models.
-        Returns sorted list of {provider, model, score}
-        """
+        """Rank provider+model combinations for virtual models."""
         candidates = []
-
         for model in model_candidates:
-            providers = providers_per_model.get(model, [])
-
-            for provider in providers:
+            for provider in providers_per_model.get(model, []):
                 score = self.calculate_virtual_model_score(provider, model)
-
-                if score > 0:  # Only include available providers
-                    candidates.append(
-                        {
-                            "provider": provider,
-                            "model": model,
-                            "score": score,
-                            "agentic_score": self.get_agentic_score(model),
-                        }
-                    )
-
-        ranked = sorted(candidates, key=lambda x: x["score"], reverse=True)
-
-        logger.info(f"Ranked {len(ranked)} candidates for virtual models")
-        return ranked
+                if score > 0:
+                    candidates.append({"provider": provider, "model": model, "score": score})
+        return sorted(candidates, key=lambda x: x["score"], reverse=True)
 
     def rank_specific_model(
         self,
         model: str,
         providers: List[str],
     ) -> List[Dict[str, Any]]:
-        """
-        Rank providers for a specific model (fastest first with some quality).
-        Returns sorted list of {provider, model, score}
-        """
+        """Rank providers for a specific model."""
         candidates = []
-
         for provider in providers:
             score = self.calculate_specific_model_score(provider, model)
-
-            if score > 0:  # Only include available providers
-                candidates.append(
-                    {
-                        "provider": provider,
-                        "model": model,
-                        "score": score,
-                    }
-                )
-
-        ranked = sorted(candidates, key=lambda x: x["score"], reverse=True)
-
-        logger.info(f"Ranked {len(ranked)} providers for specific model {model}")
-        return ranked
+            if score > 0:
+                candidates.append({"provider": provider, "model": model, "score": score})
+        return sorted(candidates, key=lambda x: x["score"], reverse=True)
 
 
-# Global scoring engine instance
 _scoring_engine: Optional[ScoringEngine] = None
 
 

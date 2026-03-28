@@ -9,7 +9,8 @@ import asyncio
 import logging
 import time
 import uuid
-from typing import Dict, Any, AsyncGenerator, Union
+from collections.abc import AsyncGenerator as AsyncGeneratorABC
+from typing import Dict, Any, AsyncGenerator, Union, List
 
 from fastapi import HTTPException, Request
 
@@ -40,18 +41,35 @@ class RouterIntegration:
         )
 
     def _initialize_adapters(self):
-        """Initialize provider adapters from environment variables."""
-        provider_configs = {
-            "groq": "GROQ_API_KEY",
-            "gemini": "GEMINI_API_KEY",
-            "together": "TOGETHER_API_KEY",
-            "g4f": None,
-            "g4f_ollama": None,
-            "g4f_pollinations": None,
-            "g4f_nvidia": None,
-            "g4f_gemini": None,
-            "g4f_groq": None,
-        }
+        """Initialize provider adapters dynamically from router_config.yaml providers section."""
+        # Build provider_configs from router_config: {name: env_var or None}
+        # Skip non-LLM providers (search tools etc.) and virtual router models
+        _SEARCH_ONLY = {"brave_search", "tavily", "duckduckgo", "exa", "jina"}
+        _SKIP_PREFIXES = ("router/",)
+        raw_providers = self.router.config.get("providers", {})
+        provider_configs = {}
+        for pname, pcfg in raw_providers.items():
+            if pname in _SEARCH_ONLY:
+                continue
+            if any(pname.startswith(p) for p in _SKIP_PREFIXES):
+                continue
+            if not isinstance(pcfg, dict):
+                continue
+            # Skip virtual model groups (coding-smart etc.) that snuck into providers
+            if "candidates" in pcfg or "description" in pcfg:
+                continue
+            env_var = pcfg.get("env_var") or None
+            no_key = pcfg.get("no_api_key_required", False)
+            if no_key:
+                env_var = None  # signal that no key needed
+                provider_configs[pname] = None
+            else:
+                provider_configs[pname] = env_var
+        # Also ensure legacy providers that may not be in config are still initialized
+        _LEGACY_NO_KEY = {"g4f", "g4f_ollama", "g4f_pollinations", "g4f_nvidia", "g4f_gemini", "g4f_groq"}
+        for p in _LEGACY_NO_KEY:
+            if p not in provider_configs:
+                provider_configs[p] = None
 
         for provider_name, env_var in provider_configs.items():
             if env_var is None:  # No API key needed
@@ -72,8 +90,17 @@ class RouterIntegration:
 
             if api_key:
                 try:
+                    provider_cfg = self.router.config.get("providers", {}).get(
+                        provider_name, {}
+                    )
+                    api_base = provider_cfg.get("base_url")
+                    model_list = provider_cfg.get("free_tier_models", [])
+
                     adapter = self.adapter_factory.create_adapter(
-                        provider_name, api_key
+                        provider_name,
+                        api_key,
+                        api_base,
+                        model_list,
                     )
                     self.adapters[provider_name] = adapter
                     logger.info(f"Initialized {provider_name} adapter")
@@ -159,6 +186,11 @@ class RouterIntegration:
 
             # Handle streaming response
             if streaming:
+                if not isinstance(response, AsyncGeneratorABC):
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Streaming requested but non-stream response returned",
+                    )
                 return self._wrap_streaming_response(response, request_id, start_time)
             else:
                 # Log completion
@@ -196,7 +228,7 @@ class RouterIntegration:
             logger.error(f"[{request_id}] Stream failed after {duration_ms:.1f}ms: {e}")
             raise
 
-    def get_models(self) -> Dict[str, Any]:
+    def get_models(self) -> List[Dict[str, Any]]:
         """Get available models (combines router and legacy models)."""
 
         # Get models from router

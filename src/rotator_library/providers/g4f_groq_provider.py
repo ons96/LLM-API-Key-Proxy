@@ -3,6 +3,7 @@
 import os
 import logging
 from typing import List, Dict, Any, Optional
+import httpx
 
 from .g4f_provider import G4FProvider
 
@@ -29,12 +30,17 @@ class G4FGroqProvider(G4FProvider):
             "G4F_GROQ_API_BASE", self._DEFAULT_PUBLIC_BASE
         )
 
-    async def get_models(self) -> List[Dict[str, Any]]:
-        """Return available models from G4F Groq proxy."""
+    async def get_models(
+        self, api_key: str = None, client: httpx.AsyncClient = None
+    ) -> List[str]:
+        """Return available models from G4F Groq proxy.
+
+        Models are prefixed with provider name to avoid duplication with other G4F variants.
+        """
         return [
-            {"id": "llama-3.3-70b-versatile", "object": "model", "owned_by": "meta"},
-            {"id": "llama-3.1-8b-instant", "object": "model", "owned_by": "meta"},
-            {"id": "llama-3.1-70b-versatile", "object": "model", "owned_by": "meta"},
-            {"id": "mixtral-8x7b-32768", "object": "model", "owned_by": "mistral"},
-            {"id": "gemma2-9b-it", "object": "model", "owned_by": "google"},
+            "g4f_groq/llama-3.3-70b-versatile",
+            "g4f_groq/llama-3.1-8b-instant",
+            "g4f_groq/llama-3.1-70b-versatile",
+            "g4f_groq/mixtral-8x7b-32768",
+            "g4f_groq/gemma2-9b-it",
         ]

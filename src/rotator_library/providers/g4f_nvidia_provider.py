@@ -3,6 +3,7 @@
 import os
 import logging
 from typing import List, Dict, Any, Optional
+import httpx
 
 from .g4f_provider import G4FProvider
 
@@ -29,92 +30,41 @@ class G4FNvidiaProvider(G4FProvider):
             "G4F_NVIDIA_API_BASE", self._DEFAULT_PUBLIC_BASE
         )
 
-    async def get_models(self) -> List[Dict[str, Any]]:
-        """Return available models from G4F Nvidia proxy."""
-        # Key free models (170+ total available)
+    async def get_models(
+        self, api_key: str = None, client: httpx.AsyncClient = None
+    ) -> List[str]:
+        """Return available models from G4F Nvidia proxy.
+
+        Models are prefixed with provider name to avoid duplication with other G4F variants.
+        """
+        # Key free models (170+ total available) - prefixed with provider name
         return [
             # Meta Llama models
-            {
-                "id": "meta/llama-3.1-405b-instruct",
-                "object": "model",
-                "owned_by": "meta",
-            },
-            {
-                "id": "meta/llama-3.3-70b-instruct",
-                "object": "model",
-                "owned_by": "meta",
-            },
-            {
-                "id": "meta/llama-4-maverick-17b-128e-instruct",
-                "object": "model",
-                "owned_by": "meta",
-            },
-            {
-                "id": "meta/llama-4-scout-17b-16e-instruct",
-                "object": "model",
-                "owned_by": "meta",
-            },
+            "g4f_nvidia/meta/llama-3.1-405b-instruct",
+            "g4f_nvidia/meta/llama-3.3-70b-instruct",
+            "g4f_nvidia/meta/llama-4-maverick-17b-128e-instruct",
+            "g4f_nvidia/meta/llama-4-scout-17b-16e-instruct",
             # DeepSeek models
-            {
-                "id": "deepseek-ai/deepseek-v3.1",
-                "object": "model",
-                "owned_by": "deepseek",
-            },
-            {
-                "id": "deepseek-ai/deepseek-v3.2",
-                "object": "model",
-                "owned_by": "deepseek",
-            },
-            {
-                "id": "deepseek-ai/deepseek-r1-distill-llama-70b",
-                "object": "model",
-                "owned_by": "deepseek",
-            },
+            "g4f_nvidia/deepseek-ai/deepseek-v3.1",
+            "g4f_nvidia/deepseek-ai/deepseek-v3.2",
+            "g4f_nvidia/deepseek-ai/deepseek-r1-distill-llama-70b",
             # Google Gemma models
-            {"id": "google/gemma-3-27b-it", "object": "model", "owned_by": "google"},
-            {"id": "google/gemma-3-12b-it", "object": "model", "owned_by": "google"},
-            {"id": "google/gemma-3-4b-it", "object": "model", "owned_by": "google"},
+            "g4f_nvidia/google/gemma-3-27b-it",
+            "g4f_nvidia/google/gemma-3-12b-it",
+            "g4f_nvidia/google/gemma-3-4b-it",
             # Mistral models
-            {
-                "id": "mistralai/mistral-large-3-675b",
-                "object": "model",
-                "owned_by": "mistral",
-            },
-            {
-                "id": "mistralai/codestral-2501",
-                "object": "model",
-                "owned_by": "mistral",
-            },
+            "g4f_nvidia/mistralai/mistral-large-3-675b",
+            "g4f_nvidia/mistralai/codestral-2501",
             # Qwen models
-            {"id": "qwen/qwen3-235b-a22b", "object": "model", "owned_by": "alibaba"},
-            {"id": "qwen/qwen3-coder-480b", "object": "model", "owned_by": "alibaba"},
-            {"id": "qwen/qwen3.5-397b", "object": "model", "owned_by": "alibaba"},
+            "g4f_nvidia/qwen/qwen3-235b-a22b",
+            "g4f_nvidia/qwen/qwen3-coder-480b",
+            "g4f_nvidia/qwen/qwen3.5-397b",
             # Nvidia Nemotron
-            {
-                "id": "nvidia/nemotron-ultra-253b-v1",
-                "object": "model",
-                "owned_by": "nvidia",
-            },
-            {
-                "id": "nvidia/nemotron-super-49b-v1",
-                "object": "model",
-                "owned_by": "nvidia",
-            },
+            "g4f_nvidia/nvidia/nemotron-ultra-253b-v1",
+            "g4f_nvidia/nvidia/nemotron-super-49b-v1",
             # Microsoft Phi
-            {
-                "id": "microsoft/phi-4-mini-instruct",
-                "object": "model",
-                "owned_by": "microsoft",
-            },
-            {
-                "id": "microsoft/phi-3.5-mini",
-                "object": "model",
-                "owned_by": "microsoft",
-            },
+            "g4f_nvidia/microsoft/phi-4-mini-instruct",
+            "g4f_nvidia/microsoft/phi-3.5-mini",
             # Moonshot Kimi
-            {
-                "id": "moonshotai/kimi-k2-base",
-                "object": "model",
-                "owned_by": "moonshot",
-            },
+            "g4f_nvidia/moonshotai/kimi-k2-base",
         ]

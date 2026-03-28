@@ -121,7 +121,7 @@ class ProviderCandidate:
     provider: str
     model: str
     priority: int = 5
-    capabilities: set = field(default_factory=set)
+    capabilities: set[str] = field(default_factory=set)
     fallback_only: bool = False
     role: Optional[str] = None  # For MoE mode
     search_enabled: bool = False
@@ -650,8 +650,9 @@ class RouterCore:
         latency_ms: float,
         success: bool,
         error_type: Optional[ErrorCategory] = None,
+        response: Optional[Any] = None,
     ):
-        """Update metrics for a provider."""
+        """Update in-memory metrics and persist to telemetry SQLite."""
         metrics = self._get_metrics(provider, model)
         if success:
             metrics.record_success()
@@ -664,6 +665,52 @@ class RouterCore:
                         "rate_limit_cooldown_seconds", 300
                     )
                 )
+
+        # --- Telemetry persistence (non-fatal) ---
+        try:
+            from ..rotator_library.telemetry import get_telemetry_manager
+            telemetry = get_telemetry_manager()
+
+            input_tokens: Optional[int] = None
+            output_tokens: Optional[int] = None
+            tps: Optional[float] = None
+
+            if response is not None and success:
+                usage = None
+                if hasattr(response, "usage"):
+                    usage = response.usage
+                elif isinstance(response, dict):
+                    usage = response.get("usage")
+
+                if usage is not None:
+                    if hasattr(usage, "prompt_tokens"):
+                        input_tokens = usage.prompt_tokens
+                        output_tokens = usage.completion_tokens
+                    elif isinstance(usage, dict):
+                        input_tokens = usage.get("prompt_tokens")
+                        output_tokens = usage.get("completion_tokens")
+
+                if output_tokens and latency_ms > 0:
+                    tps = (output_tokens / latency_ms) * 1000.0
+
+            error_reason = error_type.value if error_type else None
+
+            telemetry.record_call(
+                provider=provider,
+                model=model,
+                success=success,
+                response_time_ms=int(latency_ms),
+                error_reason=error_reason,
+                tokens_per_second=tps,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            )
+
+            if tps is not None:
+                telemetry.record_tps(provider, model, tps)
+
+        except Exception as _telemetry_err:
+            logger.debug(f"Telemetry record failed (non-fatal): {_telemetry_err}")
 
     async def _check_conditions(
         self, candidate_cfg: Dict[str, Any], provider: str, model: str
@@ -714,16 +761,42 @@ class RouterCore:
             # Check if we have a custom adapter for this provider
             supported_providers = ProviderAdapterFactory.list_supported_providers()
             if candidate.provider in supported_providers:
-                # Get API key from environment
                 api_key = None
+                provider_cfg = self.config.get("providers", {}).get(
+                    candidate.provider, {}
+                )
+                env_var = provider_cfg.get("env_var")
+                if env_var:
+                    api_key = os.getenv(env_var) or os.getenv(f"{env_var}_1")
+
                 if candidate.provider == "groq":
-                    api_key = os.getenv("GROQ_API_KEY")
+                    api_key = (
+                        api_key
+                        or os.getenv("GROQ_API_KEY")
+                        or os.getenv("GROQ_API_KEY_1")
+                    )
                 elif candidate.provider == "gemini":
-                    api_key = os.getenv("GEMINI_API_KEY")
+                    api_key = (
+                        api_key
+                        or os.getenv("GEMINI_API_KEY")
+                        or os.getenv("GEMINI_API_KEY_1")
+                    )
+                elif candidate.provider == "kilo":
+                    api_key = (
+                        api_key
+                        or os.getenv("KILO_API_KEY")
+                        or os.getenv("KILO_API_KEY_1")
+                    )
+
+                api_base = provider_cfg.get("base_url")
+                model_list = provider_cfg.get("free_tier_models", [])
 
                 # Create adapter
                 adapter = ProviderAdapterFactory.create_adapter(
-                    candidate.provider, api_key
+                    candidate.provider,
+                    api_key,
+                    api_base,
+                    model_list,
                 )
 
                 # Execute via adapter
@@ -739,8 +812,9 @@ class RouterCore:
                 response = await litellm.acompletion(**request_clean, stream=False)
 
             # Record success
+            elapsed_ms = (time.time() - start_time) * 1000
             self._update_metrics(
-                candidate.provider, candidate.model, time.time() - start_time, True
+                candidate.provider, candidate.model, elapsed_ms, True, response=response
             )
             return response
 
@@ -812,15 +886,14 @@ class RouterCore:
 
                 logger.info(f"Loaded {len(new_models)} virtual models from {vm_path}")
 
-                    # Load provider reset windows for rate limit tracking
-                    providers_cfg = data.get("providers", {})
-                    reset_windows = {}
-                    for prov_name, prov_cfg in providers_cfg.items():
-                        rw = prov_cfg.get("reset_window")
-                        if rw and isinstance(rw, dict):
-                            reset_windows[prov_name] = rw
-                    if reset_windows:
-                        self.rate_limiter.configure_reset_windows(reset_windows)
+                providers_cfg = data.get("providers", {})
+                reset_windows = {}
+                for prov_name, prov_cfg in providers_cfg.items():
+                    rw = prov_cfg.get("reset_window")
+                    if rw and isinstance(rw, dict):
+                        reset_windows[prov_name] = rw
+                if reset_windows:
+                    self.rate_limiter.configure_reset_windows(reset_windows)
             except Exception as e:
                 logger.error(f"Failed to load virtual models: {e}")
         else:
@@ -893,7 +966,7 @@ class RouterCore:
             # Register keys with telemetry and initialize providers
             if api_keys:
                 try:
-                    from rotator_library.telemetry import get_telemetry_manager
+                    from ..rotator_library.telemetry import get_telemetry_manager
 
                     telemetry = get_telemetry_manager()
 
@@ -1000,7 +1073,18 @@ class RouterCore:
         # Authentication errors
         if any(
             keyword in error_str
-            for keyword in ["unauthorized", "invalid_api_key", "401", "403"]
+            for keyword in [
+                "unauthorized",
+                "invalid_api_key",
+                "api_key_invalid",
+                "invalid api key",
+                "api key not valid",
+                "authentication credentials",
+                "unauthenticated",
+                "access token",
+                "401",
+                "403",
+            ]
         ):
             return ErrorCategory.AUTH_ERROR, None
 
@@ -1018,7 +1102,15 @@ class RouterCore:
         # Missing model errors - should try next provider (check lowercase for truncated errors)
         if any(
             keyword in error_str.lower()
-            for keyword in ["model not found", "does not exist", "does not ex", "not found", "404", "not supported", "unsupported model"]
+            for keyword in [
+                "model not found",
+                "does not exist",
+                "does not ex",
+                "not found",
+                "404",
+                "not supported",
+                "unsupported model",
+            ]
         ):
             return ErrorCategory.PROVIDER_ERROR, None
 
@@ -1075,6 +1167,10 @@ class RouterCore:
                 "vs",
                 "sources",
                 "citations",
+                "search",
+                "web search",
+                "look up",
+                "lookup",
             ]
             req.search_requested = any(
                 indicator in content for indicator in search_indicators
@@ -1142,14 +1238,14 @@ class RouterCore:
             else:
                 # Use model registry to find supporting providers
                 providers = self.model_registry.get_providers(model_id)
-                
+
                 # Apply free only mode filtering if needed
                 forbidden = []
                 if self.free_only_mode:
                     forbidden = self.config.get("safety", {}).get(
                         "forbidden_providers_under_free_mode", []
                     )
-                
+
                 if providers:
                     for provider_name in providers:
                         if provider_name in forbidden:
@@ -1161,7 +1257,16 @@ class RouterCore:
                         )
                 else:
                     # Fallback to hardcoded providers if registry has no match
-                    for provider_name in ["groq", "gemini", "g4f", "g4f_ollama", "g4f_pollinations", "g4f_nvidia", "g4f_gemini", "g4f_groq"]:
+                    for provider_name in [
+                        "groq",
+                        "gemini",
+                        "g4f",
+                        "g4f_ollama",
+                        "g4f_pollinations",
+                        "g4f_nvidia",
+                        "g4f_gemini",
+                        "g4f_groq",
+                    ]:
                         if provider_name in forbidden:
                             continue
                         candidates.append(
@@ -1189,7 +1294,7 @@ class RouterCore:
         return True
 
     def _determine_search_tier(
-        self, query: str, messages: Optional[List[Dict]] = None
+        self, query: str, messages: Optional[List[Dict[str, Any]]] = None
     ) -> str:
         """Determine appropriate search tier based on query complexity."""
         query_lower = query.lower()
@@ -1271,7 +1376,7 @@ class RouterCore:
             return "basic"
 
     async def _perform_search(
-        self, query: str, messages: Optional[List[Dict]] = None
+        self, query: str, messages: Optional[List[Dict[str, Any]]] = None
     ) -> List[Dict[str, Any]]:
         """Perform search using available providers with intelligent tier selection."""
         if not self._should_perform_search(CapabilityRequirements()):
@@ -1363,7 +1468,7 @@ class RouterCore:
         all_candidates = await self._get_candidates(
             request.get("model", ""), self._extract_requirements(request)
         )
-        
+
         # Use first N candidates as experts (already sorted by priority)
         expert_candidates = list(all_candidates)[:max_experts]
 
@@ -1395,7 +1500,7 @@ class RouterCore:
                     {
                         "provider": candidate.provider,
                         "model": candidate.model,
-                        "role": getattr(candidate, 'role', None),
+                        "role": getattr(candidate, "role", None),
                         "output": result["choices"][0]["message"]["content"]
                         if result.get("choices")
                         else "",
@@ -1407,7 +1512,7 @@ class RouterCore:
                     {
                         "provider": candidate.provider,
                         "model": candidate.model,
-                        "role": getattr(candidate, 'role', None),
+                        "role": getattr(candidate, "role", None),
                         "error": str(e),
                     }
                 )
@@ -1598,14 +1703,9 @@ class RouterCore:
                 error_classification = await self._classify_error(e)
                 error_category = error_classification[0]
 
-                if error_category in [
-                    ErrorCategory.INVALID_REQUEST,
-                    ErrorCategory.AUTH_ERROR,
-                ]:
-                    raise e
-
                 logger.warning(
-                    f"[{request_id}] Stream candidate {candidate.provider} failed, trying next..."
+                    f"[{request_id}] Stream candidate {candidate.provider}/{candidate.model} failed "
+                    f"({error_category.value}), trying next..."
                 )
                 continue
 
@@ -1787,19 +1887,21 @@ class RouterCore:
                 )
 
                 if error_category == ErrorCategory.AUTH_ERROR:
-                    logger.warning(f"[{request_id}] Auth error - stopping fallback")
-                    break
+                    logger.warning(
+                        f"[{request_id}] Auth error for {candidate.provider}/{candidate.model} - trying next provider"
+                    )
+                    continue
 
                 if error_category == ErrorCategory.INVALID_REQUEST:
-                    # Fallback on "model not found" even if it's a 400 bad request
-                    if any(k in error_str for k in ["not found", "not supported", "model"]):
-                        logger.warning(f"[{request_id}] Model not found error - trying next provider")
-                        continue
-                    logger.warning(f"[{request_id}] Invalid request (not model related) - stopping fallback")
-                    break
+                    logger.warning(
+                        f"[{request_id}] Request error is recoverable - trying next provider"
+                    )
+                    continue
 
                 if error_category == ErrorCategory.TRANSIENT:
-                    logger.warning(f"[{request_id}] Transient error (500/timeout) - trying next provider")
+                    logger.warning(
+                        f"[{request_id}] Transient error (500/timeout) - trying next provider"
+                    )
                     continue
 
                 # For PROVIDER_ERROR and anything else, also continue
@@ -1885,19 +1987,21 @@ class RouterCore:
 
     def get_health_status(self) -> Dict[str, Any]:
         """Get health status of all providers."""
-        status = {
+        providers_status: Dict[str, Dict[str, Any]] = {}
+        search_status: Dict[str, Dict[str, Any]] = {}
+        status: Dict[str, Any] = {
             "free_only_mode": self.free_only_mode,
-            "providers": {},
-            "search_providers": {},
+            "providers": providers_status,
+            "search_providers": search_status,
             "timestamp": time.time(),
         }
 
         # Provider metrics
         for (provider, model), metrics in self.provider_metrics.items():
-            if provider not in status["providers"]:
-                status["providers"][provider] = {}
+            if provider not in providers_status:
+                providers_status[provider] = {}
 
-            status["providers"][provider][model] = {
+            providers_status[provider][model] = {
                 "status": ProviderStatus.HEALTHY.value
                 if metrics.is_healthy()
                 else ProviderStatus.COOLDOWN.value,
@@ -1910,7 +2014,7 @@ class RouterCore:
 
         # Search provider metrics
         for name, provider in self.search_providers.items():
-            status["search_providers"][name] = {
+            search_status[name] = {
                 "status": ProviderStatus.HEALTHY.value
                 if provider.metrics.is_healthy()
                 else ProviderStatus.COOLDOWN.value,

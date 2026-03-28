@@ -67,15 +67,37 @@ jobs:
           done
           echo "Downloaded per-virtual-model fallback CSVs"
 
+      - name: Set up Python for merge step
+        if: env.skip != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies for merge
+        if: env.skip != 'true'
+        run: pip install pyyaml --quiet
+
+      - name: Merge leaderboard data into model_rankings.yaml
+        if: env.skip != 'true'
+        run: |
+          echo "=== Merging leaderboard data into model_rankings.yaml ==="
+          python scripts/merge_leaderboard_into_rankings.py || echo "Merge failed (non-fatal)"
+
+      - name: Reload scoring engine cache
+        if: env.skip != 'true'
+        run: |
+          echo "Scoring engine will reload from updated model_rankings.yaml on next gateway restart"
+          echo "Run: systemctl restart llm-gateway (on VPS1) to pick up new scores"
+
       - name: Commit updates
         if: env.skip != 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add config/virtual_models_generated.yaml config/fallbacks/ 2>/dev/null || true
+          git add config/virtual_models_generated.yaml config/fallbacks/ config/model_rankings.yaml 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update generated fallback configs from leaderboard ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+            git commit -m "Update fallback configs + model rankings from leaderboard ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
             git push
           fi

@@ -5,15 +5,15 @@ models:
     speed_tps: 120.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 76.3
+    swe_bench: 81.88
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 76.3
+    humaneval: 81.88
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 76.3
+    agentic_coding: 81.88
     composite_score: 78.0
   best_for:
   - coding-smart
@@ -25,15 +25,15 @@ models:
     speed_tps: 187.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 73.3
+    swe_bench: 70.88
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 73.3
+    humaneval: 70.88
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 73.3
+    agentic_coding: 70.88
     composite_score: 76.71
   best_for:
   - coding-smart
@@ -45,15 +45,15 @@ models:
     speed_tps: 75.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 74.7
+    swe_bench: 79.8
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 74.7
+    humaneval: 79.8
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 74.7
+    agentic_coding: 79.8
     composite_score: 75.55
   best_for:
   - coding-smart
@@ -64,15 +64,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 53.55
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 53.55
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 73.44
+    agentic_coding: 53.55
     composite_score: 73.52
   best_for:
   - coding-smart
@@ -83,15 +83,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 73.3
+    swe_bench: 64.59
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 73.3
+    humaneval: 64.59
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 73.3
+    agentic_coding: 64.59
     composite_score: 73.41
   best_for:
   - coding-smart
@@ -103,15 +103,15 @@ models:
     speed_tps: 148.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 70.83
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 70.83
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 69.87
+    agentic_coding: 70.83
     composite_score: 73.38
   best_for:
   - coding-fast
@@ -161,15 +161,15 @@ models:
     speed_tps: 100.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 40.75
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 40.75
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 70.47
+    agentic_coding: 40.75
     composite_score: 72.88
   best_for:
   - coding-smart
@@ -180,15 +180,15 @@ models:
     speed_tps: 160.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 68.27
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 68.27
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 68.94
+    agentic_coding: 68.27
     composite_score: 72.83
   best_for:
   - coding-fast
@@ -218,15 +218,15 @@ models:
     speed_tps: 100.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 41.83
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 41.83
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 70.21
+    agentic_coding: 41.83
     composite_score: 72.67
   best_for:
   - coding-smart
@@ -277,15 +277,15 @@ models:
     speed_tps: 80.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 21.62
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 21.62
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 69.96
+    agentic_coding: 21.62
     composite_score: 71.91
   best_for:
   - coding-fast
@@ -295,15 +295,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 45.86
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 45.86
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 71.31
+    agentic_coding: 45.86
     composite_score: 71.82
   best_for:
   - coding-smart
@@ -314,15 +314,15 @@ models:
     speed_tps: 49.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 77.3
+    swe_bench: 65.2
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 77.3
+    humaneval: 65.2
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 77.3
+    agentic_coding: 65.2
     composite_score: 71.56
   best_for:
   - coding-smart
@@ -334,15 +334,15 @@ models:
     speed_tps: 200.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 66.5
+    swe_bench: 67.42
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 66.5
+    humaneval: 67.42
     bigcodebench: -1
     gso_bench: -1
     ts_bench: 92.5
     vals_ai: -1
-    agentic_coding: 66.5
+    agentic_coding: 67.42
     composite_score: 71.44
   best_for:
   - coding-fast
@@ -352,15 +352,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 39.7
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 39.7
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 70.47
+    agentic_coding: 39.7
     composite_score: 71.14
   best_for:
   - coding-smart
@@ -371,15 +371,15 @@ models:
     speed_tps: 64.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 42.5
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 42.5
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 69.62
+    agentic_coding: 42.5
     composite_score: 71.08
   best_for:
   - coding-fast
@@ -408,15 +408,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 76.6
+    swe_bench: 71.95
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 76.6
+    humaneval: 71.95
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 76.6
+    agentic_coding: 71.95
     composite_score: 71.05
   best_for:
   - coding-smart
@@ -446,15 +446,15 @@ models:
     speed_tps: 150.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 66.5
+    swe_bench: 59.42
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 66.5
+    humaneval: 59.42
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 66.5
+    agentic_coding: 59.42
     composite_score: 70.72
   best_for:
   - coding-fast
@@ -503,15 +503,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 26.6
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 26.6
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 69.27
+    agentic_coding: 26.6
     composite_score: 70.19
   best_for:
   - coding-fast
@@ -558,15 +558,15 @@ models:
     speed_tps: 120.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 65.5
+    swe_bench: 55.8
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 65.5
+    humaneval: 55.8
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 65.5
+    agentic_coding: 55.8
     composite_score: 69.36
   best_for:
   - coding-fast
@@ -595,15 +595,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 19.14
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 19.14
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 67.92
+    agentic_coding: 19.14
     composite_score: 69.1
   best_for:
   - coding-fast
@@ -651,15 +651,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 47.3
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 47.3
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 72.84
+    agentic_coding: 47.3
     composite_score: 68.05
   best_for:
   - coding-smart
@@ -707,15 +707,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 33.43
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 33.43
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 66.3
+    agentic_coding: 33.43
     composite_score: 67.81
   best_for:
   - coding-fast
@@ -725,15 +725,15 @@ models:
     speed_tps: 52.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 71.9
+    swe_bench: 59.73
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 71.9
+    humaneval: 59.73
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 71.9
+    agentic_coding: 59.73
     composite_score: 67.39
   best_for:
   - coding-smart
@@ -745,15 +745,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 29.9
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 29.9
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 65.62
+    agentic_coding: 29.9
     composite_score: 67.27
   best_for:
   - coding-fast
@@ -908,15 +908,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 29.06
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 29.06
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 62.9
+    agentic_coding: 29.06
     composite_score: 65.09
   best_for:
   - coding-fast
@@ -944,15 +944,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 70.82
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 96.5
+    humaneval: 70.82
     bigcodebench: -1
     gso_bench: -1
     ts_bench: 96.5
     vals_ai: -1
-    agentic_coding: 62.73
+    agentic_coding: 70.82
     composite_score: 64.95
   best_for:
   - coding-fast
@@ -1016,15 +1016,15 @@ models:
     speed_tps: 65.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 67.1
+    swe_bench: 59.89
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 67.1
+    humaneval: 59.89
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 67.1
+    agentic_coding: 59.89
     composite_score: 64.11
   best_for:
   - coding-fast
@@ -1053,15 +1053,15 @@ models:
     speed_tps: 42.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 68.1
+    swe_bench: 60.22
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 68.1
+    humaneval: 60.22
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 68.1
+    agentic_coding: 60.22
     composite_score: 63.82
   best_for:
   - coding-fast
@@ -1180,15 +1180,15 @@ models:
     speed_tps: 60.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 54.1
+    swe_bench: 66.09
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 54.1
+    humaneval: 66.09
     bigcodebench: -1
     gso_bench: -1
     ts_bench: 92.5
     vals_ai: -1
-    agentic_coding: 59.72
+    agentic_coding: 66.09
     composite_score: 63.0
   best_for:
   - coding-fast
@@ -1198,15 +1198,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 29.1
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 29.1
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 60.26
+    agentic_coding: 29.1
     composite_score: 62.98
   best_for:
   - coding-fast
@@ -1234,15 +1234,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 62.85
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 92.5
+    humaneval: 62.85
     bigcodebench: -1
     gso_bench: -1
     ts_bench: 92.5
     vals_ai: -1
-    agentic_coding: 60.12
+    agentic_coding: 62.85
     composite_score: 62.87
   best_for:
   - coding-fast
@@ -1253,15 +1253,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 26.7
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 26.7
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 59.76
+    agentic_coding: 26.7
     composite_score: 62.58
   best_for:
   - coding-fast
@@ -1343,15 +1343,15 @@ models:
     speed_tps: 45.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 65.3
+    swe_bench: 52.33
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 65.3
+    humaneval: 52.33
     bigcodebench: -1
     gso_bench: -1
     ts_bench: 92.5
     vals_ai: -1
-    agentic_coding: 65.3
+    agentic_coding: 52.33
     composite_score: 61.75
   best_for:
   - coding-fast
@@ -1487,15 +1487,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 55.9
+    swe_bench: 50.3
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 55.9
+    humaneval: 50.3
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 55.9
+    agentic_coding: 50.3
     composite_score: 59.49
   best_for:
   - coding-fast
@@ -1505,15 +1505,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 16.3
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 16.3
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 55.5
+    agentic_coding: 16.3
     composite_score: 59.18
   best_for:
   - coding-fast
@@ -1523,15 +1523,15 @@ models:
     speed_tps: 143.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 45.5
+    swe_bench: 57.7
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 45.5
+    humaneval: 57.7
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 52.12
+    agentic_coding: 57.7
     composite_score: 59.09
   best_for:
   - coding-fast
@@ -1541,15 +1541,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 54.7
+    swe_bench: 49.16
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 54.7
+    humaneval: 49.16
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 54.7
+    agentic_coding: 49.16
     composite_score: 58.53
   best_for:
   - coding-fast
@@ -1758,15 +1758,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 36.81
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 36.81
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 55.59
+    agentic_coding: 36.81
     composite_score: 54.24
   best_for:
   - coding-fast
@@ -1830,15 +1830,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 17.8
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 17.8
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 45.48
+    agentic_coding: 17.8
     composite_score: 51.15
   best_for:
   - coding-budget
@@ -1902,15 +1902,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 12.6
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 12.6
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 41.9
+    agentic_coding: 12.6
     composite_score: 48.3
   best_for:
   - coding-budget
@@ -2209,15 +2209,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 76.3
+    swe_bench: 64.12
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 76.3
+    humaneval: 64.12
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 76.3
+    agentic_coding: 64.12
     composite_score: -29.19
   best_for:
   - coding-smart
@@ -2229,15 +2229,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 71.3
+    swe_bench: 64.49
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 71.3
+    humaneval: 64.49
     bigcodebench: -1
     gso_bench: -1
     ts_bench: 96.5
     vals_ai: -1
-    agentic_coding: 71.3
+    agentic_coding: 64.49
     composite_score: -33.19
   best_for:
   - coding-smart
@@ -2248,15 +2248,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 42.07
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 42.07
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 66.64
+    agentic_coding: 42.07
     composite_score: -36.92
   best_for:
   - coding-fast
@@ -2284,15 +2284,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 27.5
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 27.5
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 65.88
+    agentic_coding: 27.5
     composite_score: -37.53
   best_for:
   - coding-fast
@@ -2320,15 +2320,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 64.4
+    swe_bench: 60.31
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 64.4
+    humaneval: 60.31
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 64.4
+    agentic_coding: 60.31
     composite_score: -38.71
   best_for:
   - coding-fast
@@ -2375,15 +2375,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 28.09
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 28.09
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 62.39
+    agentic_coding: 28.09
     composite_score: -40.32
   best_for:
   - coding-fast
@@ -2393,15 +2393,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 37.33
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 37.33
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 62.22
+    agentic_coding: 37.33
     composite_score: -40.45
   best_for:
   - coding-fast
@@ -2411,15 +2411,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 61.5
+    swe_bench: 68.54
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 61.5
+    humaneval: 68.54
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 61.5
+    agentic_coding: 68.54
     composite_score: -41.03
   best_for:
   - coding-fast
@@ -2429,15 +2429,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 26.1
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 26.1
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 61.28
+    agentic_coding: 26.1
     composite_score: -41.2
   best_for:
   - coding-fast
@@ -2465,15 +2465,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 29.5
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 29.5
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 60.26
+    agentic_coding: 29.5
     composite_score: -42.02
   best_for:
   - coding-fast
@@ -2501,15 +2501,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 13.7
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 13.7
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 58.57
+    agentic_coding: 13.7
     composite_score: -43.38
   best_for:
   - coding-fast
@@ -2681,15 +2681,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: 44.3
+    swe_bench: 40.37
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: 44.3
+    humaneval: 40.37
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 44.3
+    agentic_coding: 40.37
     composite_score: -54.79
   best_for:
   - coding-budget
@@ -2897,15 +2897,15 @@ models:
     speed_tps: 50.0
     livebench_coding: -1
     aider: -1
-    swe_bench: -1
+    swe_bench: 6.6
     swe_bench_verified: -1
     swe_rebench: -1
-    humaneval: -1
+    humaneval: 6.6
     bigcodebench: -1
     gso_bench: -1
     ts_bench: -1
     vals_ai: -1
-    agentic_coding: 34.59
+    agentic_coding: 6.6
     composite_score: -62.55
   best_for:
   - coding-budget
@@ -3035,3 +3035,2121 @@ models:
     composite_score: -65.95
   best_for:
   - coding-budget
+- id: gemini-3-flash-preview-thinking
+  name: Gemini 3 Flash Preview Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 90.8
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 90.8
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 90.8
+    composite_score: 86.26
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: deepseek-v3-2-speciale
+  name: Deepseek V3 2 Speciale
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 89.6
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 89.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 89.6
+    composite_score: 85.12
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gpt-5-2-pro
+  name: Gpt 5 2 Pro
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 88.9
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 88.9
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 88.9
+    composite_score: 84.45
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: xiaomi-mimo-v2-flash-thinking
+  name: Xiaomi Mimo V2 Flash Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 86.8
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 86.8
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 86.8
+    composite_score: 82.46
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gpt-5-codex
+  name: Gpt 5 Codex
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 84.0
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 84.0
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 84.0
+    composite_score: 79.8
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gpt-5-1-codex-mini
+  name: Gpt 5 1 Codex Mini
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 83.6
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 83.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 83.6
+    composite_score: 79.42
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: grok-4-fast-reasoning
+  name: Grok 4 Fast Reasoning
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 83.2
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 83.2
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 83.2
+    composite_score: 79.04
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: grok-4-1-fast-reasoning
+  name: Grok 4 1 Fast Reasoning
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 82.2
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 82.2
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 82.2
+    composite_score: 78.09
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gemini-3-flash
+  name: Gemini 3 Flash
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 81.88
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 81.88
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 81.88
+    composite_score: 77.79
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: grok-4
+  name: Grok 4
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 81.73
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 81.73
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 81.73
+    composite_score: 77.64
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: deepseek-deepseek-v3-1-terminus-thinking
+  name: Deepseek Deepseek V3 1 Terminus Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 79.8
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 79.8
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 79.8
+    composite_score: 75.81
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gemini-3-pro
+  name: Gemini 3 Pro
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 79.8
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 79.8
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 79.8
+    composite_score: 75.81
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: qwen3-235b-a22b-thinking-2507
+  name: Qwen3 235B A22B Thinking 2507
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 78.96
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 78.96
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 78.96
+    composite_score: 75.01
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: deepseek-ai-deepseek-v3-2-exp-thinking
+  name: Deepseek Ai Deepseek V3 2 Exp Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 78.9
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 78.9
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 78.9
+    composite_score: 74.96
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: deepseek-v3-2-thinking
+  name: Deepseek V3 2 Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 78.33
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 78.33
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 78.33
+    composite_score: 74.42
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gemini-2-5-pro-preview-06-05
+  name: Gemini 2 5 Pro Preview 06 05
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 77.8
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 77.8
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 77.8
+    composite_score: 73.91
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: claude-sonnet-4-6
+  name: Claude Sonnet 4 6
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 77.27
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 77.27
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 77.27
+    composite_score: 73.41
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gemini-2-5-pro-preview-05-06
+  name: Gemini 2 5 Pro Preview 05 06
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 77.0
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 77.0
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 77.0
+    composite_score: 73.15
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: kat-coder-pro-v1
+  name: Kat Coder Pro V1
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 74.7
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 74.7
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 74.7
+    composite_score: 70.96
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: claude-4-5-opus
+  name: Claude 4 5 Opus
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 74.4
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 74.4
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 74.4
+    composite_score: 70.68
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: claude-opus-4-1-thinking
+  name: Claude Opus 4 1 Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 73.8
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 73.8
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 73.8
+    composite_score: 70.11
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: intellect-3
+  name: Intellect 3
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 73.06
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 73.06
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 73.06
+    composite_score: 69.4
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gpt-oss-20b
+  name: Gpt Oss 20B
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 72.64
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 72.64
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 72.64
+    composite_score: 69.0
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: claude-opus-4-6
+  name: Claude Opus 4 6
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 71.95
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 71.95
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 71.95
+    composite_score: 68.35
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: qwen3-max
+  name: Qwen3 Max
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 71.78
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 71.78
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 71.78
+    composite_score: 68.19
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gpt-5-2
+  name: Gpt 5 2
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 70.88
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 70.88
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 70.88
+    composite_score: 67.34
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: o3-mini-high
+  name: O3 Mini High
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 70.83
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 70.83
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 70.83
+    composite_score: 67.28
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gemini-3-pro-preview
+  name: Gemini 3 Pro Preview
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 70.82
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 70.82
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 70.82
+    composite_score: 67.28
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: claude-4-5-sonnet
+  name: Claude 4 5 Sonnet
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 70.6
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 70.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 70.6
+    composite_score: 67.07
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: nvidia-nemotron-nano-9b-v2
+  name: Nvidia Nemotron Nano 9B V2
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 70.1
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 70.1
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 70.1
+    composite_score: 66.59
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: grok-3-mini
+  name: Grok 3 Mini
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 69.6
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 69.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 69.6
+    composite_score: 66.12
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: allenai-olmo-3-1-32b-think
+  name: Allenai Olmo 3 1 32B Think
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 69.5
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 69.5
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 69.5
+    composite_score: 66.02
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gemini-2-5-flash-lite-preview-09-2025-thinking
+  name: Gemini 2 5 Flash Lite Preview 09 2025 Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 68.8
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 68.8
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 68.8
+    composite_score: 65.36
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: o3-mini
+  name: O3 Mini
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 68.27
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 68.27
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 68.27
+    composite_score: 64.85
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: o1
+  name: O1
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 67.9
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 67.9
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 67.9
+    composite_score: 64.5
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: claude-4-opus
+  name: Claude 4 Opus
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 67.6
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 67.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 67.6
+    composite_score: 64.22
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gpt-5-2-codex
+  name: Gpt 5 2 Codex
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 67.42
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 67.42
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 67.42
+    composite_score: 64.05
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gpt-5-mini
+  name: Gpt 5 Mini
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 67.15
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 67.15
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 67.15
+    composite_score: 63.79
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: qwen3-vl-235b-a22b-instruct
+  name: Qwen3 Vl 235B A22B Instruct
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 67.11
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 67.11
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 67.11
+    composite_score: 63.76
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: claude-4-5-haiku
+  name: Claude 4 5 Haiku
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 66.6
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 66.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 66.6
+    composite_score: 63.27
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: o3
+  name: O3
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 66.17
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 66.17
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 66.17
+    composite_score: 62.86
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gemini-2-5-pro
+  name: Gemini 2 5 Pro
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 66.09
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 66.09
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 66.09
+    composite_score: 62.79
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gpt-5-1-2025-11-13
+  name: Gpt 5 1 2025 11 13
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 66.0
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 66.0
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 66.0
+    composite_score: 62.7
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: grok-code-fast-1
+  name: Grok Code Fast 1
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 65.7
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 65.7
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 65.7
+    composite_score: 62.42
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: claude-sonnet-4-thinking
+  name: Claude Sonnet 4 Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 65.5
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 65.5
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 65.5
+    composite_score: 62.23
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: ernie-5-0-thinking-latest
+  name: Ernie 5 0 Thinking Latest
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 65.3
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 65.3
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 65.3
+    composite_score: 62.03
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: minimax-m1
+  name: Minimax M1
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 65.25
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 65.25
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 65.25
+    composite_score: 61.99
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: claude-opus-4-5
+  name: Claude Opus 4 5
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 65.2
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 65.2
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 65.2
+    composite_score: 61.94
+  best_for:
+  - coding-smart
+  - coding-elite
+- id: gpt-5-2025-08-07
+  name: Gpt 5 2025 08 07
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 65.0
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 65.0
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 65.0
+    composite_score: 61.75
+  best_for:
+  - coding-smart
+- id: claude-4-0-sonnet
+  name: Claude 4 0 Sonnet
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 64.93
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 64.93
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 64.93
+    composite_score: 61.68
+  best_for:
+  - coding-smart
+- id: glm-5
+  name: Glm 5
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 64.59
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 64.59
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 64.59
+    composite_score: 61.36
+  best_for:
+  - coding-smart
+- id: kimi-k2-5
+  name: Kimi K2 5
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 64.49
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 64.49
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 64.49
+    composite_score: 61.27
+  best_for:
+  - coding-smart
+- id: gpt-5-1-codex
+  name: Gpt 5 1 Codex
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 64.22
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 64.22
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 64.22
+    composite_score: 61.01
+  best_for:
+  - coding-smart
+- id: gemini-2-5-flash-lite-preview-09-2025
+  name: Gemini 2 5 Flash Lite Preview 09 2025
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 64.1
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 64.1
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 64.1
+    composite_score: 60.89
+  best_for:
+  - coding-smart
+- id: gpt-5-2-2025-12-11
+  name: Gpt 5 2 2025 12 11
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 64.06
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 64.06
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 64.06
+    composite_score: 60.86
+  best_for:
+  - coding-smart
+- id: claude-opus-4-thinking
+  name: Claude Opus 4 Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 63.6
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 63.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 63.6
+    composite_score: 60.42
+  best_for:
+  - coding-smart
+- id: gemini-3-flash-preview
+  name: Gemini 3 Flash Preview
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 62.85
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 62.85
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 62.85
+    composite_score: 59.7
+  best_for:
+  - coding-smart
+- id: allenai-olmo-3-32b-think
+  name: Allenai Olmo 3 32B Think
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 62.78
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 62.78
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 62.78
+    composite_score: 59.64
+  best_for:
+  - coding-smart
+- id: allenai-olmo-3-7b-think
+  name: Allenai Olmo 3 7B Think
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 61.7
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 61.7
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 61.7
+    composite_score: 58.62
+  best_for:
+  - coding-smart
+- id: kimi-k2-0905
+  name: Kimi K2 0905
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 61.0
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 61.0
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 61.0
+    composite_score: 57.95
+  best_for:
+  - coding-smart
+- id: kimi-k2-thinking
+  name: Kimi K2 Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 60.31
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 60.31
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 60.31
+    composite_score: 57.29
+  best_for:
+  - coding-smart
+- id: claude-opus-4
+  name: Claude Opus 4
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 60.22
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 60.22
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 60.22
+    composite_score: 57.21
+  best_for:
+  - coding-smart
+- id: deepseek-v3-2
+  name: Deepseek V3 2
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 60.13
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 60.13
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 60.13
+    composite_score: 57.12
+  best_for:
+  - coding-smart
+- id: deepseek-reasoner
+  name: Deepseek Reasoner
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 60.0
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 60.0
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 60.0
+    composite_score: 57.0
+  best_for:
+  - coding-smart
+- id: claude-haiku-4-5
+  name: Claude Haiku 4 5
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 59.89
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 59.89
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 59.89
+    composite_score: 56.89
+  best_for:
+  - coding-smart
+- id: claude-sonnet-4-5
+  name: Claude Sonnet 4 5
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 59.73
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 59.73
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 59.73
+    composite_score: 56.74
+  best_for:
+  - coding-smart
+- id: gpt-5-1
+  name: Gpt 5 1
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 59.42
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 59.42
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 59.42
+    composite_score: 56.45
+  best_for:
+  - coding-smart
+- id: gemini-2-5-flash-nothinking
+  name: Gemini 2 5 Flash Nothinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 59.3
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 59.3
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 59.3
+    composite_score: 56.34
+  best_for:
+  - coding-smart
+- id: qwen3-coder-30b-a3b
+  name: Qwen3 Coder 30B A3B
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 58.5
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 58.5
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 58.5
+    composite_score: 55.58
+  best_for:
+  - coding-smart
+- id: minimax-m2-1
+  name: Minimax M2 1
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 58.47
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 58.47
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 58.47
+    composite_score: 55.54
+  best_for:
+  - coding-smart
+- id: o4-mini
+  name: O4 Mini
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 57.7
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 57.7
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 57.7
+    composite_score: 54.82
+  best_for:
+  - coding-smart
+- id: devstral-small
+  name: Devstral Small
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 56.4
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 56.4
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 56.4
+    composite_score: 53.58
+  best_for:
+  - coding-smart
+- id: glm-4-7
+  name: Glm 4 7
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 55.89
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 55.89
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 55.89
+    composite_score: 53.09
+  best_for:
+  - coding-smart
+- id: gpt-5
+  name: Gpt 5
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 55.8
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 55.8
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 55.8
+    composite_score: 53.01
+  best_for:
+  - coding-smart
+- id: kimi-k2-0711
+  name: Kimi K2 0711
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 55.6
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 55.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 55.6
+    composite_score: 52.82
+  best_for:
+  - coding-smart
+- id: deepseek-v3-1
+  name: Deepseek V3 1
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 55.42
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 55.42
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 55.42
+    composite_score: 52.65
+  best_for:
+  - coding-smart
+- id: deepseek-v3-2-exp
+  name: Deepseek V3 2 Exp
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 55.4
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 55.4
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 55.4
+    composite_score: 52.63
+  best_for:
+  - coding-smart
+- id: nousresearch-hermes-4-14b
+  name: Nousresearch Hermes 4 14B
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 54.6
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 54.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 54.6
+    composite_score: 51.87
+  best_for:
+  - coding-smart
+- id: qwen3-235b-a22b-thinking
+  name: Qwen3 235B A22B Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 54.6
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 54.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 54.6
+    composite_score: 51.87
+  best_for:
+  - coding-smart
+- id: glm-4-5-air
+  name: Glm 4 5 Air
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 53.82
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 53.82
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 53.82
+    composite_score: 51.13
+  best_for:
+  - coding-smart
+- id: devstral-2
+  name: Devstral 2
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 53.8
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 53.8
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 53.8
+    composite_score: 51.11
+  best_for:
+  - coding-smart
+- id: deepseek-r1
+  name: Deepseek R1
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 53.55
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 53.55
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 53.55
+    composite_score: 50.88
+  best_for:
+  - coding-smart
+- id: alibaba-qwen3-max-thinking
+  name: Alibaba Qwen3 Max Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 53.5
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 53.5
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 53.5
+    composite_score: 50.82
+  best_for:
+  - coding-smart
+- id: deepseek-v3-1-terminus
+  name: Deepseek V3 1 Terminus
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 52.9
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 52.9
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 52.9
+    composite_score: 50.25
+  best_for:
+  - coding-smart
+- id: poetools-claude-code
+  name: Poetools Claude Code
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 52.9
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 52.9
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 52.9
+    composite_score: 50.25
+  best_for:
+  - coding-smart
+- id: gpt-5-nano
+  name: Gpt 5 Nano
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 52.55
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 52.55
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 52.55
+    composite_score: 49.93
+  best_for:
+  - coding-smart
+- id: claude-sonnet-4
+  name: Claude Sonnet 4
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 52.33
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 52.33
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 52.33
+    composite_score: 49.71
+  best_for:
+  - coding-smart
+- id: grok-4-fast
+  name: Grok 4 Fast
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 51.72
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 51.72
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 51.72
+    composite_score: 49.13
+  best_for:
+  - coding-smart
+- id: devstral-2512
+  name: Devstral 2512
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 51.39
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 51.39
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 51.39
+    composite_score: 48.82
+  best_for:
+  - coding-smart
+- id: mistral-medium-3-1
+  name: Mistral Medium 3 1
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 50.64
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 50.64
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 50.64
+    composite_score: 48.11
+  best_for:
+  - coding-smart
+- id: qwen3-vl-30b-a3b-thinking
+  name: Qwen3 Vl 30B A3B Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 50.6
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 50.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 50.6
+    composite_score: 48.07
+  best_for:
+  - coding-smart
+- id: qwen3-coder-480b-a35b-instruct
+  name: Qwen3 Coder 480B A35B Instruct
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 50.3
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 50.3
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 50.3
+    composite_score: 47.79
+  best_for:
+  - coding-smart
+- id: mimo-v2-flash
+  name: Mimo V2 Flash
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 50.27
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 50.27
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 50.27
+    composite_score: 47.76
+  best_for:
+  - coding-smart
+- id: claude-3-7-sonnet
+  name: Claude 3 7 Sonnet
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 49.18
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 49.18
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 49.18
+    composite_score: 46.72
+  best_for:
+  - coding-smart
+- id: glm-4-5
+  name: Glm 4 5
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 49.16
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 49.16
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 49.16
+    composite_score: 46.7
+  best_for:
+  - coding-smart
+- id: gpt-5-1-codex-max
+  name: Gpt 5 1 Codex Max
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 48.5
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 48.5
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 48.5
+    composite_score: 46.07
+  best_for:
+  - coding-smart
+- id: gpt-5-mini-2025-08-07
+  name: Gpt 5 Mini 2025 08 07
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 47.93
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 47.93
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 47.93
+    composite_score: 45.54
+  best_for:
+  - coding-smart
+- id: qwen-qwen3-vl-30b-a3b-instruct
+  name: Qwen Qwen3 Vl 30B A3B Instruct
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 47.6
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 47.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 47.6
+    composite_score: 45.22
+  best_for:
+  - coding-smart
+- id: gemini-2-5-flash-lite
+  name: Gemini 2 5 Flash Lite
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 47.46
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 47.46
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 47.46
+    composite_score: 45.09
+  best_for:
+  - coding-smart
+- id: claude-3-7-sonnet-thinking
+  name: Claude 3 7 Sonnet Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 47.3
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 47.3
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 47.3
+    composite_score: 44.93
+  best_for:
+  - coding-smart
+- id: glm-4-6
+  name: Glm 4 6
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 47.29
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 47.29
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 47.29
+    composite_score: 44.93
+  best_for:
+  - coding-smart
+- id: baidu-ernie-4-5-300b-a47b-paddle
+  name: Baidu Ernie 4 5 300B A47B Paddle
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 46.7
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 46.7
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 46.7
+    composite_score: 44.36
+  best_for:
+  - coding-smart
+- id: deepseek-v3-0324
+  name: Deepseek V3 0324
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 45.86
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 45.86
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 45.86
+    composite_score: 43.56
+  best_for:
+  - coding-smart
+- id: qwen3-235b-a22b-instruct-2507
+  name: Qwen3 235B A22B Instruct 2507
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 45.09
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 45.09
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 45.09
+    composite_score: 42.83
+  best_for:
+  - coding-smart
+- id: qwen3-235b-a22b
+  name: Qwen3 235B A22B
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 44.71
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 44.71
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 44.71
+    composite_score: 42.48
+  best_for:
+  - coding-smart
+- id: qwen3-next-80b-a3b-instruct
+  name: Qwen3 Next 80B A3B Instruct
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 43.55
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 43.55
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 43.55
+    composite_score: 41.37
+  best_for:
+  - coding-smart
+- id: claude-3-5-sonnet
+  name: Claude 3 5 Sonnet
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 42.94
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 42.94
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 42.94
+    composite_score: 40.8
+  best_for:
+  - coding-smart
+- id: grok-3
+  name: Grok 3
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 42.5
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 42.5
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 42.5
+    composite_score: 40.38
+  best_for:
+  - coding-smart
+- id: gpt-4-1
+  name: Gpt 4 1
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 41.83
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 41.83
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 41.83
+    composite_score: 39.74
+  best_for:
+  - coding-smart
+- id: glm-4-6v
+  name: Glm 4 6V
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 41.1
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 41.1
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 41.1
+    composite_score: 39.05
+  best_for:
+  - coding-smart
+- id: gemini-2-5-flash
+  name: Gemini 2 5 Flash
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 40.75
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 40.75
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 40.75
+    composite_score: 38.71
+  best_for:
+  - coding-smart
+- id: qwen3-30b-a3b
+  name: Qwen3 30B A3B
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 40.63
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 40.63
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 40.63
+    composite_score: 38.6
+  best_for:
+  - coding-smart
+- id: alibaba-qwen3-vl-thinking
+  name: Alibaba Qwen3 Vl Thinking
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 40.6
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 40.6
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 40.6
+    composite_score: 38.57
+  best_for:
+  - coding-smart
+- id: kimi-k2-instruct
+  name: Kimi K2 Instruct
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 40.37
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 40.37
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 40.37
+    composite_score: 38.35
+  best_for:
+  - coding-smart
+- id: qwen3-coder-next
+  name: Qwen3 Coder Next
+  scores:
+    speed_tps: -1
+    livebench_coding: -1
+    aider: -1
+    swe_bench: 40.0
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: 40.0
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: 40.0
+    composite_score: 38.0
+  best_for:
+  - coding-smart

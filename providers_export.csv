@@ -1,0 +1,136 @@
+provider_id,provider_name,enabled,free_tier,no_api_key,provider_rpm,provider_daily_limit,model_id,model_context,model_tps,model_capabilities,model_notes,signup_url,provider_notes,last_verified
+groq,Groq,True,True,False,30,14400,llama-3.1-8b-instant,131072,750,"chat,code,tools,fast",Fastest free model on Groq,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,llama-3.3-70b-versatile,131072,275,"chat,code,tools,reasoning",Best quality free model on Groq,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,mixtral-8x7b-32768,32768,500,"chat,code,tools",,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,gemma2-9b-it,8192,500,"chat,code",,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,meta-llama/llama-4-maverick-17b-128e-instruct,131072,400,"chat,code,tools,vision",,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,meta-llama/llama-4-scout-17b-16e-instruct,131072,400,"chat,code,tools",,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,groq/compound,131072,200,"chat,code,tools,reasoning",Compound AI model with search,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,groq/compound-mini,131072,400,"chat,code,tools,fast",,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,moonshotai/kimi-k2-instruct,131072,200,"chat,code,tools,reasoning",,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,moonshotai/kimi-k2-instruct-0905,131072,200,"chat,code,tools,reasoning",,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,openai/gpt-oss-120b,131072,150,"chat,code,tools",,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,openai/gpt-oss-20b,131072,400,"chat,code,tools,fast",,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,qwen/qwen3-32b,32768,300,"chat,code,tools,reasoning",,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,allam-2-7b,8192,600,chat,Arabic language model,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,canopylabs/orpheus-arabic-saudi,32768,400,chat,,https://console.groq.com,,2026-03-17
+groq,Groq,True,True,False,30,14400,canopylabs/orpheus-v1-english,32768,400,chat,,https://console.groq.com,,2026-03-17
+gemini,Google Gemini (AI Studio),True,True,False,15,1500,gemini-2.5-flash,1000000,100,"chat,code,tools,vision,fast","Best free flash model, 1M context",https://aistudio.google.com,,2026-03-17
+gemini,Google Gemini (AI Studio),True,True,False,15,1500,gemini-2.5-pro,2000000,50,"chat,code,tools,vision,long_context,reasoning","Best free Gemini model, 2M context",https://aistudio.google.com,,2026-03-17
+gemini,Google Gemini (AI Studio),True,True,False,15,1500,gemini-2.0-flash,1000000,150,"chat,code,tools,vision,fast",,https://aistudio.google.com,,2026-03-17
+gemini,Google Gemini (AI Studio),True,True,False,15,1500,gemini-3-pro-preview,2000000,50,"chat,code,tools,vision,long_context,reasoning",,https://aistudio.google.com,,2026-03-17
+gemini,Google Gemini (AI Studio),True,True,False,15,1500,gemma-3-27b-it,131072,80,"chat,code",,https://aistudio.google.com,,2026-03-17
+gemini,Google Gemini (AI Studio),True,True,False,15,1500,gemini-1.5-flash,1000000,120,"chat,code,tools,vision,fast",,https://aistudio.google.com,,2026-03-17
+gemini,Google Gemini (AI Studio),True,True,False,15,1500,gemini-1.5-pro,2000000,60,"chat,code,tools,vision,long_context",,https://aistudio.google.com,,2026-03-17
+cerebras,Cerebras,True,True,False,30,,llama-3.3-70b,128000,2100,"chat,code,tools",Ultra-fast 70B inference,https://cloud.cerebras.ai,,2026-03-17
+cerebras,Cerebras,True,True,False,30,,llama3.1-8b,8192,2600,"chat,code,tools,fast",Fastest free inference available,https://cloud.cerebras.ai,,2026-03-17
+cerebras,Cerebras,True,True,False,30,,qwen-3-235b-a22b-instruct-2507,32768,500,"chat,code,tools,reasoning",,https://cloud.cerebras.ai,,2026-03-17
+cerebras,Cerebras,True,True,False,30,,qwen-3-32b,32768,1200,"chat,code,tools,reasoning",,https://cloud.cerebras.ai,,2026-03-17
+cerebras,Cerebras,True,True,False,30,,gpt-oss-120b,131072,800,"chat,code,tools",,https://cloud.cerebras.ai,,2026-03-17
+cerebras,Cerebras,True,True,False,30,,zai-glm-4.7,32768,1000,"chat,code,tools",,https://cloud.cerebras.ai,,2026-03-17
+nvidia,NVIDIA NIM API,True,True,False,40,1000,nvidia/llama-3.3-70b-instruct,131072,100,"chat,code,tools",,https://build.nvidia.com,,2026-03-17
+nvidia,NVIDIA NIM API,True,True,False,40,1000,nvidia/llama-3.1-405b-instruct,131072,50,"chat,code,tools",405B free via NVIDIA,https://build.nvidia.com,,2026-03-17
+nvidia,NVIDIA NIM API,True,True,False,40,1000,nvidia/gemma-2-27b-it,8192,120,"chat,code",,https://build.nvidia.com,,2026-03-17
+mistral,Mistral AI,True,True,False,10,,mistral-large-latest,32000,80,"chat,code,tools",,https://console.mistral.ai,,2026-03-17
+mistral,Mistral AI,True,True,False,10,,codestral-latest,200000,100,"chat,code,tools",Best free code model from Mistral,https://console.mistral.ai,,2026-03-17
+mistral,Mistral AI,True,True,False,10,,mistral-nemo,128000,150,"chat,code",,https://console.mistral.ai,,2026-03-17
+together,Together AI,True,True,False,60,,togethercomputer/MoA-1,32768,100,"chat,code,tools",Mixture of Agents ensemble model,https://api.together.xyz,,2026-03-17
+together,Together AI,True,True,False,60,,togethercomputer/MoA-1-Turbo,32768,200,"chat,code,tools,fast",,https://api.together.xyz,,2026-03-17
+together,Together AI,True,True,False,60,,meta-llama/Llama-3.3-70B-Instruct-Turbo,131072,150,"chat,code,tools",,https://api.together.xyz,,2026-03-17
+together,Together AI,True,True,False,60,,deepseek-ai/DeepSeek-V3,64000,80,"chat,code,tools",,https://api.together.xyz,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,x-ai/grok-code-fast-1:optimized:free,131072,200,"chat,code,tools,fast",,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,arcee-ai/trinity-large-preview:free,32768,100,"chat,code,tools",,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,minimax/minimax-m2.5:free,32768,80,"chat,code,tools",,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,nvidia/nemotron-3-super-120b-a12b:free,131072,50,"chat,code,tools",,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,stepfun/step-3.5-flash:free,32768,200,"chat,code,fast",,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,corethink:free,131072,100,"chat,code,reasoning",,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,kilo/auto-free,131072,150,"chat,code,tools",Auto-routes to best free model,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,openrouter/auto,131072,100,"chat,code",,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,openrouter/free,131072,100,"chat,code",,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,giga-potato,131072,100,"chat,code,reasoning",,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,giga-potato-thinking,131072,80,"chat,code,reasoning",,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,kilo-auto/free,131072,150,"chat,code",,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,morph-warp-grep-v2,131072,150,"chat,code,tools",,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,openrouter/healer-alpha,131072,100,"chat,code",,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,openrouter/hunter-alpha,131072,100,"chat,code",,https://api.kilo.ai,,2026-03-17
+kilo,Kilo AI,True,True,False,20,,openrouter/bodybuilder,131072,100,"chat,code",,https://api.kilo.ai,,2026-03-17
+openrouter,OpenRouter,True,True,False,20,200,meta-llama/llama-3.3-70b-instruct,131072,100,"chat,code,tools",,https://openrouter.ai,,2026-03-17
+openrouter,OpenRouter,True,True,False,20,200,deepseek/deepseek-chat,65536,60,"chat,code,tools",,https://openrouter.ai,,2026-03-17
+openrouter,OpenRouter,True,True,False,20,200,google/gemini-flash-1.5,1000000,120,"chat,code,tools,vision,fast",,https://openrouter.ai,,2026-03-17
+openai,OpenAI,True,False,False,500,,gpt-4o-mini,128000,150,"chat,code,tools,fast",Cheapest OpenAI model,https://platform.openai.com,Paid API — only enable if you have credits. Forbidden in free_only_mode.,2026-03-17
+openai,OpenAI,True,False,False,500,,gpt-3.5-turbo,16385,200,"chat,code,tools,fast",,https://platform.openai.com,Paid API — only enable if you have credits. Forbidden in free_only_mode.,2026-03-17
+g4f,G4F Main (g4f.space),True,True,True,10,,gpt-4o,128000,50,"chat,code",,https://g4f.space,"General G4F proxy — no API key required, rate limited",2026-03-17
+g4f,G4F Main (g4f.space),True,True,True,10,,gpt-4,8192,50,"chat,code",,https://g4f.space,"General G4F proxy — no API key required, rate limited",2026-03-17
+g4f,G4F Main (g4f.space),True,True,True,10,,gpt-3.5-turbo,16385,80,"chat,code,fast",,https://g4f.space,"General G4F proxy — no API key required, rate limited",2026-03-17
+g4f,G4F Main (g4f.space),True,True,True,10,,claude-3-opus,200000,40,"chat,code",,https://g4f.space,"General G4F proxy — no API key required, rate limited",2026-03-17
+g4f,G4F Main (g4f.space),True,True,True,10,,gemini-2.0-flash,1000000,80,"chat,code",,https://g4f.space,"General G4F proxy — no API key required, rate limited",2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,meta/llama-3.1-405b-instruct,131072,60,"chat,code,tools",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,meta/llama-3.3-70b-instruct,131072,80,"chat,code,tools",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,meta/llama-4-maverick-17b-128e-instruct,131072,150,"chat,code,tools",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,meta/llama-4-scout-17b-16e-instruct,131072,200,"chat,code,tools",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,deepseek-ai/deepseek-v3.1,65536,60,"chat,code,tools",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,deepseek-ai/deepseek-v3.2,65536,60,"chat,code,tools",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,deepseek-ai/deepseek-r1-distill-llama-70b,65536,60,"chat,code",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,google/gemma-3-27b-it,131072,80,"chat,code",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,google/gemma-3-12b-it,131072,120,"chat,code",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,google/gemma-3-4b-it,131072,200,"chat,code,fast",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,mistralai/mistral-large-3-675b,128000,50,"chat,code,tools",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,mistralai/codestral-2501,200000,80,"chat,code,tools",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,qwen/qwen3-235b-a22b,32768,40,"chat,code,tools,reasoning",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,qwen/qwen3-coder-480b,32768,30,"chat,code,tools",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,qwen/qwen3.5-397b,32768,30,"chat,code,tools",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,nvidia/nemotron-ultra-253b-v1,131072,30,"chat,code,reasoning",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,nvidia/nemotron-super-49b-v1,131072,80,"chat,code",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,microsoft/phi-4-mini-instruct,131072,200,"chat,code,fast",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,microsoft/phi-3.5-mini,131072,250,"chat,code,fast",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_nvidia,G4F NVIDIA Proxy (g4f.space),True,True,True,30,,moonshotai/kimi-k2-base,131072,80,"chat,code",,https://g4f.space,170+ NVIDIA NIM models via g4f.space proxy,2026-03-17
+g4f_groq,G4F Groq Proxy (g4f.space),True,True,True,30,,llama-3.3-70b-versatile,131072,275,"chat,code,tools",,https://g4f.space,Groq models via g4f.space proxy — no API key required,2026-03-17
+g4f_groq,G4F Groq Proxy (g4f.space),True,True,True,30,,llama-3.1-8b-instant,131072,750,"chat,code,fast",,https://g4f.space,Groq models via g4f.space proxy — no API key required,2026-03-17
+g4f_groq,G4F Groq Proxy (g4f.space),True,True,True,30,,llama-3.1-70b-versatile,131072,300,"chat,code",,https://g4f.space,Groq models via g4f.space proxy — no API key required,2026-03-17
+g4f_groq,G4F Groq Proxy (g4f.space),True,True,True,30,,mixtral-8x7b-32768,32768,500,"chat,code",,https://g4f.space,Groq models via g4f.space proxy — no API key required,2026-03-17
+g4f_groq,G4F Groq Proxy (g4f.space),True,True,True,30,,gemma2-9b-it,8192,500,"chat,code",,https://g4f.space,Groq models via g4f.space proxy — no API key required,2026-03-17
+g4f_gemini,G4F Gemini Proxy (g4f.space),True,True,True,30,,gemini-3-pro,2000000,50,"chat,code,vision,long_context",,https://g4f.space,Gemini models via g4f.space proxy — no API key required,2026-03-17
+g4f_gemini,G4F Gemini Proxy (g4f.space),True,True,True,30,,gemini-2.5-flash,1000000,100,"chat,code,vision,fast",,https://g4f.space,Gemini models via g4f.space proxy — no API key required,2026-03-17
+g4f_gemini,G4F Gemini Proxy (g4f.space),True,True,True,30,,gemini-2.5-pro,2000000,60,"chat,code,vision,long_context,reasoning",,https://g4f.space,Gemini models via g4f.space proxy — no API key required,2026-03-17
+g4f_ollama,G4F Ollama Proxy (g4f.space),True,True,True,30,,deepseek-v3.2,65536,60,"chat,code",,https://g4f.space,Ollama-hosted models via g4f.space proxy,2026-03-17
+g4f_ollama,G4F Ollama Proxy (g4f.space),True,True,True,30,,devstral-small-2:24b,32768,80,"chat,code",,https://g4f.space,Ollama-hosted models via g4f.space proxy,2026-03-17
+g4f_ollama,G4F Ollama Proxy (g4f.space),True,True,True,30,,gemini-3-flash-preview,1000000,120,"chat,code,fast",,https://g4f.space,Ollama-hosted models via g4f.space proxy,2026-03-17
+g4f_ollama,G4F Ollama Proxy (g4f.space),True,True,True,30,,gemma3:27b,131072,80,"chat,code",,https://g4f.space,Ollama-hosted models via g4f.space proxy,2026-03-17
+g4f_ollama,G4F Ollama Proxy (g4f.space),True,True,True,30,,qwen3.5:397b,32768,30,"chat,code,reasoning",,https://g4f.space,Ollama-hosted models via g4f.space proxy,2026-03-17
+g4f_ollama,G4F Ollama Proxy (g4f.space),True,True,True,30,,glm-4.7,32768,100,"chat,code",,https://g4f.space,Ollama-hosted models via g4f.space proxy,2026-03-17
+g4f_ollama,G4F Ollama Proxy (g4f.space),True,True,True,30,,gpt-oss:120b,131072,50,"chat,code",,https://g4f.space,Ollama-hosted models via g4f.space proxy,2026-03-17
+g4f_ollama,G4F Ollama Proxy (g4f.space),True,True,True,30,,minimax-m2,32768,80,"chat,code",,https://g4f.space,Ollama-hosted models via g4f.space proxy,2026-03-17
+g4f_ollama,G4F Ollama Proxy (g4f.space),True,True,True,30,,minimax-m2.5,32768,80,"chat,code",,https://g4f.space,Ollama-hosted models via g4f.space proxy,2026-03-17
+g4f_ollama,G4F Ollama Proxy (g4f.space),True,True,True,30,,rnj-1:8b,8192,200,"chat,code,fast",,https://g4f.space,Ollama-hosted models via g4f.space proxy,2026-03-17
+g4f_pollinations,G4F Pollinations Proxy (g4f.space),True,True,True,60,,openai,128000,100,"chat,code",,https://g4f.space,Pollinations.ai models via g4f.space proxy,2026-03-17
+g4f_pollinations,G4F Pollinations Proxy (g4f.space),True,True,True,60,,openai-fast,128000,200,"chat,code,fast",,https://g4f.space,Pollinations.ai models via g4f.space proxy,2026-03-17
+g4f_pollinations,G4F Pollinations Proxy (g4f.space),True,True,True,60,,qwen-coder,32768,150,"chat,code",,https://g4f.space,Pollinations.ai models via g4f.space proxy,2026-03-17
+g4f_pollinations,G4F Pollinations Proxy (g4f.space),True,True,True,60,,mistral,32000,120,"chat,code",,https://g4f.space,Pollinations.ai models via g4f.space proxy,2026-03-17
+g4f_pollinations,G4F Pollinations Proxy (g4f.space),True,True,True,60,,openai-audio,128000,100,"chat,code",,https://g4f.space,Pollinations.ai models via g4f.space proxy,2026-03-17
+g4f_pollinations,G4F Pollinations Proxy (g4f.space),True,True,True,60,,gemini-fast,1000000,150,"chat,code,fast",,https://g4f.space,Pollinations.ai models via g4f.space proxy,2026-03-17
+g4f_pollinations,G4F Pollinations Proxy (g4f.space),True,True,True,60,,deepseek,65536,80,"chat,code",,https://g4f.space,Pollinations.ai models via g4f.space proxy,2026-03-17
+g4f_pollinations,G4F Pollinations Proxy (g4f.space),True,True,True,60,,gemini-search,1000000,100,"chat,code,vision",,https://g4f.space,Pollinations.ai models via g4f.space proxy,2026-03-17
+g4f_pollinations,G4F Pollinations Proxy (g4f.space),True,True,True,60,,midijourney,8192,100,chat,,https://g4f.space,Pollinations.ai models via g4f.space proxy,2026-03-17
+g4f_pollinations,G4F Pollinations Proxy (g4f.space),True,True,True,60,,claude-fast,200000,100,"chat,code",,https://g4f.space,Pollinations.ai models via g4f.space proxy,2026-03-17
+sambanova,SambaNova Cloud,False,True,False,30,,DeepSeek-V3.2,65536,200,"chat,code,tools",,https://cloud.sambanova.ai,Free tier with fast inference on custom AI chips,2026-03-17
+sambanova,SambaNova Cloud,False,True,False,30,,DeepSeek-R1-Distill-Llama-70B,65536,200,"chat,code,reasoning",,https://cloud.sambanova.ai,Free tier with fast inference on custom AI chips,2026-03-17
+sambanova,SambaNova Cloud,False,True,False,30,,Llama-4-Maverick-17B-128E-Instruct,131072,400,"chat,code,tools",,https://cloud.sambanova.ai,Free tier with fast inference on custom AI chips,2026-03-17
+sambanova,SambaNova Cloud,False,True,False,30,,Meta-Llama-3.1-8B-Instruct,8192,1000,"chat,code,fast",,https://cloud.sambanova.ai,Free tier with fast inference on custom AI chips,2026-03-17
+sambanova,SambaNova Cloud,False,True,False,30,,Meta-Llama-3.3-70B-Instruct,131072,400,"chat,code,tools",,https://cloud.sambanova.ai,Free tier with fast inference on custom AI chips,2026-03-17
+sambanova,SambaNova Cloud,False,True,False,30,,Qwen3-235B,32768,200,"chat,code,tools,reasoning",,https://cloud.sambanova.ai,Free tier with fast inference on custom AI chips,2026-03-17
+sambanova,SambaNova Cloud,False,True,False,30,,Qwen3-32B,32768,500,"chat,code,tools",,https://cloud.sambanova.ai,Free tier with fast inference on custom AI chips,2026-03-17
+sambanova,SambaNova Cloud,False,True,False,30,,gpt-oss-120b,131072,300,"chat,code",,https://cloud.sambanova.ai,Free tier with fast inference on custom AI chips,2026-03-17
+github-models,GitHub Models,False,True,False,5,100,grok-3-vision-beta,131072,80,"chat,code,vision",,https://github.com/marketplace/models,Free but heavily rate-limited. Requires GitHub account.,2026-03-17
+github-models,GitHub Models,False,True,False,5,100,grok-3-mini,131072,100,"chat,code",,https://github.com/marketplace/models,Free but heavily rate-limited. Requires GitHub account.,2026-03-17
+github-models,GitHub Models,False,True,False,5,100,deepseek-r1,65536,60,"chat,code,reasoning",,https://github.com/marketplace/models,Free but heavily rate-limited. Requires GitHub account.,2026-03-17
+github-models,GitHub Models,False,True,False,5,100,deepseek-v3,65536,80,"chat,code",,https://github.com/marketplace/models,Free but heavily rate-limited. Requires GitHub account.,2026-03-17
+github-models,GitHub Models,False,True,False,5,100,phi-4,128000,150,"chat,code",,https://github.com/marketplace/models,Free but heavily rate-limited. Requires GitHub account.,2026-03-17
+github-models,GitHub Models,False,True,False,5,100,llama-4-scout-17b,128000,150,"chat,code,tools",,https://github.com/marketplace/models,Free but heavily rate-limited. Requires GitHub account.,2026-03-17
+github-models,GitHub Models,False,True,False,5,100,meta-llama/Llama-3.3-70B-Instruct,131072,100,"chat,code,tools",,https://github.com/marketplace/models,Free but heavily rate-limited. Requires GitHub account.,2026-03-17
+github-models,GitHub Models,False,True,False,5,100,mistralai/Mistral-large-2411,128000,80,"chat,code,tools",,https://github.com/marketplace/models,Free but heavily rate-limited. Requires GitHub account.,2026-03-17
+cloudflare,Cloudflare Workers AI,False,True,False,300,10000,@cf/meta/llama-3.3-70b-instruct,131072,150,"chat,code",,https://workers.cloudflare.com/workers-ai,"10,000 Neurons/day free. Unusual API format with model in URL path.",2026-03-17
+cloudflare,Cloudflare Workers AI,False,True,False,300,10000,@cf/meta/llama-3.1-8b-instruct,131072,300,"chat,code,fast",,https://workers.cloudflare.com/workers-ai,"10,000 Neurons/day free. Unusual API format with model in URL path.",2026-03-17
+cloudflare,Cloudflare Workers AI,False,True,False,300,10000,@cf/mistral/mistral-large-2407,128000,100,"chat,code",,https://workers.cloudflare.com/workers-ai,"10,000 Neurons/day free. Unusual API format with model in URL path.",2026-03-17
+cloudflare,Cloudflare Workers AI,False,True,False,300,10000,@cf/qwen/qwen2.5-72b-instruct,32768,100,"chat,code",,https://workers.cloudflare.com/workers-ai,"10,000 Neurons/day free. Unusual API format with model in URL path.",2026-03-17
+cloudflare,Cloudflare Workers AI,False,True,False,300,10000,@cf/openchat/openchat-7b,8192,300,"chat,fast",,https://workers.cloudflare.com/workers-ai,"10,000 Neurons/day free. Unusual API format with model in URL path.",2026-03-17
+cloudflare,Cloudflare Workers AI,False,True,False,300,10000,@cf/tinyllama/tinyllama-1.1b-chat,2048,500,"chat,fast",,https://workers.cloudflare.com/workers-ai,"10,000 Neurons/day free. Unusual API format with model in URL path.",2026-03-17

@@ -1,11 +1,98 @@
 {
-  "cerebras": {"tps": 1500, "ttft": 0.2},
-  "groq": {"tps": 800, "ttft": 0.3},
-  "together": {"tps": 150, "ttft": 0.5},
-  "deepinfra": {"tps": 100, "ttft": 0.6},
-  "openai": {"tps": 80, "ttft": 0.8},
-  "anthropic": {"tps": 70, "ttft": 1.0},
-  "google": {"tps": 90, "ttft": 0.9},
-  "g4f": {"tps": 40, "ttft": 2.0},
-  "default": {"tps": 30, "ttft": 1.5}
+  "groq": {
+    "tps": 750,
+    "ttft": 0.5
+  },
+  "gemini": {
+    "tps": 150,
+    "ttft": 0.5
+  },
+  "cerebras": {
+    "tps": 2600,
+    "ttft": 0.5
+  },
+  "nvidia": {
+    "tps": 120,
+    "ttft": 0.5
+  },
+  "mistral": {
+    "tps": 150,
+    "ttft": 0.5
+  },
+  "together": {
+    "tps": 200,
+    "ttft": 0.5
+  },
+  "kilo": {
+    "tps": 200,
+    "ttft": 0.5
+  },
+  "openrouter": {
+    "tps": 120,
+    "ttft": 0.5
+  },
+  "openai": {
+    "tps": 200,
+    "ttft": 0.5
+  },
+  "g4f": {
+    "tps": 80,
+    "ttft": 0.5
+  },
+  "g4f_nvidia": {
+    "tps": 250,
+    "ttft": 0.5
+  },
+  "g4f_groq": {
+    "tps": 750,
+    "ttft": 0.5
+  },
+  "g4f_gemini": {
+    "tps": 100,
+    "ttft": 0.5
+  },
+  "g4f_ollama": {
+    "tps": 200,
+    "ttft": 0.5
+  },
+  "g4f_pollinations": {
+    "tps": 200,
+    "ttft": 0.5
+  },
+  "sambanova": {
+    "tps": 1000,
+    "ttft": 0.5
+  },
+  "github-models": {
+    "tps": 150,
+    "ttft": 0.5
+  },
+  "cloudflare": {
+    "tps": 500,
+    "ttft": 0.5
+  },
+  "opencode_zen": {
+    "tps": 150,
+    "ttft": 0.5
+  },
+  "iflow": {
+    "tps": 100,
+    "ttft": 0.5
+  },
+  "aihubmix": {
+    "tps": 150,
+    "ttft": 0.5
+  },
+  "noobrouter": {
+    "tps": 200,
+    "ttft": 0.5
+  },
+  "supacoder": {
+    "tps": 200,
+    "ttft": 0.5
+  },
+  "wiwi": {
+    "tps": 200,
+    "ttft": 0.5
+  }
 }

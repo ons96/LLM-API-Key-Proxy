@@ -912,6 +912,62 @@ async def responses_endpoint(
     OpenAI Responses API compatibility layer.
     Translates Requests API format to Chat Completions format.
     """
+
+    def _normalize_responses_content(content: Any) -> str:
+        if isinstance(content, str):
+            return content
+
+        if isinstance(content, list):
+            text_parts = []
+            for part in content:
+                if isinstance(part, dict):
+                    if part.get("type") == "text" and isinstance(part.get("text"), str):
+                        text_parts.append(part["text"])
+                    elif isinstance(part.get("content"), str):
+                        text_parts.append(part["content"])
+                elif isinstance(part, str):
+                    text_parts.append(part)
+
+            if text_parts:
+                return "\n".join(text_parts)
+            return ""
+
+        if isinstance(content, dict):
+            if isinstance(content.get("text"), str):
+                return content["text"]
+            if isinstance(content.get("content"), str):
+                return content["content"]
+
+        return ""
+
+    def _to_plain_dict(response_obj: Any) -> Dict[str, Any]:
+        if isinstance(response_obj, dict):
+            return response_obj
+
+        if isinstance(response_obj, JSONResponse):
+            try:
+                return json.loads(response_obj.body)
+            except Exception:
+                return {}
+
+        if hasattr(response_obj, "model_dump"):
+            try:
+                dumped = response_obj.model_dump()
+                if isinstance(dumped, dict):
+                    return dumped
+            except Exception:
+                pass
+
+        if hasattr(response_obj, "dict"):
+            try:
+                dumped = response_obj.dict()
+                if isinstance(dumped, dict):
+                    return dumped
+            except Exception:
+                pass
+
+        return {}
+
     try:
         body = await request.json()
     except json.JSONDecodeError:
@@ -925,7 +981,7 @@ async def responses_endpoint(
     if "input" in body and isinstance(body["input"], list):
         for item in body["input"]:
             if item.get("type") == "message":
-                content = item.get("content", "")
+                content = _normalize_responses_content(item.get("content", ""))
                 messages.append({"role": item.get("role", "user"), "content": content})
             else:
                 messages.append(item)
@@ -948,23 +1004,24 @@ async def responses_endpoint(
     if chat_body.get("stream"):
         return response
 
-    if isinstance(response, JSONResponse):
-        content_body = json.loads(response.body)
+    content_body = _to_plain_dict(response)
 
+    if content_body and "choices" in content_body:
         output = []
-        if "choices" in content_body:
-            for choice in content_body["choices"]:
-                message = choice.get("message", {})
-                role = message.get("role", "assistant")
-                text_content = message.get("content", "")
+        for choice in content_body.get("choices", []):
+            message = choice.get("message", {}) if isinstance(choice, dict) else {}
+            role = message.get("role", "assistant")
+            text_content = message.get("content", "")
+            if not isinstance(text_content, str):
+                text_content = _normalize_responses_content(text_content)
 
-                output.append(
-                    {
-                        "type": "message",
-                        "role": role,
-                        "content": [{"type": "text", "text": text_content}],
-                    }
-                )
+            output.append(
+                {
+                    "type": "message",
+                    "role": role,
+                    "content": [{"type": "text", "text": text_content}],
+                }
+            )
 
         new_response = {
             "id": content_body.get("id"),
