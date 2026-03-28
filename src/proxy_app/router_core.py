@@ -650,8 +650,9 @@ class RouterCore:
         latency_ms: float,
         success: bool,
         error_type: Optional[ErrorCategory] = None,
+        response: Optional[Any] = None,
     ):
-        """Update metrics for a provider."""
+        """Update in-memory metrics and persist to telemetry SQLite."""
         metrics = self._get_metrics(provider, model)
         if success:
             metrics.record_success()
@@ -664,6 +665,52 @@ class RouterCore:
                         "rate_limit_cooldown_seconds", 300
                     )
                 )
+
+        # --- Telemetry persistence (non-fatal) ---
+        try:
+            from ..rotator_library.telemetry import get_telemetry_manager
+            telemetry = get_telemetry_manager()
+
+            input_tokens: Optional[int] = None
+            output_tokens: Optional[int] = None
+            tps: Optional[float] = None
+
+            if response is not None and success:
+                usage = None
+                if hasattr(response, "usage"):
+                    usage = response.usage
+                elif isinstance(response, dict):
+                    usage = response.get("usage")
+
+                if usage is not None:
+                    if hasattr(usage, "prompt_tokens"):
+                        input_tokens = usage.prompt_tokens
+                        output_tokens = usage.completion_tokens
+                    elif isinstance(usage, dict):
+                        input_tokens = usage.get("prompt_tokens")
+                        output_tokens = usage.get("completion_tokens")
+
+                if output_tokens and latency_ms > 0:
+                    tps = (output_tokens / latency_ms) * 1000.0
+
+            error_reason = error_type.value if error_type else None
+
+            telemetry.record_call(
+                provider=provider,
+                model=model,
+                success=success,
+                response_time_ms=int(latency_ms),
+                error_reason=error_reason,
+                tokens_per_second=tps,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+            )
+
+            if tps is not None:
+                telemetry.record_tps(provider, model, tps)
+
+        except Exception as _telemetry_err:
+            logger.debug(f"Telemetry record failed (non-fatal): {_telemetry_err}")
 
     async def _check_conditions(
         self, candidate_cfg: Dict[str, Any], provider: str, model: str
@@ -765,8 +812,9 @@ class RouterCore:
                 response = await litellm.acompletion(**request_clean, stream=False)
 
             # Record success
+            elapsed_ms = (time.time() - start_time) * 1000
             self._update_metrics(
-                candidate.provider, candidate.model, time.time() - start_time, True
+                candidate.provider, candidate.model, elapsed_ms, True, response=response
             )
             return response
 
