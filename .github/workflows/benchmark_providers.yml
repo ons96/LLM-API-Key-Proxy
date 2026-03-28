@@ -1,0 +1,140 @@
+name: Benchmark Free LLM Providers
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: 'Specific provider to benchmark (leave empty for all)'
+        type: string
+        default: ''
+      max_models:
+        description: 'Max models per provider'
+        type: string
+        default: '3'
+  schedule:
+    # Run every 12 hours: 02:00 and 14:00 UTC
+    # Offset from auto_provider_management (runs at 00/06/12/18) to spread load
+    - cron: "0 2,14 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GH_TOKEN || github.token }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install httpx pyyaml --quiet
+
+      - name: Run benchmark
+        env:
+          # Tier 1 providers (direct API keys)
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          SAMBANOVA_API_KEY: ${{ secrets.SAMBANOVA_API_KEY }}
+          TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          KILO_API_KEY: ${{ secrets.KILO_API_KEY }}
+          IFLOW_API_KEY: ${{ secrets.IFLOW_API_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          DEEPINFRA_API_KEY: ${{ secrets.DEEPINFRA_API_KEY }}
+          HYPERBOLIC_API_KEY: ${{ secrets.HYPERBOLIC_API_KEY }}
+          AVIAN_API_KEY: ${{ secrets.AVIAN_API_KEY }}
+          CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          PROVIDER_ARG=""
+          if [ -n "${{ inputs.provider }}" ]; then
+            PROVIDER_ARG="--provider ${{ inputs.provider }}"
+          fi
+          MAX_MODELS="${{ inputs.max_models || '3' }}"
+
+          python scripts/benchmark_providers.py \
+            $PROVIDER_ARG \
+            --max-models "$MAX_MODELS" \
+            || echo "Benchmark run failed (non-fatal)"
+
+      - name: Update benchmark_results in model_rankings.yaml
+        run: |
+          # If benchmark_report.json was generated, update TPS data in providers_database.yaml
+          if [ -f config/benchmark_report.json ]; then
+            python - << 'PYEOF'
+          import json, yaml
+          from pathlib import Path
+
+          report = json.loads(Path('config/benchmark_report.json').read_text())
+          summary = report.get('provider_summary', {})
+
+          if not summary:
+              print('No provider summary in report')
+              exit(0)
+
+          # Load providers_database.yaml and update TPS values
+          db_path = Path('config/providers_database.yaml')
+          with open(db_path) as f:
+              db = yaml.safe_load(f)
+
+          updated = 0
+          for provider in db.get('providers', []):
+              if not isinstance(provider, dict):
+                  continue
+              pid = provider.get('id', '')
+              if pid in summary:
+                  avg_tps = summary[pid]['avg_tps']
+                  for model in provider.get('free_models', []):
+                      if isinstance(model, dict) and model.get('tps', 0) == 0:
+                          model['tps'] = int(avg_tps)
+                          updated += 1
+
+          if updated:
+              with open(db_path, 'w') as f:
+                  yaml.dump(db, f, default_flow_style=False, sort_keys=False)
+              print(f'Updated {updated} model TPS entries in providers_database.yaml')
+          else:
+              print('No TPS updates needed')
+          PYEOF
+          fi
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add config/benchmark_results.csv config/benchmark_report.json \
+                  config/providers_database.yaml 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No benchmark changes to commit"
+          else
+            git commit -m "chore(benchmark): update provider TPS data ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+            git push
+          fi
+
+      - name: Print TPS ranking
+        run: |
+          if [ -f config/benchmark_report.json ]; then
+            python - << 'PYEOF'
+          import json
+          from pathlib import Path
+          r = json.loads(Path('config/benchmark_report.json').read_text())
+          print(f"Tests: {r['successful']}/{r['total_tests']} passed")
+          print("Ranked by avg TPS:")
+          for p in r['ranked_providers']:
+              s = r['provider_summary'][p]
+              print(f"  {p}: avg={s['avg_tps']} max={s['max_tps']} models={s['models_tested']}")
+          PYEOF
+          fi
