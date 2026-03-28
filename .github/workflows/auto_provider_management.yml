@@ -1,0 +1,181 @@
+name: Auto Provider Management
+
+on:
+  workflow_dispatch:
+    inputs:
+      update_config:
+        description: 'Update router_config.yaml with new discoveries'
+        type: boolean
+        default: true
+      probe_providers:
+        description: 'Probe all providers and disable unreachable ones'
+        type: boolean
+        default: true
+      regenerate_virtual_models:
+        description: 'Regenerate virtual_models_generated.yaml from leaderboard data'
+        type: boolean
+        default: true
+  schedule:
+    # Run every 6 hours: 00:00, 06:00, 12:00, 18:00 UTC
+    - cron: "0 */6 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  manage-providers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GH_TOKEN || github.token }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install httpx pyyaml aiohttp requests --quiet
+
+      - name: Step 1 — Discover new free models from models.dev
+        run: |
+          echo "=== Discovering new free models from models.dev ==="
+          python scripts/discover_free_models.py \
+            ${{ (inputs.update_config == true || github.event_name == 'schedule') && '--update' || '' }} \
+            --no-cache || echo "Discovery failed (non-fatal)"
+
+      - name: Step 2 — Probe provider health and disable dead ones
+        run: |
+          echo "=== Probing provider health ==="
+          python - << 'PYEOF'
+          import yaml
+          import httpx
+          import asyncio
+          import logging
+          from pathlib import Path
+
+          logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+          logger = logging.getLogger("probe")
+
+          CONFIG = Path("config/router_config.yaml")
+
+          async def probe_provider(name: str, cfg: dict) -> tuple[str, bool, str]:
+              """Return (name, is_alive, reason)."""
+              if not cfg.get("enabled", False):
+                  return name, False, "disabled"
+              base_url = cfg.get("base_url", "") or cfg.get("api_base", "")
+              if not base_url:
+                  return name, None, "no_url"
+              # Try /v1/models or /models endpoint
+              test_url = base_url.rstrip("/")
+              if not test_url.endswith("/v1"):
+                  test_url = test_url + "/v1/models"
+              else:
+                  test_url = test_url + "/models"
+              try:
+                  async with httpx.AsyncClient(timeout=10.0) as client:
+                      r = await client.get(test_url, headers={"Authorization": "Bearer probe-test"})
+                      # 200 or 401 = alive (401 = auth needed but endpoint exists)
+                      if r.status_code in (200, 401, 403):
+                          return name, True, f"HTTP {r.status_code}"
+                      elif r.status_code in (404, 502, 503, 504):
+                          return name, False, f"HTTP {r.status_code}"
+                      else:
+                          return name, True, f"HTTP {r.status_code}"
+              except Exception as e:
+                  return name, False, str(e)[:60]
+
+          async def main():
+              with open(CONFIG) as f:
+                  config = yaml.safe_load(f)
+
+              providers = config.get("providers", {})
+              tasks = [probe_provider(name, cfg) for name, cfg in providers.items() if isinstance(cfg, dict)]
+              results = await asyncio.gather(*tasks)
+
+              changes = []
+              for name, alive, reason in results:
+                  if alive is None:
+                      continue  # no URL to test
+                  if alive is False and reason != "disabled":
+                      # Provider is enabled but not responding
+                      if providers[name].get("enabled", False):
+                          logger.warning(f"DEAD: {name} ({reason}) — marking disabled")
+                          providers[name]["enabled"] = False
+                          providers[name]["_auto_disabled_reason"] = reason
+                          changes.append(f"Disabled {name}: {reason}")
+                  elif alive and providers[name].get("_auto_disabled_reason"):
+                      # Was auto-disabled but now alive again
+                      logger.info(f"RECOVERED: {name} ({reason}) — re-enabling")
+                      providers[name]["enabled"] = True
+                      del providers[name]["_auto_disabled_reason"]
+                      changes.append(f"Re-enabled {name}: recovered")
+                  else:
+                      status = "alive" if alive else "dead(known)"
+                      logger.info(f"  {name}: {status} ({reason})")
+
+              if changes:
+                  config["providers"] = providers
+                  with open(CONFIG, "w") as f:
+                      yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+                  print(f"\nProvider changes ({len(changes)}):")
+                  for c in changes:
+                      print(f"  - {c}")
+              else:
+                  print("No provider state changes.")
+
+          asyncio.run(main())
+          PYEOF
+
+      - name: Step 3 — Regenerate virtual_models_generated.yaml
+        if: ${{ inputs.regenerate_virtual_models == true || github.event_name == 'schedule' }}
+        run: |
+          echo "=== Regenerating virtual models fallback chains ==="
+          python scripts/generate_virtual_models.py || echo "Virtual model generation failed (non-fatal)"
+
+      - name: Step 4 — Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add config/router_config.yaml config/virtual_models_generated.yaml \
+                  config/discovered_models.json config/fallbacks/ 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(providers): auto-manage providers ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
+            git push
+          fi
+
+      - name: Step 5 — Report summary
+        run: |
+          echo "=== Provider Management Summary ==="
+          python - << 'PYEOF'
+          import yaml, json
+          from pathlib import Path
+
+          config = yaml.safe_load(Path("config/router_config.yaml").read_text())
+          providers = config.get("providers", {})
+          enabled = [n for n, c in providers.items() if isinstance(c, dict) and c.get("enabled")]
+          disabled = [n for n, c in providers.items() if isinstance(c, dict) and not c.get("enabled")]
+          auto_disabled = [n for n, c in providers.items() if isinstance(c, dict) and c.get("_auto_disabled_reason")]
+
+          print(f"Providers enabled:  {len(enabled)}")
+          print(f"Providers disabled: {len(disabled)}")
+          if auto_disabled:
+              print(f"Auto-disabled:      {', '.join(auto_disabled)}")
+
+          disc_path = Path("config/discovered_models.json")
+          if disc_path.exists():
+              disc = json.loads(disc_path.read_text())
+              print(f"\nmodels.dev discovery:")
+              print(f"  New providers:  {disc.get('new_providers', 0)}")
+              print(f"  New models:     {disc.get('total_new_models', 0)}")
+              print(f"  Last run:       {disc.get('timestamp', 'unknown')}")
+          PYEOF
