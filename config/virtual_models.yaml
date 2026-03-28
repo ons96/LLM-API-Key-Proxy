@@ -21,84 +21,63 @@ virtual_models:
       - provider: supacoder
         model: gpt-5.2
         priority: 5
-      - provider: noobrouter
-        model: gpt-5.2
-        priority: 6
       - provider: antigravity
         model: claude-sonnet-4-5
-        priority: 7
+        priority: 6
       - provider: opencode_zen
         model: moonshot/kimi-k2.5
-        priority: 8
+        priority: 7
       - provider: supacoder
         model: gpt-5.2-codex-xhigh
-        priority: 9
-      - provider: noobrouter
-        model: gpt-5.2-codex
-        priority: 10
+        priority: 8
       - provider: supacoder
         model: gpt-5.1
-        priority: 11
-      - provider: noobrouter
-        model: gpt-5.1
-        priority: 12
+        priority: 9
       - provider: iflow
         model: qwen3-235b-a22b-instruct
-        priority: 13
+        priority: 10
       - provider: supacoder
         model: gpt-5
-        priority: 14
+        priority: 11
       - provider: supacoder
         model: gemini-3-pro-preview
-        priority: 15
+        priority: 12
       - provider: g4f_nvidia
         model: qwen/qwen3-coder-480b
-        priority: 16
+        priority: 13
       - provider: supacoder
         model: gpt-5.4
-        priority: 17
-      - provider: noobrouter
-        model: gpt-5.4
-        priority: 18
-      - provider: wiwi
-        model: gpt-5.4
-        priority: 19
+        priority: 14
       - provider: supacoder
         model: gpt-5.4-codex-xhigh
-        priority: 20
+        priority: 15
       - provider: supacoder
         model: gpt-5.3-codex-xhigh
-        priority: 21
-      - provider: noobrouter
-        model: gpt-5.3-codex
-        priority: 22
-      - provider: wiwi
-        model: gpt-5.3-codex
-        priority: 23
+        priority: 16
       - provider: supacoder
         model: claude-sonnet-4-6-20260217
-        priority: 24
+        priority: 17
       - provider: supacoder
         model: gemini-3.1-pro-preview
-        priority: 25
+        priority: 18
       - provider: aihubmix
         model: coding-glm-5-free
-        priority: 26
+        priority: 19
       - provider: iflow
         model: deepseek-v3.2
-        priority: 27
+        priority: 20
       - provider: cerebras
         model: qwen-3-235b-a22b-instruct-2507
-        priority: 28
+        priority: 21
       - provider: gemini
         model: gemini-2.5-flash
-        priority: 29
+        priority: 22
       - provider: g4f_nvidia
         model: deepseek-ai/deepseek-v3.2
-        priority: 30
+        priority: 23
     settings:
       timeout_ms: 180000
-      retry_on_rate_limit: true
+      retry_on_rate_limit: True
 
   coding-smart:
     description: "Agentic coding balanced with speed (agentic 70% + TPS 30%)"
@@ -128,119 +107,89 @@ virtual_models:
         priority: 5
         capabilities: [tools, function_calling]
         search_enabled: true
-      - provider: noobrouter
-        model: gpt-5.2
-        priority: 6
-        capabilities: [tools, function_calling]
-        search_enabled: true
       - provider: opencode_zen
         model: moonshot/kimi-k2.5
-        priority: 7
+        priority: 6
         capabilities: [tools, function_calling, reasoning]
         search_enabled: true
       - provider: supacoder
         model: gemini-3-pro-preview
-        priority: 8
+        priority: 7
         capabilities: [tools, function_calling]
         search_enabled: true
       - provider: antigravity
         model: claude-sonnet-4-5
-        priority: 9
+        priority: 8
         capabilities: [tools, function_calling]
         search_enabled: true
       - provider: supacoder
         model: gpt-5.2-codex-xhigh
-        priority: 10
-        capabilities: [tools, function_calling, coding]
-        search_enabled: true
-      - provider: noobrouter
-        model: gpt-5.2-codex
-        priority: 11
+        priority: 9
         capabilities: [tools, function_calling, coding]
         search_enabled: true
       - provider: iflow
         model: qwen3-235b-a22b-instruct
-        priority: 12
+        priority: 10
         capabilities: [tools, function_calling]
         search_enabled: true
       - provider: g4f_nvidia
         model: qwen/qwen3-coder-480b
-        priority: 13
+        priority: 11
         capabilities: [tools, function_calling]
         search_enabled: true
       - provider: supacoder
         model: gpt-5.4
-        priority: 14
-        capabilities: [tools, function_calling]
-        search_enabled: true
-      - provider: noobrouter
-        model: gpt-5.4
-        priority: 15
-        capabilities: [tools, function_calling]
-        search_enabled: true
-      - provider: wiwi
-        model: gpt-5.4
-        priority: 16
+        priority: 12
         capabilities: [tools, function_calling]
         search_enabled: true
       - provider: supacoder
         model: gpt-5.4-codex-xhigh
-        priority: 17
+        priority: 13
         capabilities: [tools, function_calling, coding]
         search_enabled: true
       - provider: supacoder
         model: gpt-5.3-codex-xhigh
-        priority: 18
-        capabilities: [tools, function_calling, coding]
-        search_enabled: true
-      - provider: noobrouter
-        model: gpt-5.3-codex
-        priority: 19
-        capabilities: [tools, function_calling, coding]
-        search_enabled: true
-      - provider: wiwi
-        model: gpt-5.3-codex
-        priority: 20
+        priority: 14
         capabilities: [tools, function_calling, coding]
         search_enabled: true
       - provider: supacoder
         model: claude-sonnet-4-6-20260217
-        priority: 21
+        priority: 15
         capabilities: [tools, function_calling, reasoning]
         search_enabled: true
       - provider: supacoder
         model: gemini-3.1-pro-preview
-        priority: 22
+        priority: 16
         capabilities: [tools, function_calling]
         search_enabled: true
       - provider: aihubmix
         model: coding-glm-5-free
-        priority: 23
+        priority: 17
         capabilities: [tools, function_calling]
         search_enabled: true
       - provider: iflow
         model: deepseek-v3.2
-        priority: 24
+        priority: 18
         capabilities: [tools, function_calling]
         search_enabled: true
       - provider: cerebras
         model: qwen-3-235b-a22b-instruct-2507
-        priority: 25
+        priority: 19
         capabilities: [tools, function_calling, reasoning]
         search_enabled: true
       - provider: gemini
         model: gemini-2.5-flash
-        priority: 26
+        priority: 20
         capabilities: [tools, function_calling, fast]
         search_enabled: true
       - provider: g4f_nvidia
         model: deepseek-ai/deepseek-v3.2
-        priority: 27
+        priority: 21
         capabilities: [tools, function_calling]
         search_enabled: false
     settings:
       timeout_ms: 120000
-      retry_on_rate_limit: true
+      retry_on_rate_limit: True
 
   coding-fast:
     description: "Fastest coding models (TPS/latency ranked)"
@@ -268,7 +217,7 @@ virtual_models:
         priority: 7
     settings:
       timeout_ms: 30000
-      retry_on_rate_limit: true
+      retry_on_rate_limit: True
 
   chat-elite:
     description: "Most intelligent models (intelligence score ranked, speed ignored)"
@@ -302,7 +251,7 @@ virtual_models:
         priority: 9
     settings:
       timeout_ms: 300000
-      retry_on_rate_limit: true
+      retry_on_rate_limit: True
 
   chat-smart:
     description: "Best intelligence-to-speed ratio (efficiency score ranked, min intel ~82)"
@@ -339,7 +288,7 @@ virtual_models:
         priority: 10
     settings:
       timeout_ms: 120000
-      retry_on_rate_limit: true
+      retry_on_rate_limit: True
 
   chat-fast:
     description: "Fastest chat models (TPS/TTFT ranked)"
@@ -370,7 +319,7 @@ virtual_models:
         priority: 8
     settings:
       timeout_ms: 15000
-      retry_on_rate_limit: true
+      retry_on_rate_limit: True
 
   chat-rp:
     description: "Roleplay and creative writing models (NSFW-capable, speed ranked)"
@@ -413,8 +362,9 @@ virtual_models:
         priority: 12
     settings:
       timeout_ms: 60000
-      retry_on_rate_limit: true
+      retry_on_rate_limit: True
 
+providers:
 providers:
   groq:
     base_url: https://api.groq.com/openai/v1
