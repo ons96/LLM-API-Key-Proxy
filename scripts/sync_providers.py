@@ -12,6 +12,7 @@ Usage:
     python scripts/sync_providers.py --csv        # Sync + export providers_export.csv
     python scripts/sync_providers.py --dry-run    # Preview changes, don't write
     python scripts/sync_providers.py --enabled-only  # Only sync enabled providers
+    python scripts/sync_providers.py --validate   # Validate router_models references
 
 Workflow:
     1. Edit config/providers_database.yaml to add/remove providers or models
@@ -23,6 +24,7 @@ import argparse
 import csv
 import logging
 import sys
+import traceback
 from copy import deepcopy
 from pathlib import Path
 
@@ -94,34 +96,45 @@ def build_provider_entry(provider: dict) -> dict:
 def sync_router_config(
     db_providers: list, router_config: dict, enabled_only: bool
 ) -> dict:
-    """Sync provider entries from database into router_config."""
+    """Sync provider entries from database into router_config.
+
+    Continues on per-provider errors — logs warnings but does not halt.
+    """
     updated = deepcopy(router_config)
     existing_providers = updated.get("providers", {})
 
     changes = []
+    errors = []
 
     for provider in db_providers:
-        pid = provider["id"]
+        pid = provider.get("id", "<unknown>")
 
-        if enabled_only and not provider.get("enabled", True):
-            logger.debug(f"Skipping disabled provider: {pid}")
-            continue
+        try:
+            if enabled_only and not provider.get("enabled", True):
+                logger.debug(f"Skipping disabled provider: {pid}")
+                continue
 
-        new_entry = build_provider_entry(provider)
+            new_entry = build_provider_entry(provider)
 
-        if pid in existing_providers:
-            old_entry = existing_providers[pid]
-            # Preserve fields that exist in router_config but not in our DB
-            for field in PRESERVE_FIELDS:
-                if field in old_entry and field not in new_entry:
-                    new_entry[field] = old_entry[field]
+            if pid in existing_providers:
+                old_entry = existing_providers[pid]
+                # Preserve fields that exist in router_config but not in our DB
+                for field in PRESERVE_FIELDS:
+                    if field in old_entry and field not in new_entry:
+                        new_entry[field] = old_entry[field]
 
-            if old_entry != new_entry:
-                changes.append(("update", pid, old_entry, new_entry))
+                if old_entry != new_entry:
+                    changes.append(("update", pid, old_entry, new_entry))
+                    existing_providers[pid] = new_entry
+            else:
+                changes.append(("add", pid, None, new_entry))
                 existing_providers[pid] = new_entry
-        else:
-            changes.append(("add", pid, None, new_entry))
-            existing_providers[pid] = new_entry
+        except Exception as e:
+            logger.warning(
+                f"Error syncing provider '{pid}': {e} — skipping, continuing with next provider"
+            )
+            errors.append((pid, str(e)))
+            continue
 
     # Report providers in router_config but not in database
     db_ids = {p["id"] for p in db_providers}
@@ -142,7 +155,68 @@ def sync_router_config(
             )
 
     updated["providers"] = existing_providers
-    return updated, changes
+    return updated, changes, errors
+
+
+def validate_router_models(router_config: dict, db_providers: list) -> list:
+    """Validate that router_models candidates reference valid providers and models.
+
+    Returns list of (model_name, candidate_index, provider, model, error_msg) tuples.
+    """
+    db_provider_map = {p["id"]: p for p in db_providers}
+    valid_provider_ids = set(db_provider_map.keys())
+
+    # Also include provider IDs that exist in the router_config providers section
+    rc_providers = router_config.get("providers", {})
+    for pid in rc_providers:
+        if not pid.startswith("router/") and pid not in (
+            "router_models",
+            "coding-smart",
+            "coding-fast",
+            "chat-smart",
+            "chat-fast",
+        ):
+            valid_provider_ids.add(pid)
+
+    issues = []
+    router_models = router_config.get("router_models", {})
+
+    for model_name, model_def in router_models.items():
+        if not isinstance(model_def, dict):
+            continue
+        candidates = model_def.get("candidates", [])
+        for idx, candidate in enumerate(candidates):
+            if not isinstance(candidate, dict):
+                continue
+            provider = candidate.get("provider", "")
+            model = candidate.get("model", "")
+
+            if provider not in valid_provider_ids:
+                issues.append(
+                    (
+                        model_name,
+                        idx,
+                        provider,
+                        model,
+                        f"Provider '{provider}' not found in providers config",
+                    )
+                )
+            elif provider in db_provider_map:
+                db_models = [
+                    m["id"] for m in db_provider_map[provider].get("free_models", [])
+                ]
+                if model not in db_models:
+                    issues.append(
+                        (
+                            model_name,
+                            idx,
+                            provider,
+                            model,
+                            f"Model '{model}' not in provider '{provider}' free_models",
+                        )
+                    )
+
+    return issues
 
 
 def export_csv(db_providers: list, path: Path) -> None:
@@ -277,6 +351,11 @@ def main():
         action="store_true",
         help="Only sync enabled providers (skip disabled)",
     )
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Validate router_models candidates reference valid providers/models",
+    )
     args = parser.parse_args()
 
     # Load database
@@ -300,10 +379,15 @@ def main():
     router_config = load_yaml(ROUTER_CONFIG_PATH)
 
     # Sync
-    updated_config, changes = sync_router_config(
+    updated_config, changes, errors = sync_router_config(
         db_providers, router_config, args.enabled_only
     )
     print_changes(changes)
+
+    if errors:
+        logger.warning(
+            f"\n{len(errors)} provider(s) had errors during sync (see above)"
+        )
 
     if args.dry_run:
         logger.info("\nDry run — no files written.")
@@ -315,6 +399,23 @@ def main():
             )
         else:
             logger.info("No changes to write.")
+
+    # Validate router_models
+    if args.validate:
+        logger.info(f"\n{'=' * 60}")
+        logger.info("ROUTER MODELS VALIDATION")
+        logger.info(f"{'=' * 60}")
+        issues = validate_router_models(updated_config, db_providers)
+        if issues:
+            logger.warning(f"Found {len(issues)} issue(s) in router_models:")
+            for model_name, idx, provider, model, error_msg in issues:
+                logger.warning(
+                    f"  [{model_name}] candidate #{idx}: {provider}/{model} — {error_msg}"
+                )
+        else:
+            logger.info(
+                "All router_models candidates reference valid providers and models."
+            )
 
     # CSV export
     if args.csv:
@@ -332,6 +433,11 @@ def main():
             f"  [{status}] {p['id']:20s} {model_count:3d} models  {p.get('name', '')}"
         )
 
+    if errors:
+        logger.warning(
+            f"\nCompleted with {len(errors)} error(s). Check warnings above."
+        )
+        return 1
     return 0
 
 

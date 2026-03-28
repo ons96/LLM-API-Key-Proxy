@@ -1359,8 +1359,8 @@ providers:
     signup_url: "https://wiwi.up.railway.app"
     env_var: WIWI_API_KEY
     base_url: "https://wiwi.up.railway.app/v1"
-    enabled: true
-    free_tier: true
+    enabled: false
+    free_tier: false
     capabilities: [chat, code, tools, function_calling]
     rate_limits:
       rpm: 60
