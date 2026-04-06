@@ -779,6 +779,20 @@ class RouterCore:
                 request_clean.pop("stream", None)
                 response = await litellm.acompletion(**request_clean, stream=False)
 
+            # Validate response for completeness
+            is_valid, validation_error = self._validate_response(response, request_clean)
+            if not is_valid:
+                # Response validation failed - treat as provider error
+                error_msg = f"Response validation failed: {validation_error}"
+                self._update_metrics(
+                    candidate.provider, candidate.model, time.time() - start_time, False,
+                    ErrorCategory.PROVIDER_ERROR
+                )
+                logger.warning(
+                    f"[{request_id}] Response validation failed for {candidate.provider}/{candidate.model}: {validation_error}"
+                )
+                raise Exception(error_msg)
+
             # Record success
             self._update_metrics(
                 candidate.provider, candidate.model, time.time() - start_time, True
@@ -1018,75 +1032,251 @@ class RouterCore:
     async def _classify_error(
         self, error: Exception
     ) -> Tuple[ErrorCategory, Optional[int]]:
-        """Classify error and determine retry behavior."""
-        error_str = str(error).lower()
+        """Universal error classifier using structured exception analysis.
 
-        # Rate limit errors
-        if any(
-            keyword in error_str
-            for keyword in ["rate_limit", "too many requests", "429"]
-        ):
-            retry_after = None
-            response = getattr(error, "response", None)
-            if response:
-                retry_after = response.headers.get("retry-after")
-                if retry_after:
-                    try:
-                        retry_after = int(retry_after)
-                    except ValueError:
-                        retry_after = 60  # Default 1 minute
-            return ErrorCategory.RATE_LIMIT, retry_after or 60
+        Uses LiteLLM exception types, HTTP status codes, and error message patterns
+        to classify errors into actionable categories. No hardcoded keyword lists -
+        uses regex patterns and exception type inspection for comprehensive coverage.
+        """
+        error_str = str(error)
+        error_lower = error_str.lower()
+        error_type = type(error).__name__
 
-        # Authentication errors
-        if any(
-            keyword in error_str
-            for keyword in [
-                "unauthorized",
-                "invalid_api_key",
-                "api_key_invalid",
-                "invalid api key",
-                "api key not valid",
-                "authentication credentials",
-                "unauthenticated",
-                "access token",
-                "401",
-                "403",
-                "api key not configured",
-                "api key is not set",
-                "api key is missing",
-                "no api key provided",
-            ]
-        ):
+        # --- Step 1: Check LiteLLM exception types (most reliable) ---
+        litellm_auth_errors = [
+            "AuthenticationError", "AuthenticationFailedError",
+            "PermissionDeniedError", "ForbiddenError",
+        ]
+        litellm_rate_errors = [
+            "RateLimitError", "RatelimitError", "QuotaExceededError",
+            "BudgetExceededError",
+        ]
+        litellm_context_errors = [
+            "ContextWindowExceededError", "BadRequestError",
+        ]
+        litellm_server_errors = [
+            "InternalServerError", "ServiceUnavailableError",
+            "APIConnectionError", "APITimeoutError",
+        ]
+
+        if error_type in litellm_auth_errors:
             return ErrorCategory.AUTH_ERROR, None
-
-        # Transient errors (including 500 - server errors should retry)
-        if any(
-            keyword in error_str
-            for keyword in ["timeout", "connection", "503", "502", "504", "500"]
-        ):
+        if error_type in litellm_rate_errors:
+            return self._extract_retry_after(error)
+        if error_type in litellm_context_errors:
+            # Check if it's a context overflow vs bad request
+            if any(kw in error_lower for kw in ["context", "token limit", "too long", "exceed"]):
+                return ErrorCategory.INVALID_REQUEST, None  # Context overflow - try smaller model
+            return ErrorCategory.PROVIDER_ERROR, None
+        if error_type in litellm_server_errors:
             return ErrorCategory.TRANSIENT, None
 
-        # Invalid request
-        if any(keyword in error_str for keyword in ["bad request", "invalid", "400"]):
+        # --- Step 2: Check HTTP status code from response ---
+        status_code = self._extract_status_code(error)
+        if status_code:
+            if status_code == 401 or status_code == 403:
+                return ErrorCategory.AUTH_ERROR, None
+            if status_code == 429:
+                return self._extract_retry_after(error)
+            if status_code in (500, 502, 503, 504):
+                return ErrorCategory.TRANSIENT, None
+            if status_code == 400:
+                # Could be bad request or context overflow
+                if any(kw in error_lower for kw in ["context", "token", "length", "exceed"]):
+                    return ErrorCategory.INVALID_REQUEST, None
+                return ErrorCategory.PROVIDER_ERROR, None
+            if status_code == 404:
+                return ErrorCategory.PROVIDER_ERROR, None
+
+        # --- Step 3: Pattern-based classification (fallback) ---
+        # Auth patterns
+        auth_patterns = [
+            r"unauthorized", r"invalid[_ ]api[_ ]?key", r"api[_ ]?key[_ ]?(not[_ ])?(valid|configured|set|missing|provided|required)",
+            r"authentication[_ ]?(credentials|failed|error)", r"unauthenticated", r"access[_ ]?token",
+            r"forbidden", r"permission[_ ]?denied", r"insufficient[_ ]?(funds|credits|quota|balance)",
+            r"payment[_ ]?(required|method|failed)", r"billing", r"account[_ ]?(disabled|suspended|inactive)",
+            r"organization[_ ]?(not[_ ]found|disabled)", r"no[_ ]?api[_ ]?key",
+        ]
+        if any(re.search(p, error_lower) for p in auth_patterns):
+            return ErrorCategory.AUTH_ERROR, None
+
+        # Rate limit patterns
+        rate_patterns = [
+            r"rate[_ ]?limit", r"too[_ ]?many[_ ]?requests", r"429",
+            r"quota[_ ]?(exceeded|exhausted|reached|limit)", r"usage[_ ]?limit",
+            r"request[_ ]?(limit|cap|max)", r"throttl", r"slow[_ ]?down",
+            r"retry[_ ]?after", r"back[_ ]?off", r"cool[_ ]?down",
+            r"tokens[_ ]?per[_ ]?(day|month|minute|hour|second)",
+            r"tokens[_ ]?(exceeded|exhausted|limit|cap)",
+            r"credit[_ ]?(exhausted|insufficient|depleted|ran[_ ]?out)",
+        ]
+        if any(re.search(p, error_lower) for p in rate_patterns):
+            return self._extract_retry_after(error)
+
+        # Context overflow patterns
+        context_patterns = [
+            r"context[_ ]?(length|window|limit|size|exceeded|overflow|too[_ ]?long)",
+            r"token[_ ]?(limit|count|exceeded|overflow|max)",
+            r"prompt[_ ]?(too[_ ]?long|exceeds|overflow)",
+            r"maximum[_ ]?(context|tokens?|length)",
+            r"input[_ ]?(too[_ ]?long|exceeds|overflow)",
+        ]
+        if any(re.search(p, error_lower) for p in context_patterns):
             return ErrorCategory.INVALID_REQUEST, None
 
-        # Missing model errors - should try next provider (check lowercase for truncated errors)
-        if any(
-            keyword in error_str.lower()
-            for keyword in [
-                "model not found",
-                "does not exist",
-                "does not ex",
-                "not found",
-                "404",
-                "not supported",
-                "unsupported model",
-            ]
-        ):
+        # Model not found patterns
+        model_patterns = [
+            r"model[_ ]?(not[_ ]found|does[_ ]not[_ ]exist|invalid|unknown|unsupported)",
+            r"model[_ ]id[_ ](not[_ ]found|invalid)",
+            r"404", r"not[_ ]found", r"does[_ ]not[_ ]ex",
+            r"unrecognized[_ ]model", r"invalid[_ ]model",
+        ]
+        if any(re.search(p, error_lower) for p in model_patterns):
             return ErrorCategory.PROVIDER_ERROR, None
 
-        # Default to provider error (fall through to try next provider)
+        # Transient/network patterns
+        transient_patterns = [
+            r"timeout", r"connection[_ ]?(refused|reset|error|failed|closed|aborted)",
+            r"503", r"502", r"504", r"500",
+            r"network[_ ]?(error|unreachable|unavailable)",
+            r"service[_ ]?(unavailable|temporarily[_ ]unavailable|down)",
+            r"gateway[_ ]?(error|timeout|unavailable)",
+            r"temporary[_ ]?(error|failure|issue)",
+            r"server[_ ]?(error|overload|busy)",
+        ]
+        if any(re.search(p, error_lower) for p in transient_patterns):
+            return ErrorCategory.TRANSIENT, None
+
+        # Tool call failure patterns
+        tool_patterns = [
+            r"tool[_ ]?(call|calling|use|not[_ ]supported|unsupported|disabled)",
+            r"function[_ ]?(call|calling|not[_ ]supported|unsupported)",
+            r"tools[_ ]?(not[_ ]supported|unsupported|disabled|unavailable)",
+            r"does[_ ]not[_ ]support[_ ](tool|function)",
+        ]
+        if any(re.search(p, error_lower) for p in tool_patterns):
+            return ErrorCategory.PROVIDER_ERROR, None
+
+        # Default: provider error (try next provider)
         return ErrorCategory.PROVIDER_ERROR, None
+
+    def _extract_status_code(self, error: Exception) -> Optional[int]:
+        """Extract HTTP status code from exception."""
+        # Check error.response attribute (httpx, requests, litellm)
+        response = getattr(error, "response", None)
+        if response and hasattr(response, "status_code"):
+            return response.status_code
+        # Check status_code attribute directly
+        status = getattr(error, "status_code", None)
+        if status:
+            return status
+        # Check http_status attribute
+        status = getattr(error, "http_status", None)
+        if status:
+            return status
+        # Check code attribute
+        code = getattr(error, "code", None)
+        if isinstance(code, int):
+            return code
+        # Extract from error message
+        match = re.search(r"(?:status[_ ]?code[:\s]*)?(\d{3})", str(error))
+        if match:
+            code = int(match.group(1))
+            if 400 <= code < 600:
+                return code
+        return None
+
+    def _extract_retry_after(self, error: Exception) -> Tuple[ErrorCategory, Optional[int]]:
+        """Extract retry-after time from rate limit error."""
+        retry_after = None
+        response = getattr(error, "response", None)
+        if response:
+            retry_after = getattr(response.headers, "get", lambda x: None)("retry-after")
+            if retry_after:
+                try:
+                    retry_after = int(retry_after)
+                except (ValueError, TypeError):
+                    retry_after = 60
+        # Check for retry_after_seconds attribute
+        if not retry_after:
+            retry_after = getattr(error, "retry_after_seconds", None)
+        # Extract from error message
+        if not retry_after:
+            match = re.search(r"retry[_ ]?after[:\s]*(\d+)", str(error).lower())
+            if match:
+                retry_after = int(match.group(1))
+            match = re.search(r"try[_ ]?again[_ ]?in[:\s]*(\d+)", str(error).lower())
+            if match:
+                retry_after = int(match.group(1))
+        return ErrorCategory.RATE_LIMIT, retry_after or 60
+
+    def _validate_response(
+        self, response: Any, request: Dict[str, Any]
+    ) -> Tuple[bool, Optional[str]]:
+        """Validate response for completeness and correctness.
+
+        Returns (is_valid, error_reason) tuple.
+        Detects: truncated responses, malformed tool calls, empty content.
+        """
+        if response is None:
+            return False, "null_response"
+
+        # Extract response data (handle both dict and object)
+        if isinstance(response, dict):
+            choices = response.get("choices", [])
+        else:
+            choices = getattr(response, "choices", None)
+            if choices is None:
+                return False, "missing_choices"
+
+        if not choices or not isinstance(choices, list) or len(choices) == 0:
+            return False, "empty_choices"
+
+        first_choice = choices[0]
+        if isinstance(first_choice, dict):
+            message = first_choice.get("message", {})
+            finish_reason = first_choice.get("finish_reason", "")
+            tool_calls = first_choice.get("tool_calls", None)
+        else:
+            message = getattr(first_choice, "message", {})
+            finish_reason = getattr(first_choice, "finish_reason", "")
+            tool_calls = getattr(first_choice, "tool_calls", None)
+
+        # Check for truncated response
+        if finish_reason == "length":
+            return False, "response_truncated"
+
+        # Check for malformed tool calls
+        if tool_calls:
+            if isinstance(tool_calls, list):
+                for tc in tool_calls:
+                    if isinstance(tc, dict):
+                        func = tc.get("function", {})
+                        if not isinstance(func, dict):
+                            return False, "malformed_tool_call"
+                        if "name" not in func or "arguments" not in func:
+                            return False, "malformed_tool_call"
+                        # Check arguments is valid JSON string
+                        args = func.get("arguments", "")
+                        if isinstance(args, str) and args:
+                            try:
+                                import json
+                                json.loads(args)
+                            except json.JSONDecodeError:
+                                return False, "malformed_tool_call_args"
+            elif not isinstance(tool_calls, type(None)):
+                return False, "malformed_tool_calls_format"
+
+        # Check for empty content when no tool calls
+        if not tool_calls:
+            if isinstance(message, dict):
+                content = message.get("content", "")
+            else:
+                content = getattr(message, "content", "")
+            if not content or (isinstance(content, str) and not content.strip()):
+                return False, "empty_content"
+
+        return True, None
 
     def _extract_requirements(self, request: Dict[str, Any]) -> CapabilityRequirements:
         """Extract capability requirements from request."""
@@ -1597,6 +1787,20 @@ class RouterCore:
                     pass  # We could track final response here if needed
 
                 # Check for error in chunk
+                # Track finish_reason for truncation detection
+                choices = chunk_dict.get("choices", [])
+                if choices and isinstance(choices, list) and len(choices) > 0:
+                    first = choices[0]
+                    if isinstance(first, dict):
+                        fr = first.get("finish_reason")
+                        if fr:
+                            self._last_stream_finish_reason = fr
+                        # Check for error in choice
+                        if "error" in first:
+                            raise Exception(
+                                f"Provider returned error in stream choice: {first['error']}"
+                            )
+
                 if "error" in chunk_dict:
                     raise Exception(
                         f"Provider returned error in stream: {chunk_dict['error']}"
@@ -1606,6 +1810,10 @@ class RouterCore:
 
             if chunk_count == 0:
                 raise Exception("Stream ended with no chunks")
+
+            # Check for stream truncation (finish_reason: length)
+            if self._last_stream_finish_reason == "length":
+                raise Exception("Stream truncated: finish_reason=length (max_tokens exceeded)")
 
             latency_ms = (time.time() - start_time) * 1000
             self._update_metrics(candidate.provider, candidate.model, latency_ms, True)
