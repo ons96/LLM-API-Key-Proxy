@@ -1,0 +1,55 @@
+name: Auto-Discovery & Optimization Pipeline
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  discover-and-optimize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyyaml httpx
+
+      - name: Fetch VPS telemetry
+        env:
+          VPS_TELEMETRY_URL: ${{ secrets.VPS_TELEMETRY_URL }}
+        run: |
+          if [ -n "$VPS_TELEMETRY_URL" ]; then
+            curl -sL "$VPS_TELEMETRY_URL" > telemetry_summary.json || true
+          fi
+          if [ ! -f telemetry_summary.json ]; then
+            echo '{"generated_at": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'", "providers": {}}' > telemetry_summary.json
+          fi
+
+      - name: Run discovery pipeline
+        run: python scripts/run_discovery_pipeline.py --telemetry telemetry_summary.json --output-dir config/
+
+      - name: Commit changes
+        run: |
+          git config user.name "auto-discovery-bot"
+          git config user.email "bot@llm-proxy.local"
+          git add config/
+          git commit -m "Auto-update: Discovery & Optimization" || echo "No changes"
+          git push origin main || echo "Nothing to push"
+
+      - name: Create summary
+        if: always()
+        run: |
+          echo "## Discovery Summary" >> $GITHUB_STEP_SUMMARY
+          echo "Completed: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
