@@ -10,19 +10,21 @@ log() {
 
 cd "$REPO_DIR" || exit 1
 
-git fetch origin main
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-CHANGED=$(git diff --name-only origin/main)
+git fetch origin "$CURRENT_BRANCH"
+
+CHANGED=$(git diff --name-only "origin/$CURRENT_BRANCH")
 
 if echo "$CHANGED" | grep -q "config/"; then
-    log "Config changes detected, pulling..."
-    git pull origin main
-    
+    log "Config changes detected, pulling from $CURRENT_BRANCH..."
+    git pull origin "$CURRENT_BRANCH" --no-rebase
+
     log "Gracefully reloading gateway..."
     pkill -f 'main.py' -HUP 2>/dev/null || log "No running gateway process found"
-    
+
     sleep 2
-    
+
     if pgrep -f 'main.py' > /dev/null; then
         log "Gateway reloaded successfully"
     else
