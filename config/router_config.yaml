@@ -125,6 +125,33 @@ providers:
     - Qwen3-235B
     - Qwen3-32B
     - gpt-oss-120b
+  bluesminds:
+    enabled: true
+    env_var: BLUESMINDS_API_KEY
+    base_url: https://api.bluesminds.com/v1
+    free_tier: true
+    free_tier_models:
+    # Verified working
+    - gpt-4o-mini
+    - azure-gpt4o
+    - gemini/gemini-2.5-flash
+    - gemini/gemini-2.5-flash-lite
+    - groq/qwen/qwen3-32b
+    # Potentially working (may be temporarily down)
+    - gpt-4o
+    - gpt4
+    - openai/gpt-oss-20b
+    - openai/gpt-4.1
+    - openai/gpt-4.1-mini
+    - o3-mini
+    - o4-mini
+    - qwen-coder
+    - qwen3.5-plus
+    - google/codegemma-1.1-7b
+    - google/gemma-4-31b-it
+    - nvidia/vila
+    - opengpt-x/teuken-7b-instruct-commercial-v0.4
+    - openrouter/mistralai/ministral-8b-2512
   together:
     enabled: true
     env_var: TOGETHER_API_KEY

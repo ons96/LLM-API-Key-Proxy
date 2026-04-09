@@ -209,12 +209,15 @@ virtual_models:
       - provider: groq
         model: llama-3.3-70b-versatile
         priority: 5
-      - provider: gemini
-        model: gemini-2.0-flash
+      - provider: bluesminds
+        model: gpt-4o-mini
         priority: 6
-      - provider: g4f
-        model: gemini-2.0-flash
+      - provider: bluesminds
+        model: azure-gpt4o
         priority: 7
+      - provider: gemini
+        model: gemini-3-flash
+        priority: 8
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: True
@@ -277,15 +280,21 @@ virtual_models:
       - provider: cerebras
         model: qwen-3-235b-a22b-instruct-2507
         priority: 7
+      - provider: bluesminds
+        model: gemini/gemini-2.5-flash
+        priority: 8
+      - provider: bluesminds
+        model: gemini/gemini-2.5-flash-lite
+        priority: 9
       - provider: gemini
         model: gemini-2.5-flash
-        priority: 8
+        priority: 10
       - provider: g4f_gemini
         model: gemini-2.5-flash
-        priority: 9
+        priority: 11
       - provider: g4f
         model: gemini-2.0-flash
-        priority: 10
+        priority: 12
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: True
@@ -311,12 +320,18 @@ virtual_models:
       - provider: groq
         model: llama-3.3-70b-versatile
         priority: 6
+      - provider: bluesminds
+        model: gpt-4o-mini
+        priority: 7
+      - provider: bluesminds
+        model: azure-gpt4o
+        priority: 8
       - provider: gemini
         model: gemini-2.0-flash
-        priority: 7
+        priority: 9
       - provider: g4f_groq
-        model: llama-3.1-8b-instant
-        priority: 8
+        model: llama-3.1-8b-instruct
+        priority: 10
     settings:
       timeout_ms: 15000
       retry_on_rate_limit: True
@@ -365,15 +380,30 @@ virtual_models:
       retry_on_rate_limit: True
 
 providers:
-providers:
-  groq:
-    base_url: https://api.groq.com/openai/v1
-    api_key_env: GROQ_API_KEY_1
-    rate_limits:
-      rpm: 30
-      daily: 14400
-    reset_window:
-      daily_reset_utc: "00:00"
+groq:
+  base_url: https://api.groq.com/openai/v1
+  api_key_env: GROQ_API_KEY_1
+  rate_limits:
+    rpm: 30
+    tpm: 12000  # Default tokens per minute
+    daily_requests: 14400
+    daily_tokens: 500000  # Default daily tokens
+  reset_window:
+    daily_reset_utc: "00:00"
+  # Model-specific overrides (Groq has per-model TPM/token limits)
+  model_overrides:
+    llama-3.1-8b-instant:
+      tpm: 6000
+      daily_tokens: 500000
+      daily_requests: 14400
+    llama-3.3-70b-versatile:
+      tpm: 12000
+      daily_tokens: 100000
+      daily_requests: 1000
+    meta-llama/llama-4-scout-17b-16e-instruct:
+      tpm: 30000
+      daily_tokens: 500000
+      daily_requests: 1000
 
   gemini:
     base_url: https://generativelanguage.googleapis.com/v1beta
@@ -384,13 +414,26 @@ providers:
     reset_window:
       daily_reset_utc: "07:00"
 
-  cerebras:
-    base_url: https://api.cerebras.ai/v1
-    api_key_env: CEREBRAS_API_KEY_1
-    rate_limits:
-      rpm: 30
-    reset_window:
-      daily_reset_utc: "00:00"
+cerebras:
+  base_url: https://api.cerebras.ai/v1
+  api_key_env: CEREBRAS_API_KEY_1
+  rate_limits:
+    rpm: 30
+    tpm: 60000
+    daily_requests: 14400
+    daily_tokens: 1000000
+  reset_window:
+    daily_reset_utc: "00:00"
+  # Model-specific overrides
+  model_overrides:
+    llama3.1-8b:
+      tpm: 60000
+      daily_tokens: 1000000
+      daily_requests: 14400
+    llama-3.3-70b:
+      tpm: 64000
+      daily_tokens: 1000000
+      daily_requests: 14400
 
   together:
     base_url: https://api.together.xyz/v1
@@ -435,3 +478,28 @@ providers:
     api_key_env: G4F_GROQ_API_KEY
     rate_limits:
       rpm: 30
+
+  bluesminds:
+    base_url: https://api.bluesminds.com/v1
+    api_key_env: BLUESMINDS_API_KEY
+    rate_limits:
+      rpm: 60
+      tpm: 60000
+    reset_window:
+      daily_reset_utc: "00:00"
+    model_overrides:
+      gpt-4o-mini:
+        tpm: 60000
+        daily_tokens: 1000000
+      azure-gpt4o:
+        tpm: 60000
+        daily_tokens: 1000000
+      gemini/gemini-2.5-flash:
+        tpm: 60000
+        daily_tokens: 1000000
+      gemini/gemini-2.5-flash-lite:
+        tpm: 60000
+        daily_tokens: 1000000
+      groq/qwen/qwen3-32b:
+        tpm: 60000
+        daily_tokens: 1000000
