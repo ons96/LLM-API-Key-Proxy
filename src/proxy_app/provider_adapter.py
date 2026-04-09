@@ -1175,9 +1175,12 @@ class ProviderAdapterFactory:
             "aihubmix",
             "opencode_zen",
             "iflow",
+            "bluesminds",
         }
 
         if provider_key in openai_compatible:
+            if provider_key == "bluesminds" and not api_base:
+                api_base = "https://api.bluesminds.com/v1"
             return OpenAICompatibleAdapter(provider_name, api_key, api_base, model_list)
 
         adapters = {
@@ -1219,4 +1222,5 @@ class ProviderAdapterFactory:
             "aihubmix",
             "opencode_zen",
             "iflow",
+            "bluesminds",
         ]

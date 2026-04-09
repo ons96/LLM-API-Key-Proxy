@@ -380,13 +380,58 @@ virtual_models:
       retry_on_rate_limit: True
 
 providers:
-groq:
-  base_url: https://api.groq.com/openai/v1
-  api_key_env: GROQ_API_KEY_1
-  rate_limits:
-    rpm: 30
-    tpm: 12000  # Default tokens per minute
-    daily_requests: 14400
+  groq:
+    base_url: https://api.groq.com/openai/v1
+    api_key_env: GROQ_API_KEY_1
+    rate_limits:
+      rpm: 30
+      tpm: 12000
+      daily_requests: 14400
+      daily_tokens: 500000
+    reset_window:
+      daily_reset_utc: "00:00"
+    model_overrides:
+      llama-3.1-8b-instant:
+        tpm: 6000
+        daily_tokens: 500000
+        daily_requests: 14400
+      llama-3.3-70b-versatile:
+        tpm: 12000
+        daily_tokens: 100000
+        daily_requests: 1000
+      meta-llama/llama-4-scout-17b-16e-instruct:
+        tpm: 30000
+        daily_tokens: 500000
+        daily_requests: 1000
+
+  gemini:
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key_env: GEMINI_API_KEY_1
+    rate_limits:
+      rpm: 15
+      daily: 1500
+    reset_window:
+      daily_reset_utc: "07:00"
+
+  cerebras:
+    base_url: https://api.cerebras.ai/v1
+    api_key_env: CEREBRAS_API_KEY_1
+    rate_limits:
+      rpm: 30
+      tpm: 60000
+      daily_requests: 14400
+      daily_tokens: 1000000
+    reset_window:
+      daily_reset_utc: "00:00"
+    model_overrides:
+      llama3.1-8b:
+        tpm: 60000
+        daily_tokens: 1000000
+        daily_requests: 14400
+      llama-3.3-70b:
+        tpm: 64000
+        daily_tokens: 1000000
+        daily_requests: 14400
     daily_tokens: 500000  # Default daily tokens
   reset_window:
     daily_reset_utc: "00:00"
