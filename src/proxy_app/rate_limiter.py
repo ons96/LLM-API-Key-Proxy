@@ -34,6 +34,8 @@ class RateLimitStatus:
 
     requests_this_minute: int = 0
     requests_today: int = 0
+    tokens_this_minute: int = 0
+    tokens_today: int = 0
     last_reset_minute: float = field(default_factory=time.time)
     last_reset_day: float = field(default_factory=time.time)
     rate_limited_until: float = 0.0
@@ -74,7 +76,7 @@ class RateLimitTracker:
     ) -> Tuple[bool, str]:
         """
         Check if a provider can be used based on limits.
-        limits dict can contain: 'rpm', 'daily'
+        limits dict can contain: 'rpm', 'daily', 'tpm', 'daily_tokens'
 
         Returns (allowed, reason_code) where reason_code is empty if allowed.
         """
@@ -94,6 +96,7 @@ class RateLimitTracker:
             # Reset counters if windows have passed
             if now - status.last_reset_minute > 60:
                 status.requests_this_minute = 0
+                status.tokens_this_minute = 0
                 status.last_reset_minute = now
 
             # Check if daily counter should reset based on known reset window
@@ -108,11 +111,13 @@ class RateLimitTracker:
                 reset_epoch = prev_reset.timestamp()
                 if status.last_reset_day < reset_epoch:
                     status.requests_today = 0
+                    status.tokens_today = 0
                     status.last_reset_day = now
             else:
                 # Fallback: simple 24h sliding window
                 if now - status.last_reset_day > 86400:
                     status.requests_today = 0
+                    status.tokens_today = 0
                     status.last_reset_day = now
 
             # Check RPM
@@ -123,11 +128,27 @@ class RateLimitTracker:
                 )
                 return False, REASON_RATE_LIMIT
 
-            # Check Daily
+            # Check TPM
+            tpm_limit = limits.get("tpm")
+            if tpm_limit and status.tokens_this_minute >= tpm_limit:
+                logger.debug(
+                    f"Rate limit hit (TPM) for {key}: {status.tokens_this_minute}/{tpm_limit}"
+                )
+                return False, REASON_RATE_LIMIT
+
+            # Check Daily Requests
             daily_limit = limits.get("daily")
             if daily_limit and status.requests_today >= daily_limit:
                 logger.debug(
                     f"Rate limit hit (Daily) for {key}: {status.requests_today}/{daily_limit}"
+                )
+                return False, REASON_USAGE_CAP
+
+            # Check Daily Tokens
+            daily_tokens_limit = limits.get("daily_tokens")
+            if daily_tokens_limit and status.tokens_today >= daily_tokens_limit:
+                logger.debug(
+                    f"Rate limit hit (Daily Tokens) for {key}: {status.tokens_today}/{daily_tokens_limit}"
                 )
                 return False, REASON_USAGE_CAP
 
@@ -143,8 +164,21 @@ class RateLimitTracker:
             self._usage[key].requests_this_minute += 1
             self._usage[key].requests_today += 1
 
+    async def record_tokens(self, provider: str, model: str, token_count: int):
+        """Record tokens used in a request."""
+        key = self._get_key(provider, model)
+        async with self._lock:
+            if key not in self._usage:
+                self._usage[key] = RateLimitStatus()
+
+            self._usage[key].tokens_this_minute += token_count
+            self._usage[key].tokens_today += token_count
+
     async def record_rate_limit_hit(
-        self, provider: str, model: str, retry_after: float = 60.0,
+        self,
+        provider: str,
+        model: str,
+        retry_after: float = 60.0,
         reason: str = REASON_RATE_LIMIT,
     ):
         """Record a 429/Rate Limit error.
@@ -192,7 +226,9 @@ class RateLimitTracker:
                     "rpm": v.requests_this_minute,
                     "daily": v.requests_today,
                     "limited": now < v.rate_limited_until,
-                    "block_reason": v.block_reason if now < v.rate_limited_until else "",
+                    "block_reason": v.block_reason
+                    if now < v.rate_limited_until
+                    else "",
                     "blocked_until": (
                         datetime.fromtimestamp(
                             v.rate_limited_until, tz=timezone.utc

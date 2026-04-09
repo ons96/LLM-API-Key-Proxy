@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional, Union, AsyncGenerator
 import logging
 import time
+import asyncio
+import os
 from dataclasses import dataclass
 
 import litellm
@@ -219,6 +221,114 @@ class OpenAICompatibleAdapter(BaseProviderAdapter):
         else:
             status_code = 500
         return HTTPException(status_code=status_code, detail=str(error))
+
+
+class SupacoderAdapter(OpenAICompatibleAdapter):
+    """Adapter for Supacoder with aggressive stream stall protection."""
+
+    def __init__(
+        self,
+        provider_name: str,
+        api_key: Optional[str],
+        api_base: Optional[str],
+        models: Optional[List[str]] = None,
+        stream_timeout_seconds: int = 45,
+    ):
+        env_timeout = os.getenv("SUPACODER_STREAM_TIMEOUT_SECONDS")
+        self.stream_timeout_seconds = (
+            int(env_timeout)
+            if env_timeout and env_timeout.isdigit()
+            else stream_timeout_seconds
+        )
+        super().__init__(provider_name, api_key, api_base, models)
+
+        # Supacoder endpoints behave like text-only Chat Completions; function/tool calls are not reliable.
+        for caps in self.models.values():
+            caps.supports_tools = False
+            caps.supports_function_calling = False
+
+    async def chat_completions(
+        self,
+        request: Dict[str, Any],
+        stream: bool = False,
+        client: Optional[httpx.AsyncClient] = None,
+    ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
+        # Explicitly block tool/function calls so the router can fall back to a tool-capable provider.
+        if request.get("tools") or request.get("functions"):
+            raise HTTPException(
+                status_code=400,
+                detail="supacoder does not support tool/function calls; fallback required",
+            )
+
+        return await super().chat_completions(request, stream=stream, client=client)
+
+    async def _stream_completion(
+        self, request: Dict[str, Any]
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Stream with timeout; on stall, emit retryable HTTP error and log telemetry."""
+        model = request.get("model")
+        start = time.time()
+        telemetry = None
+        try:
+            try:
+                from ..rotator_library.telemetry import get_telemetry_manager
+
+                telemetry = get_telemetry_manager()
+            except Exception:
+                telemetry = None
+
+            stream_resp: Any = await litellm.acompletion(**request, stream=True)
+
+            while True:
+                try:
+                    chunk = await asyncio.wait_for(
+                        stream_resp.__anext__(), timeout=self.stream_timeout_seconds
+                    )
+                except StopAsyncIteration:
+                    break
+                except asyncio.TimeoutError:
+                    elapsed_ms = int((time.time() - start) * 1000)
+                    if telemetry:
+                        telemetry.record_call(
+                            provider=self.provider_name,
+                            model=model or "",
+                            success=False,
+                            response_time_ms=elapsed_ms,
+                            error_reason="stream_timeout",
+                        )
+                        telemetry.update_provider_health(
+                            provider=self.provider_name,
+                            model=model,
+                            is_healthy=False,
+                            failure_rate=1.0,
+                        )
+                    raise HTTPException(
+                        status_code=504,
+                        detail="stream_timeout: supacoder stream stalled",
+                    )
+
+                yield self._convert_chunk(chunk)
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            elapsed_ms = int((time.time() - start) * 1000)
+            if telemetry:
+                telemetry.record_call(
+                    provider=self.provider_name,
+                    model=model or "",
+                    success=False,
+                    response_time_ms=elapsed_ms,
+                    error_reason=str(e),
+                )
+                telemetry.update_provider_health(
+                    provider=self.provider_name,
+                    model=model,
+                    is_healthy=False,
+                    failure_rate=1.0,
+                )
+            logger.error(f"{self.provider_name} streaming failed: {e}")
+            raise self._convert_error(e)
 
 
 class GroqAdapter(BaseProviderAdapter):
@@ -985,7 +1095,9 @@ class KiloAdapter(BaseProviderAdapter):
 
         request_with_key = request.copy()
         request_with_key["api_key"] = self.api_key
-        request_with_key["api_base"] = self.api_base or "https://api.kilo.ai/api/gateway"
+        request_with_key["api_base"] = (
+            self.api_base or "https://api.kilo.ai/api/gateway"
+        )
         model = request_with_key.get("model", "")
         if model.startswith("kilo/"):
             request_with_key["model"] = "openai/" + model[len("kilo/") :]
@@ -1052,16 +1164,19 @@ class ProviderAdapterFactory:
         model_list: Optional[List[str]] = None,
     ) -> BaseProviderAdapter:
         """Create provider adapter instance."""
+        provider_key = provider_name.lower()
+
+        if provider_key == "supacoder":
+            return SupacoderAdapter(provider_name, api_key, api_base, model_list)
+
         openai_compatible = {
             "noobrouter",
-            "supacoder",
             "wiwi",
             "aihubmix",
             "opencode_zen",
             "iflow",
         }
 
-        provider_key = provider_name.lower()
         if provider_key in openai_compatible:
             return OpenAICompatibleAdapter(provider_name, api_key, api_base, model_list)
 
