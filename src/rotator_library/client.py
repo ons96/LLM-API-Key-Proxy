@@ -903,10 +903,37 @@ class RotatingClient:
                     lib_logger.info(
                         f"Fallback: Switching from '{original_provider}' to '{provider}' (Model: {current_kwargs['model']})"
                     )
-
-                return await self._execute_provider_attempt(
+                attempt_start = time.time()
+                response = await self._execute_provider_attempt(
                     api_call, request, pre_request_callback, **current_kwargs
                 )
+
+                elapsed_ms = int((time.time() - attempt_start) * 1000)
+                usage = response.get("usage", {}) if isinstance(response, dict) else {}
+                input_tokens = usage.get("prompt_tokens") or usage.get("input_tokens")
+                output_tokens = usage.get("completion_tokens") or usage.get(
+                    "output_tokens"
+                )
+                tokens_per_second = None
+                if usage and elapsed_ms > 0:
+                    total_tokens = (input_tokens or 0) + (output_tokens or 0)
+                    if total_tokens > 0:
+                        tokens_per_second = total_tokens / (elapsed_ms / 1000)
+
+                self.telemetry.record_call(
+                    provider=provider,
+                    model=current_kwargs.get("model", model),
+                    success=True,
+                    response_time_ms=elapsed_ms,
+                    error_reason=None,
+                    time_to_first_token_ms=None,
+                    tokens_per_second=tokens_per_second,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cost_estimate_usd=None,
+                )
+
+                return response
             except Exception as e:
                 last_exception = e
                 # Fallback on network/server/auth errors (exhausted keys)
@@ -924,6 +951,24 @@ class RotatingClient:
                     lib_logger.warning(
                         f"Provider '{provider}' failed completely. Attempting next provider. Error: {e}"
                     )
+                    elapsed_ms = None
+                    if "attempt_start" in locals():
+                        elapsed_ms = int((time.time() - attempt_start) * 1000)
+                    try:
+                        self.telemetry.record_call(
+                            provider=provider,
+                            model=current_kwargs.get("model", model),
+                            success=False,
+                            response_time_ms=elapsed_ms or 0,
+                            error_reason=str(e)[:200],
+                            time_to_first_token_ms=None,
+                            tokens_per_second=None,
+                            input_tokens=None,
+                            output_tokens=None,
+                            cost_estimate_usd=None,
+                        )
+                    except Exception:
+                        pass
                     continue
                 raise e
 
@@ -1182,8 +1227,44 @@ class RotatingClient:
                                             f"Pre-request callback failed but abort_on_callback_error is False. Proceeding with request. Error: {e}"
                                         )
 
+                            attempt_start = time.time()
                             response = await provider_plugin.acompletion(
                                 self.http_client, **litellm_kwargs
+                            )
+                            elapsed_ms = int((time.time() - attempt_start) * 1000)
+
+                            usage = (
+                                response.get("usage", {})
+                                if isinstance(response, dict)
+                                else {}
+                            )
+                            input_tokens = usage.get("prompt_tokens") or usage.get(
+                                "input_tokens"
+                            )
+                            output_tokens = usage.get("completion_tokens") or usage.get(
+                                "output_tokens"
+                            )
+                            tokens_per_second = None
+                            if usage and elapsed_ms > 0:
+                                total_tokens = (input_tokens or 0) + (
+                                    output_tokens or 0
+                                )
+                                if total_tokens > 0:
+                                    tokens_per_second = total_tokens / (
+                                        elapsed_ms / 1000
+                                    )
+
+                            self.telemetry.record_call(
+                                provider=provider,
+                                model=model,
+                                success=True,
+                                response_time_ms=elapsed_ms,
+                                error_reason=None,
+                                time_to_first_token_ms=None,
+                                tokens_per_second=tokens_per_second,
+                                input_tokens=input_tokens,
+                                output_tokens=output_tokens,
+                                cost_estimate_usd=None,
                             )
 
                             # For non-streaming, success is immediate

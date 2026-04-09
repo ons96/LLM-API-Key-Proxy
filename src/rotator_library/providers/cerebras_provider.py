@@ -1,6 +1,7 @@
 import httpx
 import logging
-from typing import List
+import re
+from typing import Any, Dict, List, Optional
 from .provider_interface import ProviderInterface
 
 lib_logger = logging.getLogger("rotator_library")
@@ -77,3 +78,67 @@ class CerebrasProvider(ProviderInterface):
             f"Using fallback Cerebras model list: {len(static_models)} models"
         )
         return static_models
+
+    @staticmethod
+    def parse_quota_error(
+        error: Exception, error_body: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Parse Cerebras rate-limit/quota errors.
+
+        Headers observed:
+        - x-ratelimit-remaining-tokens-minute
+        - x-ratelimit-reset-tokens-minute
+        - x-ratelimit-remaining-requests-day
+        - x-ratelimit-reset-requests-day
+        """
+
+        def _parse_seconds(val: Optional[str]) -> Optional[int]:
+            if val is None:
+                return None
+            s = str(val).strip().lower().replace("s", "")
+            try:
+                return int(float(s))
+            except (ValueError, TypeError):
+                return None
+
+        headers = None
+        if isinstance(error, httpx.HTTPStatusError) and hasattr(error, "response"):
+            headers = error.response.headers or {}
+
+        retry_after = None
+        reason = "RATE_LIMITED"
+
+        if headers:
+            candidates = [
+                headers.get("retry-after"),
+                headers.get("x-ratelimit-reset-tokens-minute"),
+                headers.get("x-ratelimit-reset-requests-day"),
+            ]
+            for c in candidates:
+                retry_after = _parse_seconds(c)
+                if retry_after:
+                    break
+
+        body_text = (error_body or "").lower()
+        if not retry_after:
+            m = re.search(r"retry\s*after\s*(\d+)", body_text)
+            if m:
+                retry_after = _parse_seconds(m.group(1))
+
+        if "tokens per minute" in body_text or "tpm" in body_text:
+            reason = "TPM_LIMIT"
+        elif "tokens per day" in body_text or "tpd" in body_text:
+            reason = "TPD_LIMIT"
+        elif "requests per minute" in body_text or "rpm" in body_text:
+            reason = "RPM_LIMIT"
+        elif "requests per day" in body_text or "rpd" in body_text:
+            reason = "RPD_LIMIT"
+
+        if retry_after:
+            return {
+                "retry_after": retry_after,
+                "reason": reason,
+                "quota_reset_timestamp": None,
+            }
+        return None

@@ -230,9 +230,9 @@ class DynamicScoringEngine:
             cursor.execute(
                 """
                 SELECT 
-                    COUNT(CASE WHEN error_message IS NULL THEN 1 END) as success,
+                    COUNT(CASE WHEN success = 1 THEN 1 END) as success,
                     COUNT(*) as total
-                FROM telemetry
+                FROM api_calls
                 WHERE provider = ? AND model = ?
                 AND timestamp > datetime('now', '-30 minutes')
             """,

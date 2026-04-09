@@ -20,6 +20,9 @@ import os
 import litellm
 from fastapi import HTTPException
 import httpx
+from ..rotator_library.telemetry import get_telemetry_manager
+from ..rotator_library.scoring_engine import get_scoring_engine
+from .rate_limiter import REASON_RATE_LIMIT, REASON_USAGE_CAP
 
 
 logger = logging.getLogger(__name__)
@@ -637,6 +640,8 @@ class RouterCore:
 
         self.rate_limiter = RateLimitTracker()
         self.model_ranker = ModelRanker()
+        self.scoring_engine = get_scoring_engine(get_telemetry_manager())
+        self.provider_configs = self.config.get("providers", {})
         self.model_registry = ModelRegistry(self.config_path)
 
         self._initialize_components()
@@ -653,66 +658,47 @@ class RouterCore:
         response: Optional[Any] = None,
     ):
         """Update metrics and rate limit tracking."""
-        input_tokens = 0
-        output_tokens = 0
+        input_tokens: int = 0
+        output_tokens: int = 0
+        usage = None
 
         if success and response:
             if hasattr(response, "usage"):
-                if hasattr(response.usage, "prompt_tokens"):
-                    input_tokens = response.usage.prompt_tokens
-                if hasattr(response.usage, "completion_tokens"):
-                    output_tokens = response.usage.completion_tokens
+                usage = response.usage
+            elif isinstance(response, dict):
+                usage = response.get("usage")
+
+            if usage is not None:
+                if hasattr(usage, "prompt_tokens"):
+                    input_tokens = int(usage.prompt_tokens or 0)
+                    output_tokens = int(usage.completion_tokens or 0)
+                elif isinstance(usage, dict):
+                    input_tokens = int(
+                        usage.get("prompt_tokens") or usage.get("input_tokens") or 0
+                    )
+                    output_tokens = int(
+                        usage.get("completion_tokens")
+                        or usage.get("output_tokens")
+                        or 0
+                    )
 
             total_tokens = input_tokens + output_tokens
             if total_tokens > 0:
                 await self.rate_limiter.record_tokens(provider, model, total_tokens)
 
-        self.telemetry.record_request(
-            provider=provider,
-            model=model,
-            response_time=response_time,
-            success=success,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            error_type=error_category.value if error_category else None,
-        )
-                )
-
-        # --- Telemetry persistence (non-fatal) ---
         try:
-            from ..rotator_library.telemetry import get_telemetry_manager
             telemetry = get_telemetry_manager()
-
-            input_tokens: Optional[int] = None
-            output_tokens: Optional[int] = None
+            response_time_ms = int(response_time * 1000)
             tps: Optional[float] = None
-
-            if response is not None and success:
-                usage = None
-                if hasattr(response, "usage"):
-                    usage = response.usage
-                elif isinstance(response, dict):
-                    usage = response.get("usage")
-
-                if usage is not None:
-                    if hasattr(usage, "prompt_tokens"):
-                        input_tokens = usage.prompt_tokens
-                        output_tokens = usage.completion_tokens
-                    elif isinstance(usage, dict):
-                        input_tokens = usage.get("prompt_tokens")
-                        output_tokens = usage.get("completion_tokens")
-
-                if output_tokens and latency_ms > 0:
-                    tps = (output_tokens / latency_ms) * 1000.0
-
-            error_reason = error_type.value if error_type else None
+            if output_tokens > 0 and response_time_ms > 0:
+                tps = (output_tokens / response_time_ms) * 1000.0
 
             telemetry.record_call(
                 provider=provider,
                 model=model,
                 success=success,
-                response_time_ms=int(latency_ms),
-                error_reason=error_reason,
+                response_time_ms=response_time_ms,
+                error_reason=error_category.value if error_category else None,
                 tokens_per_second=tps,
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
@@ -721,21 +707,36 @@ class RouterCore:
             if tps is not None:
                 telemetry.record_tps(provider, model, tps)
 
-        except Exception as _telemetry_err:
-            logger.debug(f"Telemetry record failed (non-fatal): {_telemetry_err}")
+        except Exception as telemetry_err:
+            logger.debug(f"Telemetry record failed (non-fatal): {telemetry_err}")
 
     async def _check_conditions(
         self, candidate_cfg: Dict[str, Any], provider: str, model: str
     ) -> bool:
         """Check if candidate conditions are met using RateLimitTracker."""
-        conditions = candidate_cfg.get("conditions", {})
-        
-        # Get provider-level rate limits from config
-        limits = {}
+        limits = self._compute_rate_limits(provider, model, candidate_cfg)
+
+        can_use = await self.rate_limiter.can_use_provider(provider, model, limits)
+        if isinstance(can_use, tuple):
+            return can_use[0]
+        return can_use
+
+    def _compute_rate_limits(
+        self, provider: str, model: str, candidate_cfg: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Return effective rate limits (rpm/tpm/daily/daily_tokens) for provider/model.
+
+        Priority order:
+        1) provider config base limits
+        2) provider config model_overrides
+        3) candidate conditions (max_*)
+        """
+
+        limits: Dict[str, Any] = {}
         provider_cfg = self.provider_configs.get(provider, {})
         rate_limits = provider_cfg.get("rate_limits", {})
-        
-        # Apply base limits
+
+        # Base limits from provider config
         if "rpm" in rate_limits:
             limits["rpm"] = rate_limits["rpm"]
         if "tpm" in rate_limits:
@@ -746,8 +747,8 @@ class RouterCore:
             limits["daily"] = rate_limits["daily_requests"]
         if "daily_tokens" in rate_limits:
             limits["daily_tokens"] = rate_limits["daily_tokens"]
-        
-        # Apply model-specific overrides if available
+
+        # Model-specific overrides
         model_overrides = rate_limits.get("model_overrides", {})
         if model in model_overrides:
             model_limits = model_overrides[model]
@@ -761,8 +762,9 @@ class RouterCore:
                 limits["daily"] = model_limits["daily_requests"]
             if "daily_tokens" in model_limits:
                 limits["daily_tokens"] = model_limits["daily_tokens"]
-        
-        # Override with candidate-specific conditions if provided
+
+        # Candidate-level caps
+        conditions = candidate_cfg.get("conditions", {})
         if "max_rpm" in conditions:
             limits["rpm"] = conditions["max_rpm"]
         if "max_tpm" in conditions:
@@ -772,10 +774,7 @@ class RouterCore:
         if "max_daily_tokens" in conditions:
             limits["daily_tokens"] = conditions["max_daily_tokens"]
 
-        can_use = await self.rate_limiter.can_use_provider(provider, model, limits)
-        if isinstance(can_use, tuple):
-            return can_use[0]
-        return can_use
+        return limits
 
     async def _execute_single_candidate(
         self, candidate: ProviderCandidate, request: Dict[str, Any], request_id: str
@@ -1159,6 +1158,36 @@ class RouterCore:
         # Default to provider error (fall through to try next provider)
         return ErrorCategory.PROVIDER_ERROR, None
 
+    async def _apply_error_cooldown(
+        self,
+        provider: str,
+        model: str,
+        error_category: ErrorCategory,
+        retry_after: Optional[int],
+        error_text: str,
+    ) -> None:
+        """Apply cooldown/blocking decisions based on classified errors."""
+        if error_category == ErrorCategory.RATE_LIMIT:
+            reason = REASON_RATE_LIMIT
+            if any(
+                keyword in error_text for keyword in ["quota", "daily", "usage cap"]
+            ):
+                reason = REASON_USAGE_CAP
+            await self.rate_limiter.record_rate_limit_hit(
+                provider,
+                model,
+                retry_after=float(retry_after or 60),
+                reason=reason,
+            )
+            metrics = self._get_metrics(provider, model)
+            metrics.cooldown_until = time.time() + float(retry_after or 60)
+        elif error_category == ErrorCategory.AUTH_ERROR:
+            metrics = self._get_metrics(provider, model)
+            metrics.cooldown_until = time.time() + 300
+        elif error_category == ErrorCategory.TRANSIENT:
+            metrics = self._get_metrics(provider, model)
+            metrics.cooldown_until = time.time() + 2
+
     def _extract_requirements(self, request: Dict[str, Any]) -> CapabilityRequirements:
         """Extract capability requirements from request."""
         req = CapabilityRequirements()
@@ -1232,11 +1261,32 @@ class RouterCore:
             # Support both 'candidates' (old) and 'fallback_chain' (new) keys
             chain = virtual_cfg.get("fallback_chain", virtual_cfg.get("candidates", []))
 
-            # [NEW] Apply Intelligent Ranking if enabled
-            # We can toggle this via config or assume it's always on for virtual models
-            # Let's check a flag 'auto_order' in virtual model config
+            # Apply telemetry-aware intelligent ranking if enabled
             if virtual_cfg.get("auto_order", False):
-                chain = self.model_ranker.rank_candidates(model_id, chain)
+                try:
+                    scored = self.scoring_engine.rank_models_for_virtual(
+                        model_id,
+                        [
+                            (candidate["provider"], candidate["model"])
+                            for candidate in chain
+                        ],
+                    )
+                    score_map = {
+                        (score.provider, score.model): idx
+                        for idx, score in enumerate(scored)
+                    }
+                    chain = sorted(
+                        chain,
+                        key=lambda candidate: score_map.get(
+                            (candidate["provider"], candidate["model"]),
+                            len(score_map),
+                        ),
+                    )
+                except Exception as exc:
+                    logger.debug(
+                        f"Telemetry-aware scoring failed for {model_id}, falling back to static model_ranker: {exc}"
+                    )
+                    chain = self.model_ranker.rank_candidates(model_id, chain)
 
             for candidate_cfg in chain:
                 # Check FREE_ONLY_MODE restrictions
@@ -1914,15 +1964,31 @@ class RouterCore:
                             modified_request["messages"] = modified_messages
                             request = modified_request
 
-                # Execute request
-                return await self._execute_single_candidate(
+                # Execute request (non-stream path)
+                response = await self._execute_single_candidate(
                     candidate, request, request_id
                 )
 
+                # Handle truncated responses (finish_reason='length') with continuation
+                if not request.get("stream"):
+                    response = await self._handle_truncated_response(
+                        response, request, request_id
+                    )
+
+                return response
+
             except Exception as e:
                 last_error = e
-                error_category, _ = await self._classify_error(e)
+                error_category, retry_after = await self._classify_error(e)
                 error_str = str(e).lower()
+
+                await self._apply_error_cooldown(
+                    candidate.provider,
+                    candidate.model,
+                    error_category,
+                    retry_after,
+                    error_str,
+                )
 
                 logger.warning(
                     f"[{request_id}] Candidate {candidate.provider}/{candidate.model} failed: {error_category} - {str(e)[:100]}"
@@ -1941,6 +2007,7 @@ class RouterCore:
                     continue
 
                 if error_category == ErrorCategory.TRANSIENT:
+                    await asyncio.sleep(0.25)
                     logger.warning(
                         f"[{request_id}] Transient error (500/timeout) - trying next provider"
                     )
@@ -1964,6 +2031,55 @@ class RouterCore:
             raise HTTPException(
                 status_code=503, detail="All provider candidates failed"
             )
+
+    async def _handle_truncated_response(
+        self,
+        response: Dict[str, Any],
+        original_request: Dict[str, Any],
+        request_id: str,
+        max_depth: int = 2,
+    ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
+        """Detect finish_reason == 'length' and auto-continue up to max_depth."""
+
+        if not isinstance(response, dict):
+            return response
+
+        depth = original_request.get("_continuation_depth", 0)
+        if depth >= max_depth:
+            return response
+
+        choices = response.get("choices", [])
+        if not choices:
+            return response
+
+        finish_reason = choices[0].get("finish_reason")
+        if finish_reason != "length":
+            return response
+
+        message = choices[0].get("message") or {}
+        assistant_content = message.get("content")
+        if not assistant_content:
+            return response
+
+        # Build continuation request
+        new_messages = list(original_request.get("messages", []))
+        new_messages.append({"role": "assistant", "content": assistant_content})
+        new_messages.append(
+            {
+                "role": "user",
+                "content": "Continue exactly where you left off; do not repeat content.",
+            }
+        )
+
+        continuation_request = dict(original_request)
+        continuation_request["messages"] = new_messages
+        continuation_request["_continuation_depth"] = depth + 1
+
+        logger.info(
+            f"[{request_id}] finish_reason=length detected; issuing continuation #{depth + 1}"
+        )
+
+        return await self.route_request(continuation_request, request_id)
 
     def get_model_list(self) -> List[Dict[str, Any]]:
         """Get list of available models for /v1/models endpoint."""

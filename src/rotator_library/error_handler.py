@@ -478,101 +478,99 @@ def _extract_retry_from_json_body(json_text: str) -> Optional[int]:
     return None
 
 
+def _parse_header_seconds(value: Optional[str]) -> Optional[int]:
+    """Parse header value that may be an int or a duration string like '7.6s'."""
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        pass
+    parsed = _parse_duration_string(str(value))
+    if parsed is not None:
+        return parsed
+    return None
+
+
 def get_retry_after(error: Exception) -> Optional[int]:
     """
     Extracts the 'retry-after' duration in seconds from an exception message.
-    Handles both integer and string representations of the duration, as well as JSON bodies.
-    Also checks HTTP response headers for httpx.HTTPStatusError instances.
-
-    Supports Antigravity/Google API error formats:
-    - RetryInfo with retryDelay: "562476.752463453s"
-    - ErrorInfo metadata with quotaResetDelay: "156h14m36.752463453s"
-    - Human-readable message: "quota will reset after 156h14m36s"
+    Prefers structured rate-limit headers (Groq/Cerebras/Gemini) before falling
+    back to body parsing and regex.
     """
-    # 0. For httpx errors, check response body and headers
-    if isinstance(error, httpx.HTTPStatusError):
-        # First, try to parse the response body JSON (contains retryDelay/quotaResetDelay)
-        # This is where Antigravity puts the retry information
-        try:
-            response_text = error.response.text
-            if response_text:
-                result = _extract_retry_from_json_body(response_text)
-                if result is not None:
-                    return result
-        except Exception:
-            pass  # Response body may not be available
+    # 0. Direct attribute on the exception
+    retry_after_attr = getattr(error, "retry_after", None)
+    parsed_attr = _parse_header_seconds(retry_after_attr)
+    if parsed_attr is not None:
+        return parsed_attr
 
-        # Fallback to HTTP headers
-        headers = error.response.headers
-        # Check standard Retry-After header (case-insensitive)
-        retry_header = headers.get("retry-after") or headers.get("Retry-After")
-        if retry_header:
-            try:
-                return int(retry_header)  # Assumes seconds format
-            except ValueError:
-                pass  # Might be HTTP date format, skip for now
+    # 1. HTTPStatusError headers (includes httpx)
+    if isinstance(error, httpx.HTTPStatusError) and hasattr(error, "response"):
+        headers = error.response.headers or {}
+        header_candidates = [
+            headers.get("retry-after") or headers.get("Retry-After"),
+            headers.get("x-ratelimit-reset") or headers.get("X-RateLimit-Reset"),
+            headers.get("x-ratelimit-reset-tokens"),
+            headers.get("x-ratelimit-reset-requests"),
+            headers.get("x-ratelimit-reset-tokens-minute"),
+            headers.get("x-ratelimit-reset-requests-day"),
+        ]
+        for candidate in header_candidates:
+            parsed = _parse_header_seconds(candidate)
+            if parsed is not None:
+                # If header is an absolute timestamp, convert to delta
+                if (
+                    candidate
+                    and str(candidate).isdigit()
+                    and candidate == headers.get("x-ratelimit-reset")
+                ):
+                    try:
+                        import time
 
-        # Check X-RateLimit-Reset header (Unix timestamp)
-        reset_header = headers.get("x-ratelimit-reset") or headers.get(
-            "X-RateLimit-Reset"
-        )
-        if reset_header:
-            try:
-                import time
+                        reset_ts = int(candidate)
+                        delta = reset_ts - int(time.time())
+                        if delta > 0:
+                            return delta
+                    except Exception:
+                        pass
+                return parsed
 
-                reset_timestamp = int(reset_header)
-                current_time = int(time.time())
-                wait_seconds = reset_timestamp - current_time
-                if wait_seconds > 0:
-                    return wait_seconds
-            except (ValueError, TypeError):
-                pass
-
-    # 1. Try to parse JSON from the error string representation
-    # Some exceptions embed JSON in their string representation
+    # 2. Try JSON body (Antigravity/Google style) from error string
     error_str = str(error)
     result = _extract_retry_from_json_body(error_str)
     if result is not None:
         return result
 
-    # 2. Common regex patterns for 'retry-after' (with compound duration support)
-    # Use lowercase for pattern matching
+    # 3. Regex fallbacks
     error_str_lower = error_str.lower()
     patterns = [
-        r"retry[-_\s]after:?\s*(\d+)",  # Matches: retry-after, retry_after, retry after
+        r"retry[-_\s]after:?\s*(\d+)",
         r"retry in\s*(\d+)\s*seconds?",
         r"wait for\s*(\d+)\s*seconds?",
-        r'"retrydelay":\s*"([\d.]+)s?"',  # retryDelay in JSON (lowercased)
+        r'"retrydelay":\s*"([\d.]+)s?"',
         r"x-ratelimit-reset:?\s*(\d+)",
-        # Compound duration patterns (Antigravity format)
-        r"quota will reset after\s*([\dhms.]+)",  # e.g., "156h14m36s" or "120s"
+        r"quota will reset after\s*([\dhms.]+)",
         r"reset after\s*([\dhms.]+)",
-        r'"quotaresetdelay":\s*"([\dhms.]+)"',  # quotaResetDelay in JSON (lowercased)
+        r'"quotaresetdelay":\s*"([\dhms.]+)"',
     ]
 
     for pattern in patterns:
         match = re.search(pattern, error_str_lower)
         if match:
             duration_str = match.group(1)
-            # Try parsing as compound duration first
             result = _parse_duration_string(duration_str)
             if result is not None:
                 return result
-            # Fallback to simple integer
             try:
                 return int(duration_str)
             except (ValueError, IndexError):
                 continue
 
-    # 3. Handle cases where the error object itself has the attribute
-    if hasattr(error, "retry_after"):
-        value = getattr(error, "retry_after")
-        if isinstance(value, int):
-            return value
-        if isinstance(value, str):
-            result = _parse_duration_string(value)
-            if result is not None:
-                return result
+    # 4. As last resort, string attr
+    if isinstance(retry_after_attr, str):
+        result = _parse_duration_string(retry_after_attr)
+        if result is not None:
+            return result
 
     return None
 
