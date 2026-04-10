@@ -175,6 +175,48 @@ test_chat_completion_iflow() {
     fi
 }
 
+test_chat_completion_antigravity() {
+    test_start "Chat Completion via Antigravity Backend"
+
+    RESPONSE=$(curl -s -w "\n%{http_code}" \
+        -H "Authorization: Bearer ${API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"antigravity/gemini-2.0-flash-exp","messages":[{"role":"user","content":"Hi"}],"max_tokens":5}' \
+        "${GATEWAY_URL}/v1/chat/completions" 2>/dev/null)
+
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+    BODY=$(echo "$RESPONSE" | head -n -1)
+
+    if [[ "$HTTP_CODE" == "200" ]]; then
+        CONTENT=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('choices',[{}])[0].get('message',{}).get('content',''))" 2>/dev/null || echo "")
+        echo "  Response: $CONTENT"
+        test_pass
+    else
+        test_fail "HTTP $HTTP_CODE - $BODY"
+    fi
+}
+
+test_chat_completion_qwen() {
+    test_start "Chat Completion via Qwen Backend"
+
+    RESPONSE=$(curl -s -w "\n%{http_code}" \
+        -H "Authorization: Bearer ${API_KEY}" \
+        -H "Content-Type: application/json" \
+        -d '{"model":"qwen/qwen3-coder-lite","messages":[{"role":"user","content":"Hello"}],"max_tokens":5}' \
+        "${GATEWAY_URL}/v1/chat/completions" 2>/dev/null)
+
+    HTTP_CODE=$(echo "$RESPONSE" | tail -n 1)
+    BODY=$(echo "$RESPONSE" | head -n -1)
+
+    if [[ "$HTTP_CODE" == "200" ]]; then
+        CONTENT=$(echo "$BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('choices',[{}])[0].get('message',{}).get('content',''))" 2>/dev/null || echo "")
+        echo "  Response: $CONTENT"
+        test_pass
+    else
+        test_fail "HTTP $HTTP_CODE - $BODY"
+    fi
+}
+
 test_streaming() {
     test_start "Streaming Chat Completion"
 
@@ -243,6 +285,8 @@ main() {
     echo -e "\n${YELLOW}=== Integration Tests ===${NC}"
     test_chat_completion_gemini
     test_chat_completion_iflow
+    test_chat_completion_antigravity
+    test_chat_completion_qwen
     test_streaming
 
     print_summary

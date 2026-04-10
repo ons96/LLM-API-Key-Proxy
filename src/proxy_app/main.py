@@ -702,12 +702,14 @@ app.add_middleware(
 api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
 
 # Import and mount status API router
-print("  → Mounting provider status API routes...")
+print(" → Mounting provider status API routes...")
 with _console.status("[dim]Mounting provider status API routes...", spinner="dots"):
     from proxy_app.status_api import router as status_router
+    from proxy_app.cliproxyapi_api import router as cliproxyapi_router
 
-    # Mount status API routes
-    app.include_router(status_router)
+# Mount status API routes
+app.include_router(status_router)
+app.include_router(cliproxyapi_router)
 
 
 def get_rotating_client(request: Request) -> RotatingClient:
