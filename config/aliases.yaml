@@ -3,6 +3,10 @@ aliases:
     description: Aggregated Leaderboard Top Coding Models
     strategy: chain_fallback
     candidates:
+    - provider: cliproxyapi
+      model: gemini-3-pro-preview
+    - provider: cliproxyapi
+      model: gemini-2.5-flash
     - provider: g4f
       model: claude-opus-4-5
     - provider: gemini
@@ -19,6 +23,8 @@ aliases:
     description: Highest Agentic Coding Score
     strategy: chain_fallback
     candidates:
+    - provider: cliproxyapi
+      model: gemini-3-pro-preview
     - provider: gemini
       model: gemini-3-flash
     - provider: g4f
@@ -31,6 +37,8 @@ aliases:
     description: Highest TPS (Quality > 40)
     strategy: chain_fallback
     candidates:
+    - provider: cliproxyapi
+      model: gemini-2.5-flash
     - provider: g4f
       model: gpt-5-2
     - provider: gemini

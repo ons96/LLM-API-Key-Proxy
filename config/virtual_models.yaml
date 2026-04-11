@@ -52,27 +52,33 @@ virtual_models:
   coding-elite:
     description: Best to worst agentic coding performance (free models only)
     fallback_chain:
+    - provider: cliproxyapi
+      model: gemini-3-pro-preview
+      priority: 1
+    - provider: cliproxyapi
+      model: gemini-2.5-pro
+      priority: 2
     - provider: supacoder
       model: gpt-5-codex
-      priority: 1
+      priority: 3
     - provider: supacoder
       model: gpt-5.1-codex-mini
-      priority: 2
-    - provider: gemini
-      model: gemini-3-flash
-      priority: 3
-    - provider: antigravity
-      model: gemini-3-flash
       priority: 4
     - provider: gemini
-      model: gemini-3-pro
+      model: gemini-3-flash
       priority: 5
     - provider: antigravity
-      model: gemini-3-pro
+      model: gemini-3-flash
       priority: 6
+    - provider: gemini
+      model: gemini-3-pro
+      priority: 7
+    - provider: antigravity
+      model: gemini-3-pro
+      priority: 8
     - provider: supacoder
       model: gpt-5.2
-      priority: 7
+      priority: 9
     - provider: nvidia
       model: GLM5
       priority: 8
@@ -179,9 +185,23 @@ virtual_models:
   coding-smart:
     description: Agentic coding balanced with speed (agentic 70% + TPS 30%)
     fallback_chain:
+    - provider: cliproxyapi
+      model: gemini-3-pro-preview
+      priority: 1
+      capabilities:
+      - tools
+      - function_calling
+      search_enabled: true
+    - provider: cliproxyapi
+      model: claude-sonnet-4-6
+      priority: 2
+      capabilities:
+      - tools
+      - function_calling
+      search_enabled: true
     - provider: supacoder
       model: claude-opus-4-6-20260205
-      priority: 1
+      priority: 3
       capabilities:
       - tools
       - function_calling
@@ -339,9 +359,12 @@ virtual_models:
   coding-fast:
     description: Fastest coding models (TPS/latency ranked)
     fallback_chain:
+    - provider: cliproxyapi
+      model: gemini-2.5-flash
+      priority: 1
     - provider: cerebras
       model: llama3.1-8b
-      priority: 1
+      priority: 2
     - provider: cerebras
       model: llama-3.3-70b
       priority: 2
