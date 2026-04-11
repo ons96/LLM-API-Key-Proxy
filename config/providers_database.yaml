@@ -2764,4 +2764,196 @@ providers:
   free_models:
   - id: tencent/Hunyuan-MT-7B
     context: 33000
-  notes: Discovered 2026-04-10
+    notes: Discovered 2026-04-10
+- id: swiftrouter
+  name: SwiftRouter
+  signup_url: https://swiftrouter.com
+  env_var: SWIFTROUTER_API_KEY
+  base_url: https://api.swiftrouter.com/v1
+  enabled: true
+  free_tier: true
+  capabilities:
+  - chat
+  - code
+  - tools
+  - function_calling
+  rate_limits:
+    rpm: 10
+    daily: 5000000
+    daily_reset_utc: '00:00'
+  notes: 10 RPM, 5M tokens/day. ~42 free models available.
+  free_models:
+  - id: gpt-5.3-codex
+    context: 400000
+    tps: 50
+    capabilities:
+    - chat
+    - code
+    - tools
+    - function_calling
+  - id: gpt-5.4-mini
+    context: 128000
+    tps: 100
+    capabilities:
+    - chat
+    - code
+    - tools
+    - fast
+  - id: gpt-5
+    context: 400000
+    tps: 50
+    capabilities:
+    - chat
+    - code
+    - tools
+  - id: gpt-5.2
+    context: 400000
+    tps: 50
+    capabilities:
+    - chat
+    - code
+    - tools
+  - id: gpt-5.4
+    context: 400000
+    tps: 50
+    capabilities:
+    - chat
+    - code
+    - tools
+  - id: gemini-2.5-flash
+    context: 1048576
+    tps: 80
+    capabilities:
+    - chat
+    - code
+    - vision
+  - id: gemini-2.5-pro
+    context: 2000000
+    tps: 30
+    capabilities:
+    - chat
+    - code
+    - vision
+  - id: gemini-3-flash-preview
+    context: 1048576
+    tps: 80
+    capabilities:
+    - chat
+    - code
+    - vision
+  - id: gemini-3-pro-preview
+    context: 1048576
+    tps: 50
+    capabilities:
+    - chat
+    - code
+    - vision
+  - id: llama-3.1-70b-instruct
+    context: 128000
+    tps: 100
+    capabilities:
+    - chat
+    - code
+  - id: llama-3.1-8b-instruct
+    context: 128000
+    tps: 150
+    capabilities:
+    - chat
+    - code
+    - fast
+  - id: llama-3-70b-instruct
+    context: 128000
+    tps: 80
+    capabilities:
+    - chat
+    - code
+  - id: llama-3-8b-instruct
+    context: 128000
+    tps: 150
+    capabilities:
+    - chat
+    - code
+    - fast
+  - id: gemma-3-27b-it
+    context: 128000
+    tps: 100
+    capabilities:
+    - chat
+    - code
+  - id: mixtral-8x7b-instruct
+    context: 32000
+    tps: 100
+    capabilities:
+    - chat
+    - code
+  - id: qwen3.6-plus
+    context: 131072
+    tps: 80
+    capabilities:
+    - chat
+    - code
+  - id: deepseek-v3.2
+    context: 64000
+    tps: 60
+    capabilities:
+    - chat
+    - code
+    - reasoning
+  - id: minimax-m2.5
+    context: 100000
+    tps: 80
+    capabilities:
+    - chat
+    - code
+  - id: glm-5
+    context: 128000
+    tps: 80
+    capabilities:
+    - chat
+    - code
+  - id: glm-4.7
+    context: 128000
+    tps: 100
+    capabilities:
+    - chat
+    - code
+  - id: kimi-k2.5
+    context: 262144
+    tps: 50
+    capabilities:
+    - chat
+    - code
+    - reasoning
+  - id: command-r-plus-08-2024
+    context: 128000
+    tps: 80
+    capabilities:
+    - chat
+    - code
+  - id: nemotron-nano-9b-v2
+    context: 128000
+    tps: 100
+    capabilities:
+    - chat
+    - fast
+  - id: llama-3.3-nemotron-super-49b-v1.5
+    context: 128000
+    tps: 60
+    capabilities:
+    - chat
+    - code
+    - reasoning
+  - id: gpt-oss-120b
+    context: 32000
+    tps: 40
+    capabilities:
+    - chat
+    - code
+  - id: qwen3.5-397b
+    context: 40000
+    tps: 30
+    capabilities:
+    - chat
+    - code
+    - reasoning
+  last_verified: '2026-04-10'
