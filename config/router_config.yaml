@@ -131,13 +131,11 @@ providers:
     base_url: https://api.bluesminds.com/v1
     free_tier: true
     free_tier_models:
-    # Verified working
     - gpt-4o-mini
     - azure-gpt4o
     - gemini/gemini-2.5-flash
     - gemini/gemini-2.5-flash-lite
     - groq/qwen/qwen3-32b
-    # Potentially working (may be temporarily down)
     - gpt-4o
     - gpt4
     - openai/gpt-oss-20b
