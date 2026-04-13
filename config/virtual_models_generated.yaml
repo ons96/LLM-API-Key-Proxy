@@ -515,6 +515,48 @@ virtual_models:
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
+  uncensored-chat:
+    description: Uncensored models with tool call support, good for coding and chat
+    fallback_chain:
+    - provider: g4f
+      model: deepseek-r1
+      priority: 1
+    - provider: g4f
+      model: claude-opus-4-5
+      priority: 2
+    - provider: g4f
+      model: gpt-5-2
+      priority: 3
+    - provider: g4f
+      model: gemini-2.5-pro
+      priority: 4
+    - provider: g4f
+      model: deepseek-v3
+      priority: 5
+    - provider: g4f
+      model: claude-sonnet-4-5
+      priority: 6
+    - provider: g4f
+      model: grok-4-1
+      priority: 7
+    - provider: g4f
+      model: minimax-m2-5
+      priority: 8
+    - provider: cerebras
+      model: glm-5
+      priority: 9
+    - provider: together
+      model: deepseek-chat
+      priority: 10
+    - provider: g4f
+      model: mn-violet-lotus-12b
+      priority: 11
+    - provider: g4f
+      model: cydonia-24b-v4.1
+      priority: 12
+    settings:
+      timeout_ms: 120000
+      retry_on_rate_limit: true
 providers:
   nvidia:
     base_url: https://integrate.api.nvidia.com/v1

@@ -27,9 +27,15 @@ PROVIDER_URL_MAP = {
     "cohere": "https://api.cohere.ai/v1",
     "bedrock": "https://bedrock-runtime.us-east-1.amazonaws.com",
     "openrouter": "https://openrouter.ai/api/v1",
+    "kilo": "https://api.kilo.ai/api/gateway",
+    "kilocloud": "https://api.kilocloud.ai/v1",
+    "zenllm": "https://zenllm.org/v1",
 }
 
-def get_provider_endpoint(provider: str, model_name: str, incoming_path: str) -> Optional[str]:
+
+def get_provider_endpoint(
+    provider: str, model_name: str, incoming_path: str
+) -> Optional[str]:
     """
     Constructs the full provider endpoint URL based on the provider and incoming request path.
     Supports both hardcoded providers and custom OpenAI-compatible providers via environment variables.
@@ -45,7 +51,9 @@ def get_provider_endpoint(provider: str, model_name: str, incoming_path: str) ->
             return None
 
     # Determine the specific action from the incoming path (e.g., 'chat/completions')
-    action = incoming_path.split('/v1/', 1)[-1] if '/v1/' in incoming_path else incoming_path
+    action = (
+        incoming_path.split("/v1/", 1)[-1] if "/v1/" in incoming_path else incoming_path
+    )
 
     # --- Provider-specific endpoint structures ---
     if provider == "gemini":
@@ -53,7 +61,7 @@ def get_provider_endpoint(provider: str, model_name: str, incoming_path: str) ->
             return f"{base_url}/models/{model_name}:generateContent"
         elif action == "embeddings":
             return f"{base_url}/models/{model_name}:embedContent"
-    
+
     elif provider == "anthropic":
         if action == "chat/completions":
             return f"{base_url}/messages"
@@ -68,6 +76,6 @@ def get_provider_endpoint(provider: str, model_name: str, incoming_path: str) ->
     # Most of these have /v1 in the base URL already, so we just append the action.
     if base_url.endswith(("/v1", "/v1/openai")):
         return f"{base_url}/{action}"
-    
+
     # Fallback for other cases
     return f"{base_url}/v1/{action}"
