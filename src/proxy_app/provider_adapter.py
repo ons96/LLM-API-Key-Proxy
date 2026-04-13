@@ -240,6 +240,7 @@ class SupacoderAdapter(OpenAICompatibleAdapter):
             if env_timeout and env_timeout.isdigit()
             else stream_timeout_seconds
         )
+        self.stream_timeout_seconds = max(self.stream_timeout_seconds, 90)  # Minimum 90s for reliable streaming
         super().__init__(provider_name, api_key, api_base, models)
 
         # Supacoder endpoints behave like text-only Chat Completions; function/tool calls are not reliable.

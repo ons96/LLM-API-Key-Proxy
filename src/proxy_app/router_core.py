@@ -20,8 +20,8 @@ import os
 import litellm
 from fastapi import HTTPException
 import httpx
-from ..rotator_library.telemetry import get_telemetry_manager
-from ..rotator_library.scoring_engine import get_scoring_engine
+from rotator_library.telemetry import get_telemetry_manager
+from rotator_library.scoring_engine import get_scoring_engine
 from .rate_limiter import REASON_RATE_LIMIT, REASON_USAGE_CAP
 
 
@@ -131,7 +131,16 @@ class ProviderCandidate:
     free_tier_only: bool = True
 
     def matches_requirements(self, requirements: CapabilityRequirements) -> bool:
-        """Check if candidate matches capability requirements."""
+        """Check if candidate matches capability requirements.
+        
+        If capabilities are empty (not explicitly declared), we trust the adapter
+        to reject unsupported features at runtime (e.g., SupacoderAdapter rejects tools).
+        """
+        # If capabilities not explicitly declared, skip capability check
+        # The adapter will handle unsupported features at runtime
+        if not self.capabilities:
+            return True
+        
         if (
             requirements.needs_tools
             and "tools" not in self.capabilities
@@ -201,7 +210,7 @@ class BraveSearchProvider(SearchProvider):
         if not self.api_keys:
             return None
 
-        from ..rotator_library.telemetry import get_telemetry_manager
+        from rotator_library.telemetry import get_telemetry_manager
 
         telemetry = get_telemetry_manager()
 
@@ -236,7 +245,7 @@ class BraveSearchProvider(SearchProvider):
                 self.metrics.update_latency(latency_ms)
                 self.metrics.record_success()
 
-                from ..rotator_library.telemetry import get_telemetry_manager
+                from rotator_library.telemetry import get_telemetry_manager
 
                 telemetry = get_telemetry_manager()
                 telemetry.record_search_usage(
@@ -258,7 +267,7 @@ class BraveSearchProvider(SearchProvider):
 
         except Exception as e:
             self.metrics.record_error()
-            from ..rotator_library.telemetry import get_telemetry_manager
+            from rotator_library.telemetry import get_telemetry_manager
 
             telemetry = get_telemetry_manager()
             telemetry.record_search_usage(
@@ -288,7 +297,7 @@ class TavilySearchProvider(SearchProvider):
         if not self.api_keys:
             return None
 
-        from ..rotator_library.telemetry import get_telemetry_manager
+        from rotator_library.telemetry import get_telemetry_manager
 
         telemetry = get_telemetry_manager()
 
@@ -349,7 +358,7 @@ class TavilySearchProvider(SearchProvider):
                 self.metrics.update_latency(latency_ms)
                 self.metrics.record_success()
 
-                from ..rotator_library.telemetry import get_telemetry_manager
+                from rotator_library.telemetry import get_telemetry_manager
 
                 telemetry = get_telemetry_manager()
                 telemetry.record_search_usage(
@@ -371,7 +380,7 @@ class TavilySearchProvider(SearchProvider):
 
         except Exception as e:
             self.metrics.record_error()
-            from ..rotator_library.telemetry import get_telemetry_manager
+            from rotator_library.telemetry import get_telemetry_manager
 
             telemetry = get_telemetry_manager()
             telemetry.record_search_usage(
@@ -400,7 +409,7 @@ class ExaSearchProvider(SearchProvider):
         if not self.api_keys:
             return None
 
-        from ..rotator_library.telemetry import get_telemetry_manager
+        from rotator_library.telemetry import get_telemetry_manager
 
         telemetry = get_telemetry_manager()
 
@@ -445,7 +454,7 @@ class ExaSearchProvider(SearchProvider):
                 self.metrics.update_latency(latency_ms)
                 self.metrics.record_success()
 
-                from ..rotator_library.telemetry import get_telemetry_manager
+                from rotator_library.telemetry import get_telemetry_manager
 
                 telemetry = get_telemetry_manager()
                 telemetry.record_search_usage("exa", api_key, "search", 1, query, True)
@@ -468,7 +477,7 @@ class ExaSearchProvider(SearchProvider):
 
         except Exception as e:
             self.metrics.record_error()
-            from ..rotator_library.telemetry import get_telemetry_manager
+            from rotator_library.telemetry import get_telemetry_manager
 
             telemetry = get_telemetry_manager()
             telemetry.record_search_usage(
@@ -792,7 +801,8 @@ class RouterCore:
 
             # Prepare request
             # Remove router-specific fields
-            request_clean = {k: v for k, v in request.items() if not k.startswith("_")}
+        # Stream is passed separately to adapter, not in request
+            request_clean = {k: v for k, v in request.items() if not k.startswith("_") and k != "stream"}
             request_clean["model"] = f"{candidate.provider}/{candidate.model}"
 
             logger.info(
@@ -1007,7 +1017,7 @@ class RouterCore:
             # Register keys with telemetry and initialize providers
             if api_keys:
                 try:
-                    from ..rotator_library.telemetry import get_telemetry_manager
+                    from rotator_library.telemetry import get_telemetry_manager
 
                     telemetry = get_telemetry_manager()
 
@@ -1678,7 +1688,7 @@ class RouterCore:
             # Update model reference
             request = request.copy()
             request["model"] = f"{candidate.provider}/{candidate.model}"
-            request_clean = {k: v for k, v in request.items() if not k.startswith("_")}
+            request_clean = {k: v for k, v in request.items() if not k.startswith("_") and k != "stream"}
 
             logger.info(
                 f"[{request_id}] Streaming {candidate.provider}/{candidate.model}"
