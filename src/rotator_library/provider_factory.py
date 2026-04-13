@@ -17,6 +17,7 @@ from .providers.g4f_groq_provider import G4FGroqProvider
 from .providers.agentrouter_provider import AgentRouterProvider
 from .providers.cerebras_provider import CerebrasProvider
 from .providers.puter_provider import PuterProvider
+from .providers.cliproxyapi_provider import CLIProxyAPIProvider
 
 lib_logger = logging.getLogger("rotator_library")
 lib_logger.propagate = False
@@ -43,6 +44,7 @@ DIRECT_PROVIDER_MAP = {
     "agentrouter": AgentRouterProvider,
     "cerebras": CerebrasProvider,
     "puter": PuterProvider,
+    "cliproxyapi": CLIProxyAPIProvider,
 }
 
 # Combined provider map for compatibility
@@ -89,40 +91,39 @@ def is_direct_provider(provider_name: str) -> bool:
 
 
 def get_provider_config(provider_name: str) -> Dict[str, Any]:
-    """
-    Get provider configuration from environment variables.
-
-    Args:
-        provider_name: Name of the provider (e.g., 'g4f', 'gemini_cli')
-
-    Returns:
-        Dictionary containing provider configuration
-    """
+    """Get provider configuration from environment variables."""
     provider_name = provider_name.lower()
     config = {}
 
     if provider_name == "g4f":
-        # G4F doesn't require specific configuration - it can work with defaults
         config.update(
             {
                 "api_base": os.getenv("G4F_MAIN_API_BASE"),
-                "default_tier_priority": 5,  # G4F is fallback tier
+                "default_tier_priority": 5,
             }
         )
         lib_logger.debug(f"Loaded G4F configuration: {list(config.keys())}")
 
     elif provider_name == "puter":
-        # Puter.js provider via puter-free-chatbot wrapper
         config.update(
             {
                 "api_base": os.getenv(
                     "PUTER_API_BASE", "https://puter-free-chatbot.vercel.app/api"
                 ),
-                # Default to your deployed instance, can be overridden
-                "default_tier_priority": 2,  # High priority for free models
+                "default_tier_priority": 2,
             }
         )
         lib_logger.debug(f"Loaded Puter configuration: {list(config.keys())}")
+
+    elif provider_name == "cliproxyapi":
+        config.update(
+            {
+                "base_url": os.getenv("CLIPROXYAPI_BASE_URL", "http://127.0.0.1:8317"),
+                "timeout": int(os.getenv("CLIPROXYAPI_TIMEOUT", "120")),
+                "enabled": os.getenv("CLIPROXYAPI_ENABLED", "true").lower() == "true",
+            }
+        )
+        lib_logger.debug(f"Loaded CLIProxyAPI configuration: {list(config.keys())}")
 
     return config
 

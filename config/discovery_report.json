@@ -1,0 +1,118 @@
+{
+  "generated_at": "2026-04-13T05:20:15.073943+00:00",
+  "new_providers": 30,
+  "updated_providers": 4,
+  "total_free_models": 319,
+  "top_models": [
+    {
+      "provider": "nvidia",
+      "model": "stepfun-ai/step-3.5-flash",
+      "model_id": "nvidia/stepfun-ai/step-3.5-flash",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 256000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "nvidia",
+      "model": "mistralai/codestral-22b-instruct-v0.1",
+      "model_id": "nvidia/mistralai/codestral-22b-instruct-v0.1",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 128000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "nvidia",
+      "model": "mistralai/mistral-large-3-675b-instruct-2512",
+      "model_id": "nvidia/mistralai/mistral-large-3-675b-instruct-2512",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 262144,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "nvidia",
+      "model": "mistralai/devstral-2-123b-instruct-2512",
+      "model_id": "nvidia/mistralai/devstral-2-123b-instruct-2512",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 262144,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "nvidia",
+      "model": "mistralai/ministral-14b-instruct-2512",
+      "model_id": "nvidia/mistralai/ministral-14b-instruct-2512",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 262144,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "nvidia",
+      "model": "mistralai/mistral-small-3.1-24b-instruct-2503",
+      "model_id": "nvidia/mistralai/mistral-small-3.1-24b-instruct-2503",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 128000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "nvidia",
+      "model": "mistralai/mamba-codestral-7b-v0.1",
+      "model_id": "nvidia/mistralai/mamba-codestral-7b-v0.1",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 128000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "nvidia",
+      "model": "mistralai/mistral-large-2-instruct",
+      "model_id": "nvidia/mistralai/mistral-large-2-instruct",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 128000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "nvidia",
+      "model": "microsoft/phi-3-medium-4k-instruct",
+      "model_id": "nvidia/microsoft/phi-3-medium-4k-instruct",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 4000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "nvidia",
+      "model": "microsoft/phi-3.5-moe-instruct",
+      "model_id": "nvidia/microsoft/phi-3.5-moe-instruct",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 128000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    }
+  ]
+}
