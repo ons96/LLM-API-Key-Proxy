@@ -33,8 +33,8 @@ virtual_models:
     - provider: aihubmix
       model: coding-glm-5-free
       priority: 6
-    - provider: antigravity
-      model: claude-sonnet-4-6
+    - provider: cliproxyapi
+      model: gemini-2.5-flash
       priority: 7
     - provider: gemini
       model: gemini-2.5-flash
@@ -50,496 +50,327 @@ virtual_models:
       retry_on_rate_limit: true
       auto_continue_on_truncate: true
   coding-elite:
-    description: Best to worst agentic coding performance (free models only)
+    description: Best to worst agentic coding performance (free models only, tool-capable)
     fallback_chain:
     - provider: cliproxyapi
-      model: gemini-3-pro-preview
+      model: gemini-3.1-pro-preview
       priority: 1
-    - provider: cliproxyapi
-      model: gemini-2.5-pro
-      priority: 2
     - provider: supacoder
       model: gpt-5-codex
+      priority: 2
+    - provider: cliproxyapi
+      model: gemini-3-pro-preview
       priority: 3
     - provider: supacoder
       model: gpt-5.1-codex-mini
       priority: 4
-    - provider: gemini
+    - provider: cliproxyapi
       model: gemini-3-flash
       priority: 5
-    - provider: antigravity
+    - provider: gemini
       model: gemini-3-flash
       priority: 6
-    - provider: gemini
+    - provider: antigravity
       model: gemini-3-pro
       priority: 7
-    - provider: antigravity
-      model: gemini-3-pro
-      priority: 8
-    - provider: supacoder
-      model: gpt-5.2
-      priority: 9
-    - provider: nvidia
-      model: GLM5
-      priority: 8
-    - provider: cerebras
-      model: glm-5
-      priority: 9
-    - provider: aihubmix
-      model: coding-glm-5-free
-      priority: 10
     - provider: supacoder
       model: gpt-5.4
-      priority: 11
+      priority: 8
+    - provider: cliproxyapi
+      model: gemini-3.1-pro-low
+      priority: 9
+    - provider: cliproxyapi
+      model: gemini-2.5-flash
+      priority: 10
     - provider: supacoder
       model: gpt-5.3-codex
+      priority: 11
+    - provider: gemini
+      model: gemini-3-pro
       priority: 12
     - provider: supacoder
-      model: gpt-5.2-codex
+      model: gpt-5.2
       priority: 13
-    - provider: supacoder
-      model: gpt-5.1-codex-max
+    - provider: cliproxyapi
+      model: gemini-3-pro-low
       priority: 14
-    - provider: supacoder
-      model: gpt-5.1-codex
+    - provider: nvidia
+      model: GLM5
       priority: 15
     - provider: supacoder
-      model: gpt-5.1
+      model: gpt-5.2-codex
       priority: 16
     - provider: supacoder
-      model: gpt-5-codex
+      model: gpt-5.1-codex-max
       priority: 17
+    - provider: cliproxyapi
+      model: gpt-oss-120b-medium
+      priority: 18
+    - provider: cerebras
+      model: glm-5
+      priority: 19
+    - provider: aihubmix
+      model: coding-glm-5-free
+      priority: 20
+    - provider: supacoder
+      model: gpt-5.1-codex
+      priority: 21
     - provider: supacoder
       model: gpt-5
-      priority: 18
+      priority: 22
     - provider: supacoder
       model: gpt-5.4-mini
-      priority: 19
-    - provider: gemini
-      model: gemini-2.5-flash
-      priority: 20
-    - provider: antigravity
-      model: gemini-2.5-flash
-      priority: 21
-    - provider: qwen
-      model: qwen3-max
-      priority: 22
-    - provider: kilo
-      model: qwen/qwen3.6-plus:free
       priority: 23
-    - provider: opencode
-      model: minimax-m2.5-free
+    - provider: cliproxyapi
+      model: coder-model
       priority: 24
     - provider: kilo
-      model: minimax/minimax-m2.5:free
+      model: qwen/qwen3.6-plus:free
       priority: 25
     - provider: aihubmix
       model: glm-4.7-free
       priority: 26
-    - provider: aihubmix
-      model: glm-4-flash
-      priority: 27
     - provider: cerebras
       model: llama-3.3-70b
-      priority: 28
+      priority: 27
     - provider: groq
       model: llama-3.3-70b-versatile
-      priority: 29
-    - provider: groq
-      model: llama-3.1-8b-instant
-      priority: 30
+      priority: 28
     - provider: kilo
       model: nvidia/nemotron-3-super-120b-a12b:free
-      priority: 31
-    - provider: kilo
-      model: stepfun/step-3.5-flash:free
-      priority: 32
-    - provider: kilo
-      model: arcee-ai/trinity-large-preview:free
-      priority: 33
-    - provider: kilo
-      model: arcee-ai/trinity-large-thinking:free
-      priority: 34
+      priority: 29
     - provider: kilo
       model: x-ai/grok-code-fast-1:optimized:free
-      priority: 35
+      priority: 30
     - provider: cerebras
       model: qwen-3-235b-a22b-instruct-2507
-      priority: 36
-    - provider: g4f_nvidia
-      model: qwen/qwen3-coder-480b
-      priority: 37
-    - provider: g4f_nvidia
-      model: deepseek-ai/deepseek-v3.2
-      priority: 38
-    - provider: gemini
-      model: gemini-3-flash-preview
-      priority: 39
-    - provider: antigravity
-      model: gemini-3-flash-preview
-      priority: 40
+      priority: 31
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
       auto_continue_on_truncate: true
   coding-smart:
-    description: Agentic coding balanced with speed (agentic 70% + TPS 30%)
+    description: Agentic coding balanced with speed (tool-capable, no g4f)
     fallback_chain:
     - provider: cliproxyapi
-      model: gemini-3-pro-preview
+      model: gemini-3.1-pro-preview
       priority: 1
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
     - provider: cliproxyapi
-      model: claude-sonnet-4-6
+      model: gemini-3-flash
       priority: 2
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
     - provider: supacoder
-      model: claude-opus-4-6-20260205
+      model: gpt-5-codex
       priority: 3
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
-    - provider: kilo
-      model: minimax/minimax-m2.5:free
-      priority: 2
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
-    - provider: g4f_ollama
-      model: minimax-m2.5
-      priority: 3
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
-    - provider: antigravity
-      model: claude-opus-4-5
+    - provider: cliproxyapi
+      model: gemini-2.5-flash
       priority: 4
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
+    - provider: gemini
+      model: gemini-3-flash
+      priority: 5
+    - provider: supacoder
+      model: gpt-5.1-codex-mini
+      priority: 6
+    - provider: antigravity
+      model: gemini-3-flash
+      priority: 7
     - provider: supacoder
       model: gpt-5.2
-      priority: 5
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
-    - provider: opencode_zen
-      model: moonshot/kimi-k2.5
-      priority: 6
-      capabilities:
-      - tools
-      - function_calling
-      - reasoning
-      search_enabled: true
-    - provider: supacoder
-      model: gemini-3-pro-preview
-      priority: 7
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
-    - provider: antigravity
-      model: claude-sonnet-4-5
       priority: 8
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
-    - provider: supacoder
-      model: gpt-5.2-codex-xhigh
+    - provider: kilo
+      model: minimax/minimax-m2.5:free
       priority: 9
-      capabilities:
-      - tools
-      - function_calling
-      - coding
-      search_enabled: true
-    - provider: iflow
-      model: qwen3-235b-a22b-instruct
+    - provider: nvidia
+      model: GLM5
       priority: 10
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
-    - provider: g4f_nvidia
-      model: qwen/qwen3-coder-480b
+    - provider: supacoder
+      model: gpt-5.4-mini
       priority: 11
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
-    - provider: supacoder
-      model: gpt-5.4
+    - provider: cerebras
+      model: glm-5
       priority: 12
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
-    - provider: supacoder
-      model: gpt-5.4-codex-xhigh
-      priority: 13
-      capabilities:
-      - tools
-      - function_calling
-      - coding
-      search_enabled: true
-    - provider: supacoder
-      model: gpt-5.3-codex-xhigh
-      priority: 14
-      capabilities:
-      - tools
-      - function_calling
-      - coding
-      search_enabled: true
-    - provider: supacoder
-      model: claude-sonnet-4-6-20260217
-      priority: 15
-      capabilities:
-      - tools
-      - function_calling
-      - reasoning
-      search_enabled: true
-    - provider: supacoder
-      model: gemini-3.1-pro-preview
-      priority: 16
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
     - provider: aihubmix
       model: coding-glm-5-free
-      priority: 17
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
-    - provider: iflow
-      model: deepseek-v3.2
-      priority: 18
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: true
-    - provider: cerebras
-      model: qwen-3-235b-a22b-instruct-2507
-      priority: 19
-      capabilities:
-      - tools
-      - function_calling
-      - reasoning
-      search_enabled: true
+      priority: 13
     - provider: gemini
       model: gemini-2.5-flash
-      priority: 20
-      capabilities:
-      - tools
-      - function_calling
-      - fast
-      search_enabled: true
-    - provider: g4f_nvidia
-      model: deepseek-ai/deepseek-v3.2
-      priority: 21
-      capabilities:
-      - tools
-      - function_calling
-      search_enabled: false
+      priority: 14
+    - provider: cliproxyapi
+      model: coder-model
+      priority: 15
+    - provider: kilo
+      model: qwen/qwen3.6-plus:free
+      priority: 16
+    - provider: cerebras
+      model: llama-3.3-70b
+      priority: 17
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 18
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
   coding-fast:
-    description: Fastest coding models (TPS/latency ranked)
+    description: Fastest coding models (TPS/latency ranked, no g4f)
     fallback_chain:
     - provider: cliproxyapi
       model: gemini-2.5-flash
       priority: 1
     - provider: cerebras
-      model: llama3.1-8b
-      priority: 2
-    - provider: cerebras
       model: llama-3.3-70b
       priority: 2
-    - provider: groq
-      model: llama-3.1-8b-instant
+    - provider: cerebras
+      model: llama3.1-8b
       priority: 3
     - provider: groq
-      model: meta-llama/llama-4-scout-17b-16e-instruct
+      model: llama-3.1-8b-instant
       priority: 4
     - provider: groq
-      model: llama-3.3-70b-versatile
+      model: meta-llama/llama-4-scout-17b-16e-instruct
       priority: 5
-    - provider: bluesminds
-      model: gpt-4o-mini
+    - provider: cliproxyapi
+      model: gemini-3-flash
       priority: 6
-    - provider: bluesminds
-      model: azure-gpt4o
+    - provider: groq
+      model: llama-3.3-70b-versatile
       priority: 7
     - provider: gemini
       model: gemini-3-flash
       priority: 8
+    - provider: cerebras
+      model: glm-5
+      priority: 9
+    - provider: aihubmix
+      model: glm-4-flash
+      priority: 10
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
   chat-elite:
-    description: Most intelligent models (intelligence score ranked, speed ignored)
+    description: Most intelligent chat models (g4f OK, no Claude, no gemini-2.5-pro)
     fallback_chain:
-    - provider: antigravity
-      model: gemini-3-pro-preview
+    - provider: cliproxyapi
+      model: gemini-3.1-pro-preview
       priority: 1
-    - provider: antigravity
-      model: claude-opus-4-5
+    - provider: cliproxyapi
+      model: gemini-3-pro-preview
       priority: 2
-    - provider: antigravity
-      model: claude-sonnet-4-5
+    - provider: cliproxyapi
+      model: gemini-3-pro-high
       priority: 3
-    - provider: iflow
-      model: deepseek-r1
-      priority: 4
-    - provider: iflow
-      model: kimi-k2-thinking
-      priority: 5
-    - provider: iflow
-      model: qwen3-max
-      priority: 6
     - provider: gemini
-      model: gemini-2.5-pro
-      priority: 7
-    - provider: g4f_gemini
-      model: gemini-2.5-pro
-      priority: 8
-    - provider: g4f_gemini
       model: gemini-3-pro
+      priority: 4
+    - provider: supacoder
+      model: gpt-5.4
+      priority: 5
+    - provider: g4f_gemini
+      model: gemini-2.5-pro
+      priority: 6
+    - provider: g4f_nvidia
+      model: deepseek-ai/deepseek-v3.2
+      priority: 7
+    - provider: kilo
+      model: minimax/minimax-m2.5:free
+      priority: 8
+    - provider: antigravity
+      model: gemini-3.1-pro
       priority: 9
+    - provider: cerebras
+      model: qwen-3-235b-a22b-instruct-2507
+      priority: 10
     settings:
       timeout_ms: 300000
       retry_on_rate_limit: true
   chat-smart:
-    description: Best intelligence-to-speed ratio (efficiency score ranked, min intel
-      ~82)
+    description: Best intelligence-to-speed ratio (g4f OK, no Claude, no iflow)
     fallback_chain:
-    - provider: antigravity
-      model: gemini-3-pro-preview
+    - provider: cliproxyapi
+      model: gemini-3-flash
       priority: 1
-    - provider: iflow
-      model: deepseek-v3.2
+    - provider: cliproxyapi
+      model: gemini-2.5-flash
       priority: 2
-    - provider: iflow
-      model: kimi-k2
-      priority: 3
-    - provider: groq
-      model: meta-llama/llama-4-maverick-17b-128e-instruct
-      priority: 4
     - provider: groq
       model: moonshotai/kimi-k2-instruct
-      priority: 5
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 6
-    - provider: cerebras
-      model: qwen-3-235b-a22b-instruct-2507
-      priority: 7
-    - provider: bluesminds
-      model: gemini/gemini-2.5-flash
-      priority: 8
-    - provider: bluesminds
-      model: gemini/gemini-2.5-flash-lite
-      priority: 9
+      priority: 3
     - provider: gemini
       model: gemini-2.5-flash
-      priority: 10
+      priority: 4
+    - provider: cerebras
+      model: qwen-3-235b-a22b-instruct-2507
+      priority: 5
+    - provider: g4f_nvidia
+      model: deepseek-ai/deepseek-v3.2
+      priority: 6
+    - provider: g4f_groq
+      model: llama-3.3-70b-versatile
+      priority: 7
     - provider: g4f_gemini
       model: gemini-2.5-flash
-      priority: 11
-    - provider: g4f
-      model: gemini-2.0-flash
-      priority: 12
+      priority: 8
+    - provider: kilo
+      model: qwen/qwen3.6-plus:free
+      priority: 9
+    - provider: aihubmix
+      model: glm-4.7-free
+      priority: 10
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
   chat-fast:
-    description: Fastest chat models (TPS/TTFT ranked)
+    description: Fastest chat models (TPS/TTFT ranked, g4f OK)
     fallback_chain:
-    - provider: cerebras
-      model: llama3.1-8b
+    - provider: cliproxyapi
+      model: gemini-2.5-flash
       priority: 1
     - provider: cerebras
       model: llama-3.3-70b
       priority: 2
-    - provider: groq
-      model: llama-3.1-8b-instant
+    - provider: cerebras
+      model: llama3.1-8b
       priority: 3
     - provider: groq
-      model: meta-llama/llama-4-scout-17b-16e-instruct
+      model: llama-3.1-8b-instant
       priority: 4
     - provider: groq
-      model: openai/gpt-oss-20b
+      model: meta-llama/llama-4-scout-17b-16e-instruct
       priority: 5
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 6
-    - provider: bluesminds
-      model: gpt-4o-mini
-      priority: 7
-    - provider: bluesminds
-      model: azure-gpt4o
-      priority: 8
-    - provider: gemini
-      model: gemini-2.0-flash
-      priority: 9
     - provider: g4f_groq
       model: llama-3.1-8b-instruct
-      priority: 10
+      priority: 6
+    - provider: gemini
+      model: gemini-2.5-flash
+      priority: 7
+    - provider: aihubmix
+      model: glm-4-flash
+      priority: 8
     settings:
       timeout_ms: 15000
       retry_on_rate_limit: true
   chat-rp:
-    description: Roleplay and creative writing models (NSFW-capable, speed ranked)
+    description: Roleplay and creative writing models (g4f OK, no iflow)
     fallback_chain:
-    - provider: groq
-      model: moonshotai/kimi-k2-instruct
+    - provider: cliproxyapi
+      model: gemini-3-flash
       priority: 1
     - provider: groq
-      model: llama-3.3-70b-versatile
+      model: moonshotai/kimi-k2-instruct
       priority: 2
     - provider: groq
-      model: meta-llama/llama-4-maverick-17b-128e-instruct
+      model: llama-3.3-70b-versatile
       priority: 3
-    - provider: cerebras
-      model: llama-3.3-70b
-      priority: 4
-    - provider: cerebras
-      model: llama3.1-8b
-      priority: 5
-    - provider: iflow
-      model: deepseek-v3.2
-      priority: 6
-    - provider: iflow
-      model: kimi-k2
-      priority: 7
-    - provider: iflow
-      model: minimax-m2
-      priority: 8
-    - provider: opencode_zen
-      model: moonshot/kimi-k2.5
-      priority: 9
     - provider: g4f_nvidia
       model: meta/llama-4-maverick-17b-128e-instruct
-      priority: 10
-    - provider: g4f_groq
-      model: llama-3.3-70b-versatile
-      priority: 11
+      priority: 4
+    - provider: cerebras
+      model: llama-3.3-70b
+      priority: 5
     - provider: g4f_ollama
       model: minimax-m2
-      priority: 12
+      priority: 6
+    - provider: g4f_groq
+      model: llama-3.3-70b-versatile
+      priority: 7
     settings:
       timeout_ms: 60000
       retry_on_rate_limit: true

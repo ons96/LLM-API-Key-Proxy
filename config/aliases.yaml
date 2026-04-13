@@ -1,47 +1,49 @@
 aliases:
   coding:
-    description: Aggregated Leaderboard Top Coding Models
+    description: Top coding models (tool-capable, no g4f)
     strategy: chain_fallback
     candidates:
     - provider: cliproxyapi
-      model: gemini-3-pro-preview
+      model: gemini-3.1-pro-preview
+    - provider: supacoder
+      model: gpt-5-codex
     - provider: cliproxyapi
-      model: gemini-2.5-flash
-    - provider: g4f
-      model: claude-opus-4-5
+      model: gemini-3-pro-preview
+    - provider: supacoder
+      model: gpt-5.1-codex-mini
+    - provider: cliproxyapi
+      model: gemini-3-flash
     - provider: gemini
       model: gemini-3-flash
-    - provider: g4f
-      model: claude-opus-4-6
-    - provider: gemini
+    - provider: antigravity
       model: gemini-3-pro
     - provider: cerebras
       model: glm-5
-    - provider: together
-      model: deepseek-chat
   smart:
-    description: Highest Agentic Coding Score
+    description: Balanced coding with speed (tool-capable, no g4f)
     strategy: chain_fallback
     candidates:
     - provider: cliproxyapi
-      model: gemini-3-pro-preview
+      model: gemini-3.1-pro-preview
+    - provider: cliproxyapi
+      model: gemini-3-flash
+    - provider: supacoder
+      model: gpt-5-codex
+    - provider: cliproxyapi
+      model: gemini-2.5-flash
     - provider: gemini
       model: gemini-3-flash
-    - provider: g4f
-      model: claude-opus-4-5
-    - provider: g4f
-      model: gpt-5-2
-    - provider: gemini
-      model: gemini-3-pro
   fast:
     description: Highest TPS (Quality > 40)
     strategy: chain_fallback
     candidates:
     - provider: cliproxyapi
       model: gemini-2.5-flash
-    - provider: g4f
-      model: gpt-5-2
-    - provider: gemini
+    - provider: cerebras
+      model: llama-3.3-70b
+    - provider: cerebras
+      model: llama3.1-8b
+    - provider: groq
+      model: llama-3.1-8b-instant
+    - provider: cliproxyapi
       model: gemini-3-flash
-    - provider: gemini
-      model: gemini-3-pro
