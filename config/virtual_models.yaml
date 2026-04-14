@@ -124,12 +124,9 @@ virtual_models:
     - provider: cliproxyapi
       model: coder-model
       priority: 24
-    - provider: kilo
-      model: qwen/qwen3.6-plus:free
-      priority: 25
     - provider: aihubmix
       model: glm-4.7-free
-      priority: 26
+      priority: 25
     - provider: cerebras
       model: llama-3.3-70b
       priority: 27
@@ -145,6 +142,12 @@ virtual_models:
     - provider: cerebras
       model: qwen-3-235b-a22b-instruct-2507
       priority: 31
+    - provider: kilo
+      model: qwen/qwen3-coder:free
+      priority: 32
+    - provider: kilo
+      model: meta-llama/llama-3.3-70b-instruct:free
+      priority: 33
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
@@ -197,14 +200,14 @@ virtual_models:
     - provider: cliproxyapi
       model: coder-model
       priority: 15
-    - provider: kilo
-      model: qwen/qwen3.6-plus:free
-      priority: 16
     - provider: cerebras
       model: llama-3.3-70b
-      priority: 17
+      priority: 16
     - provider: groq
       model: llama-3.3-70b-versatile
+      priority: 17
+    - provider: kilo
+      model: qwen/qwen3-coder:free
       priority: 18
     settings:
       timeout_ms: 120000
@@ -278,6 +281,9 @@ virtual_models:
     - provider: cerebras
       model: qwen-3-235b-a22b-instruct-2507
       priority: 10
+    - provider: kilo
+      model: qwen/qwen3-next-80b-a3b-instruct:free
+      priority: 11
     settings:
       timeout_ms: 300000
       retry_on_rate_limit: true
@@ -308,12 +314,15 @@ virtual_models:
     - provider: g4f_gemini
       model: gemini-2.5-flash
       priority: 8
-    - provider: kilo
-      model: qwen/qwen3.6-plus:free
-      priority: 9
     - provider: aihubmix
       model: glm-4.7-free
+      priority: 9
+    - provider: kilo
+      model: qwen/qwen3-next-80b-a3b-instruct:free
       priority: 10
+    - provider: kilo
+      model: google/gemma-4-31b-it:free
+      priority: 11
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
@@ -344,6 +353,9 @@ virtual_models:
     - provider: aihubmix
       model: glm-4-flash
       priority: 8
+    - provider: kilo
+      model: openai/gpt-oss-20b:free
+      priority: 9
     settings:
       timeout_ms: 15000
       retry_on_rate_limit: true
