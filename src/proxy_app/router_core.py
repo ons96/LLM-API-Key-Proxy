@@ -132,7 +132,7 @@ class ProviderCandidate:
 
     def matches_requirements(self, requirements: CapabilityRequirements) -> bool:
         """Check if candidate matches capability requirements.
-        
+
         If capabilities are empty (not explicitly declared), we trust the adapter
         to reject unsupported features at runtime (e.g., SupacoderAdapter rejects tools).
         """
@@ -140,7 +140,7 @@ class ProviderCandidate:
         # The adapter will handle unsupported features at runtime
         if not self.capabilities:
             return True
-        
+
         if (
             requirements.needs_tools
             and "tools" not in self.capabilities
@@ -801,8 +801,12 @@ class RouterCore:
 
             # Prepare request
             # Remove router-specific fields
-        # Stream is passed separately to adapter, not in request
-            request_clean = {k: v for k, v in request.items() if not k.startswith("_") and k != "stream"}
+            # Stream is passed separately to adapter, not in request
+            request_clean = {
+                k: v
+                for k, v in request.items()
+                if not k.startswith("_") and k != "stream"
+            }
             request_clean["model"] = f"{candidate.provider}/{candidate.model}"
 
             logger.info(
@@ -1105,10 +1109,25 @@ class RouterCore:
         """Classify error and determine retry behavior."""
         error_str = str(error).lower()
 
-        # Rate limit errors
+        # Rate limit and usage/quota errors (includes GLM-specific patterns)
         if any(
             keyword in error_str
-            for keyword in ["rate_limit", "too many requests", "429"]
+            for keyword in [
+                "rate_limit",
+                "too many requests",
+                "429",
+                "quota",
+                "usage",
+                "exceeded",
+                "exhausted",
+                "limit",
+                "daily",
+                "insufficient",
+                "1302",  # GLM-specific concurrency/usage error code
+                "concurrency",
+                "resource_exhausted",
+                "capacity",
+            ]
         ):
             retry_after = None
             response = getattr(error, "response", None)
@@ -1179,8 +1198,19 @@ class RouterCore:
         """Apply cooldown/blocking decisions based on classified errors."""
         if error_category == ErrorCategory.RATE_LIMIT:
             reason = REASON_RATE_LIMIT
+            # Detect usage caps (permanent limits) vs temporary rate limits
             if any(
-                keyword in error_text for keyword in ["quota", "daily", "usage cap"]
+                keyword in error_text
+                for keyword in [
+                    "quota",
+                    "daily",
+                    "usage cap",
+                    "exceeded",
+                    "exhausted",
+                    "insufficient",
+                    "1302",  # GLM-specific usage error
+                    "concurrency",
+                ]
             ):
                 reason = REASON_USAGE_CAP
             await self.rate_limiter.record_rate_limit_hit(
@@ -1688,7 +1718,11 @@ class RouterCore:
             # Update model reference
             request = request.copy()
             request["model"] = f"{candidate.provider}/{candidate.model}"
-            request_clean = {k: v for k, v in request.items() if not k.startswith("_") and k != "stream"}
+            request_clean = {
+                k: v
+                for k, v in request.items()
+                if not k.startswith("_") and k != "stream"
+            }
 
             logger.info(
                 f"[{request_id}] Streaming {candidate.provider}/{candidate.model}"

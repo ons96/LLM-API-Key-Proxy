@@ -211,10 +211,36 @@ class OpenAICompatibleAdapter(BaseProviderAdapter):
         return chunk
 
     def _convert_error(self, error: Exception) -> HTTPException:
+        """Convert exception to HTTPException with proper status code for fallback routing.
+
+        Enhanced to detect usage/quota limits from various providers including:
+        - Standard OpenAI: "rate_limit", "insufficient_quota"
+        - AIHubMix/GLM: error code 1302, "exceeded", "concurrency"
+        - Generic: "quota", "usage", "exhausted", "daily", "limit"
+        """
         error_str = str(error).lower()
         if "authentication" in error_str or "api_key" in error_str:
             status_code = 401
-        elif "rate_limit" in error_str or "too many" in error_str:
+        elif any(
+            kw in error_str
+            for kw in [
+                "rate_limit",
+                "too many",
+                "429",
+                "quota",
+                "usage",
+                "exceeded",
+                "exhausted",
+                "limit",
+                "daily",
+                "insufficient",
+                "1302",  # GLM-specific concurrency/usage error code
+                "concurrency",
+                "requests per",
+                "resource_exhausted",
+                "capacity",
+            ]
+        ):
             status_code = 429
         elif "invalid" in error_str or "bad request" in error_str:
             status_code = 400
@@ -240,7 +266,9 @@ class SupacoderAdapter(OpenAICompatibleAdapter):
             if env_timeout and env_timeout.isdigit()
             else stream_timeout_seconds
         )
-        self.stream_timeout_seconds = max(self.stream_timeout_seconds, 90)  # Minimum 90s for reliable streaming
+        self.stream_timeout_seconds = max(
+            self.stream_timeout_seconds, 90
+        )  # Minimum 90s for reliable streaming
         super().__init__(provider_name, api_key, api_base, models)
 
         # Supacoder endpoints behave like text-only Chat Completions; function/tool calls are not reliable.
