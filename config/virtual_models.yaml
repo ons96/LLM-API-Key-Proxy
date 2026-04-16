@@ -1,5 +1,5 @@
 metadata:
-  generated_at: '2026-04-15T04:50:58.988505+00:00'
+  generated_at: '2026-04-16T04:56:38.148187+00:00'
   sources:
   - models.dev
   - telemetry
@@ -853,63 +853,3 @@ agent_profiles:
       success_rate: 0.3
       latency: 0.05
     base_model: coding-elite
-
-  # =============================================================================
-  # UNCENSORED-CHAT: OPTIMIZED FOR SPEED + TOOL CALLS + EXTENSIVE FALLBACK
-  # Strategy: Lead with fastest TPS/TTFT, avoid low-RPD models early
-  # =============================================================================
-  uncensored-chat:
-    description: "Optimized for speed - fastest TPS models first, extensive fallback for reliability"
-    fallback_chain:
-      # TIER 1: CEREBRAS - Fastest raw TPS (2000+ TPS), generous TPM limits
-      - capabilities: [tools, function_calling]
-        model: llama3.1-8b
-        priority: 1
-        provider: cerebras
-      - capabilities: [tools, function_calling]
-        model: gpt-oss-120b
-        priority: 2
-        provider: cerebras
-      - capabilities: [tools, function_calling]
-        model: qwen-3-235b-a22b-instruct-2507
-        priority: 3
-        provider: cerebras
-      - capabilities: [tools, function_calling]
-        model: zai-glm-4.7
-        priority: 4
-        provider: cerebras
-      # TIER 2: GROQ - Best TTFT (80-150ms), good for first-hop latency
-      - capabilities: [tools, function_calling]
-        model: llama-3.1-8b-instant
-        priority: 5
-        provider: groq
-      - capabilities: [tools, function_calling]
-        model: meta-llama/llama-4-scout-17b-16e-instruct
-        priority: 6
-        provider: groq
-      - capabilities: [tools, function_calling]
-        model: moonshotai/kimi-k2-instruct
-        priority: 7
-        provider: groq
-      - capabilities: [tools, function_calling]
-        model: llama-3.3-70b-versatile
-        priority: 8
-        provider: groq
-      - capabilities: [tools, function_calling]
-        model: qwen/qwen3-32b
-        priority: 9
-        provider: groq
-      # TIER 3: GEMINI - High reliability, generous free tier TPM
-      - capabilities: [tools, function_calling]
-        model: gemini-2.5-flash
-        priority: 10
-        provider: gemini
-      - capabilities: [tools, function_calling]
-        model: gemini-2.0-flash
-        priority: 11
-        provider: gemini
-    settings:
-      max_retries: 15
-      retry_on_all_errors: true
-      retry_on_rate_limit: true
-      timeout_ms: 90000
