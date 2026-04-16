@@ -706,10 +706,12 @@ print(" → Mounting provider status API routes...")
 with _console.status("[dim]Mounting provider status API routes...", spinner="dots"):
     from proxy_app.status_api import router as status_router
     from proxy_app.cliproxyapi_api import router as cliproxyapi_router
+    from proxy_app.model_api import router as model_router
 
 # Mount status API routes
 app.include_router(status_router)
 app.include_router(cliproxyapi_router)
+app.include_router(model_router)
 
 
 def get_rotating_client(request: Request) -> RotatingClient:
