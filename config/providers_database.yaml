@@ -3010,3 +3010,21 @@ providers:
     tier: paid
     notes: Requires Pro/Max plan
   last_verified: '2026-04-10'
+- id: tencent-token-plan
+  name: Tencent Token Plan
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: hy3-preview
+    context: 256000
+  notes: Discovered 2026-04-19
+- id: tencent-tokenhub
+  name: Tencent TokenHub
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: hy3-preview
+    context: 256000
+  notes: Discovered 2026-04-19
