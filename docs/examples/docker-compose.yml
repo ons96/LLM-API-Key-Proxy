@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  proxy:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: mirro-proxy:latest
+    container_name: mirro-proxy
+    ports:
+      - "8000:8000"
+    environment:
+      - PROXY_API_KEY=${PROXY_API_KEY}
+      # Add any additional environment variables here or use env_file
+    env_file:
+      - ../.env
+    volumes:
+      # Mount configuration directory (read-only)
+      - ../config:/app/config:ro
+      # Mount environment file separately if needed for hot-reloading
+      - ../.env:/app/.env:ro
+    restart: unless-stopped
+    networks:
+      - proxy-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    # Resource limits (uncomment for production)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2'
+    #       memory: 2G
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 256M
+    # Security options (uncomment for production)
+    # security_opt:
+    #   - no-new-privileges:true
+    # read_only: true
+    # tmpfs:
+    #   - /tmp:noexec,nosuid,size=100m
+
+networks:
+  proxy-network:
+    driver: bridge
+
+# Optional: Add monitoring with prometheus (uncomment if needed)
+#   prometheus:
+#     image: prom/prometheus:latest
+#     volumes:
+#       - ./prometheus.yml:/etc/prometheus/prometheus.yml
+#     ports:
+#       - "9090:9090"
+#     networks:
+#       - proxy-network
