@@ -1226,10 +1226,18 @@ class ProviderAdapterFactory:
         }
 
         adapter_class = adapters.get(provider_key)
-        if not adapter_class:
-            raise ValueError(f"Unknown provider: {provider_name}")
+        if adapter_class:
+            return adapter_class(provider_name, api_key)
 
-        return adapter_class(provider_name, api_key)
+        # Dynamic config-driven: any provider with a base_url gets OpenAICompatibleAdapter
+        # Adding a new OpenAI-compatible API provider only requires:
+        # - Adding it to router_config.yaml under providers: with base_url and env_var
+        # - Setting the API key in .env
+        # No code changes needed.
+        if api_base:
+            return OpenAICompatibleAdapter(provider_name, api_key, api_base, model_list)
+
+        raise ValueError(f"Unknown provider: {provider_name}. Add it to router_config.yaml with a base_url to enable automatic OpenAI-compatible routing.")
 
     @staticmethod
     def list_supported_providers() -> List[str]:

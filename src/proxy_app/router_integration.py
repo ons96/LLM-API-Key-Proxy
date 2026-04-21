@@ -95,6 +95,25 @@ class RouterIntegration:
                     )
                     api_base = provider_cfg.get("base_url")
                     model_list = provider_cfg.get("free_tier_models", [])
+                    
+                    # Also load models from providers_database.yaml for providers
+                    # that only have models listed there (e.g. xinjianya)
+                    if not model_list and api_base:
+                        try:
+                            import yaml as _yaml
+                            from pathlib import Path
+                            _db_file = Path("/home/ubuntu/LLM-API-Key-Proxy/config/providers_database.yaml")
+                            if _db_file.exists():
+                                with open(_db_file, "r") as _f:
+                                    _db = _yaml.safe_load(_f) or {}
+                                for _p in _db.get("providers", []):
+                                    if _p.get("id") == provider_name:
+                                        _models = _p.get("free_models", [])
+                                        model_list = [m["id"] for m in _models if isinstance(m, dict) and "id" in m]
+                                        logger.info(f"Loaded {len(model_list)} models from providers_database.yaml for {provider_name}")
+                                        break
+                        except Exception as _e:
+                            logger.debug(f"Could not load models from database for {provider_name}: {_e}")
 
                     adapter = self.adapter_factory.create_adapter(
                         provider_name,
