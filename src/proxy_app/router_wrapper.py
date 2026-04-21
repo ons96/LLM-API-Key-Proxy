@@ -39,7 +39,7 @@ class RouterWrapper:
         # For specific provider/model combinations, still use router
         if "/" in model_id:
             provider = model_id.split("/", 1)[0]
-            if provider in ["groq", "gemini", "g4f"]:
+            if True:  # All providers route through integration (config-driven + hardcoded)
                 logger.info(f"Routed model requested: {model_id}")
                 return await self.router_integration.chat_completions(request_data, raw_request)
         

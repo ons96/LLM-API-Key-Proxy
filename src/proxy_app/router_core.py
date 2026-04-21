@@ -813,50 +813,46 @@ class RouterCore:
                 f"[{request_id}] Executing via {candidate.provider}/{candidate.model}"
             )
 
-            # Check if we have a custom adapter for this provider
-            supported_providers = ProviderAdapterFactory.list_supported_providers()
-            if candidate.provider in supported_providers:
-                api_key = None
-                provider_cfg = self.config.get("providers", {}).get(
-                    candidate.provider, {}
+            # Try adapter creation for all providers (config-driven)
+            provider_cfg = self.config.get("providers", {}).get(
+                candidate.provider, {}
+            )
+            env_var = provider_cfg.get("env_var")
+            api_key = None
+            if env_var:
+                api_key = os.getenv(env_var) or os.getenv(f"{env_var}_1")
+
+            if candidate.provider == "groq":
+                api_key = (
+                    api_key
+                    or os.getenv("GROQ_API_KEY")
+                    or os.getenv("GROQ_API_KEY_1")
                 )
-                env_var = provider_cfg.get("env_var")
-                if env_var:
-                    api_key = os.getenv(env_var) or os.getenv(f"{env_var}_1")
+            elif candidate.provider == "gemini":
+                api_key = (
+                    api_key
+                    or os.getenv("GEMINI_API_KEY")
+                    or os.getenv("GEMINI_API_KEY_1")
+                )
+            elif candidate.provider == "kilo":
+                api_key = (
+                    api_key
+                    or os.getenv("KILO_API_KEY")
+                    or os.getenv("KILO_API_KEY_1")
+                )
 
-                if candidate.provider == "groq":
-                    api_key = (
-                        api_key
-                        or os.getenv("GROQ_API_KEY")
-                        or os.getenv("GROQ_API_KEY_1")
-                    )
-                elif candidate.provider == "gemini":
-                    api_key = (
-                        api_key
-                        or os.getenv("GEMINI_API_KEY")
-                        or os.getenv("GEMINI_API_KEY_1")
-                    )
-                elif candidate.provider == "kilo":
-                    api_key = (
-                        api_key
-                        or os.getenv("KILO_API_KEY")
-                        or os.getenv("KILO_API_KEY_1")
-                    )
+            api_base = provider_cfg.get("base_url")
+            model_list = provider_cfg.get("free_tier_models", [])
 
-                api_base = provider_cfg.get("base_url")
-                model_list = provider_cfg.get("free_tier_models", [])
-
-                # Create adapter
+            try:
                 adapter = ProviderAdapterFactory.create_adapter(
                     candidate.provider,
                     api_key,
                     api_base,
                     model_list,
                 )
-
-                # Execute via adapter
                 response = await adapter.chat_completions(request_clean)
-            else:
+            except ValueError:
                 # Fallback to LiteLLM direct usage
                 # Special handling for G4F if not in adapter factory (but it is now)
                 if candidate.provider == "g4f":
