@@ -1,4 +1,4 @@
-free_only_mode: true
+free_only_mode: false
 proxy_api_keys:
 - ${PROXY_API_KEY}
 providers:
@@ -638,6 +638,22 @@ providers:
     free_tier: true
     free_tier_models:
     - auto
+  xinjianya:
+    enabled: true
+    env_var: XINJIANYA_API_KEY
+    base_url: https://api.xinjianya.top/v1
+    free_tier: false
+    free_tier_models:
+    - gpt-5.4
+    - deepseek-reasoner
+    - qwen-qwq-32b
+    - openai/gpt-oss-120b
+    - nvidia/nemotron-3-super-120b-a12b
+    - meta-llama/llama-3.3-70b-instruct
+    - qwen/qwen3.5-397b-a17b
+    - z-ai/glm5
+    - moonshotai/kimi-k2.5
+    - minimaxai/minimax-m2.5
 search:
   default_enabled: true
   max_additional_searches: 2
