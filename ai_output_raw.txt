@@ -1,0 +1,1042 @@
+=== FILE: docs/SECURITY.md ===
+# Security Best Practices
+
+This document outlines security best practices for deploying and operating the Mirro-Proxy API Key Proxy Server.
+
+## Table of Contents
+
+1. [Authentication & Authorization](#authentication--authorization)
+2. [Credential Management](#credential-management)
+3. [Network Security](#network-security)
+4. [Logging & Privacy](#logging--privacy)
+5. [Rate Limiting & Abuse Prevention](#rate-limiting--abuse-prevention)
+6. [Provider Security](#provider-security)
+7. [Deployment Security](#deployment-security)
+
+---
+
+## Authentication & Authorization
+
+### PROXY_API_KEY (Required)
+
+The `PROXY_API_KEY` environment variable is your primary defense against unauthorized access.
+
+**Critical Requirements:**
+- **Always set PROXY_API_KEY in production.** Running without it allows anyone to access your proxy and consume your provider credits.
+- Use a cryptographically secure random string (minimum 32 characters recommended).
+- Generate using: `openssl rand -hex 32` or similar secure random generator.
+- Rotate keys periodically (90-day recommended maximum age).
+- Never commit the key to version control.
+
+**Example secure generation:**
+```bash
+export PROXY_API_KEY=$(openssl rand -hex 32)
+echo "PROXY_API_KEY=$PROXY_API_KEY" >> .env
+```
+
+**Key Masking:**
+The proxy automatically masks API keys in startup logs (showing only first/last 4 characters). Verify this masking is working on startup:
+```
+✓ a1b2...c3d4
+```
+
+---
+
+## Credential Management
+
+### Environment Variable Security
+
+All sensitive credentials (provider API keys, OAuth tokens) are loaded from `.env` files:
+
+1. **File Permissions:**
+   ```bash
+   chmod 600 .env
+   chmod 600 *.env
+   ```
+
+2. **File Locations:**
+   - Store `.env` files outside web-accessible directories.
+   - Never upload `.env` files to Docker registries or Git repositories.
+   - Use `.gitignore` to exclude all `*.env` files.
+
+3. **Multiple Environment Files:**
+   The proxy loads all `*.env` files in the root directory. Use this for organizing credentials:
+   - `.env` - Core proxy settings (PROXY_API_KEY)
+   - `antigravity_all_combined.env` - Antigravity provider credentials
+   - `gemini_cli_all_combined.env` - Gemini provider credentials
+
+### OAuth Credential Encryption
+
+When using `python -m proxy_app.main --add-credential`:
+- Credentials are encrypted at rest using the system's keyring or secure storage.
+- Encryption keys are derived from machine-specific identifiers.
+- Credentials are never stored in plaintext in configuration files.
+
+**Best Practices:**
+- Run the credential tool on the production server to ensure encryption keys match the deployment environment.
+- Backup encryption keys separately from configuration files.
+- Use the credential rotation feature every 90 days.
+
+---
+
+## Network Security
+
+### Host Binding
+
+**Development:**
+```bash
+python -m proxy_app.main --host 127.0.0.1 --port 8000
+```
+
+**Production (with reverse proxy):**
+```bash
+python -m proxy_app.main --host 127.0.0.1 --port 8000
+# Use nginx/traefik/caddy for TLS termination and public access
+```
+
+**⚠️ Dangerous:**
+```bash
+# Never expose directly to internet without authentication
+python -m proxy_app.main --host 0.0.0.0 --port 8000  # INSECURE without reverse proxy
+```
+
+### CORS Configuration
+
+The proxy includes CORS middleware. Restrict origins in production:
+
+```python
+# In your deployment configuration, override CORS:
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://yourdomain.com"],  # Never use "*" in production
+    allow_credentials=True,
+    allow_methods=["POST", "GET"],
+    allow_headers=["*"],
+)
+```
+
+### HTTPS/TLS
+
+**Required for Production:**
+- Never transmit API keys or OAuth tokens over unencrypted HTTP.
+- Use a reverse proxy (nginx, Caddy, Traefik) with valid TLS certificates.
+- Consider using Cloudflare or similar for DDoS protection.
+
+**Example nginx configuration:**
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name api.yourdomain.com;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+---
+
+## Logging & Privacy
+
+### Request Logging
+
+Enable with `--enable-request-logging` only when debugging:
+
+```bash
+# Development only - contains sensitive data
+python -m proxy_app.main --enable-request-logging
+
+# Production - disable to prevent logging PII/API keys
+python -m proxy_app.main
+```
+
+**Data Retention:**
+- Logs may contain user prompts, API responses, and metadata.
+- Implement log rotation to prevent disk exhaustion.
+- Sanitize logs before sharing for debugging (remove `Authorization` headers).
+
+### PII Handling
+
+The proxy processes user messages that may contain PII. Consider:
+- Implementing request/response sanitization middleware.
+- Using provider-specific privacy features (zero-data retention where available).
+- Documenting data processing in your privacy policy.
+
+---
+
+## Rate Limiting & Abuse Prevention
+
+While the proxy includes basic rate limiting, implement additional layers:
+
+1. **Reverse Proxy Rate Limiting:**
+   ```nginx
+   limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+   limit_req zone=api burst=20 nodelay;
+   ```
+
+2. **Provider Quotas:**
+   - Configure spending limits at the provider level (OpenAI, Anthropic, etc.).
+   - Monitor the `/health` endpoint for unusual traffic patterns.
+   - Set up alerts for cost thresholds.
+
+3. **IP Whitelisting:**
+   - Restrict access to known IP ranges when possible.
+   - Use VPNs or private networks for internal deployments.
+
+---
+
+## Provider Security
+
+### API Key Rotation
+
+The rotator library supports automatic key rotation. Enable in `config/router_config.yaml`:
+
+```yaml
+security:
+  auto_rotate_keys: true
+  rotation_interval_days: 30
+  max_failures_before_rotation: 5
+```
+
+### Provider-Specific Security
+
+**Google OAuth (Gemini):**
+- Use service accounts with minimal permissions.
+- Rotate OAuth tokens every 7 days.
+- Monitor Google Cloud Console for unauthorized access.
+
+**Cerebras/Groq:**
+- Use organization-level API keys when available.
+- Restrict keys to specific models/usage patterns.
+- Enable audit logging in provider dashboards.
+
+---
+
+## Deployment Security
+
+### Docker Security
+
+If using Docker:
+
+```dockerfile
+# Use non-root user
+RUN useradd -m -u 1000 proxyuser
+USER proxyuser
+
+# Don't bake secrets into image
+ENV PROXY_API_KEY_FILE=/run/secrets/proxy_api_key
+```
+
+**Docker Compose:**
+```yaml
+services:
+  proxy:
+    secrets:
+      - proxy_api_key
+    environment:
+      - PROXY_API_KEY_FILE=/run/secrets/proxy_api_key
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+
+secrets:
+  proxy_api_key:
+    file: ./secrets/proxy_api_key.txt
+```
+
+### Health Check Security
+
+The `/health` endpoint exposes system status. Protect it:
+
+```yaml
+# config/router_config.yaml
+health_check:
+  enabled: true
+  require_auth: true  # Require PROXY_API_KEY for health checks
+  expose_detailed_info: false  # Don't expose provider keys/credentials
+```
+
+### Secrets Management
+
+For production deployments, integrate with proper secrets management:
+
+- **AWS:** AWS Secrets Manager or Parameter Store
+- **GCP:** Secret Manager
+- **Azure:** Key Vault
+- **Kubernetes:** Sealed Secrets or External Secrets Operator
+
+---
+
+## Security Checklist
+
+Before deploying to production:
+
+- [ ] `PROXY_API_KEY` is set to a secure random value (32+ chars)
+- [ ] `.env` files have permissions `600` (owner read/write only)
+- [ ] `.env` files are in `.gitignore`
+- [ ] Running behind HTTPS reverse proxy (TLS 1.2+)
+- [ ] CORS origins restricted to specific domains (no wildcards)
+- [ ] Request logging disabled (`--enable-request-logging` not used)
+- [ ] Rate limiting configured at reverse proxy level
+- [ ] Provider spending limits configured
+- [ ] Non-root user running the process
+- [ ] Health endpoint requires authentication (if exposed)
+- [ ] Log rotation configured to prevent disk exhaustion
+- [ ] Backup strategy for encrypted credentials tested
+- [ ] Incident response plan documented
+
+---
+
+## Incident Response
+
+If you suspect a security breach:
+
+1. **Immediate:**
+   - Revoke all provider API keys.
+   - Rotate `PROXY_API_KEY`.
+   - Check access logs for unauthorized IPs.
+
+2. **Investigation:**
+   - Review provider dashboards for unusual usage.
+   - Check credential modification timestamps.
+   - Analyze request logs if available.
+
+3. **Recovery:**
+   - Generate new credentials using `credential_tool`.
+   - Verify configuration file integrity.
+   - Re-deploy with rotated keys.
+
+## Reporting Vulnerabilities
+
+If you discover a security vulnerability in this project, please do not open a public issue. Instead, contact the maintainers directly with details of the vulnerability.
+
+---
+
+**Last Updated:** 2024
+**Version:** 1.3.0
+=== END FILE ===
+
+=== FILE: config/security_best_practices.yaml ===
+# Security Configuration Examples for Mirro-Proxy
+# Copy relevant sections to your router_config.yaml or use as reference
+
+# ============================================================================
+# 1. AUTHENTICATION & ACCESS CONTROL
+# ============================================================================
+
+security:
+  # Require API key for all endpoints including health checks
+  require_auth_for_health: true
+  
+  # IP-based access control (if supported by your deployment)
+  allowed_ips:
+    - "127.0.0.1"
+    - "10.0.0.0/8"  # Internal network only
+  
+  # API Key validation settings
+  api_key:
+    min_length: 32
+    reject_weak_keys: true
+    # Header name for API key (default: Authorization)
+    header_name: "Authorization"
+    prefix: "Bearer "  # Require "Bearer " prefix
+
+# ============================================================================
+# 2. RATE LIMITING & ABUSE PREVENTION
+# ============================================================================
+
+rate_limiting:
+  # Global rate limits per client IP
+  global:
+    requests_per_minute: 60
+    requests_per_hour: 1000
+    burst_size: 10
+  
+  # Per-model rate limits (prevents expensive model abuse)
+  per_model:
+    "gpt-4":
+      requests_per_minute: 10
+      tokens_per_day: 100000
+    "claude-3-opus":
+      requests_per_minute: 5
+  
+  # Cost-based limits (requires provider cost tracking)
+  cost_limits:
+    daily_usd_limit: 100.0
+    monthly_usd_limit: 1000.0
+    alert_threshold_percent: 80
+
+# ============================================================================
+# 3. LOGGING & PRIVACY
+# ============================================================================
+
+logging:
+  # Never log these headers (case-insensitive)
+  redact_headers:
+    - "authorization"
+    - "x-api-key"
+    - "cookie"
+    - "proxy-authorization"
+  
+  # Content filtering
+  mask_pii: true
+  # Don't log request/response bodies (may contain sensitive data)
+  log_request_bodies: false
+  log_response_bodies: false
+  
+  # Retention
+  max_log_age_days: 7
+  max_log_size_mb: 100
+  
+  # Audit logging (separate from application logs)
+  audit_log:
+    enabled: true
+    path: "/var/log/mirro-proxy/audit.log"
+    events:
+      - "authentication_failure"
+      - "credential_rotation"
+      - "configuration_change"
+
+# ============================================================================
+# 4. PROVIDER SECURITY
+# ============================================================================
+
+provider_security:
+  # Automatic key rotation settings
+  rotation:
+    enabled: true
+    check_interval_hours: 24
+    max_key_age_days: 90
+    rotate_on_failure_count: 3
+  
+  # Circuit breaker settings (prevents burning through credits on errors)
+  circuit_breaker:
+    failure_threshold: 5
+    recovery_timeout_seconds: 60
+    half_open_max_calls: 1
+  
+  # Provider-specific restrictions
+  allowed_models_per_provider:
+    openai:
+      - "gpt-3.5-turbo"
+      - "gpt-4"
+      # Explicitly deny expensive models if needed
+    anthropic:
+      - "claude-3-haiku"
+      - "claude-3-sonnet"
+  
+  # Block list for compromised or unwanted providers
+  blocked_providers: []
+
+# ============================================================================
+# 5. CORS & NETWORK SECURITY
+# ============================================================================
+
+cors:
+  # STRICT PRODUCTION SETTING: Only allow specific origins
+  allowed_origins:
+    - "https://app.yourdomain.com"
+    - "https://admin.yourdomain.com"
+  
+  # Development only - remove in production
+  # allowed_origins: ["*"]  # NEVER USE IN PRODUCTION
+  
+  allowed_methods: ["GET", "POST"]
+  allowed_headers: ["authorization", "content-type", "x-request-id"]
+  allow_credentials: true
+  max_age: 600
+
+# ============================================================================
+# 6. REQUEST VALIDATION
+# ============================================================================
+
+validation:
+  # Maximum request size (prevent DoS via large payloads)
+  max_request_size_mb: 10
+  
+  # Input sanitization
+  block_html_injection: true
+  allowed_content_types:
+    - "application/json"
+    - "text/plain"
+  
+  # Prompt injection detection (basic)
+  block_known_prompt_injections: true
+  blocked_patterns:
+    - "ignore previous instructions"
+    - "system prompt:"
+    - "DAN mode"
+
+# ============================================================================
+# 7. HEALTH CHECK SECURITY
+# ============================================================================
+
+health_check:
+  enabled: true
+  
+  # Require authentication for detailed health info
+  public_status_only: true
+  
+  # Don't expose sensitive info in health checks
+  expose_provider_status: false  # Don't leak which providers are configured
+  expose_credential_status: false  # Don't expose credential validity
+  
+  # Endpoint customization
+  endpoint: "/health"
+  allowed_ips_only: true
+
+# ============================================================================
+# 8. EMERGENCY CONTROLS
+# ============================================================================
+
+emergency_controls:
+  # Kill switch (immediately stop processing requests)
+  kill_switch_file: "/tmp/mirro-proxy-kill-switch"
+  
+  # Maintenance mode
+  maintenance_mode_file: "/tmp/mirro-proxy-maintenance"
+  
+  # Graceful degradation (fallback to cheaper models on high costs)
+  cost_emergency:
+    threshold_usd: 500
+    action: "fallback_to_cheapest_model"
+    notification_webhook: "https://your-monitoring.com/alerts"
+
+# ============================================================================
+# Example Secure Deployment Configuration
+# ============================================================================
+
+# For production deployment, copy this to config/router_config.yaml
+# and customize for your environment:
+
+production_template:
+  security:
+    require_auth_for_health: true
+  
+  cors:
+    allowed_origins:
+      - "${FRONTEND_URL}"  # Use env var substitution
+  
+  rate_limiting:
+    global:
+      requests_per_minute: 60
+  
+  logging:
+    redact_headers:
+      - "authorization"
+    log_request_bodies: false
+  
+  provider_security:
+    rotation:
+      enabled: true
+      max_key_age_days: 90
+=== END FILE ===
+
+=== FILE: docs/SECURITY_CHECKLIST.md ===
+# Security Deployment Checklist
+
+Quick reference checklist for secure deployment of Mirro-Proxy.
+
+## Pre-Deployment
+
+### Environment Setup
+- [ ] Created strong `PROXY_API_KEY` (32+ random characters)
+- [ ] Stored `PROXY_API_KEY` in `.env` file (not in code)
+- [ ] Set `.env` file permissions to `600` (readable only by owner)
+- [ ] Added `.env` to `.gitignore`
+- [ ] Verified no secrets in git history (`git log --all --full-history -- .env`)
+
+### Credential Management
+- [ ] Generated provider API keys with minimal permissions
+- [ ] Enabled provider spending limits/alerts
+- [ ] Stored provider credentials in separate `.env` files (not `.env` in repo root if public)
+- [ ] Tested credential encryption: `python -m proxy_app.main --add-credential`
+- [ ] Documented credential rotation schedule (90 days recommended)
+
+### Network Configuration
+- [ ] Configured firewall to block port 8000 from public internet (if possible)
+- [ ] Set up reverse proxy (nginx/Caddy/traefik) with TLS 1.2+
+- [ ] Obtained valid SSL certificate (not self-signed for production)
+- [ ] Configured DNS with proper A/AAAA records
+- [ ] Restricted CORS to specific domains (no `*`)
+
+## Deployment
+
+### Application Security
+- [ ] Running with non-root user
+- [ ] Bound to localhost only (`--host 127.0.0.1`) when behind reverse proxy
+- [ ] Disabled request logging (`--enable-request-logging` NOT used in prod)
+- [ ] Verified API key masking in startup logs (`✓ abcd...efgh`)
+- [ ] Confirmed `/health` endpoint doesn't leak sensitive info
+
+### Rate Limiting & Monitoring
+- [ ] Configured reverse proxy rate limiting
+- [ ] Set up provider dashboard alerts for:
+  - [ ] Unusual spend patterns
+  - [ ] High error rates
+  - [ ] New IP addresses accessing keys
+- [ ] Configured log rotation (prevent disk full DoS)
+- [ ] Set up monitoring for `PROXY_API_KEY` authentication failures
+
+### Provider Configuration
+- [ ] Enabled automatic key rotation in config
+- [ ] Set circuit breaker thresholds
+- [ ] Configured allowed model whitelist (block expensive models if not needed)
+- [ ] Verified backup provider configured (failover capability)
+
+## Post-Deployment
+
+### Verification
+- [ ] Tested authentication: Request without API key returns 401/403
+- [ ] Tested HTTPS: No warnings in browser/API client
+- [ ] Verified CORS: Cross-origin requests rejected from unauthorized domains
+- [ ] Checked logs: No API keys or credentials in plaintext logs
+- [ ] Load tested: Application stable under expected traffic
+
+### Documentation
+- [ ] Documented incident response procedures
+- [ ] Shared `PROXY_API_KEY` securely with team (password manager, not Slack/email)
+- [ ] Documented which models are enabled and why
+- [ ] Created runbook for credential rotation
+
+### Maintenance
+- [ ] Scheduled monthly security review
+- [ ] Set calendar reminder for credential rotation (90 days)
+- [ ] Configured automated security scanning on repository
+- [ ] Enabled Dependabot or similar for dependency updates
+
+## Emergency Procedures
+
+### If Compromised:
+1. [ ] Immediately revoke all provider API keys via provider dashboards
+2. [ ] Rotate `PROXY_API_KEY`
+3. [ ] Check access logs for unauthorized IPs
+4. [ ] Review provider usage for unexpected costs
+5. [ ] Force re-authentication for all clients
+
+### Kill Switch:
+Create file to immediately stop processing:
+```bash
+touch /tmp/mirro-proxy-kill-switch
+```
+
+Remove to resume:
+```bash
+rm /tmp/mirro-proxy-kill-switch
+```
+
+---
+
+**Sign-off:**
+- [ ] Security review completed by: _________________
+- [ ] Date: _________________
+- [ ] Version deployed: _________________
+=== END FILE ===
+
+=== FILE: src/proxy_app/security_middleware.py ===
+"""
+Security middleware for FastAPI application.
+Implements security headers, request validation, and basic protections.
+"""
+
+from fastapi import Request, HTTPException
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+import logging
+import re
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """
+    Add security headers to all responses.
+    OWASP compliant security headers.
+    """
+    
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # Prevent MIME type sniffing
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        
+        # XSS Protection
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        
+        # Content Security Policy (restrictive for API)
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; frame-ancestors 'none'"
+        )
+        
+        # Referrer Policy
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        
+        # Permissions Policy (prevent access to sensitive APIs)
+        response.headers["Permissions-Policy"] = (
+            "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
+            "magnetometer=(), microphone=(), payment=(), usb=()"
+        )
+        
+        # Strict Transport Security (HTTPS only)
+        # Note: Only enable if you're sure HTTPS is always available
+        # response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        
+        return response
+
+
+class InputValidationMiddleware(BaseHTTPMiddleware):
+    """
+    Validate incoming requests for common attack patterns.
+    Basic protection against injection attacks.
+    """
+    
+    # Patterns that might indicate prompt injection or attacks
+    SUSPICIOUS_PATTERNS = [
+        r"ignore\s+(previous|above|all)\s+instructions",
+        r"system\s+prompt\s*:",
+        r"ignore\s+your\s+(programming|instructions)",
+        r"DAN\s+(mode|prompt)",
+        r"jailbreak",
+        r"\"\"\"[\s\S]*?ignore",
+    ]
+    
+    def __init__(self, app, max_body_size: int = 10 * 1024 * 1024):  # 10MB default
+        super().__init__(app)
+        self.max_body_size = max_body_size
+    
+    async def dispatch(self, request: Request, call_next):
+        # Check content length
+        content_length = request.headers.get("content-length")
+        if content_length:
+            try:
+                length = int(content_length)
+                if length > self.max_body_size:
+                    logger.warning(f"Request too large: {length} bytes")
+                    raise HTTPException(status_code=413, detail="Payload too large")
+            except ValueError:
+                pass
+        
+        # Check for suspicious patterns in query params
+        for key, value in request.query_params.items():
+            if self._contains_suspicious_content(value):
+                logger.warning(f"Suspicious content in query param: {key}")
+                raise HTTPException(status_code=400, detail="Invalid input detected")
+        
+        response = await call_next(request)
+        return response
+    
+    def _contains_suspicious_content(self, text: str) -> bool:
+        """Check if text contains suspicious patterns."""
+        text_lower = text.lower()
+        for pattern in self.SUSPICIOUS_PATTERNS:
+            if re.search(pattern, text_lower, re.IGNORECASE):
+                return True
+        return False
+
+
+class AuditLogMiddleware(BaseHTTPMiddleware):
+    """
+    Log security-relevant events for audit purposes.
+    Does not log sensitive data like API keys or message content.
+    """
+    
+    def __init__(self, app, enabled: bool = True):
+        super().__init__(app)
+        self.enabled = enabled
+        self.audit_logger = logging.getLogger("audit")
+    
+    async def dispatch(self, request: Request, call_next):
+        if not self.enabled:
+            return await call_next(request)
+        
+        # Log authentication attempts (without credentials)
+        auth_header = request.headers.get("authorization", "")
+        has_auth = bool(auth_header)
+        
+        # Extract client info
+        client_ip = request.client.host if request.client else "unknown"
+        user_agent = request.headers.get("user-agent", "unknown")[:100]  # Truncate
+        
+        # Log the request (sanitized)
+        self.audit_logger.info(
+            f"Request: method={request.method} "
+            f"path={request.url.path} "
+            f"client={client_ip} "
+            f"authenticated={has_auth} "
+            f"ua={user_agent}"
+        )
+        
+        try:
+            response = await call_next(request)
+            
+            # Log response status
+            self.audit_logger.info(
+                f"Response: path={request.url.path} "
+                f"status={response.status_code} "
+                f"client={client_ip}"
+            )
+            
+            return response
+            
+        except HTTPException as exc:
+            # Log authentication failures
+            if exc.status_code in (401, 403):
+                self.audit_logger.warning(
+                    f"Auth failure: path={request.url.path} "
+                    f"status={exc.status_code} "
+                    f"client={client_ip}"
+                )
+            raise
+        
+        except Exception as exc:
+            # Log server errors
+            self.audit_logger.error(
+                f"Server error: path={request.url.path} "
+                f"error={type(exc).__name__} "
+                f"client={client_ip}"
+            )
+            raise
+
+
+def setup_security_middleware(app, allowed_hosts: Optional[list] = None):
+    """
+    Configure security middleware for the FastAPI application.
+    
+    Args:
+        app: FastAPI application instance
+        allowed_hosts: List of allowed hostnames (e.g., ["api.example.com"])
+    """
+    # Security headers for all responses
+    app.add_middleware(SecurityHeadersMiddleware)
+    
+    # Input validation
+    app.add_middleware(InputValidationMiddleware, max_body_size=10 * 1024 * 1024)
+    
+    # Audit logging
+    app.add_middleware(AuditLogMiddleware, enabled=True)
+    
+    # Trusted host validation (if hosts specified)
+    if allowed_hosts:
+        app.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=allowed_hosts
+        )
+    
+    logger.info("Security middleware configured")
+=== END FILE ===
+
+=== FILE: src/proxy_app/main.py ===
+import time
+
+# Phase 1: Minimal imports for arg parsing and TUI
+import asyncio
+import os
+from pathlib import Path
+import sys
+import argparse
+import logging
+
+# --- Argument Parsing (BEFORE heavy imports) ---
+parser = argparse.ArgumentParser(description="API Key Proxy Server")
+parser.add_argument(
+    "--host", type=str, default="0.0.0.0", help="Host to bind the server to."
+)
+parser.add_argument("--port", type=int, default=8000, help="Port to run the server on.")
+parser.add_argument(
+    "--enable-request-logging", action="store_true", help="Enable request logging."
+)
+parser.add_argument(
+    "--add-credential",
+    action="store_true",
+    help="Launch the interactive tool to add a new OAuth credential.",
+)
+args, _ = parser.parse_known_args()
+
+# Add the 'src' directory to the Python path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+# Check if we should launch TUI (no arguments = TUI mode)
+if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        # TUI MODE - Load ONLY what's needed for the launcher (fast path!)
+        from proxy_app.launcher_tui import run_launcher_tui
+
+        run_launcher_tui()
+        # Launcher modifies sys.argv and returns, or exits if user chose Exit
+        # If we get here, user chose "Run Proxy" and sys.argv is modified
+        # Re-parse arguments with modified sys.argv
+        args = parser.parse_args()
+
+    # Check if credential tool mode (also doesn't need heavy proxy imports)
+    if args.add_credential:
+        from rotator_library.credential_tool import run_credential_tool
+
+        run_credential_tool()
+        sys.exit(0)
+
+
+# If we get here, we're ACTUALLY running the proxy - NOW show startup messages and start timer
+_start_time = time.time()
+
+# Load all .env files from root folder (main .env first, then any additional *.env files)
+from dotenv import load_dotenv
+from glob import glob
+
+# Get the application root directory (EXE dir if frozen, else CWD)
+# Inlined here to avoid triggering heavy rotator_library imports before loading screen
+if getattr(sys, "frozen", False):
+    _root_dir = Path(sys.executable).parent
+else:
+    _root_dir = Path.cwd()
+
+# Load main .env first
+load_dotenv(_root_dir / ".env")
+
+# Load any additional .env files (e.g., antigravity_all_combined.env, gemini_cli_all_combined.env)
+_env_files_found = list(_root_dir.glob("*.env"))
+for _env_file in sorted(_root_dir.glob("*.env")):
+    if _env_file.name != ".env":  # Skip main .env (already loaded)
+        load_dotenv(_env_file, override=False)  # Don't override existing values
+
+# Log discovered .env files for deployment verification
+if _env_files_found:
+    _env_names = [_ef.name for _ef in _env_files_found]
+    print(f"📁 Loaded {len(_env_files_found)} .env file(s): {', '.join(_env_names)}")
+
+# Get proxy API key for display
+# SECURITY: Always mask API keys in logs to prevent credential leakage
+proxy_api_key = os.getenv("PROXY_API_KEY")
+if proxy_api_key:
+    # Mask the API key for security - only show first/last 4 chars
+    # This prevents shoulder surfing and log file credential exposure
+    masked_key = (
+        f"{proxy_api_key[:4]}...{proxy_api_key[-4:]}"
+        if len(proxy_api_key) > 8
+        else "****"
+    )
+    key_display = f"✓ {masked_key}"
+else:
+    key_display = "✗ Not Set (INSECURE - anyone can access!)"
+
+# Phase 2: Load Rich for loading spinner (lightweight)
+from rich.console import Console
+
+_console = Console()
+
+# Phase 3: Heavy dependencies with granular loading messages
+print("  → Loading FastAPI framework...")
+with _console.status("[dim]Loading FastAPI framework...", spinner="dots"):
+    from contextlib import asynccontextmanager
+    from fastapi import FastAPI, Request, HTTPException, Depends
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import StreamingResponse, JSONResponse
+    from fastapi.security import APIKeyHeader
+
+print("  → Loading core dependencies...")
+with _console.status("[dim]Loading core dependencies...", spinner="dots"):
+    import colorlog
+    import json
+    from typing import AsyncGenerator, Any, List, Optional, Union, Dict
+    from pydantic import BaseModel, Field
+
+    # --- Early Log Level Configuration ---
+    # SECURITY: Reduce LiteLLM logging to prevent sensitive data in logs
+    logging.getLogger("LiteLLM").setLevel(logging.WARNING)
+    # SECURITY: Reduce urllib3 logging to prevent token leakage in connection logs
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+print("  → Loading LiteLLM library...")
+with _console.status("[dim]Loading LiteLLM library...", spinner="dots"):
+    import litellm
+
+# Phase 4: Application imports with granular loading messages
+print("  → Initializing proxy core...")
+with _console.status("[dim]Initializing proxy core...", spinner="dots"):
+    from rotator_library import RotatingClient
+    from rotator_library.credential_manager import CredentialManager
+    from rotator_library.background_refresher import BackgroundRefresher
+    from rotator_library.model_info_service import init_model_info_service
+    from proxy_app.request_logger import log_request_to_console
+    from proxy_app.batch_manager import EmbeddingBatcher
+    from proxy_app.detailed_logger import DetailedLogger
+
+    # [NEW] Import RouterWrapper
+    from proxy_app.router_wrapper import initialize_router, get_router
+
+    # [NEW] Import HealthChecker
+    from proxy_app.health_checker import HealthChecker
+
+    # [NEW] Import security middleware
+    from proxy_app.security_middleware import (
+        setup_security_middleware,
+        SecurityHeadersMiddleware,
+        InputValidationMiddleware
+    )
+
+print("  → Discovering provider plugins...")
+# Provider lazy loading happens during import, so time it here
+_provider_start = time.time()
+with _console.status("[dim]Discovering provider plugins...", spinner="dots"):
+    from rotator_library import (
+        PROVIDER_PLUGINS,
+    )  # This triggers lazy load via __getattr__
+_provider_time = time.time() - _provider_start
+
+# Get count after import (without timing to avoid double-counting)
+_plugin_count = len(PROVIDER_PLUGINS)
+
+
+# --- Pydantic Models ---
+class EmbeddingRequest(BaseModel):
+    model: str
+    input: Union[str, List[str]]
+    input_type: Optional[str] = None
+    dimensions: Optional[int] = None
+    user: Optional[str] = None
+
+
+class ModelCard(BaseModel):
+    """Basic model card for minimal response."""
+
+    id: str
+    object: str = "model"
+    created: int = Field(default_factory=lambda: int(time.time()))
+    owned_by: str = "Mirro-Proxy"
+
+
+class ModelCapabilities(BaseModel):
+    """Model capability flags."""
+
+    tool_choice: bool = False
+    function_calling: bool = False
+    reasoning: bool = False
+    vision: bool = False
+    system_messages: bool = True
+    prompt_caching: bool = False
+    assistant_prefill: bool = False
+
+
+class EnrichedModelCard(BaseModel):
+    """Extended model card with pricing and capabilities."""
+
+    id: str
+    object: str = "model"
+    created: int = Field(default_factory=lambda: int(time.time()))
+    owned_by: str = "unknown"
+    # Pricing (optional - may not be available for all models)
