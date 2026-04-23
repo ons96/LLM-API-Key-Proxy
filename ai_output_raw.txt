@@ -1,0 +1,207 @@
+=== FILE: config/cache_config.yaml ===
+# Response Caching Configuration
+# Part of Phase 4.1 Response Caching
+
+version: "1.0"
+
+# Global caching settings
+global:
+  enabled: true
+  default_ttl_seconds: 3600  # 1 hour default
+  max_cache_size_mb: 512
+  cache_key_strategy: "model_messages_hash"  # Options: model_messages_hash, full_request_hash
+
+# Backend configuration
+backend:
+  type: "memory"  # Options: memory, redis, disk
+  # Redis specific settings (only used if type is redis)
+  redis:
+    host: "${REDIS_HOST:localhost}"
+    port: "${REDIS_PORT:6379}"
+    password: "${REDIS_PASSWORD:}"
+    db: 0
+    ssl: false
+    connection_pool_size: 10
+    socket_timeout: 5
+    socket_connect_timeout: 5
+  # Disk specific settings (only used if type is disk)
+  disk:
+    path: "./cache_data"
+    max_size_gb: 10
+    compression: true
+
+# Cache key configuration
+cache_key:
+  include_system_messages: true
+  include_temperature: false  # Usually want to cache regardless of temperature
+  include_top_p: false
+  include_max_tokens: false
+  include_user: false
+  include_metadata: false
+  normalize_whitespace: true  # Collapse multiple spaces/newlines
+
+# Per-model caching rules
+model_rules:
+  # High-traffic models with longer TTL
+  - pattern: "gpt-4*"
+    enabled: true
+    ttl_seconds: 7200  # 2 hours
+    cache_images: false  # Don't cache vision requests by default
+    streaming: false    # Don't cache streaming responses
+    
+  - pattern: "claude-*"
+    enabled: true
+    ttl_seconds: 3600
+    cache_images: false
+    streaming: false
+    
+  # Embedding models - cache aggressively
+  - pattern: "text-embedding-*"
+    enabled: true
+    ttl_seconds: 86400  # 24 hours
+    deduplicate_inputs: true  # Cache unique inputs only once
+    
+  # Code models - shorter TTL due to changing context
+  - pattern: "code-*"
+    enabled: true
+    ttl_seconds: 1800  # 30 minutes
+    
+  # Disable caching for specific models
+  - pattern: "*instruct*"
+    enabled: false
+
+# Invalidation rules
+invalidation:
+  # Auto-invalidate on specific error patterns (cache poisoning prevention)
+  error_patterns:
+    - "rate_limit"
+    - "context_length_exceeded"
+    - "invalid_api_key"
+  
+  # TTL jitter to prevent thundering herd
+  ttl_jitter_seconds: 300  # Add 0-300 random seconds to TTL
+  
+  # Manual invalidation endpoints (admin only)
+  admin_endpoints:
+    enabled: true
+    require_auth: true
+    api_key_env: "ADMIN_API_KEY"
+
+# Performance monitoring
+monitoring:
+  log_cache_hits: true
+  log_cache_misses: false
+  track_hit_rate: true
+  metrics_endpoint: "/metrics/cache"
+  alert_threshold_hit_rate: 0.1  # Alert if hit rate drops below 10%
+  
+# Privacy and compliance
+privacy:
+  # Don't cache requests with these keywords in content (case insensitive)
+  excluded_keywords:
+    - "password"
+    - "secret"
+    - "token"
+    - "api_key"
+    - "credit_card"
+  
+  # Hash the cache keys for privacy (prevents cache inspection)
+  hash_keys: false
+  
+  # Encryption at rest (for disk/redis backends)
+  encryption:
+    enabled: false
+    key_env: "CACHE_ENCRYPTION_KEY"
+=== END FILE ===
+
+=== FILE: docs/caching_configuration.md ===
+# Response Caching Configuration Guide
+
+## Overview
+
+Phase 4.1 introduces a comprehensive response caching system to improve performance, reduce latency, and minimize API costs. This document describes the configuration options available in `config/cache_config.yaml`.
+
+## Architecture
+
+The caching layer sits between the FastAPI router and the provider rotator, caching successful LLM responses based on configurable cache keys.
+
+```
+Client Request → Cache Layer → Router → Provider
+                     ↑
+                     └──── Cache Hit (return immediately)
+```
+
+## Quick Start
+
+1. Copy `config/cache_config.yaml.example` to `config/cache_config.yaml`
+2. Configure your backend (Redis recommended for production, memory for development)
+3. Adjust TTL settings per model family
+4. Set environment variables if using Redis or encryption
+5. Restart the proxy server
+
+## Configuration Reference
+
+### Global Settings (`global`)
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | boolean | `true` | Master switch for caching functionality |
+| `default_ttl_seconds` | integer | `3600` | Default time-to-live for cached entries (1 hour) |
+| `max_cache_size_mb` | integer | `512` | Memory limit for in-memory backend (LRU eviction) |
+| `cache_key_strategy` | string | `"model_messages_hash"` | Strategy for generating cache keys |
+
+**Cache Key Strategies:**
+- `model_messages_hash`: Hash of model name + messages content (recommended)
+- `full_request_hash`: Hash of entire request payload (includes all parameters)
+
+### Backend Configuration (`backend`)
+
+#### In-Memory Backend (`type: "memory"`)
+Best for single-instance deployments and development.
+
+```yaml
+backend:
+  type: "memory"
+```
+
+Characteristics:
+- Zero external dependencies
+- Data lost on restart
+- Limited to single process
+- Fastest access times
+
+#### Redis Backend (`type: "redis"`)
+Recommended for production and multi-instance deployments.
+
+```yaml
+backend:
+  type: "redis"
+  redis:
+    host: "${REDIS_HOST:localhost}"
+    port: "${REDIS_PORT:6379}"
+    password: "${REDIS_PASSWORD:}"
+    db: 0
+    ssl: false
+    connection_pool_size: 10
+```
+
+Environment Variables:
+- `REDIS_HOST`: Redis server hostname (default: localhost)
+- `REDIS_PORT`: Redis server port (default: 6379)
+- `REDIS_PASSWORD`: Authentication password (default: empty)
+
+Characteristics:
+- Shared across multiple proxy instances
+- Persistent storage (if Redis configured with persistence)
+- Supports clustering for high availability
+- Network latency overhead
+
+#### Disk Backend (`type: "disk"`)
+Useful for large cache requirements or debugging.
+
+```yaml
+backend:
+  type: "disk"
+  disk:
+    path: "./cache_data"
+    max_size_gb: 10
