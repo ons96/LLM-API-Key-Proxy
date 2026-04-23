@@ -1,0 +1,210 @@
+=== FILE: src/tests/__init__.py ===
+"""
+Test package for proxy_app and rotator_library.
+"""
+=== END FILE ===
+
+=== FILE: src/tests/integration/__init__.py ===
+"""
+Integration tests for provider adapters and router system.
+"""
+=== END FILE ===
+
+=== FILE: src/tests/integration/test_groq_provider.py ===
+"""
+Integration tests for Groq provider.
+Phase 1.1: Testing Infrastructure
+
+Tests the Groq provider integration with RouterIntegration,
+including adapter initialization, request routing, error handling,
+and streaming capabilities.
+"""
+
+import pytest
+import os
+import asyncio
+from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from typing import Dict, Any, AsyncGenerator
+from fastapi import HTTPException, Request
+
+from proxy_app.router_integration import RouterIntegration
+from proxy_app.provider_adapter import ProviderAdapterFactory
+
+
+@pytest.fixture
+def mock_groq_api_key() -> str:
+    """Mock API key for testing."""
+    return "gsk_test_integration_key_12345"
+
+
+@pytest.fixture
+def mock_request() -> Mock:
+    """Mock FastAPI request."""
+    request = Mock(spec=Request)
+    request.headers = {"Content-Type": "application/json"}
+    request.method = "POST"
+    request.url = Mock(path="/v1/chat/completions")
+    return request
+
+
+@pytest.fixture
+def sample_chat_request() -> Dict[str, Any]:
+    """Sample non-streaming chat completion request."""
+    return {
+        "model": "llama-3.1-70b-versatile",
+        "messages": [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "Hello, world!"}
+        ],
+        "temperature": 0.7,
+        "max_tokens": 100,
+        "stream": False
+    }
+
+
+@pytest.fixture
+def sample_streaming_request() -> Dict[str, Any]:
+    """Sample streaming chat completion request."""
+    return {
+        "model": "mixtral-8x7b-32768",
+        "messages": [{"role": "user", "content": "Count to 5"}],
+        "temperature": 0.5,
+        "stream": True
+    }
+
+
+@pytest.fixture
+async def router_with_groq(mock_groq_api_key: str) -> RouterIntegration:
+    """
+    Fixture providing RouterIntegration with Groq adapter initialized.
+    Mocks the underlying RouterCore to avoid external dependencies.
+    """
+    with patch.dict(os.environ, {"GROQ_API_KEY": mock_groq_api_key}, clear=False):
+        with patch('proxy_app.router_integration.RouterCore') as mock_router_core:
+            # Configure mock router
+            mock_router_instance = Mock()
+            mock_router_core.return_value = mock_router_instance
+            mock_router_instance.get_model_list.return_value = []
+            
+            integration = RouterIntegration(config_path="config/router_config.yaml")
+            
+            # Ensure groq adapter is available (in case env var wasn't picked up due to mocking)
+            if "groq" not in integration.adapters:
+                factory = ProviderAdapterFactory()
+                integration.adapters["groq"] = factory.create_adapter("groq", mock_groq_api_key)
+            
+            yield integration
+
+
+class TestGroqAdapterInitialization:
+    """Tests for Groq adapter creation and setup."""
+    
+    def test_adapter_creation_with_valid_key(self, mock_groq_api_key: str):
+        """Test successful adapter creation with valid API key."""
+        factory = ProviderAdapterFactory()
+        adapter = factory.create_adapter("groq", mock_groq_api_key)
+        
+        assert adapter is not None
+        assert hasattr(adapter, 'provider_name')
+        assert adapter.provider_name == "groq"
+    
+    def test_adapter_creation_without_key_raises_error(self):
+        """Test that adapter creation fails appropriately without API key."""
+        factory = ProviderAdapterFactory()
+        
+        with pytest.raises((ValueError, HTTPException, Exception)):
+            factory.create_adapter("groq", None)
+    
+    def test_adapter_has_required_interface(self, mock_groq_api_key: str):
+        """Test that adapter implements required provider interface."""
+        factory = ProviderAdapterFactory()
+        adapter = factory.create_adapter("groq", mock_groq_api_key)
+        
+        # Required methods for provider integration
+        required_methods = ['chat_completions', 'get_capabilities']
+        for method in required_methods:
+            assert hasattr(adapter, method), f"Groq adapter missing required method: {method}"
+    
+    def test_groq_adapter_from_environment(self, mock_groq_api_key: str):
+        """Test that adapter can be initialized from environment variables."""
+        with patch.dict(os.environ, {"GROQ_API_KEY": mock_groq_api_key}):
+            factory = ProviderAdapterFactory()
+            adapter = factory.create_adapter("groq", os.getenv("GROQ_API_KEY"))
+            assert adapter is not None
+
+
+class TestGroqRequestHandling:
+    """Tests for Groq request processing through router integration."""
+    
+    @pytest.mark.asyncio
+    async def test_non_streaming_completion(self, router_with_groq: RouterIntegration, 
+                                          sample_chat_request: Dict[str, Any]):
+        """Test successful non-streaming chat completion."""
+        integration = await router_with_groq
+        request_id = "test-req-001"
+        
+        expected_response = {
+            "id": f"chatcmpl-{request_id}",
+            "object": "chat.completion",
+            "created": 1234567890,
+            "model": sample_chat_request["model"],
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Hello! This is Groq responding."
+                },
+                "finish_reason": "stop"
+            }],
+            "usage": {
+                "prompt_tokens": 30,
+                "completion_tokens": 20,
+                "total_tokens": 50
+            }
+        }
+        
+        # Mock the router to select groq and the adapter to return response
+        with patch.object(integration.router, 'route_request', new_callable=AsyncMock, 
+                         return_value=expected_response):
+            
+            response = await integration._handle_with_router(sample_chat_request, request_id)
+            
+            assert response["choices"][0]["message"]["content"] == "Hello! This is Groq responding."
+            assert response["usage"]["total_tokens"] == 50
+            assert response["id"] == f"chatcmpl-{request_id}"
+    
+    @pytest.mark.asyncio
+    async def test_streaming_completion(self, router_with_groq: RouterIntegration,
+                                       sample_streaming_request: Dict[str, Any]):
+        """Test streaming response handling."""
+        integration = await router_with_groq
+        request_id = "test-stream-002"
+        
+        async def mock_stream_generator() -> AsyncGenerator[Dict[str, Any], None]:
+            """Simulate streaming chunks."""
+            chunks = [
+                {"choices": [{"delta": {"role": "assistant"}, "index": 0}]},
+                {"choices": [{"delta": {"content": "1"}, "index": 0}]},
+                {"choices": [{"delta": {"content": " 2"}, "index": 0}]},
+                {"choices": [{"delta": {"content": " 3"}, "index": 0}]},
+                {"choices": [{"delta": {}, "finish_reason": "stop", "index": 0}]}
+            ]
+            for chunk in chunks:
+                yield chunk
+        
+        with patch.object(integration.router, 'route_request', 
+                         return_value=mock_stream_generator()):
+            
+            response = await integration._handle_with_router(sample_streaming_request, request_id)
+            
+            # Verify we get an async generator
+            assert hasattr(response, '__aiter__')
+            
+            chunks = []
+            async for chunk in response:
+                chunks.append(chunk)
+            
+            assert len(chunks) == 5
+            content = "".join([
+                c["choices"][0]["delta"].get("content", "") 
+                for
