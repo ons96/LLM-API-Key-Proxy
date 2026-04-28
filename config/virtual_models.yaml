@@ -1,5 +1,5 @@
 metadata:
-  generated_at: '2026-04-27T05:30:39.356734+00:00'
+  generated_at: '2026-04-28T05:36:32.627837+00:00'
   sources:
   - models.dev
   - telemetry
@@ -390,64 +390,64 @@ virtual_models:
     description: Optimized for oracle agent - ['accuracy', 'depth']
     fallback_chain:
     - provider: nvidia
-      model: stepfun-ai/step-3.5-flash
+      model: qwen/qwq-32b
       priority: 1
     - provider: nvidia
-      model: mistralai/codestral-22b-instruct-v0.1
+      model: qwen/qwen3-next-80b-a3b-instruct
       priority: 2
     - provider: nvidia
-      model: mistralai/mistral-large-3-675b-instruct-2512
+      model: qwen/qwen2.5-coder-32b-instruct
       priority: 3
     - provider: nvidia
-      model: mistralai/devstral-2-123b-instruct-2512
+      model: qwen/qwen3-next-80b-a3b-thinking
       priority: 4
     - provider: nvidia
-      model: mistralai/ministral-14b-instruct-2512
+      model: qwen/qwen3-coder-480b-a35b-instruct
       priority: 5
     - provider: nvidia
-      model: mistralai/mistral-small-3.1-24b-instruct-2503
+      model: qwen/qwen3-235b-a22b
       priority: 6
     - provider: nvidia
-      model: mistralai/mamba-codestral-7b-v0.1
+      model: qwen/qwen3.5-397b-a17b
       priority: 7
     - provider: nvidia
-      model: mistralai/mistral-large-2-instruct
+      model: qwen/qwen2.5-coder-7b-instruct
       priority: 8
     - provider: nvidia
-      model: microsoft/phi-3-medium-4k-instruct
+      model: meta/llama3-70b-instruct
       priority: 9
     - provider: nvidia
-      model: microsoft/phi-3.5-moe-instruct
+      model: meta/codellama-70b
       priority: 10
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: meta/llama-3.2-11b-vision-instruct
       priority: 11
     - provider: nvidia
-      model: microsoft/phi-3-small-8k-instruct
+      model: meta/llama-4-scout-17b-16e-instruct
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-3-vision-128k-instruct
+      model: meta/llama-4-maverick-17b-128e-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-3.5-vision-instruct
+      model: meta/llama-3.3-70b-instruct
       priority: 14
     - provider: nvidia
-      model: microsoft/phi-3-small-128k-instruct
+      model: meta/llama3-8b-instruct
       priority: 15
     - provider: nvidia
-      model: microsoft/phi-3-medium-128k-instruct
+      model: meta/llama-3.2-1b-instruct
       priority: 16
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: meta/llama-3.1-405b-instruct
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-4-340b-instruct
+      model: meta/llama-3.1-70b-instruct
       priority: 18
     - provider: nvidia
-      model: nvidia/llama3-chatqa-1.5-70b
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 19
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      model: nvidia/nemotron-4-340b-instruct
       priority: 20
     settings:
       timeout_ms: 180000
@@ -456,64 +456,64 @@ virtual_models:
     description: Optimized for explore agent - ['latency', 'throughput']
     fallback_chain:
     - provider: nvidia
-      model: stepfun-ai/step-3.5-flash
+      model: qwen/qwq-32b
       priority: 1
     - provider: nvidia
-      model: mistralai/codestral-22b-instruct-v0.1
+      model: qwen/qwen3-next-80b-a3b-instruct
       priority: 2
     - provider: nvidia
-      model: mistralai/mistral-large-3-675b-instruct-2512
+      model: qwen/qwen2.5-coder-32b-instruct
       priority: 3
     - provider: nvidia
-      model: mistralai/devstral-2-123b-instruct-2512
+      model: qwen/qwen3-next-80b-a3b-thinking
       priority: 4
     - provider: nvidia
-      model: mistralai/ministral-14b-instruct-2512
+      model: qwen/qwen3-coder-480b-a35b-instruct
       priority: 5
     - provider: nvidia
-      model: mistralai/mistral-small-3.1-24b-instruct-2503
+      model: qwen/qwen3-235b-a22b
       priority: 6
     - provider: nvidia
-      model: mistralai/mamba-codestral-7b-v0.1
+      model: qwen/qwen3.5-397b-a17b
       priority: 7
     - provider: nvidia
-      model: mistralai/mistral-large-2-instruct
+      model: qwen/qwen2.5-coder-7b-instruct
       priority: 8
     - provider: nvidia
-      model: microsoft/phi-3-medium-4k-instruct
+      model: meta/llama3-70b-instruct
       priority: 9
     - provider: nvidia
-      model: microsoft/phi-3.5-moe-instruct
+      model: meta/codellama-70b
       priority: 10
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: meta/llama-3.2-11b-vision-instruct
       priority: 11
     - provider: nvidia
-      model: microsoft/phi-3-small-8k-instruct
+      model: meta/llama-4-scout-17b-16e-instruct
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-3-vision-128k-instruct
+      model: meta/llama-4-maverick-17b-128e-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-3.5-vision-instruct
+      model: meta/llama-3.3-70b-instruct
       priority: 14
     - provider: nvidia
-      model: microsoft/phi-3-small-128k-instruct
+      model: meta/llama3-8b-instruct
       priority: 15
     - provider: nvidia
-      model: microsoft/phi-3-medium-128k-instruct
+      model: meta/llama-3.2-1b-instruct
       priority: 16
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: meta/llama-3.1-405b-instruct
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-4-340b-instruct
+      model: meta/llama-3.1-70b-instruct
       priority: 18
     - provider: nvidia
-      model: nvidia/llama3-chatqa-1.5-70b
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 19
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      model: nvidia/nemotron-4-340b-instruct
       priority: 20
     settings:
       timeout_ms: 120000
@@ -522,64 +522,64 @@ virtual_models:
     description: Optimized for librarian agent - ['availability', 'reliability']
     fallback_chain:
     - provider: nvidia
-      model: stepfun-ai/step-3.5-flash
+      model: qwen/qwq-32b
       priority: 1
     - provider: nvidia
-      model: mistralai/codestral-22b-instruct-v0.1
+      model: qwen/qwen3-next-80b-a3b-instruct
       priority: 2
     - provider: nvidia
-      model: mistralai/mistral-large-3-675b-instruct-2512
+      model: qwen/qwen2.5-coder-32b-instruct
       priority: 3
     - provider: nvidia
-      model: mistralai/devstral-2-123b-instruct-2512
+      model: qwen/qwen3-next-80b-a3b-thinking
       priority: 4
     - provider: nvidia
-      model: mistralai/ministral-14b-instruct-2512
+      model: qwen/qwen3-coder-480b-a35b-instruct
       priority: 5
     - provider: nvidia
-      model: mistralai/mistral-small-3.1-24b-instruct-2503
+      model: qwen/qwen3-235b-a22b
       priority: 6
     - provider: nvidia
-      model: mistralai/mamba-codestral-7b-v0.1
+      model: qwen/qwen3.5-397b-a17b
       priority: 7
     - provider: nvidia
-      model: mistralai/mistral-large-2-instruct
+      model: qwen/qwen2.5-coder-7b-instruct
       priority: 8
     - provider: nvidia
-      model: microsoft/phi-3-medium-4k-instruct
+      model: meta/llama3-70b-instruct
       priority: 9
     - provider: nvidia
-      model: microsoft/phi-3.5-moe-instruct
+      model: meta/codellama-70b
       priority: 10
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: meta/llama-3.2-11b-vision-instruct
       priority: 11
     - provider: nvidia
-      model: microsoft/phi-3-small-8k-instruct
+      model: meta/llama-4-scout-17b-16e-instruct
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-3-vision-128k-instruct
+      model: meta/llama-4-maverick-17b-128e-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-3.5-vision-instruct
+      model: meta/llama-3.3-70b-instruct
       priority: 14
     - provider: nvidia
-      model: microsoft/phi-3-small-128k-instruct
+      model: meta/llama3-8b-instruct
       priority: 15
     - provider: nvidia
-      model: microsoft/phi-3-medium-128k-instruct
+      model: meta/llama-3.2-1b-instruct
       priority: 16
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: meta/llama-3.1-405b-instruct
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-4-340b-instruct
+      model: meta/llama-3.1-70b-instruct
       priority: 18
     - provider: nvidia
-      model: nvidia/llama3-chatqa-1.5-70b
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 19
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      model: nvidia/nemotron-4-340b-instruct
       priority: 20
     settings:
       timeout_ms: 120000
@@ -588,64 +588,64 @@ virtual_models:
     description: Optimized for build agent - ['balanced']
     fallback_chain:
     - provider: nvidia
-      model: stepfun-ai/step-3.5-flash
+      model: qwen/qwq-32b
       priority: 1
     - provider: nvidia
-      model: mistralai/codestral-22b-instruct-v0.1
+      model: qwen/qwen3-next-80b-a3b-instruct
       priority: 2
     - provider: nvidia
-      model: mistralai/mistral-large-3-675b-instruct-2512
+      model: qwen/qwen2.5-coder-32b-instruct
       priority: 3
     - provider: nvidia
-      model: mistralai/devstral-2-123b-instruct-2512
+      model: qwen/qwen3-next-80b-a3b-thinking
       priority: 4
     - provider: nvidia
-      model: mistralai/ministral-14b-instruct-2512
+      model: qwen/qwen3-coder-480b-a35b-instruct
       priority: 5
     - provider: nvidia
-      model: mistralai/mistral-small-3.1-24b-instruct-2503
+      model: qwen/qwen3-235b-a22b
       priority: 6
     - provider: nvidia
-      model: mistralai/mamba-codestral-7b-v0.1
+      model: qwen/qwen3.5-397b-a17b
       priority: 7
     - provider: nvidia
-      model: mistralai/mistral-large-2-instruct
+      model: qwen/qwen2.5-coder-7b-instruct
       priority: 8
     - provider: nvidia
-      model: microsoft/phi-3-medium-4k-instruct
+      model: meta/llama3-70b-instruct
       priority: 9
     - provider: nvidia
-      model: microsoft/phi-3.5-moe-instruct
+      model: meta/codellama-70b
       priority: 10
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: meta/llama-3.2-11b-vision-instruct
       priority: 11
     - provider: nvidia
-      model: microsoft/phi-3-small-8k-instruct
+      model: meta/llama-4-scout-17b-16e-instruct
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-3-vision-128k-instruct
+      model: meta/llama-4-maverick-17b-128e-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-3.5-vision-instruct
+      model: meta/llama-3.3-70b-instruct
       priority: 14
     - provider: nvidia
-      model: microsoft/phi-3-small-128k-instruct
+      model: meta/llama3-8b-instruct
       priority: 15
     - provider: nvidia
-      model: microsoft/phi-3-medium-128k-instruct
+      model: meta/llama-3.2-1b-instruct
       priority: 16
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: meta/llama-3.1-405b-instruct
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-4-340b-instruct
+      model: meta/llama-3.1-70b-instruct
       priority: 18
     - provider: nvidia
-      model: nvidia/llama3-chatqa-1.5-70b
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 19
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      model: nvidia/nemotron-4-340b-instruct
       priority: 20
     settings:
       timeout_ms: 120000
@@ -654,64 +654,64 @@ virtual_models:
     description: Optimized for metis agent - ['accuracy']
     fallback_chain:
     - provider: nvidia
-      model: stepfun-ai/step-3.5-flash
+      model: qwen/qwq-32b
       priority: 1
     - provider: nvidia
-      model: mistralai/codestral-22b-instruct-v0.1
+      model: qwen/qwen3-next-80b-a3b-instruct
       priority: 2
     - provider: nvidia
-      model: mistralai/mistral-large-3-675b-instruct-2512
+      model: qwen/qwen2.5-coder-32b-instruct
       priority: 3
     - provider: nvidia
-      model: mistralai/devstral-2-123b-instruct-2512
+      model: qwen/qwen3-next-80b-a3b-thinking
       priority: 4
     - provider: nvidia
-      model: mistralai/ministral-14b-instruct-2512
+      model: qwen/qwen3-coder-480b-a35b-instruct
       priority: 5
     - provider: nvidia
-      model: mistralai/mistral-small-3.1-24b-instruct-2503
+      model: qwen/qwen3-235b-a22b
       priority: 6
     - provider: nvidia
-      model: mistralai/mamba-codestral-7b-v0.1
+      model: qwen/qwen3.5-397b-a17b
       priority: 7
     - provider: nvidia
-      model: mistralai/mistral-large-2-instruct
+      model: qwen/qwen2.5-coder-7b-instruct
       priority: 8
     - provider: nvidia
-      model: microsoft/phi-3-medium-4k-instruct
+      model: meta/llama3-70b-instruct
       priority: 9
     - provider: nvidia
-      model: microsoft/phi-3.5-moe-instruct
+      model: meta/codellama-70b
       priority: 10
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: meta/llama-3.2-11b-vision-instruct
       priority: 11
     - provider: nvidia
-      model: microsoft/phi-3-small-8k-instruct
+      model: meta/llama-4-scout-17b-16e-instruct
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-3-vision-128k-instruct
+      model: meta/llama-4-maverick-17b-128e-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-3.5-vision-instruct
+      model: meta/llama-3.3-70b-instruct
       priority: 14
     - provider: nvidia
-      model: microsoft/phi-3-small-128k-instruct
+      model: meta/llama3-8b-instruct
       priority: 15
     - provider: nvidia
-      model: microsoft/phi-3-medium-128k-instruct
+      model: meta/llama-3.2-1b-instruct
       priority: 16
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: meta/llama-3.1-405b-instruct
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-4-340b-instruct
+      model: meta/llama-3.1-70b-instruct
       priority: 18
     - provider: nvidia
-      model: nvidia/llama3-chatqa-1.5-70b
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 19
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      model: nvidia/nemotron-4-340b-instruct
       priority: 20
     settings:
       timeout_ms: 180000
@@ -720,64 +720,64 @@ virtual_models:
     description: Optimized for momus agent - ['quality']
     fallback_chain:
     - provider: nvidia
-      model: stepfun-ai/step-3.5-flash
+      model: qwen/qwq-32b
       priority: 1
     - provider: nvidia
-      model: mistralai/codestral-22b-instruct-v0.1
+      model: qwen/qwen3-next-80b-a3b-instruct
       priority: 2
     - provider: nvidia
-      model: mistralai/mistral-large-3-675b-instruct-2512
+      model: qwen/qwen2.5-coder-32b-instruct
       priority: 3
     - provider: nvidia
-      model: mistralai/devstral-2-123b-instruct-2512
+      model: qwen/qwen3-next-80b-a3b-thinking
       priority: 4
     - provider: nvidia
-      model: mistralai/ministral-14b-instruct-2512
+      model: qwen/qwen3-coder-480b-a35b-instruct
       priority: 5
     - provider: nvidia
-      model: mistralai/mistral-small-3.1-24b-instruct-2503
+      model: qwen/qwen3-235b-a22b
       priority: 6
     - provider: nvidia
-      model: mistralai/mamba-codestral-7b-v0.1
+      model: qwen/qwen3.5-397b-a17b
       priority: 7
     - provider: nvidia
-      model: mistralai/mistral-large-2-instruct
+      model: qwen/qwen2.5-coder-7b-instruct
       priority: 8
     - provider: nvidia
-      model: microsoft/phi-3-medium-4k-instruct
+      model: meta/llama3-70b-instruct
       priority: 9
     - provider: nvidia
-      model: microsoft/phi-3.5-moe-instruct
+      model: meta/codellama-70b
       priority: 10
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: meta/llama-3.2-11b-vision-instruct
       priority: 11
     - provider: nvidia
-      model: microsoft/phi-3-small-8k-instruct
+      model: meta/llama-4-scout-17b-16e-instruct
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-3-vision-128k-instruct
+      model: meta/llama-4-maverick-17b-128e-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-3.5-vision-instruct
+      model: meta/llama-3.3-70b-instruct
       priority: 14
     - provider: nvidia
-      model: microsoft/phi-3-small-128k-instruct
+      model: meta/llama3-8b-instruct
       priority: 15
     - provider: nvidia
-      model: microsoft/phi-3-medium-128k-instruct
+      model: meta/llama-3.2-1b-instruct
       priority: 16
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: meta/llama-3.1-405b-instruct
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-4-340b-instruct
+      model: meta/llama-3.1-70b-instruct
       priority: 18
     - provider: nvidia
-      model: nvidia/llama3-chatqa-1.5-70b
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 19
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      model: nvidia/nemotron-4-340b-instruct
       priority: 20
     settings:
       timeout_ms: 180000
