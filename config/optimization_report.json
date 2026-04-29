@@ -1,12 +1,23 @@
 {
-  "generated_at": "2026-04-28T05:36:32.779385+00:00",
+  "generated_at": "2026-04-29T05:32:31.600615+00:00",
   "virtual_models_generated": 14,
   "agent_profiles": 6,
   "top_scored_models": [
     {
       "provider": "nvidia",
-      "model": "qwen/qwq-32b",
-      "model_id": "nvidia/qwen/qwq-32b",
+      "model": "stepfun-ai/step-3.5-flash",
+      "model_id": "nvidia/stepfun-ai/step-3.5-flash",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 256000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "nvidia",
+      "model": "mistralai/codestral-22b-instruct-v0.1",
+      "model_id": "nvidia/mistralai/codestral-22b-instruct-v0.1",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 128000,
@@ -16,8 +27,8 @@
     },
     {
       "provider": "nvidia",
-      "model": "qwen/qwen3-next-80b-a3b-instruct",
-      "model_id": "nvidia/qwen/qwen3-next-80b-a3b-instruct",
+      "model": "mistralai/mistral-large-3-675b-instruct-2512",
+      "model_id": "nvidia/mistralai/mistral-large-3-675b-instruct-2512",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 262144,
@@ -27,19 +38,8 @@
     },
     {
       "provider": "nvidia",
-      "model": "qwen/qwen2.5-coder-32b-instruct",
-      "model_id": "nvidia/qwen/qwen2.5-coder-32b-instruct",
-      "composite_score": 0.547,
-      "capabilities": [],
-      "context_window": 128000,
-      "benchmark_score": 0.1,
-      "success_rate": 0.8,
-      "latency_score": 0.933
-    },
-    {
-      "provider": "nvidia",
-      "model": "qwen/qwen3-next-80b-a3b-thinking",
-      "model_id": "nvidia/qwen/qwen3-next-80b-a3b-thinking",
+      "model": "mistralai/devstral-2-123b-instruct-2512",
+      "model_id": "nvidia/mistralai/devstral-2-123b-instruct-2512",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 262144,
@@ -49,8 +49,8 @@
     },
     {
       "provider": "nvidia",
-      "model": "qwen/qwen3-coder-480b-a35b-instruct",
-      "model_id": "nvidia/qwen/qwen3-coder-480b-a35b-instruct",
+      "model": "mistralai/ministral-14b-instruct-2512",
+      "model_id": "nvidia/mistralai/ministral-14b-instruct-2512",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 262144,
