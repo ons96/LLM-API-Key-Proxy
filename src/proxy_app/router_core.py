@@ -730,6 +730,21 @@ class RouterCore:
             return can_use[0]
         return can_use
 
+    def _is_provider_allowed_in_free_mode(self, provider: str) -> bool:
+        """Check if a provider is allowed under FREE_ONLY_MODE.
+
+        Respects the safety.forbidden_providers_under_free_mode list and provider's
+        free_tier configuration.
+        """
+        forbidden = self.config.get("safety", {}).get("forbidden_providers_under_free_mode", [])
+        if provider in forbidden:
+            return False
+        if self.free_only_mode:
+            provider_cfg = self.provider_configs.get(provider, {})
+            if not provider_cfg.get("free_tier", False):
+                return False
+        return True
+
     def _compute_rate_limits(
         self, provider: str, model: str, candidate_cfg: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -1360,23 +1375,17 @@ class RouterCore:
             # Direct model reference - parse provider/model format
             if "/" in model_id:
                 provider, model = model_id.split("/", 1)
-                candidates.append(
-                    ProviderCandidate(provider=provider, model=model, priority=5)
-                )
+                if self._is_provider_allowed_in_free_mode(provider):
+                    candidates.append(
+                        ProviderCandidate(provider=provider, model=model, priority=5)
+                    )
             else:
                 # Use model registry to find supporting providers
                 providers = self.model_registry.get_providers(model_id)
 
-                # Apply free only mode filtering if needed
-                forbidden = []
-                if self.free_only_mode:
-                    forbidden = self.config.get("safety", {}).get(
-                        "forbidden_providers_under_free_mode", []
-                    )
-
                 if providers:
                     for provider_name in providers:
-                        if provider_name in forbidden:
+                        if not self._is_provider_allowed_in_free_mode(provider_name):
                             continue
                         candidates.append(
                             ProviderCandidate(
@@ -1395,7 +1404,7 @@ class RouterCore:
                         "g4f_gemini",
                         "g4f_groq",
                     ]:
-                        if provider_name in forbidden:
+                        if not self._is_provider_allowed_in_free_mode(provider_name):
                             continue
                         candidates.append(
                             ProviderCandidate(

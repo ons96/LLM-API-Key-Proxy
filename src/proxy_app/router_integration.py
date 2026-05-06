@@ -127,14 +127,7 @@ class RouterIntegration:
             )
             logger.debug(f"[{request_id}] Request data: {request_data}")
 
-        # Check if the existing rotating client should handle this (backward compatibility)
-        if self._should_use_rotating_client(request_data):
-            logger.info(f"[{request_id}] Using legacy rotating client")
-            return await self._handle_with_rotating_client(
-                request_data, raw_request, request_id
-            )
-
-        # Use new router
+        # Use new router for all requests (legacy rotating client removed)
         try:
             return await self._handle_with_router(request_data, request_id)
         except HTTPException:
@@ -142,33 +135,6 @@ class RouterIntegration:
         except Exception as e:
             logger.error(f"[{request_id}] Router failed: {e}")
             raise HTTPException(status_code=500, detail=f"Router error: {str(e)}")
-
-    def _should_use_rotating_client(self, request_data: Dict[str, Any]) -> bool:
-        """Determine if request should use legacy rotating client."""
-        # Use rotating client for direct provider paths that aren't in router config
-        model_id = request_data.get("model", "")
-
-        # If it's a virtual model, use router
-        if model_id.startswith("router/"):
-            return False
-
-        # If provider has a dedicated adapter but is not explicitly in legacy fallback mode
-        # use the router for better capability handling
-        return False  # Default to using router for everything now
-
-    async def _handle_with_rotating_client(
-        self, request_data: Dict[str, Any], raw_request: Request, request_id: str
-    ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
-        """Handle request with legacy rotating client (backward compatibility)."""
-        if not self.rotating_client:
-            raise HTTPException(status_code=500, detail="Rotating client not available")
-
-        # This would call the existing rotating client logic
-        # For now, fall back to router
-        logger.warning(
-            f"[{request_id}] Rotating client fallback requested but using router"
-        )
-        return await self._handle_with_router(request_data, request_id)
 
     async def _handle_with_router(
         self, request_data: Dict[str, Any], request_id: str
