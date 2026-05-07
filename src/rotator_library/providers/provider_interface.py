@@ -1,3 +1,26 @@
+"""
+Provider Interface - Abstract Base Class for LLM Providers
+
+Defines the contract that all provider adapters must follow. Each provider
+(Groq, Gemini, G4F, etc.) implements this interface to handle provider-specific
+authentication, API calls, and model discovery.
+
+Key Components:
+    ProviderInterface: Abstract base class with required methods
+    UsageResetConfigDef: Configuration for usage tracking windows
+    UsageConfigKey: Key for looking up usage reset configs
+
+Provider Types:
+    Simple providers: Implement only get_models(), use litellm for completions
+    Complex providers: Override has_custom_logic() and implement acompletion()
+
+Example:
+    class MyProvider(ProviderInterface):
+        async def get_models(self, api_key, client):
+            return ["my_model"]
+
+"""
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional, AsyncGenerator, Union, FrozenSet
