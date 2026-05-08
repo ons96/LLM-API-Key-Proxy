@@ -97,14 +97,8 @@ class G4FProvider(ProviderInterface):
 
         If users configured provider-specific bases (groq/grok/gemini/nvidia),
         we apply lightweight heuristics based on the model name.
-
-        Otherwise, use G4F_MAIN_API_BASE if set, else the public g4f.dev.
         """
-
-        base_model = proxy_model
-        if proxy_model.startswith("g4f/"):
-            base_model = proxy_model.split("/", 1)[1]
-
+        base_model = self._strip_provider_prefix(proxy_model)
         model_lower = base_model.lower()
 
         # Prefer specialized endpoints when configured
@@ -126,13 +120,16 @@ class G4FProvider(ProviderInterface):
 
         return self._DEFAULT_PUBLIC_BASE
 
-    @staticmethod
-    def _strip_provider_prefix(proxy_model: str) -> str:
-        return (
-            proxy_model.split("/", 1)[1]
-            if proxy_model.startswith("g4f/")
-            else proxy_model
-        )
+    def _strip_provider_prefix(self, proxy_model: str) -> str:
+        """Strip provider prefix from model ID based on this provider's name.
+
+        For example, if provider_name is 'g4f', a model 'g4f/gpt-4o' becomes 'gpt-4o'.
+        Handles subproviders like 'g4f_nvidia' correctly.
+        """
+        prefix = self.provider_name + "/"
+        if proxy_model.startswith(prefix):
+            return proxy_model.split("/", 1)[1]
+        return proxy_model
 
     def _build_headers(self, credential_identifier: Optional[str]) -> Dict[str, str]:
         headers = {
