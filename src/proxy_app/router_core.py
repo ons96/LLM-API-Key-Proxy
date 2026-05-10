@@ -916,8 +916,8 @@ class RouterCore:
             return {
                 "free_only_mode": True,
                 "routing": {
-                    "default_cooldown_seconds": 60,
-                    "rate_limit_cooldown_seconds": 300,
+                    "default_cooldown_seconds": 10,
+                    "rate_limit_cooldown_seconds": 30,
                 },
             }
 
@@ -1148,8 +1148,8 @@ class RouterCore:
                     try:
                         retry_after = int(retry_after)
                     except ValueError:
-                        retry_after = 60  # Default 1 minute
-            return ErrorCategory.RATE_LIMIT, retry_after or 60
+                        retry_after = 10  # Fast fallback
+            return ErrorCategory.RATE_LIMIT, retry_after or 10
 
         # Authentication errors
         if any(
@@ -1227,11 +1227,11 @@ class RouterCore:
             await self.rate_limiter.record_rate_limit_hit(
                 provider,
                 model,
-                retry_after=float(retry_after or 60),
+                retry_after=float(retry_after or 10),
                 reason=reason,
             )
             metrics = self._get_metrics(provider, model)
-            metrics.cooldown_until = time.time() + float(retry_after or 60)
+            metrics.cooldown_until = time.time() + float(retry_after or 10)
         elif error_category == ErrorCategory.AUTH_ERROR:
             metrics = self._get_metrics(provider, model)
             metrics.cooldown_until = time.time() + 300

@@ -672,9 +672,9 @@ search:
     free_only: true
     no_api_key_required: true
 routing:
-  default_cooldown_seconds: 60
-  rate_limit_cooldown_seconds: 300
-  max_consecutive_failures: 3
+  default_cooldown_seconds: 10
+  rate_limit_cooldown_seconds: 30
+  max_consecutive_failures: 2
   ewma_alpha: 0.3
   latency_window_minutes: 15
   default_timeout_seconds: 30
