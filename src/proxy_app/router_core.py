@@ -912,12 +912,12 @@ class RouterCore:
                 return yaml.safe_load(f)
         except Exception as e:
             logger.warning(f"Failed to load config from {config_path}: {e}")
-            # Return default config
+            # Return default config - minimal cooldowns for instant fallback
             return {
                 "free_only_mode": True,
                 "routing": {
-                    "default_cooldown_seconds": 10,
-                    "rate_limit_cooldown_seconds": 30,
+                    "default_cooldown_seconds": 0.5,
+                    "rate_limit_cooldown_seconds": 5,
                 },
             }
 
@@ -1227,17 +1227,17 @@ class RouterCore:
             await self.rate_limiter.record_rate_limit_hit(
                 provider,
                 model,
-                retry_after=float(retry_after or 10),
+                retry_after=float(retry_after or 0.5),
                 reason=reason,
             )
             metrics = self._get_metrics(provider, model)
-            metrics.cooldown_until = time.time() + float(retry_after or 10)
+            metrics.cooldown_until = time.time() + float(retry_after or 0.5)
         elif error_category == ErrorCategory.AUTH_ERROR:
             metrics = self._get_metrics(provider, model)
-            metrics.cooldown_until = time.time() + 300
+            metrics.cooldown_until = time.time() + 60  # Auth errors take longer to fix
         elif error_category == ErrorCategory.TRANSIENT:
             metrics = self._get_metrics(provider, model)
-            metrics.cooldown_until = time.time() + 2
+            metrics.cooldown_until = time.time() + 0.5  # Instant retry for transient
 
     def _extract_requirements(self, request: Dict[str, Any]) -> CapabilityRequirements:
         """Extract capability requirements from request."""
