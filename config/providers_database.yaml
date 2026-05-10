@@ -3062,3 +3062,12 @@ providers:
   - id: claude-sonnet-4.6
     context: 1000000
   notes: Discovered 2026-05-07
+- id: firepass
+  name: Fireworks (Firepass)
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: accounts/fireworks/routers/kimi-k2p6-turbo
+    context: 262000
+  notes: Discovered 2026-05-10
