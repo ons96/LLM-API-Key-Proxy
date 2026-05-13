@@ -1,5 +1,5 @@
 metadata:
-  generated_at: '2026-05-10T05:43:08.148747+00:00'
+  generated_at: '2026-05-13T05:54:44.087545+00:00'
   sources:
   - models.dev
   - telemetry
@@ -390,10 +390,10 @@ virtual_models:
     description: Optimized for oracle agent - ['accuracy', 'depth']
     fallback_chain:
     - provider: nvidia
-      model: stepfun-ai/step-3.5-flash
+      model: upstage/solar-10_7b-instruct
       priority: 1
     - provider: nvidia
-      model: mistralai/codestral-22b-instruct-v0.1
+      model: stepfun-ai/step-3.5-flash
       priority: 2
     - provider: nvidia
       model: mistralai/mistral-large-3-675b-instruct-2512
@@ -402,52 +402,52 @@ virtual_models:
       model: mistralai/devstral-2-123b-instruct-2512
       priority: 4
     - provider: nvidia
-      model: mistralai/ministral-14b-instruct-2512
+      model: mistralai/mistral-nemotron
       priority: 5
     - provider: nvidia
-      model: mistralai/mistral-small-3.1-24b-instruct-2503
+      model: mistralai/mixtral-8x22b-instruct
       priority: 6
     - provider: nvidia
-      model: mistralai/mamba-codestral-7b-v0.1
+      model: mistralai/mistral-medium-3-instruct
       priority: 7
     - provider: nvidia
-      model: mistralai/mistral-large-2-instruct
+      model: mistralai/mixtral-8x7b-instruct
       priority: 8
     - provider: nvidia
-      model: microsoft/phi-3-medium-4k-instruct
+      model: mistralai/magistral-small-2506
       priority: 9
     - provider: nvidia
-      model: microsoft/phi-3.5-moe-instruct
+      model: mistralai/mistral-7b-instruct-v03
       priority: 10
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: mistralai/mistral-small-4-119b-2603
       priority: 11
     - provider: nvidia
-      model: microsoft/phi-3-small-8k-instruct
+      model: sarvamai/sarvam-m
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-3-vision-128k-instruct
+      model: microsoft/phi-4-mini-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-3.5-vision-instruct
+      model: microsoft/phi-4-multimodal-instruct
       priority: 14
     - provider: nvidia
-      model: microsoft/phi-3-small-128k-instruct
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 15
     - provider: nvidia
-      model: microsoft/phi-3-medium-128k-instruct
+      model: nvidia/usdvalidate
       priority: 16
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: nvidia/rerank-qa-mistral-4b
       priority: 17
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: nvidia/nv-embedcode-7b-v1
       priority: 18
     - provider: nvidia
-      model: nvidia/nemotron-4-340b-instruct
+      model: nvidia/riva-translate-4b-instruct-v1_1
       priority: 19
     - provider: nvidia
-      model: nvidia/llama3-chatqa-1.5-70b
+      model: nvidia/nemotron-voicechat
       priority: 20
     settings:
       timeout_ms: 180000
@@ -456,10 +456,10 @@ virtual_models:
     description: Optimized for explore agent - ['latency', 'throughput']
     fallback_chain:
     - provider: nvidia
-      model: stepfun-ai/step-3.5-flash
+      model: upstage/solar-10_7b-instruct
       priority: 1
     - provider: nvidia
-      model: mistralai/codestral-22b-instruct-v0.1
+      model: stepfun-ai/step-3.5-flash
       priority: 2
     - provider: nvidia
       model: mistralai/mistral-large-3-675b-instruct-2512
@@ -468,52 +468,52 @@ virtual_models:
       model: mistralai/devstral-2-123b-instruct-2512
       priority: 4
     - provider: nvidia
-      model: mistralai/ministral-14b-instruct-2512
+      model: mistralai/mistral-nemotron
       priority: 5
     - provider: nvidia
-      model: mistralai/mistral-small-3.1-24b-instruct-2503
+      model: mistralai/mixtral-8x22b-instruct
       priority: 6
     - provider: nvidia
-      model: mistralai/mamba-codestral-7b-v0.1
+      model: mistralai/mistral-medium-3-instruct
       priority: 7
     - provider: nvidia
-      model: mistralai/mistral-large-2-instruct
+      model: mistralai/mixtral-8x7b-instruct
       priority: 8
     - provider: nvidia
-      model: microsoft/phi-3-medium-4k-instruct
+      model: mistralai/magistral-small-2506
       priority: 9
     - provider: nvidia
-      model: microsoft/phi-3.5-moe-instruct
+      model: mistralai/mistral-7b-instruct-v03
       priority: 10
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: mistralai/mistral-small-4-119b-2603
       priority: 11
     - provider: nvidia
-      model: microsoft/phi-3-small-8k-instruct
+      model: sarvamai/sarvam-m
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-3-vision-128k-instruct
+      model: microsoft/phi-4-mini-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-3.5-vision-instruct
+      model: microsoft/phi-4-multimodal-instruct
       priority: 14
     - provider: nvidia
-      model: microsoft/phi-3-small-128k-instruct
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 15
     - provider: nvidia
-      model: microsoft/phi-3-medium-128k-instruct
+      model: nvidia/usdvalidate
       priority: 16
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: nvidia/rerank-qa-mistral-4b
       priority: 17
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: nvidia/nv-embedcode-7b-v1
       priority: 18
     - provider: nvidia
-      model: nvidia/nemotron-4-340b-instruct
+      model: nvidia/riva-translate-4b-instruct-v1_1
       priority: 19
     - provider: nvidia
-      model: nvidia/llama3-chatqa-1.5-70b
+      model: nvidia/nemotron-voicechat
       priority: 20
     settings:
       timeout_ms: 120000
@@ -522,10 +522,10 @@ virtual_models:
     description: Optimized for librarian agent - ['availability', 'reliability']
     fallback_chain:
     - provider: nvidia
-      model: stepfun-ai/step-3.5-flash
+      model: upstage/solar-10_7b-instruct
       priority: 1
     - provider: nvidia
-      model: mistralai/codestral-22b-instruct-v0.1
+      model: stepfun-ai/step-3.5-flash
       priority: 2
     - provider: nvidia
       model: mistralai/mistral-large-3-675b-instruct-2512
@@ -534,52 +534,52 @@ virtual_models:
       model: mistralai/devstral-2-123b-instruct-2512
       priority: 4
     - provider: nvidia
-      model: mistralai/ministral-14b-instruct-2512
+      model: mistralai/mistral-nemotron
       priority: 5
     - provider: nvidia
-      model: mistralai/mistral-small-3.1-24b-instruct-2503
+      model: mistralai/mixtral-8x22b-instruct
       priority: 6
     - provider: nvidia
-      model: mistralai/mamba-codestral-7b-v0.1
+      model: mistralai/mistral-medium-3-instruct
       priority: 7
     - provider: nvidia
-      model: mistralai/mistral-large-2-instruct
+      model: mistralai/mixtral-8x7b-instruct
       priority: 8
     - provider: nvidia
-      model: microsoft/phi-3-medium-4k-instruct
+      model: mistralai/magistral-small-2506
       priority: 9
     - provider: nvidia
-      model: microsoft/phi-3.5-moe-instruct
+      model: mistralai/mistral-7b-instruct-v03
       priority: 10
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: mistralai/mistral-small-4-119b-2603
       priority: 11
     - provider: nvidia
-      model: microsoft/phi-3-small-8k-instruct
+      model: sarvamai/sarvam-m
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-3-vision-128k-instruct
+      model: microsoft/phi-4-mini-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-3.5-vision-instruct
+      model: microsoft/phi-4-multimodal-instruct
       priority: 14
     - provider: nvidia
-      model: microsoft/phi-3-small-128k-instruct
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 15
     - provider: nvidia
-      model: microsoft/phi-3-medium-128k-instruct
+      model: nvidia/usdvalidate
       priority: 16
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: nvidia/rerank-qa-mistral-4b
       priority: 17
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: nvidia/nv-embedcode-7b-v1
       priority: 18
     - provider: nvidia
-      model: nvidia/nemotron-4-340b-instruct
+      model: nvidia/riva-translate-4b-instruct-v1_1
       priority: 19
     - provider: nvidia
-      model: nvidia/llama3-chatqa-1.5-70b
+      model: nvidia/nemotron-voicechat
       priority: 20
     settings:
       timeout_ms: 120000
@@ -588,10 +588,10 @@ virtual_models:
     description: Optimized for build agent - ['balanced']
     fallback_chain:
     - provider: nvidia
-      model: stepfun-ai/step-3.5-flash
+      model: upstage/solar-10_7b-instruct
       priority: 1
     - provider: nvidia
-      model: mistralai/codestral-22b-instruct-v0.1
+      model: stepfun-ai/step-3.5-flash
       priority: 2
     - provider: nvidia
       model: mistralai/mistral-large-3-675b-instruct-2512
@@ -600,52 +600,52 @@ virtual_models:
       model: mistralai/devstral-2-123b-instruct-2512
       priority: 4
     - provider: nvidia
-      model: mistralai/ministral-14b-instruct-2512
+      model: mistralai/mistral-nemotron
       priority: 5
     - provider: nvidia
-      model: mistralai/mistral-small-3.1-24b-instruct-2503
+      model: mistralai/mixtral-8x22b-instruct
       priority: 6
     - provider: nvidia
-      model: mistralai/mamba-codestral-7b-v0.1
+      model: mistralai/mistral-medium-3-instruct
       priority: 7
     - provider: nvidia
-      model: mistralai/mistral-large-2-instruct
+      model: mistralai/mixtral-8x7b-instruct
       priority: 8
     - provider: nvidia
-      model: microsoft/phi-3-medium-4k-instruct
+      model: mistralai/magistral-small-2506
       priority: 9
     - provider: nvidia
-      model: microsoft/phi-3.5-moe-instruct
+      model: mistralai/mistral-7b-instruct-v03
       priority: 10
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: mistralai/mistral-small-4-119b-2603
       priority: 11
     - provider: nvidia
-      model: microsoft/phi-3-small-8k-instruct
+      model: sarvamai/sarvam-m
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-3-vision-128k-instruct
+      model: microsoft/phi-4-mini-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-3.5-vision-instruct
+      model: microsoft/phi-4-multimodal-instruct
       priority: 14
     - provider: nvidia
-      model: microsoft/phi-3-small-128k-instruct
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 15
     - provider: nvidia
-      model: microsoft/phi-3-medium-128k-instruct
+      model: nvidia/usdvalidate
       priority: 16
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: nvidia/rerank-qa-mistral-4b
       priority: 17
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: nvidia/nv-embedcode-7b-v1
       priority: 18
     - provider: nvidia
-      model: nvidia/nemotron-4-340b-instruct
+      model: nvidia/riva-translate-4b-instruct-v1_1
       priority: 19
     - provider: nvidia
-      model: nvidia/llama3-chatqa-1.5-70b
+      model: nvidia/nemotron-voicechat
       priority: 20
     settings:
       timeout_ms: 120000
@@ -654,10 +654,10 @@ virtual_models:
     description: Optimized for metis agent - ['accuracy']
     fallback_chain:
     - provider: nvidia
-      model: stepfun-ai/step-3.5-flash
+      model: upstage/solar-10_7b-instruct
       priority: 1
     - provider: nvidia
-      model: mistralai/codestral-22b-instruct-v0.1
+      model: stepfun-ai/step-3.5-flash
       priority: 2
     - provider: nvidia
       model: mistralai/mistral-large-3-675b-instruct-2512
@@ -666,52 +666,52 @@ virtual_models:
       model: mistralai/devstral-2-123b-instruct-2512
       priority: 4
     - provider: nvidia
-      model: mistralai/ministral-14b-instruct-2512
+      model: mistralai/mistral-nemotron
       priority: 5
     - provider: nvidia
-      model: mistralai/mistral-small-3.1-24b-instruct-2503
+      model: mistralai/mixtral-8x22b-instruct
       priority: 6
     - provider: nvidia
-      model: mistralai/mamba-codestral-7b-v0.1
+      model: mistralai/mistral-medium-3-instruct
       priority: 7
     - provider: nvidia
-      model: mistralai/mistral-large-2-instruct
+      model: mistralai/mixtral-8x7b-instruct
       priority: 8
     - provider: nvidia
-      model: microsoft/phi-3-medium-4k-instruct
+      model: mistralai/magistral-small-2506
       priority: 9
     - provider: nvidia
-      model: microsoft/phi-3.5-moe-instruct
+      model: mistralai/mistral-7b-instruct-v03
       priority: 10
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: mistralai/mistral-small-4-119b-2603
       priority: 11
     - provider: nvidia
-      model: microsoft/phi-3-small-8k-instruct
+      model: sarvamai/sarvam-m
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-3-vision-128k-instruct
+      model: microsoft/phi-4-mini-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-3.5-vision-instruct
+      model: microsoft/phi-4-multimodal-instruct
       priority: 14
     - provider: nvidia
-      model: microsoft/phi-3-small-128k-instruct
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 15
     - provider: nvidia
-      model: microsoft/phi-3-medium-128k-instruct
+      model: nvidia/usdvalidate
       priority: 16
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: nvidia/rerank-qa-mistral-4b
       priority: 17
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: nvidia/nv-embedcode-7b-v1
       priority: 18
     - provider: nvidia
-      model: nvidia/nemotron-4-340b-instruct
+      model: nvidia/riva-translate-4b-instruct-v1_1
       priority: 19
     - provider: nvidia
-      model: nvidia/llama3-chatqa-1.5-70b
+      model: nvidia/nemotron-voicechat
       priority: 20
     settings:
       timeout_ms: 180000
@@ -720,10 +720,10 @@ virtual_models:
     description: Optimized for momus agent - ['quality']
     fallback_chain:
     - provider: nvidia
-      model: stepfun-ai/step-3.5-flash
+      model: upstage/solar-10_7b-instruct
       priority: 1
     - provider: nvidia
-      model: mistralai/codestral-22b-instruct-v0.1
+      model: stepfun-ai/step-3.5-flash
       priority: 2
     - provider: nvidia
       model: mistralai/mistral-large-3-675b-instruct-2512
@@ -732,52 +732,52 @@ virtual_models:
       model: mistralai/devstral-2-123b-instruct-2512
       priority: 4
     - provider: nvidia
-      model: mistralai/ministral-14b-instruct-2512
+      model: mistralai/mistral-nemotron
       priority: 5
     - provider: nvidia
-      model: mistralai/mistral-small-3.1-24b-instruct-2503
+      model: mistralai/mixtral-8x22b-instruct
       priority: 6
     - provider: nvidia
-      model: mistralai/mamba-codestral-7b-v0.1
+      model: mistralai/mistral-medium-3-instruct
       priority: 7
     - provider: nvidia
-      model: mistralai/mistral-large-2-instruct
+      model: mistralai/mixtral-8x7b-instruct
       priority: 8
     - provider: nvidia
-      model: microsoft/phi-3-medium-4k-instruct
+      model: mistralai/magistral-small-2506
       priority: 9
     - provider: nvidia
-      model: microsoft/phi-3.5-moe-instruct
+      model: mistralai/mistral-7b-instruct-v03
       priority: 10
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: mistralai/mistral-small-4-119b-2603
       priority: 11
     - provider: nvidia
-      model: microsoft/phi-3-small-8k-instruct
+      model: sarvamai/sarvam-m
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-3-vision-128k-instruct
+      model: microsoft/phi-4-mini-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-3.5-vision-instruct
+      model: microsoft/phi-4-multimodal-instruct
       priority: 14
     - provider: nvidia
-      model: microsoft/phi-3-small-128k-instruct
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 15
     - provider: nvidia
-      model: microsoft/phi-3-medium-128k-instruct
+      model: nvidia/usdvalidate
       priority: 16
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: nvidia/rerank-qa-mistral-4b
       priority: 17
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: nvidia/nv-embedcode-7b-v1
       priority: 18
     - provider: nvidia
-      model: nvidia/nemotron-4-340b-instruct
+      model: nvidia/riva-translate-4b-instruct-v1_1
       priority: 19
     - provider: nvidia
-      model: nvidia/llama3-chatqa-1.5-70b
+      model: nvidia/nemotron-voicechat
       priority: 20
     settings:
       timeout_ms: 180000
