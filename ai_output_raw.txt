@@ -1,0 +1,860 @@
+=== FILE: docs/data_collection_architecture.md ===
+# Data Collection Architecture (Phase 2.1)
+
+## Overview
+
+The data collection pipeline aggregates LLM provider information, model performance metrics, and benchmark data from multiple sources to power the intelligent routing and model selection systems.
+
+## Architecture Components
+
+```mermaid
+graph TD
+    A[Data Sources] --> B[Collection Layer]
+    B --> C[Processing Layer]
+    C --> D[Storage Layer]
+    D --> E[Service Layer]
+    E --> F[Router/Proxy]
+```
+
+## 1. Data Sources
+
+### 1.1 Artificial Analysis API
+- **Purpose**: Real-time benchmark data and model intelligence indices
+- **Endpoint**: `https://artificialanalysis.ai/api/v2/data/llms/models`
+- **Data**: Performance metrics, pricing, evaluations
+- **Update Frequency**: 24-hour cache (`CACHE_DURATION_HOURS`)
+- **File**: `src/rotator_library/fetch_artificial_analysis_data.py`
+
+### 1.2 Provider Database (Static)
+- **Purpose**: Provider configurations, rate limits, capabilities
+- **Format**: YAML
+- **File**: `config/providers_database.yaml`
+- **Update**: Manual curation
+
+### 1.3 Live Scrapers
+- **Purpose**: Dynamic provider status, availability, pricing updates
+- **Components**: 
+  - `src/rotator_library/live_scraper.py`
+  - `src/rotator_library/leaderboard_updater.py`
+- **Targets**: Provider dashboards, status pages, leaderboards
+
+## 2. Collection Layer
+
+### API Fetchers
+- **Primary**: `fetch_artificial_analysis_data.py`
+  - Handles authentication via environment variables (`ARTIFICIAL_ANALYSIS_API_KEY`)
+  - Implements caching to prevent API abuse
+  - Error handling with graceful degradation
+  - Data flattening for nested structures (evaluations, pricing, model_creator)
+
+### Scrapers
+- **Live Scraper**: Real-time data extraction from provider websites
+- **Cooldown Management**: Prevents rate limiting via `cooldown_manager.py`
+
+## 3. Processing Layer
+
+### Data Transformation
+- **Flattening**: Nested JSON objects converted to flat CSV structure
+  - `evaluations` → `eval_{key}`
+  - `pricing` → `price_{key}`
+  - `model_creator` → `model_creator_name`, `model_creator_slug`
+- **Sorting**: Intelligence index descending (primary sort key)
+- **Validation**: Type checking and null handling
+
+### Aggregation
+- **Leaderboard**: `llm_aggregated_leaderboard.py` combines multiple sources
+- **Model Definitions**: `model_definitions.py` normalizes model identifiers
+
+## 4. Storage Layer
+
+### File Formats
+
+| Data Type | Format | Location | Cache Strategy |
+|-----------|--------|----------|----------------|
+| Benchmarks | CSV | `artificial_analysis_models.csv` | 24h timestamp |
+| Providers | YAML | `config/providers_database.yaml` | Version controlled |
+| Rankings | YAML | `config/model_rankings.yaml` | Runtime updated |
+| Virtual Models | YAML | `config/virtual_models.yaml` | Generated |
+
+### Cache Management
+- **Timestamp Files**: `last_successful_fetch.txt` tracks update times
+- **Validation**: `is_cache_valid()` checks duration before fetching
+- **Fallback**: Uses existing CSV if API fails
+
+## 5. Service Layer
+
+### Model Info Service
+- **File**: `src/rotator_library/model_info_service.py`
+- **Purpose**: Abstracts data access for router components
+- **Interface**: Unified API for model metadata, scores, and capabilities
+
+### Background Refresh
+- **File**: `background_refresher.py`
+- **Mechanism**: Async updates without blocking requests
+- **Health**: Integration with `health_checker.py` for data freshness
+
+## Data Flow
+
+### Fresh Data Ingestion
+1. **Trigger**: Cache expiry or manual refresh
+2. **Fetch**: API call with authentication headers
+3. **Process**: JSON → Flattened dict → Sort → DataFrame
+4. **Persist**: CSV write with UTF-8 encoding
+5. **Timestamp**: Update `last_successful_fetch.txt`
+6. **Notify**: Service layer reloads data
+
+### Runtime Access
+1. Router requests model ranking
+2. Service layer checks memory cache
+3. If stale: trigger background refresh
+4. Return current data (stale or fresh)
+
+## Configuration
+
+### Environment Variables
+```bash
+ARTIFICIAL_ANALYSIS_API_KEY=xxx  # Required for benchmark data
+```
+
+### Key Configuration Files
+- `config/scoring_config.yaml`: Weights for ranking algorithms
+- `config/router_config.yaml`: Data source priorities
+- `config/aliases.yaml`: Model name normalization
+
+## Error Handling
+
+### Graceful Degradation
+- API failure → Use existing CSV
+- Parse error → Skip record, continue processing
+- Missing fields → Default to `-inf` for sorts
+
+### Monitoring
+- **Logs**: `src/rotator_library/failure_logger.py`
+- **Health Checks**: Data freshness validation
+- **Alerts**: Failed fetch notifications
+
+## Integration Points
+
+### Router Core (`router_core.py`)
+- Consumes aggregated rankings
+- Uses provider database for capability filtering
+- Respects rate limits from provider configs
+
+### Provider Adapters
+- `provider_adapter.py`: Normalizes provider-specific APIs
+- `provider_factory.py`: Instantiates clients based on database config
+
+## Security Considerations
+
+- API keys stored in `.env` (never committed)
+- No sensitive data in CSV exports
+- Rate limiting on outbound requests
+- Input validation on scraped data
+
+## Maintenance
+
+### Adding New Data Sources
+1. Create fetcher in `src/rotator_library/`
+2. Define schema in `config/`
+3. Update service layer interface
+4. Document in this architecture doc
+
+### Data Quality
+- Automated validation in `process_api_data()`
+- Manual verification fields (`last_verified`) in provider configs
+- Cross-reference validation between sources
+=== END FILE ===
+
+=== FILE: docs/data_collection_setup.md ===
+# Data Collection Setup Guide
+
+## Prerequisites
+
+- Python 3.8+
+- pandas
+- requests
+- python-dotenv
+
+## Quick Start
+
+1. **Install Dependencies**
+```bash
+pip install pandas requests python-dotenv
+```
+
+2. **Configure API Keys**
+Create `.env` file in project root:
+```env
+ARTIFICIAL_ANALYSIS_API_KEY=your_api_key_here
+```
+
+3. **Run Initial Data Fetch**
+```bash
+python src/rotator_library/fetch_artificial_analysis_data.py
+```
+
+4. **Verify Output**
+Check for `artificial_analysis_models.csv` and `last_successful_fetch.txt` in working directory.
+
+## Data Source Configuration
+
+### Artificial Analysis API
+
+**Cache Duration**: 24 hours (configurable via `CACHE_DURATION_HOURS`)
+
+**Fields Extracted**:
+- `id`, `name`, `slug`: Model identifiers
+- `model_creator_name`, `model_creator_slug`: Organization info
+- `eval_*`: Benchmark scores (flattened)
+- `price_*`: Pricing tiers (flattened)
+- `median_output_tokens_per_second`: Performance metric
+
+**Excluded Fields**:
+- `median_time_to_first_token_seconds`
+- `median_time_to_first_answer_token`
+
+### Provider Database
+
+Edit `config/providers_database.yaml` to add/update providers:
+
+```yaml
+providers:
+  - id: new_provider
+    name: "Provider Name"
+    signup_url: "https://..."
+    free_tier: true
+    free_models:
+      - id: "model-id"
+        context: 8192
+        rpm: 10
+        daily_limit: 1000
+    capabilities: [chat, code, vision]
+    last_verified: "2025-01-15"
+```
+
+## Automation
+
+### Cron Setup (Linux/Mac)
+```bash
+# Update benchmarks every 6 hours
+0 */6 * * * cd /path/to/project && python src/rotator_library/fetch_artificial_analysis_data.py >> /var/log/llm_fetch.log 2>&1
+```
+
+### Windows Task Scheduler
+Schedule `fetch_artificial_analysis_data.py` to run every 6 hours.
+
+## Troubleshooting
+
+### "ARTIFICIAL_ANALYSIS_API_KEY not found"
+- Verify `.env` file exists and is loaded
+- Check `load_dotenv()` path in fetch script
+- Ensure key is set: `echo $ARTIFICIAL_ANALYSIS_API_KEY`
+
+### Cache not refreshing
+- Delete `last_successful_fetch.txt` to force refresh
+- Check file permissions on timestamp file
+
+### CSV parsing errors
+- Verify API response format hasn't changed
+- Check `process_api_data()` for new nested structures
+- Review `encoding='utf-8'` setting for special characters
+
+## Data Schema Reference
+
+### artificial_analysis_models.csv Columns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | string | UUID from API |
+| name | string | Display name |
+| slug | string | URL-friendly ID |
+| model_creator_name | string | Organization |
+| model_creator_slug | string | Org ID |
+| eval_* | float | Benchmark scores |
+| price_* | float/JSON | Pricing data |
+| median_output_tokens_per_second | float | Speed metric |
+
+### providers_database.yaml Schema
+
+```yaml
+providers:
+  - id: string          # Unique identifier
+    name: string        # Display name
+    signup_url: string  # Registration URL
+    api_base: string    # Optional: Custom endpoint
+    free_tier: boolean  # Offers free tier?
+    note: string        # Optional: Usage notes
+    free_models:        # List of free models
+      - id: string      # Model identifier
+        name: string    # Optional: Display name
+        context: int    # Context window
+        rpm: int        # Requests per minute
+        daily_limit: int # Daily request/token limit
+        note: string    # Optional: Model-specific notes
+    capabilities: [chat, code, vision, embeddings, image]
+    last_verified: date # ISO 8601 date
+```
+=== END FILE ===
+
+=== FILE: src/rotator_library/fetch_artificial_analysis_data.py ===
+import requests
+import pandas as pd
+import json
+from datetime import datetime, timedelta
+import os
+from dotenv import load_dotenv
+from typing import Optional, Dict, Any, List
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Load environment variables from .env file
+env_path = os.getenv('ENV_PATH', 'c:/Users/owens/Coding Projects/.env')
+load_dotenv(dotenv_path=env_path)
+
+# --- Configuration ---
+API_URL = "https://artificialanalysis.ai/api/v2/data/llms/models"
+API_KEY = os.getenv("ARTIFICIAL_ANALYSIS_API_KEY")
+FIXED_OUTPUT_FILENAME = "artificial_analysis_models.csv"
+TIMESTAMP_FILE = "last_successful_fetch.txt"
+CACHE_DURATION_HOURS = 24
+
+# Fields to extract from the API response
+REQUESTED_FIELDS = [
+    "id",
+    "name",
+    "slug",
+    "model_creator.name",
+    "model_creator.slug",
+    "evaluations",
+    "pricing",
+    "median_output_tokens_per_second"
+]
+
+EXCLUDED_FIELDS = [
+    "median_time_to_first_token_seconds",
+    "median_time_to_first_answer_token"
+]
+
+
+class DataCollectionError(Exception):
+    """Base exception for data collection errors."""
+    pass
+
+
+class APIAuthenticationError(DataCollectionError):
+    """Raised when API authentication fails."""
+    pass
+
+
+class APIRequestError(DataCollectionError):
+    """Raised when API request fails."""
+    pass
+
+
+def is_cache_valid(timestamp_file: str, duration_hours: int) -> bool:
+    """
+    Check if cached data is still valid based on timestamp.
+    
+    Args:
+        timestamp_file: Path to file containing last fetch timestamp
+        duration_hours: Cache validity duration in hours
+        
+    Returns:
+        True if cache is valid, False otherwise
+    """
+    if not os.path.exists(timestamp_file):
+        return False
+    
+    try:
+        with open(timestamp_file, 'r', encoding='utf-8') as f:
+            last_fetch_time_str = f.read().strip()
+        last_fetch_time = datetime.fromisoformat(last_fetch_time_str)
+        
+        if datetime.now() - last_fetch_time < timedelta(hours=duration_hours):
+            logger.info(f"Cache valid. Last fetch: {last_fetch_time.isoformat()}")
+            return True
+            
+    except (ValueError, IOError) as e:
+        logger.warning(f"Error reading timestamp file: {e}")
+        
+    return False
+
+
+def update_success_timestamp(timestamp_file: str) -> None:
+    """Update timestamp file with current datetime."""
+    try:
+        with open(timestamp_file, 'w', encoding='utf-8') as f:
+            f.write(datetime.now().isoformat())
+        logger.info(f"Updated timestamp in {timestamp_file}")
+    except IOError as e:
+        logger.error(f"Failed to update timestamp: {e}")
+        raise DataCollectionError(f"Cannot write timestamp: {e}")
+
+
+def fetch_data_from_api(api_key: Optional[str]) -> Optional[Dict[str, Any]]:
+    """
+    Fetch model data from Artificial Analysis API.
+    
+    Args:
+        api_key: API authentication key
+        
+    Returns:
+        Parsed JSON response or None if request failed
+        
+    Raises:
+        APIAuthenticationError: If API key is missing or invalid
+        APIRequestError: If HTTP request fails
+    """
+    if not api_key:
+        logger.error("ARTIFICIAL_ANALYSIS_API_KEY not found in environment")
+        raise APIAuthenticationError("API key not configured")
+    
+    headers = {"x-api-key": api_key}
+    logger.info(f"Fetching data from {API_URL}")
+    
+    try:
+        response = requests.get(API_URL, headers=headers, timeout=30)
+        response.raise_for_status()
+        logger.info("Successfully fetched data from API")
+        return response.json()
+        
+    except requests.exceptions.HTTPError as e:
+        if response.status_code == 401:
+            raise APIAuthenticationError("Invalid API key") from e
+        raise APIRequestError(f"HTTP {response.status_code}: {e}") from e
+    except requests.exceptions.Timeout:
+        raise APIRequestError("Request timeout after 30s")
+    except requests.exceptions.RequestException as e:
+        raise APIRequestError(f"Request failed: {e}") from e
+
+
+def process_api_data(api_response_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """
+    Process API response into flattened records.
+    
+    Transforms nested structures (evaluations, pricing, model_creator)
+    into flat key-value pairs suitable for CSV export.
+    
+    Args:
+        api_response_data: Raw API response JSON
+        
+    Returns:
+        List of processed model records
+    """
+    if not api_response_data or 'data' not in api_response_data:
+        logger.warning("No data found in API response")
+        return []
+    
+    all_models_data = api_response_data['data']
+    processed_records = []
+    
+    for model_data in all_models_data:
+        record = {
+            'id': model_data.get('id'),
+            'name': model_data.get('name'),
+            'slug': model_data.get('slug'),
+            'median_output_tokens_per_second': model_data.get('median_output_tokens_per_second')
+        }
+        
+        # Flatten model_creator
+        model_creator = model_data.get('model_creator', {})
+        record['model_creator_name'] = model_creator.get('name')
+        record['model_creator_slug'] = model_creator.get('slug')
+        
+        # Flatten evaluations with prefix
+        evaluations = model_data.get('evaluations', {})
+        if isinstance(evaluations, dict):
+            for key, value in evaluations.items():
+                record[f'eval_{key}'] = value
+        elif evaluations is not None:
+            record['evaluations_raw'] = json.dumps(evaluations)
+        
+        # Flatten pricing with prefix
+        pricing = model_data.get('pricing', {})
+        if isinstance(pricing, dict):
+            for key, value in pricing.items():
+                record[f'price_{key}'] = value
+        elif pricing is not None:
+            record['pricing_raw'] = json.dumps(pricing)
+        
+        processed_records.append(record)
+    
+    logger.info(f"Processed {len(processed_records)} model records")
+    return processed_records
+
+
+def sort_by_intelligence_index(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Sort records by Artificial Analysis Intelligence Index (descending).
+    
+    Handles None/invalid values by sorting them to bottom.
+    """
+    def get_sort_value(item: Dict[str, Any]) -> float:
+        value = item.get('eval_artificial_analysis_intelligence_index')
+        if value is None:
+            return -float('inf')
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return -float('inf')
+    
+    records.sort(key=get_sort_value, reverse=True)
+    logger.info("Sorted records by intelligence index")
+    return records
+
+
+def save_data_to_csv(data: List[Dict[str, Any]], filename: str) -> bool:
+    """
+    Save processed data to CSV file.
+    
+    Args:
+        data: List of model records
+        filename: Output CSV path
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    if not data:
+        logger.warning("No data to save")
+        return False
+    
+    try:
+        df = pd.DataFrame(data)
+        df.to_csv(filename, index=False, encoding='utf-8')
+        logger.info(f"Saved {len(data)} records to {filename}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save CSV: {e}")
+        return False
+
+
+def run_collection_pipeline(
+    output_path: str = FIXED_OUTPUT_FILENAME,
+    timestamp_path: str = TIMESTAMP_FILE,
+    force_refresh: bool = False
+) -> bool:
+    """
+    Execute full data collection pipeline.
+    
+    Args:
+        output_path: Path for output CSV
+        timestamp_path: Path for timestamp file
+        force_refresh: Ignore cache and force new fetch
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    logger.info("Starting data collection pipeline")
+    
+    if not force_refresh and is_cache_valid(timestamp_path, CACHE_DURATION_HOURS):
+        logger.info("Using cached data")
+        return True
+    
+    try:
+        api_response = fetch_data_from_api(API_KEY)
+        if not api_response:
+            return False
+        
+        processed_data = process_api_data(api_response)
+        if not processed_data:
+            logger.warning("No data processed from API response")
+            return False
+        
+        sorted_data = sort_by_intelligence_index(processed_data)
+        
+        if save_data_to_csv(sorted_data, output_path):
+            update_success_timestamp(timestamp_path)
+            logger.info("Pipeline completed successfully")
+            return True
+        return False
+        
+    except APIAuthenticationError as e:
+        logger.error(f"Authentication failed: {e}")
+        return False
+    except APIRequestError as e:
+        logger.error(f"API request failed: {e}")
+        return False
+    except Exception as e:
+        logger.exception("Unexpected error in pipeline")
+        return False
+
+
+if __name__ == "__main__":
+    success = run_collection_pipeline()
+    exit(0 if success else 1)
+=== END FILE ===
+
+=== FILE: docs/data_pipeline_integration.md ===
+# Data Pipeline Integration
+
+This document describes how the data collection components integrate with the broader router system.
+
+## Component Interaction
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│   Data Sources  │────▶│  Collection      │────▶│   Storage       │
+│                 │     │  Layer           │     │   (CSV/YAML)    │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+                                                        │
+┌─────────────────┐     ┌──────────────────┐           │
+│   Router Core   │◀────│  Service Layer   │◀──────────┘
+│   (Proxy)       │     │  (Model Info)    │
+└─────────────────┘     └──────────────────┘
+        │
+        ▼
+┌─────────────────┐
+│  Provider       │
+│  Selection      │
+└─────────────────┘
+```
+
+## Integration Points
+
+### 1. Model Ranker Integration
+
+**File**: `src/proxy_app/model_ranker.py`
+
+The ranker consumes processed data to make routing decisions:
+
+```python
+from rotator_library.model_info_service import ModelInfoService
+
+class ModelRanker:
+    def __init__(self):
+        self.info_service = ModelInfoService()
+        
+    def get_best_model(self, capability: str) -> str:
+        # Uses intelligence index from CSV + provider limits from YAML
+        candidates = self.info_service.get_models_by_capability(capability)
+        return self.score_candidates(candidates)
+```
+
+**Data Dependencies**:
+- `artificial_analysis_models.csv`: Intelligence scores, speed metrics
+- `config/providers_database.yaml`: Rate limits, context windows
+
+### 2. Provider Adapter Integration
+
+**File**: `src/rotator_library/provider_adapter.py`
+
+Adapters validate against collected data:
+
+```python
+def validate_model_availability(self, model_id: str) -> bool:
+    # Check if model exists in latest benchmark data
+    if not self.model_info.exists(model_id):
+        logger.warning(f"Model {model_id} not in benchmark data")
+    return self.check_provider_limits(model_id)
+```
+
+### 3. Health Checker Integration
+
+**File**: `src/proxy_app/health_checker.py`
+
+Monitors data freshness:
+
+```python
+def check_data_freshness(self) -> HealthStatus:
+    timestamp_file = "last_successful_fetch.txt"
+    if not os.path.exists(timestamp_file):
+        return HealthStatus.WARNING, "No data collection timestamp found"
+    
+    # Parse timestamp and check age
+    # Alert if > 48 hours old
+```
+
+### 4. Background Refresher
+
+**File**: `src/rotator_library/background_refresher.py`
+
+Automated refresh without blocking:
+
+```python
+async def refresh_benchmark_data(self):
+    """Background task to update AI Analysis data."""
+    from fetch_artificial_analysis_data import run_collection_pipeline
+    
+    while True:
+        success = run_collection_pipeline(force_refresh=False)
+        if not success:
+            self.failure_logger.log("benchmark_refresh_failed")
+        await asyncio.sleep(3600)  # Check every hour
+```
+
+## Data Contracts
+
+### Model Record Schema (Post-Processing)
+
+```json
+{
+  "id": "uuid-string",
+  "name": "GPT-4 Turbo",
+  "slug": "gpt-4-turbo",
+  "model_creator_name": "OpenAI",
+  "model_creator_slug": "openai",
+  "eval_artificial_analysis_intelligence_index": 85.4,
+  "eval_mmlu": 86.4,
+  "price_input_per_1m": 10.00,
+  "price_output_per_1m": 30.00,
+  "median_output_tokens_per_second": 45.2
+}
+```
+
+### Provider Record Schema
+
+```yaml
+id: openrouter
+name: "OpenRouter"
+free_models:
+  - id: "google/gemini-2.0-flash-exp:free"
+    context: 1000000
+    rpm: 10
+capabilities: [chat, code, vision]
+```
+
+## Configuration Integration
+
+### Router Config
+
+**File**: `config/router_config.yaml`
+
+```yaml
+data_sources:
+  artificial_analysis:
+    enabled: true
+    cache_hours: 24
+    priority: 1
+  provider_database:
+    enabled: true
+    path: "config/providers_database.yaml"
+    priority: 2
+
+scoring:
+  weights:
+    intelligence_index: 0.4
+    speed: 0.3
+    cost: 0.2
+    reliability: 0.1
+```
+
+### Scoring Config
+
+**File**: `config/scoring_config.yaml`
+
+Uses collected data fields:
+
+```yaml
+metrics:
+  intelligence:
+    source: "eval_artificial_analysis_intelligence_index"
+    normalize: true
+  speed:
+    source: "median_output_tokens_per_second"
+    weight: 0.25
+  cost_efficiency:
+    source: "price_input_per_1m"
+    inverse: true  # Lower is better
+```
+
+## Error Handling Strategy
+
+### Data Unavailable Fallbacks
+
+1. **API Down**: Use cached CSV (indefinite fallback)
+2. **CSV Corrupted**: Use provider database only (basic routing)
+3. **Partial Data**: Weight available scores, ignore missing
+
+### Circuit Breaker Pattern
+
+```python
+class DataSourceCircuitBreaker:
+    def __init__(self):
+        self.failure_count = 0
+        self.threshold = 5
+        
+    def call(self, func):
+        if self.failure_count >= self.threshold:
+            return self.use_cached_data()
+        try:
+            result = func()
+            self.failure_count = 0
+            return result
+        except Exception:
+            self.failure_count += 1
+            raise
+```
+
+## Performance Considerations
+
+### Memory Management
+- CSV loaded once at startup
+- Service layer maintains in-memory cache
+- Background refresh updates cache atomically
+
+### Disk I/O
+- Write to temp file, then atomic move
+- Prevents partial reads during update
+- Timestamp updated only after successful write
+
+### Startup Sequence
+1. Load provider database (fast, static)
+2. Load benchmark CSV (fallback to empty if missing)
+3. Trigger background refresh if cache stale
+4. Mark router ready
+
+## Monitoring & Observability
+
+### Metrics to Track
+
+| Metric | Source | Alert Threshold |
+|--------|--------|----------------|
+| data_age_hours | `last_successful_fetch.txt` | > 48 hours |
+| api_success_rate | fetch script | < 95% over 24h |
+| records_processed | process_api_data | < 100 (suspicious) |
+| parse_errors | exception handler | > 5 per hour |
+
+### Logging Integration
+
+All data collection components use structured logging:
+
+```python
+logger.info("data_collection.completed", extra={
+    "records_processed": len(records),
+    "source": "artificial_analysis_api",
+    "duration_ms": elapsed_time
+})
+```
+
+## Testing Integration
+
+### Mock Data for Tests
+
+```python
+# conftest.py
+@pytest.fixture
+def mock_benchmark_data():
+    return pd.DataFrame([
+        {"name": "test-model", "eval_intelligence": 80.0}
+    ])
+
+@pytest.fixture  
+def mock_provider_db():
+    return load_yaml("tests/fixtures/test_providers.yaml")
+```
+
+### Integration Tests
+
+Test the full pipeline:
+1. Start with empty directory
+2. Run fetch with mock API
+3. Verify CSV output
+4. Verify service layer can read data
+5. Verify router uses data for selection
+=== END FILE ===
