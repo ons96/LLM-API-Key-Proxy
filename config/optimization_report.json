@@ -1,12 +1,23 @@
 {
-  "generated_at": "2026-05-14T05:53:51.057877+00:00",
+  "generated_at": "2026-05-15T06:00:50.171163+00:00",
   "virtual_models_generated": 14,
   "agent_profiles": 6,
   "top_scored_models": [
     {
       "provider": "nvidia",
-      "model": "upstage/solar-10_7b-instruct",
-      "model_id": "nvidia/upstage/solar-10_7b-instruct",
+      "model": "deepseek-ai/deepseek-v3.2",
+      "model_id": "nvidia/deepseek-ai/deepseek-v3.2",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 163840,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "nvidia",
+      "model": "deepseek-ai/deepseek-v3.1-terminus",
+      "model_id": "nvidia/deepseek-ai/deepseek-v3.1-terminus",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 128000,
@@ -16,30 +27,19 @@
     },
     {
       "provider": "nvidia",
-      "model": "stepfun-ai/step-3.5-flash",
-      "model_id": "nvidia/stepfun-ai/step-3.5-flash",
+      "model": "bytedance/seed-oss-36b-instruct",
+      "model_id": "nvidia/bytedance/seed-oss-36b-instruct",
       "composite_score": 0.547,
       "capabilities": [],
-      "context_window": 256000,
+      "context_window": 262000,
       "benchmark_score": 0.1,
       "success_rate": 0.8,
       "latency_score": 0.933
     },
     {
       "provider": "nvidia",
-      "model": "mistralai/mistral-large-3-675b-instruct-2512",
-      "model_id": "nvidia/mistralai/mistral-large-3-675b-instruct-2512",
-      "composite_score": 0.547,
-      "capabilities": [],
-      "context_window": 262144,
-      "benchmark_score": 0.1,
-      "success_rate": 0.8,
-      "latency_score": 0.933
-    },
-    {
-      "provider": "nvidia",
-      "model": "mistralai/devstral-2-123b-instruct-2512",
-      "model_id": "nvidia/mistralai/devstral-2-123b-instruct-2512",
+      "model": "moonshotai/kimi-k2-instruct-0905",
+      "model_id": "nvidia/moonshotai/kimi-k2-instruct-0905",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 262144,
@@ -49,8 +49,8 @@
     },
     {
       "provider": "nvidia",
-      "model": "mistralai/mistral-nemotron",
-      "model_id": "nvidia/mistralai/mistral-nemotron",
+      "model": "moonshotai/kimi-k2-instruct",
+      "model_id": "nvidia/moonshotai/kimi-k2-instruct",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 128000,
