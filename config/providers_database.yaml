@@ -3088,3 +3088,12 @@ providers:
   - id: umans-kimi-k2.6
     context: 262144
   notes: Discovered 2026-05-15
+- id: orcarouter
+  name: OrcaRouter
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: orcarouter/auto
+    context: 128000
+  notes: Discovered 2026-05-16
