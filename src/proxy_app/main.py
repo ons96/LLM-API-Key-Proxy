@@ -956,7 +956,9 @@ async def responses_endpoint(
 
         if hasattr(response_obj, "model_dump"):
             try:
-                dumped = response_obj.model_dump()
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=UserWarning)
+                    dumped = response_obj.model_dump(exclude_unset=True, exclude_none=True)
                 if isinstance(dumped, dict):
                     return dumped
             except Exception:
@@ -964,7 +966,9 @@ async def responses_endpoint(
 
         if hasattr(response_obj, "dict"):
             try:
-                dumped = response_obj.dict()
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=UserWarning)
+                    dumped = response_obj.dict()
                 if isinstance(dumped, dict):
                     return dumped
             except Exception:

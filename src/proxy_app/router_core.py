@@ -879,7 +879,7 @@ class RouterCore:
 
             # Record success
             elapsed_ms = (time.time() - start_time) * 1000
-            self._update_metrics(
+            await self._update_metrics(
                 candidate.provider, candidate.model, elapsed_ms, True, response=response
             )
             return response
@@ -893,7 +893,7 @@ class RouterCore:
                     candidate.provider, candidate.model
                 )
 
-            self._update_metrics(
+            await self._update_metrics(
                 candidate.provider,
                 candidate.model,
                 time.time() - start_time,
@@ -1741,10 +1741,12 @@ class RouterCore:
             async for chunk in response:
                 chunk_count += 1
                 # Convert chunk to dict if necessary
-                if hasattr(chunk, "dict"):
+                if hasattr(chunk, "model_dump"):
+                    chunk_dict = chunk.model_dump(exclude_unset=True, exclude_none=True)
+                elif hasattr(chunk, "dict"):
                     chunk_dict = chunk.dict()
                 elif hasattr(chunk, "__dict__"):
-                    chunk_dict = chunk.__dict__
+                    chunk_dict = {k: v for k, v in chunk.__dict__.items() if not k.startswith("_")}
                 else:
                     chunk_dict = chunk
 
@@ -1763,7 +1765,7 @@ class RouterCore:
                 raise Exception("Stream ended with no chunks")
 
             latency_ms = (time.time() - start_time) * 1000
-            self._update_metrics(candidate.provider, candidate.model, latency_ms, True)
+            await self._update_metrics(candidate.provider, candidate.model, latency_ms, True)
 
             logger.info(
                 f"[{request_id}] Stream success: {candidate.provider}/{candidate.model} ({latency_ms:.1f}ms)"
@@ -1785,7 +1787,7 @@ class RouterCore:
                     )
                 )
 
-            self._update_metrics(
+            await self._update_metrics(
                 candidate.provider,
                 candidate.model,
                 latency_ms,
@@ -2086,7 +2088,7 @@ class RouterCore:
         response: Dict[str, Any],
         original_request: Dict[str, Any],
         request_id: str,
-        max_depth: int = 2,
+        max_depth: int = 1,
     ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
         """Detect finish_reason == 'length' and auto-continue up to max_depth."""
 
@@ -2108,6 +2110,14 @@ class RouterCore:
         message = choices[0].get("message") or {}
         assistant_content = message.get("content")
         if not assistant_content:
+            return response
+
+        # Skip auto-continuation for very short max_tokens (likely intentional short response)
+        requested_max_tokens = original_request.get("max_tokens", 0)
+        if requested_max_tokens > 0 and requested_max_tokens <= 50:
+            logger.info(
+                f"[{request_id}] finish_reason=length but max_tokens={requested_max_tokens} too low; skipping auto-continuation"
+            )
             return response
 
         # Build continuation request
