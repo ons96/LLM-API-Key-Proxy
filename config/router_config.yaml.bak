@@ -654,26 +654,6 @@ providers:
     - z-ai/glm5
     - moonshotai/kimi-k2.5
     - minimaxai/minimax-m2.5
-  freemodel:
-    enabled: true
-    env_var: FREEMODEL_API_KEY
-    base_url: https://api.freemodel.dev/v1
-    free_tier: true
-    free_tier_models:
-    - gpt-5.5
-    - gpt-5.4
-    - gpt-5.4-mini
-    - gpt-5.3-codex
-  freemodel-anthropic:
-    enabled: true
-    env_var: FREEMODEL_API_KEY
-    base_url: https://cc.freemodel.dev/v1
-    free_tier: true
-    free_tier_models:
-    - claude-opus-4-7
-    - claude-sonnet-4-6
-    - claude-opus-4-6
-    - claude-haiku-4-5-20251001
 search:
   default_enabled: true
   max_additional_searches: 2
