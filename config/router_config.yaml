@@ -509,7 +509,6 @@ providers:
     - claude-fast
   opencode_zen:
     enabled: true
-    env_var: OPENCODE_ZEN_API_KEY
     base_url: https://opencode.ai/zen/v1
     free_tier: true
     no_api_key_required: true
