@@ -507,17 +507,6 @@ providers:
     - gemini-search
     - midijourney
     - claude-fast
-  opencode_zen:
-    enabled: true
-    base_url: https://opencode.ai/zen/v1
-    free_tier: true
-    no_api_key_required: true
-    free_tier_models:
-    - minimax/m2.1
-    - trinity/large-preview
-    - moonshot/kimi-k2.5
-    - zhipu/glm-4.7
-    - bigcode/pickle
   iflow:
     enabled: true
     env_var: IFLOW_API_KEY
