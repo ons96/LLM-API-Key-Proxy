@@ -1,0 +1,217 @@
+You are an expert Python/FastAPI software engineer.
+Repository layout (partial): config/aliases.yaml config/chat_model_rankings.yaml config/model_rankings.yaml config/providers_database.yaml config/router_config.yaml config/scoring_config.yaml config/virtual_models.yaml config/virtual_models_backup.yaml config/virtual_models_generated.yaml src/proxy_app/__init__.py src/proxy_app/batch_manager.py src/proxy_app/build.py src/proxy_app/config_exceptions.py src/proxy_app/config_watcher.py src/proxy_app/detailed_logger.py src/proxy_app/enhanced_proxy.py src/proxy_app/health_checker.py src/proxy_app/launcher_tui.py src/proxy_app/main.py src/proxy_app/model_ranker.py src/proxy_app/provider_adapter.py src/proxy_app/provider_urls.py src/proxy_app/rate_limiter.py src/proxy_app/request_logger.py src/proxy_app/router_core.py src/proxy_app/router_integration.py src/proxy_app/router_wrapper.py src/proxy_app/settings_tool.py src/proxy_app/status_api.py src/rotator_library/__init__.py src/rotator_library/background_refresher.py src/rotator_library/client.py src/rotator_library/cooldown_manager.py src/rotator_library/credential_manager.py src/rotator_library/credential_tool.py src/rotator_library/error_handler.py src/rotator_library/failure_logger.py src/rotator_library/fetch_artificial_analysis_data.py src/rotator_library/leaderboard_updater.py src/rotator_library/live_scraper.py src/rotator_library/llm_aggregated_leaderboard.py src/rotator_library/model_definitions.py src/rotator_library/model_info_service.py src/rotator_library/models_dev_discovery.py src/rotator_library/provider_factory.py src/rotator_library/provider_priority_manager.py src/rotator_library/provider_status_tracker.py src/rotator_library/providers/__init__.py src/rotator_library/providers/agentrouter_provider.py src/rotator_library/providers/antigravity_auth_base.py src/rotator_library/providers/antigravity_provider.py src/rotator_library/providers/cerebras_provider.py src/rotator_library/providers/chutes_provider.py src/rotator_library/providers/cohere_provider.py src/rotator_library/providers/g4f_provider.py src/rotator_library/providers/gemini_auth_base.py src/rotator_library/providers/gemini_cli_provider.py src/rotator_library/providers/gemini_provider.py src/rotator_library/providers/google_oauth_base.py src/rotator_library/providers/groq_provider.py 
+
+Relevant file contents:
+--- src/rotator_library/usage_manager.py ---
+import json
+import os
+import time
+import logging
+import asyncio
+import random
+from datetime import date, datetime, timezone, time as dt_time
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
+import aiofiles
+import litellm
+
+from .error_handler import ClassifiedError, NoAvailableKeysError, mask_credential
+from .providers import PROVIDER_PLUGINS
+from .utils.resilient_io import ResilientStateWriter
+from .utils.paths import get_data_file
+
+lib_logger = logging.getLogger("rotator_library")
+lib_logger.propagate = False
+if not lib_logger.handlers:
+    lib_logger.addHandler(logging.NullHandler())
+
+
+class UsageManager:
+    """
+    Manages usage statistics and cooldowns for API keys with asyncio-safe locking,
+    asynchronous file I/O, lazy-loading mechanism, and weighted random credential rotation.
+
+    The credential rotation strategy can be configured via the `rotation_tolerance` parameter:
+
+    - **tolerance = 0.0**: Deterministic least-used selection. The credential with
+      the lowest usage count is always selected. This provides predictable, perfectly balanced
+      load distribution but may be vulnerable to fingerprinting.
+
+    - **tolerance = 2.0 - 4.0 (default, recommended)**: Balanced weighted randomness. Credentials are selected
+      randomly with weights biased toward less-used ones. Credentials within 2 uses of the
+      maximum can still be selected with reasonable probability. This provides security through
+      unpredictability while maintaining good load balance.
+
+    - **tolerance = 5.0+**: High randomness. Even heavily-used credentials have significant
+      selection probability. Useful for stress testing or maximum unpredictability, but may
+      result in less balanced load distribution.
+
+    The weight formula is: `weight = (max_usage - credential_usage) + tolerance + 1`
+
+    This ensures lower-usage credentials are preferred while tolerance controls how much
+    randomness is introduced into the selection process.
+
+    Additionally, providers can specify a rotation mode:
+    - "balanced" (default): Rotate credentials to distribute load evenly
+    - "sequential": Use one credential until exhausted (preserves caching)
+    """
+
+    def __init__(
+        self,
+        file_path: Optional[Union[str, Path]] = None,
+        daily_reset_time_utc: Optional[str] = "03:00",
+        rotation_tolerance: float = 0.0,
+        provider_rotation_modes: Optional[Dict[str, str]] = None,
+        provider_plugins: Optional[Dict[str, Any]] = None,
+        priority_multipliers: Optional[Dict[str, Dict[int, int]]] = None,
+        priority_multipliers_by_mode: Optional[
+            Dict[str, Dict[str, Dict[int, int]]]
+        ] = None,
+        sequential_fallback_multipliers: Optional[Dict[str, int]] = None,
+    ):
+        """
+        Initialize the UsageManager.
+
+        Args:
+            file_path: Path to the usage data JSON file. If None, uses get_data_file("key_usage.json").
+                       Can be absolute Path, relative Path, or string.
+            daily_reset_time_utc: Time in UTC when daily stats should reset (HH:MM format)
+            rotation_tolerance: Tolerance for weighted random credential rotation.
+                - 0.0: Deterministic, least-used credential always selected
+                - tolerance = 2.0 - 4.0 (default, recommended): Balanced randomness, can pick credentials within 2 uses of max
+                - 5.0+: High randomness, more unpredictable selection patterns
+            provider_rotation_modes: Dict mapping provider names to rotation modes.
+                - "balanced": Rotate credentials to distribute load evenly (default)
+                - "sequential": Use one credential until exhausted (preserves caching)
+            provider_plugins: Dict mapping provider names to provider plugin instances.
+                Used for per-provider usage reset configuration (window durations, field names).
+            priority_multipliers: Dict mapping provider -> priority -> multiplier.
+                Universal multipliers that apply regardless of rotation mode.
+                Example: {"antigravity": {1: 5, 2: 3}}
+            priority_multipliers_by_mode: Dict mapping provider -> mode -> priority -> multiplier.
+                Mode-specific overrides. Example: {"antigravity": {"balanced": {3: 1}}}
+            sequential_fallback_multipliers: Dict mapping provider -> fallback multiplier.
+                Used in sequential mode when priority not in priority_multipliers.
+                Example: {"antigravity": 2}
+        """
+        # Resolve file_path - use default if not provided
+        if file_path is None:
+            self.file_path = str(get_data_file("key_usage.json"))
+        elif isinstance(file_path, Path):
+            self.file_path = str(file_path)
+        else:
+            # String path - could be relative or absolute
+            self.file_path = file_path
+        self.rotation_tolerance = rotation_tolerance
+        self.provider_rotation_modes = provider_rotation_modes or {}
+        self.provider_plugins = provider_plugins or PROVIDER_PLUGINS
+        self.priority_multipliers = priority_multipliers or {}
+        self.priority_multipliers_by_mode = priority_multipliers_by_mode or {}
+        self.sequential_fallback_multipliers = sequential_fallback_multipliers or {}
+        self._provider_instances: Dict[str, Any] = {}  # Cache for provider instances
+        self.key_states: Dict[str, Dict[str, Any]] = {}
+
+        self._data_lock = asyncio.Lock()
+        self._usage_data: Optional[Dict] = None
+        self._initialized = asyncio.Event()
+        self._init_lock = asyncio.Lock()
+
+        self._timeout_lock = asyncio.Lock()
+        self._claimed_on_timeout: Set[str] = set()
+
+        # Resilient writer for usage data persistence
+        self._state_writer = ResilientStateWriter(file_path, lib_logger)
+
+        if daily_reset_time_utc:
+            hour, minute = map(int, daily_reset_time_utc.split(":"))
+            self.daily_reset_time_utc = dt_time(
+                hour=hour, minute=minute, tzinfo=timezone.utc
+            )
+        else:
+            self.daily_reset_time_utc = None
+
+    def _get_rotation_mode(self, provider: str) -> str:
+        """
+        Get the rotation mode for a provider.
+
+        Args:
+            provider: Provider name (e.g., "antigravity", "gemini_cli")
+
+        Returns:
+            "balanced" or "sequential"
+        """
+        return self.provider_rotation_modes.get(provider, "balanced")
+
+    def _get_priority_multiplier(
+        self, provider: str, priority: int, rotation_mode: str
+    ) -> int:
+        """
+        Get the concurrency multiplier for a provider/priority/mode combination.
+
+        Lookup order:
+        1. Mode-specific tier override: priority_multipliers_by_mode[provider][mode][priority]
+        2. Universal tier multiplier: priority_multipliers[provider][priority]
+        3. Sequential fallback (if mode is sequential): sequential_fallback_multipliers[provider]
+        4. Global default: 1 (no multiplier effect)
+
+        Args:
+            provider: Provider name (e.g., "antigravity")
+            priority: Priority level (1 = highest priority)
+            rotation_mode: Current rotation mode ("sequential" or "balanced")
+
+        Returns:
+            Multiplier value
+        """
+        provider_lower = provider.lower()
+
+        # 1. Check mode-specific override
+        if provider_lower in self.priority_multipliers_by_mode:
+            mode_multipliers = self.priority_multipliers_by_mode[provider_lower]
+            if rotation_mode in mode_multipliers:
+                if priority in mode_multipliers[rotation_mode]:
+                    return mode_multipliers[rotation_mode][priority]
+
+        # 2. Check universal tier multiplier
+        if provider_lower in self.priority_multipliers:
+            if priority in self.priority_multipliers[provider_lower]:
+                return self.priority_multipliers[provider_lower][priority]
+
+        # 3. Sequential fallback (only for sequential mode)
+        if rotation_mode == "sequential":
+            if provider_lower in self.sequential_fallback_multipliers:
+                return self.sequential_fallback_multipliers[provider_lower]
+
+        # 4. Global default
+        return 1
+
+    def _get_provider_from_credential(self, credential: str) -> Optional[str]:
+        """
+        Extract provider name from credential path or identifier.
+
+        Supports multiple credential formats:
+        - OAuth: "oauth_creds/antigravity_oauth_15.json" -> "antigravity"
+        - OAuth: "C:\\...\\oauth_creds\\gemini_cli_oauth_1.json" -> "gemini_cli"
+        - API key style: stored with provider prefix metadata
+
+        Args:
+            credential: The credential identifier (path or key)
+
+        Returns:
+            Provider name string or None if cannot be determined
+        """
+        import re
+
+        # Normalize path separators
+        normalized = credential.replace("\\", "/")
+
+GitHub Issue #87: Phase 4.2: Document streaming usage
+
+Description: Part of Phase 4.2 Streaming Improvements.
+
+Task: Implement the changes needed to resolve this issue.
+For each file to create or modify, output a block in this EXACT format:
+=== FILE: path/to/file.py ===
+<complete new file contents>
+=== END FILE ===
+Only allowed path prefixes: src/, config/, docs/
+Output ONLY file blocks. No prose outside blocks.
