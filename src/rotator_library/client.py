@@ -1,3 +1,27 @@
+"""
+RotatingClient - Multi-Provider LLM Request Handler
+
+Provides automatic credential rotation, rate limit handling, and provider
+failover for LLM API requests. Supports both streaming and non-streaming
+chat completions, embeddings, and other LLM operations.
+
+Key Features:
+- Automatic credential rotation across multiple API keys
+- Rate limit detection and backoff
+- Provider failover on errors
+- Usage tracking per credential/model
+- Cost calculation and reporting
+- Telemetry collection
+
+Example:
+    client = RotatingClient()
+    response = await client.chat_completions(
+        model="groq/llama-3.3-70b",
+        messages=[{"role": "user", "content": "Hello"}]
+    )
+
+"""
+
 import asyncio
 import json
 import re
