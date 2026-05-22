@@ -685,8 +685,15 @@ async def lifespan(app: FastAPI):
         logging.info("RotatingClient closed.")
 
 
-# --- FastAPI App Setup ---
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    title="LLM API Proxy",
+    description="A FastAPI-based gateway that routes LLM API requests through multiple providers with automatic fallback.",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+)
 
 # Configure CORS - open for wide compatibility
 allow_origins = ["*"]
