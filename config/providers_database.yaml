@@ -3097,3 +3097,14 @@ providers:
   - id: orcarouter/auto
     context: 128000
   notes: Discovered 2026-05-16
+- id: poolside
+  name: Poolside
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: poolside/laguna-xs.2
+    context: 131040
+  - id: poolside/laguna-m.1
+    context: 131040
+  notes: Discovered 2026-05-25
