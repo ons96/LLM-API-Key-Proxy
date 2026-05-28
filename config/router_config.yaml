@@ -3,7 +3,7 @@ proxy_api_keys:
 - ${PROXY_API_KEY}
 providers:
   kilo:
-    enabled: true
+    enabled: false
     env_var: KILO_API_KEY
     base_url: https://api.kilo.ai/v1
     free_tier: true
@@ -24,6 +24,7 @@ providers:
     - openrouter/healer-alpha
     - openrouter/hunter-alpha
     - openrouter/bodybuilder
+    _auto_disabled_reason: HTTP 404
   groq:
     enabled: true
     env_var: GROQ_API_KEY
@@ -53,7 +54,7 @@ providers:
     free_tier: true
     no_api_key_required: true
   gemini:
-    enabled: true
+    enabled: false
     env_var: GEMINI_API_KEY
     base_url: https://generativelanguage.googleapis.com/v1beta
     free_tier: true
@@ -65,6 +66,7 @@ providers:
     - gemma-3-27b-it
     - gemini-1.5-flash
     - gemini-1.5-pro
+    _auto_disabled_reason: HTTP 404
   cerebras:
     enabled: true
     env_var: CEREBRAS_API_KEY
@@ -187,7 +189,7 @@ providers:
     - '@cf/openchat/openchat-7b'
     - '@cf/tinyllama/tinyllama-1.1b-chat'
   wiwi:
-    enabled: true
+    enabled: false
     env_var: WIWI_API_KEY
     api_base: ${WIWI_BASE_URL:-https://wiwi.up.railway.app/v1}
     free_tier_models:
@@ -213,6 +215,7 @@ providers:
     - minimax-m2.7
     - mimo-v2-pro
     - mimo-v2-omni
+    _auto_disabled_reason: Request URL is missing an 'http://' or 'https://' protocol.
   brave_search:
     enabled: true
     env_var: BRAVE_API_KEY
@@ -620,14 +623,15 @@ providers:
     - claude-haiku-4-5-20251001-thinking
     - gpt-5.1-codex
   antigravity:
-    enabled: true
+    enabled: false
     env_var: ANTIGRAVITY_API_KEY
     base_url: https://api.antigravity.dev/v1
     free_tier: true
     free_tier_models:
     - auto
+    _auto_disabled_reason: HTTP 404
   xinjianya:
-    enabled: true
+    enabled: false
     env_var: XINJIANYA_API_KEY
     base_url: https://api.xinjianya.top/v1
     free_tier: false
@@ -642,6 +646,7 @@ providers:
     - z-ai/glm5
     - moonshotai/kimi-k2.5
     - minimaxai/minimax-m2.5
+    _auto_disabled_reason: '[Errno -2] Name or service not known'
   freemodel:
     enabled: true
     env_var: FREEMODEL_API_KEY
