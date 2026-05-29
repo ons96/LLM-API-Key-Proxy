@@ -1,5 +1,5 @@
 metadata:
-  generated_at: '2026-05-28T06:19:29.146013+00:00'
+  generated_at: '2026-05-29T06:21:28.621879+00:00'
   sources:
   - models.dev
   - telemetry
@@ -390,64 +390,64 @@ virtual_models:
     description: Optimized for oracle agent - ['accuracy', 'depth']
     fallback_chain:
     - provider: nvidia
-      model: deepseek-ai/deepseek-v3.2
+      model: z-ai/glm4.7
       priority: 1
     - provider: nvidia
-      model: deepseek-ai/deepseek-v3.1-terminus
+      model: z-ai/glm-5.1
       priority: 2
     - provider: nvidia
-      model: bytedance/seed-oss-36b-instruct
+      model: upstage/solar-10_7b-instruct
       priority: 3
     - provider: nvidia
-      model: moonshotai/kimi-k2-instruct-0905
+      model: sarvamai/sarvam-m
       priority: 4
     - provider: nvidia
-      model: moonshotai/kimi-k2-instruct
+      model: mistralai/magistral-small-2506
       priority: 5
     - provider: nvidia
-      model: moonshotai/kimi-k2-thinking
+      model: mistralai/mistral-large-3-675b-instruct-2512
       priority: 6
     - provider: nvidia
-      model: moonshotai/kimi-k2.6
+      model: mistralai/mistral-nemotron
       priority: 7
     - provider: nvidia
-      model: z-ai/glm-5.1
+      model: mistralai/mixtral-8x7b-instruct
       priority: 8
     - provider: nvidia
-      model: z-ai/glm4.7
+      model: mistralai/mistral-7b-instruct-v03
       priority: 9
     - provider: nvidia
-      model: openai/gpt-oss-20b
+      model: mistralai/mixtral-8x22b-instruct
       priority: 10
     - provider: nvidia
-      model: openai/gpt-oss-120b
+      model: mistralai/mistral-medium-3-instruct
       priority: 11
     - provider: nvidia
-      model: nvidia/usdvalidate
+      model: mistralai/mistral-small-4-119b-2603
       priority: 12
     - provider: nvidia
-      model: nvidia/gliner-pii
+      model: mistralai/devstral-2-123b-instruct-2512
       priority: 13
     - provider: nvidia
-      model: nvidia/nemotron-content-safety-reasoning-4b
+      model: qwen/qwen2.5-coder-32b-instruct
       priority: 14
     - provider: nvidia
-      model: nvidia/nv-embed-v1
+      model: qwen/qwen3.5-122b-a10b
       priority: 15
     - provider: nvidia
-      model: nvidia/nv-embedcode-7b-v1
+      model: qwen/qwen3-next-80b-a3b-instruct
       priority: 16
     - provider: nvidia
-      model: nvidia/nvidia-nemotron-nano-9b-v2
+      model: qwen/qwen3-coder-480b-a35b-instruct
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: qwen/qwen3-next-80b-a3b-thinking
       priority: 18
     - provider: nvidia
-      model: nvidia/studiovoice
+      model: qwen/qwen3.5-397b-a17b
       priority: 19
     - provider: nvidia
-      model: nvidia/rerank-qa-mistral-4b
+      model: moonshotai/kimi-k2-thinking
       priority: 20
     settings:
       timeout_ms: 180000
@@ -456,64 +456,64 @@ virtual_models:
     description: Optimized for explore agent - ['latency', 'throughput']
     fallback_chain:
     - provider: nvidia
-      model: deepseek-ai/deepseek-v3.2
+      model: z-ai/glm4.7
       priority: 1
     - provider: nvidia
-      model: deepseek-ai/deepseek-v3.1-terminus
+      model: z-ai/glm-5.1
       priority: 2
     - provider: nvidia
-      model: bytedance/seed-oss-36b-instruct
+      model: upstage/solar-10_7b-instruct
       priority: 3
     - provider: nvidia
-      model: moonshotai/kimi-k2-instruct-0905
+      model: sarvamai/sarvam-m
       priority: 4
     - provider: nvidia
-      model: moonshotai/kimi-k2-instruct
+      model: mistralai/magistral-small-2506
       priority: 5
     - provider: nvidia
-      model: moonshotai/kimi-k2-thinking
+      model: mistralai/mistral-large-3-675b-instruct-2512
       priority: 6
     - provider: nvidia
-      model: moonshotai/kimi-k2.6
+      model: mistralai/mistral-nemotron
       priority: 7
     - provider: nvidia
-      model: z-ai/glm-5.1
+      model: mistralai/mixtral-8x7b-instruct
       priority: 8
     - provider: nvidia
-      model: z-ai/glm4.7
+      model: mistralai/mistral-7b-instruct-v03
       priority: 9
     - provider: nvidia
-      model: openai/gpt-oss-20b
+      model: mistralai/mixtral-8x22b-instruct
       priority: 10
     - provider: nvidia
-      model: openai/gpt-oss-120b
+      model: mistralai/mistral-medium-3-instruct
       priority: 11
     - provider: nvidia
-      model: nvidia/usdvalidate
+      model: mistralai/mistral-small-4-119b-2603
       priority: 12
     - provider: nvidia
-      model: nvidia/gliner-pii
+      model: mistralai/devstral-2-123b-instruct-2512
       priority: 13
     - provider: nvidia
-      model: nvidia/nemotron-content-safety-reasoning-4b
+      model: qwen/qwen2.5-coder-32b-instruct
       priority: 14
     - provider: nvidia
-      model: nvidia/nv-embed-v1
+      model: qwen/qwen3.5-122b-a10b
       priority: 15
     - provider: nvidia
-      model: nvidia/nv-embedcode-7b-v1
+      model: qwen/qwen3-next-80b-a3b-instruct
       priority: 16
     - provider: nvidia
-      model: nvidia/nvidia-nemotron-nano-9b-v2
+      model: qwen/qwen3-coder-480b-a35b-instruct
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: qwen/qwen3-next-80b-a3b-thinking
       priority: 18
     - provider: nvidia
-      model: nvidia/studiovoice
+      model: qwen/qwen3.5-397b-a17b
       priority: 19
     - provider: nvidia
-      model: nvidia/rerank-qa-mistral-4b
+      model: moonshotai/kimi-k2-thinking
       priority: 20
     settings:
       timeout_ms: 120000
@@ -522,64 +522,64 @@ virtual_models:
     description: Optimized for librarian agent - ['availability', 'reliability']
     fallback_chain:
     - provider: nvidia
-      model: deepseek-ai/deepseek-v3.2
+      model: z-ai/glm4.7
       priority: 1
     - provider: nvidia
-      model: deepseek-ai/deepseek-v3.1-terminus
+      model: z-ai/glm-5.1
       priority: 2
     - provider: nvidia
-      model: bytedance/seed-oss-36b-instruct
+      model: upstage/solar-10_7b-instruct
       priority: 3
     - provider: nvidia
-      model: moonshotai/kimi-k2-instruct-0905
+      model: sarvamai/sarvam-m
       priority: 4
     - provider: nvidia
-      model: moonshotai/kimi-k2-instruct
+      model: mistralai/magistral-small-2506
       priority: 5
     - provider: nvidia
-      model: moonshotai/kimi-k2-thinking
+      model: mistralai/mistral-large-3-675b-instruct-2512
       priority: 6
     - provider: nvidia
-      model: moonshotai/kimi-k2.6
+      model: mistralai/mistral-nemotron
       priority: 7
     - provider: nvidia
-      model: z-ai/glm-5.1
+      model: mistralai/mixtral-8x7b-instruct
       priority: 8
     - provider: nvidia
-      model: z-ai/glm4.7
+      model: mistralai/mistral-7b-instruct-v03
       priority: 9
     - provider: nvidia
-      model: openai/gpt-oss-20b
+      model: mistralai/mixtral-8x22b-instruct
       priority: 10
     - provider: nvidia
-      model: openai/gpt-oss-120b
+      model: mistralai/mistral-medium-3-instruct
       priority: 11
     - provider: nvidia
-      model: nvidia/usdvalidate
+      model: mistralai/mistral-small-4-119b-2603
       priority: 12
     - provider: nvidia
-      model: nvidia/gliner-pii
+      model: mistralai/devstral-2-123b-instruct-2512
       priority: 13
     - provider: nvidia
-      model: nvidia/nemotron-content-safety-reasoning-4b
+      model: qwen/qwen2.5-coder-32b-instruct
       priority: 14
     - provider: nvidia
-      model: nvidia/nv-embed-v1
+      model: qwen/qwen3.5-122b-a10b
       priority: 15
     - provider: nvidia
-      model: nvidia/nv-embedcode-7b-v1
+      model: qwen/qwen3-next-80b-a3b-instruct
       priority: 16
     - provider: nvidia
-      model: nvidia/nvidia-nemotron-nano-9b-v2
+      model: qwen/qwen3-coder-480b-a35b-instruct
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: qwen/qwen3-next-80b-a3b-thinking
       priority: 18
     - provider: nvidia
-      model: nvidia/studiovoice
+      model: qwen/qwen3.5-397b-a17b
       priority: 19
     - provider: nvidia
-      model: nvidia/rerank-qa-mistral-4b
+      model: moonshotai/kimi-k2-thinking
       priority: 20
     settings:
       timeout_ms: 120000
@@ -588,64 +588,64 @@ virtual_models:
     description: Optimized for build agent - ['balanced']
     fallback_chain:
     - provider: nvidia
-      model: deepseek-ai/deepseek-v3.2
+      model: z-ai/glm4.7
       priority: 1
     - provider: nvidia
-      model: deepseek-ai/deepseek-v3.1-terminus
+      model: z-ai/glm-5.1
       priority: 2
     - provider: nvidia
-      model: bytedance/seed-oss-36b-instruct
+      model: upstage/solar-10_7b-instruct
       priority: 3
     - provider: nvidia
-      model: moonshotai/kimi-k2-instruct-0905
+      model: sarvamai/sarvam-m
       priority: 4
     - provider: nvidia
-      model: moonshotai/kimi-k2-instruct
+      model: mistralai/magistral-small-2506
       priority: 5
     - provider: nvidia
-      model: moonshotai/kimi-k2-thinking
+      model: mistralai/mistral-large-3-675b-instruct-2512
       priority: 6
     - provider: nvidia
-      model: moonshotai/kimi-k2.6
+      model: mistralai/mistral-nemotron
       priority: 7
     - provider: nvidia
-      model: z-ai/glm-5.1
+      model: mistralai/mixtral-8x7b-instruct
       priority: 8
     - provider: nvidia
-      model: z-ai/glm4.7
+      model: mistralai/mistral-7b-instruct-v03
       priority: 9
     - provider: nvidia
-      model: openai/gpt-oss-20b
+      model: mistralai/mixtral-8x22b-instruct
       priority: 10
     - provider: nvidia
-      model: openai/gpt-oss-120b
+      model: mistralai/mistral-medium-3-instruct
       priority: 11
     - provider: nvidia
-      model: nvidia/usdvalidate
+      model: mistralai/mistral-small-4-119b-2603
       priority: 12
     - provider: nvidia
-      model: nvidia/gliner-pii
+      model: mistralai/devstral-2-123b-instruct-2512
       priority: 13
     - provider: nvidia
-      model: nvidia/nemotron-content-safety-reasoning-4b
+      model: qwen/qwen2.5-coder-32b-instruct
       priority: 14
     - provider: nvidia
-      model: nvidia/nv-embed-v1
+      model: qwen/qwen3.5-122b-a10b
       priority: 15
     - provider: nvidia
-      model: nvidia/nv-embedcode-7b-v1
+      model: qwen/qwen3-next-80b-a3b-instruct
       priority: 16
     - provider: nvidia
-      model: nvidia/nvidia-nemotron-nano-9b-v2
+      model: qwen/qwen3-coder-480b-a35b-instruct
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: qwen/qwen3-next-80b-a3b-thinking
       priority: 18
     - provider: nvidia
-      model: nvidia/studiovoice
+      model: qwen/qwen3.5-397b-a17b
       priority: 19
     - provider: nvidia
-      model: nvidia/rerank-qa-mistral-4b
+      model: moonshotai/kimi-k2-thinking
       priority: 20
     settings:
       timeout_ms: 120000
@@ -654,64 +654,64 @@ virtual_models:
     description: Optimized for metis agent - ['accuracy']
     fallback_chain:
     - provider: nvidia
-      model: deepseek-ai/deepseek-v3.2
+      model: z-ai/glm4.7
       priority: 1
     - provider: nvidia
-      model: deepseek-ai/deepseek-v3.1-terminus
+      model: z-ai/glm-5.1
       priority: 2
     - provider: nvidia
-      model: bytedance/seed-oss-36b-instruct
+      model: upstage/solar-10_7b-instruct
       priority: 3
     - provider: nvidia
-      model: moonshotai/kimi-k2-instruct-0905
+      model: sarvamai/sarvam-m
       priority: 4
     - provider: nvidia
-      model: moonshotai/kimi-k2-instruct
+      model: mistralai/magistral-small-2506
       priority: 5
     - provider: nvidia
-      model: moonshotai/kimi-k2-thinking
+      model: mistralai/mistral-large-3-675b-instruct-2512
       priority: 6
     - provider: nvidia
-      model: moonshotai/kimi-k2.6
+      model: mistralai/mistral-nemotron
       priority: 7
     - provider: nvidia
-      model: z-ai/glm-5.1
+      model: mistralai/mixtral-8x7b-instruct
       priority: 8
     - provider: nvidia
-      model: z-ai/glm4.7
+      model: mistralai/mistral-7b-instruct-v03
       priority: 9
     - provider: nvidia
-      model: openai/gpt-oss-20b
+      model: mistralai/mixtral-8x22b-instruct
       priority: 10
     - provider: nvidia
-      model: openai/gpt-oss-120b
+      model: mistralai/mistral-medium-3-instruct
       priority: 11
     - provider: nvidia
-      model: nvidia/usdvalidate
+      model: mistralai/mistral-small-4-119b-2603
       priority: 12
     - provider: nvidia
-      model: nvidia/gliner-pii
+      model: mistralai/devstral-2-123b-instruct-2512
       priority: 13
     - provider: nvidia
-      model: nvidia/nemotron-content-safety-reasoning-4b
+      model: qwen/qwen2.5-coder-32b-instruct
       priority: 14
     - provider: nvidia
-      model: nvidia/nv-embed-v1
+      model: qwen/qwen3.5-122b-a10b
       priority: 15
     - provider: nvidia
-      model: nvidia/nv-embedcode-7b-v1
+      model: qwen/qwen3-next-80b-a3b-instruct
       priority: 16
     - provider: nvidia
-      model: nvidia/nvidia-nemotron-nano-9b-v2
+      model: qwen/qwen3-coder-480b-a35b-instruct
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: qwen/qwen3-next-80b-a3b-thinking
       priority: 18
     - provider: nvidia
-      model: nvidia/studiovoice
+      model: qwen/qwen3.5-397b-a17b
       priority: 19
     - provider: nvidia
-      model: nvidia/rerank-qa-mistral-4b
+      model: moonshotai/kimi-k2-thinking
       priority: 20
     settings:
       timeout_ms: 180000
@@ -720,64 +720,64 @@ virtual_models:
     description: Optimized for momus agent - ['quality']
     fallback_chain:
     - provider: nvidia
-      model: deepseek-ai/deepseek-v3.2
+      model: z-ai/glm4.7
       priority: 1
     - provider: nvidia
-      model: deepseek-ai/deepseek-v3.1-terminus
+      model: z-ai/glm-5.1
       priority: 2
     - provider: nvidia
-      model: bytedance/seed-oss-36b-instruct
+      model: upstage/solar-10_7b-instruct
       priority: 3
     - provider: nvidia
-      model: moonshotai/kimi-k2-instruct-0905
+      model: sarvamai/sarvam-m
       priority: 4
     - provider: nvidia
-      model: moonshotai/kimi-k2-instruct
+      model: mistralai/magistral-small-2506
       priority: 5
     - provider: nvidia
-      model: moonshotai/kimi-k2-thinking
+      model: mistralai/mistral-large-3-675b-instruct-2512
       priority: 6
     - provider: nvidia
-      model: moonshotai/kimi-k2.6
+      model: mistralai/mistral-nemotron
       priority: 7
     - provider: nvidia
-      model: z-ai/glm-5.1
+      model: mistralai/mixtral-8x7b-instruct
       priority: 8
     - provider: nvidia
-      model: z-ai/glm4.7
+      model: mistralai/mistral-7b-instruct-v03
       priority: 9
     - provider: nvidia
-      model: openai/gpt-oss-20b
+      model: mistralai/mixtral-8x22b-instruct
       priority: 10
     - provider: nvidia
-      model: openai/gpt-oss-120b
+      model: mistralai/mistral-medium-3-instruct
       priority: 11
     - provider: nvidia
-      model: nvidia/usdvalidate
+      model: mistralai/mistral-small-4-119b-2603
       priority: 12
     - provider: nvidia
-      model: nvidia/gliner-pii
+      model: mistralai/devstral-2-123b-instruct-2512
       priority: 13
     - provider: nvidia
-      model: nvidia/nemotron-content-safety-reasoning-4b
+      model: qwen/qwen2.5-coder-32b-instruct
       priority: 14
     - provider: nvidia
-      model: nvidia/nv-embed-v1
+      model: qwen/qwen3.5-122b-a10b
       priority: 15
     - provider: nvidia
-      model: nvidia/nv-embedcode-7b-v1
+      model: qwen/qwen3-next-80b-a3b-instruct
       priority: 16
     - provider: nvidia
-      model: nvidia/nvidia-nemotron-nano-9b-v2
+      model: qwen/qwen3-coder-480b-a35b-instruct
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: qwen/qwen3-next-80b-a3b-thinking
       priority: 18
     - provider: nvidia
-      model: nvidia/studiovoice
+      model: qwen/qwen3.5-397b-a17b
       priority: 19
     - provider: nvidia
-      model: nvidia/rerank-qa-mistral-4b
+      model: moonshotai/kimi-k2-thinking
       priority: 20
     settings:
       timeout_ms: 180000
