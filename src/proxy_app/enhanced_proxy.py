@@ -170,10 +170,18 @@ async def enhanced_chat_completions(
 
         # Handle streaming
         if request_data.get("stream", False):
-            return StreamingResponse(
-                _wrap_streaming_response(response, request_id, start_time),
-                media_type="text/plain",
-            )
+            try:
+                return StreamingResponse(
+                    _wrap_streaming_response(response, request_id, start_time),
+                    media_type="text/event-stream",
+                )
+            except Exception as stream_err:
+                logger.error(f"[{request_id}] StreamingResponse construction failed: {stream_err}")
+
+                async def _error_stream():
+                    yield f"data: {{\"error\": \"{str(stream_err)}\"}}\n\n"
+                    yield "data: [DONE]\n\n"
+                return StreamingResponse(_error_stream(), media_type="text/event-stream")
         else:
             duration_ms = (time.time() - start_time) * 1000
             logger.info(f"[{request_id}] Request completed in {duration_ms:.1f}ms")
@@ -202,11 +210,11 @@ async def _wrap_streaming_response(
                 # Check if it's already a properly formatted chunk
                 if "id" in chunk and "choices" in chunk:
                     # Standard LiteLLM chunk format
-                    yield f"data: {chunk}\\n\\n"
+                    yield f"data: {chunk}\n\n"
                     chunk_count += 1
                 elif "error" in chunk:
                     # Error chunk
-                    yield f"data: {chunk}\\n\\n"
+                    yield f"data: {chunk}\n\n"
                 else:
                     # Raw content, wrap it
                     wrapped_chunk = {
@@ -222,15 +230,15 @@ async def _wrap_streaming_response(
                             }
                         ],
                     }
-                    yield f"data: {wrapped_chunk}\\n\\n"
+                    yield f"data: {wrapped_chunk}\n\n"
                     chunk_count += 1
             else:
                 # String or other type, convert to string
-                yield f"data: {chunk}\\n\\n"
+                yield f"data: {chunk}\n\n"
                 chunk_count += 1
 
         # Send done signal
-        yield "data: [DONE]\\n\\n"
+        yield "data: [DONE]\n\n"
 
         duration_ms = (time.time() - start_time) * 1000
         logger.info(
@@ -240,8 +248,8 @@ async def _wrap_streaming_response(
     except Exception as e:
         duration_ms = (time.time() - start_time) * 1000
         logger.error(f"[{request_id}] Stream failed after {duration_ms:.1f}ms: {e}")
-        yield f'data: {{"error": "{str(e)}"}}\\n\\n'
-        yield "data: [DONE]\\n\\n"
+        yield f'data: {{"error": "{str(e)}"}}\n\n'
+        yield "data: [DONE]\n\n"
 
 
 # Router status endpoint
