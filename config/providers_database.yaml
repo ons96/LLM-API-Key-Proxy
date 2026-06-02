@@ -3037,3 +3037,74 @@ providers:
   - id: GLM-5.1
     context: 202752
   notes: Discovered 2026-04-20
+- id: kiro
+  name: Kiro
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: claude-opus-4.6
+    context: 1000000
+  - id: claude-opus-4.7
+    context: 1000000
+  - id: claude-sonnet-4
+    context: 200000
+  - id: deepseek-3.2
+    context: 164000
+  - id: claude-sonnet-4.5
+    context: 200000
+  - id: claude-opus-4.5
+    context: 200000
+  - id: qwen3-coder-next
+    context: 256000
+  - id: claude-haiku-4.5
+    context: 200000
+  - id: claude-sonnet-4.6
+    context: 1000000
+  notes: Discovered 2026-05-07
+- id: firepass
+  name: Fireworks (Firepass)
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: accounts/fireworks/routers/kimi-k2p6-turbo
+    context: 262000
+  notes: Discovered 2026-05-10
+- id: umans-ai-coding-plan
+  name: Umans AI Coding Plan
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: umans-qwen3.6-35b-a3b
+    context: 262144
+  - id: umans-glm-5.1
+    context: 204800
+  - id: umans-coder
+    context: 262144
+  - id: umans-flash
+    context: 262144
+  - id: umans-kimi-k2.6
+    context: 262144
+  notes: Discovered 2026-05-15
+- id: orcarouter
+  name: OrcaRouter
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: orcarouter/auto
+    context: 128000
+  notes: Discovered 2026-05-16
+- id: poolside
+  name: Poolside
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: poolside/laguna-xs.2
+    context: 131040
+  - id: poolside/laguna-m.1
+    context: 131040
+  notes: Discovered 2026-05-25

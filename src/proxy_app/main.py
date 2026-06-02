@@ -5,6 +5,7 @@ import asyncio
 import os
 from pathlib import Path
 import sys
+import uuid
 import argparse
 import logging
 
@@ -956,7 +957,9 @@ async def responses_endpoint(
 
         if hasattr(response_obj, "model_dump"):
             try:
-                dumped = response_obj.model_dump()
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=UserWarning)
+                    dumped = response_obj.model_dump(exclude_unset=True, exclude_none=True)
                 if isinstance(dumped, dict):
                     return dumped
             except Exception:
@@ -964,7 +967,9 @@ async def responses_endpoint(
 
         if hasattr(response_obj, "dict"):
             try:
-                dumped = response_obj.dict()
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=UserWarning)
+                    dumped = response_obj.dict()
                 if isinstance(dumped, dict):
                     return dumped
             except Exception:
@@ -1059,17 +1064,27 @@ async def chat_completions(
     # Use RouterWrapper to handle the request
     try:
         router = get_router()
-        return await router.handle_chat_completions(request_data, request)
+        result = await router.handle_chat_completions(request_data, request)
+        # If streaming, wrap in StreamingResponse with proper SSE format
+        if request_data.get("stream", False):
+            request_id = f"req_{uuid.uuid4().hex[:16]}"
+            async def _sse_wrap(gen):
+                try:
+                    async for chunk in gen:
+                        if isinstance(chunk, dict):
+                            yield f"data: {json.dumps(chunk)}\n\n"
+                        else:
+                            yield f"data: {chunk}\n\n"
+                    yield "data: [DONE]\n\n"
+                except Exception as e:
+                    yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
+                    yield "data: [DONE]\n\n"
+            return StreamingResponse(_sse_wrap(result), media_type="text/event-stream")
+        return result
     except Exception as e:
-        # Fallback to direct client usage if router fails or for detailed logging handling
-        # (though RouterWrapper should handle most things)
-        logging.error(f"Router delegation failed: {e}. Falling back to legacy path.")
-        # Re-raise if it's an HTTPException to propagate status codes
+        logging.error(f"Router delegation failed: {e}.")
         if isinstance(e, HTTPException):
             raise e
-        # Otherwise, let the legacy logic below try to handle it (or just fail there)
-        # But wait, RouterWrapper is designed to wrap everything.
-        # If it fails, we should probably return error.
         raise HTTPException(status_code=500, detail=f"Router Error: {str(e)}")
 
 

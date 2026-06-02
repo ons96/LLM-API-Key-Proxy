@@ -1,9 +1,9 @@
-free_only_mode: true
+free_only_mode: false
 proxy_api_keys:
 - ${PROXY_API_KEY}
 providers:
   kilo:
-    enabled: true
+    enabled: false
     env_var: KILO_API_KEY
     base_url: https://api.kilo.ai/v1
     free_tier: true
@@ -24,6 +24,7 @@ providers:
     - openrouter/healer-alpha
     - openrouter/hunter-alpha
     - openrouter/bodybuilder
+    _auto_disabled_reason: HTTP 404
   groq:
     enabled: true
     env_var: GROQ_API_KEY
@@ -53,7 +54,7 @@ providers:
     free_tier: true
     no_api_key_required: true
   gemini:
-    enabled: true
+    enabled: false
     env_var: GEMINI_API_KEY
     base_url: https://generativelanguage.googleapis.com/v1beta
     free_tier: true
@@ -65,6 +66,7 @@ providers:
     - gemma-3-27b-it
     - gemini-1.5-flash
     - gemini-1.5-pro
+    _auto_disabled_reason: HTTP 404
   cerebras:
     enabled: true
     env_var: CEREBRAS_API_KEY
@@ -187,7 +189,7 @@ providers:
     - '@cf/openchat/openchat-7b'
     - '@cf/tinyllama/tinyllama-1.1b-chat'
   wiwi:
-    enabled: true
+    enabled: false
     env_var: WIWI_API_KEY
     api_base: ${WIWI_BASE_URL:-https://wiwi.up.railway.app/v1}
     free_tier_models:
@@ -213,6 +215,7 @@ providers:
     - minimax-m2.7
     - mimo-v2-pro
     - mimo-v2-omni
+    _auto_disabled_reason: Request URL is missing an 'http://' or 'https://' protocol.
   brave_search:
     enabled: true
     env_var: BRAVE_API_KEY
@@ -507,18 +510,6 @@ providers:
     - gemini-search
     - midijourney
     - claude-fast
-  opencode_zen:
-    enabled: true
-    env_var: OPENCODE_ZEN_API_KEY
-    base_url: https://opencode.ai/zen/v1
-    free_tier: true
-    no_api_key_required: true
-    free_tier_models:
-    - minimax/m2.1
-    - trinity/large-preview
-    - moonshot/kimi-k2.5
-    - zhipu/glm-4.7
-    - bigcode/pickle
   iflow:
     enabled: true
     env_var: IFLOW_API_KEY
@@ -632,12 +623,50 @@ providers:
     - claude-haiku-4-5-20251001-thinking
     - gpt-5.1-codex
   antigravity:
-    enabled: true
+    enabled: false
     env_var: ANTIGRAVITY_API_KEY
     base_url: https://api.antigravity.dev/v1
     free_tier: true
     free_tier_models:
     - auto
+    _auto_disabled_reason: HTTP 404
+  xinjianya:
+    enabled: false
+    env_var: XINJIANYA_API_KEY
+    base_url: https://api.xinjianya.top/v1
+    free_tier: false
+    free_tier_models:
+    - gpt-5.4
+    - deepseek-reasoner
+    - qwen-qwq-32b
+    - openai/gpt-oss-120b
+    - nvidia/nemotron-3-super-120b-a12b
+    - meta-llama/llama-3.3-70b-instruct
+    - qwen/qwen3.5-397b-a17b
+    - z-ai/glm5
+    - moonshotai/kimi-k2.5
+    - minimaxai/minimax-m2.5
+    _auto_disabled_reason: '[Errno -2] Name or service not known'
+  freemodel:
+    enabled: true
+    env_var: FREEMODEL_API_KEY
+    base_url: https://api.freemodel.dev/v1
+    free_tier: true
+    free_tier_models:
+    - gpt-5.5
+    - gpt-5.4
+    - gpt-5.4-mini
+    - gpt-5.3-codex
+  freemodel-anthropic:
+    enabled: true
+    env_var: FREEMODEL_API_KEY
+    base_url: https://cc.freemodel.dev/v1
+    free_tier: true
+    free_tier_models:
+    - claude-opus-4-7
+    - claude-sonnet-4-6
+    - claude-opus-4-6
+    - claude-haiku-4-5-20251001
 search:
   default_enabled: true
   max_additional_searches: 2
@@ -672,9 +701,9 @@ search:
     free_only: true
     no_api_key_required: true
 routing:
-  default_cooldown_seconds: 60
-  rate_limit_cooldown_seconds: 300
-  max_consecutive_failures: 3
+  default_cooldown_seconds: 0.5
+  rate_limit_cooldown_seconds: 5
+  max_consecutive_failures: 2
   ewma_alpha: 0.3
   latency_window_minutes: 15
   default_timeout_seconds: 30

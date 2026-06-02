@@ -23,7 +23,26 @@ class ModelRegistry:
                         continue
                     
                     free_tier_models = details.get("free_tier_models", [])
-                    for model in free_tier_models:
+                    
+                    # Also load models from providers_database.yaml for providers without free_tier_models
+                    all_provider_models = list(free_tier_models)
+                    if not free_tier_models and details.get("base_url"):
+                        try:
+                            import yaml as _yaml
+                            from pathlib import Path
+                            _db_file = Path("/home/ubuntu/LLM-API-Key-Proxy/config/providers_database.yaml")
+                            if _db_file.exists():
+                                with open(_db_file, "r") as _f:
+                                    _db = _yaml.safe_load(_f) or {}
+                                for _p in _db.get("providers", []):
+                                    if _p.get("id") == provider:
+                                        _models = _p.get("free_models", [])
+                                        all_provider_models.extend([m["id"] for m in _models if isinstance(m, dict) and "id" in m])
+                                        break
+                        except Exception:
+                            pass
+                    
+                    for model in all_provider_models:
                         # Map exact name
                         if model not in self.model_to_providers:
                             self.model_to_providers[model] = []

@@ -565,33 +565,17 @@ def rank_models(
             continue
 
         tps = model.get("tps", 50.0)
-        tier_boost = 0
-
-        # Apply tier boosts
-        slug = model.get("slug", "")
-        if "opus" in slug:
-            tier_boost = 2.0
-        elif "sonnet" in slug:
-            tier_boost = 1.0
-
-        # Version boost
-        if "4-5" in slug or "4.5" in slug:
-            tier_boost += 0.5
-        elif "3-7" in slug or "3.7" in slug:
-            tier_boost += 0.3
-
-        adjusted_quality = quality + tier_boost
 
         if use_tps_weighting:
             safe_tps = max(tps, 10.0)
-            effective_score = (adjusted_quality**2) * math.log10(safe_tps)
+            effective_score = (quality**2) * math.log10(safe_tps)
         else:
-            effective_score = adjusted_quality**2
+            effective_score = quality**2
 
         model["quality_score"] = quality
         model["effective_score"] = effective_score
         model["tps"] = tps
-        model["adjusted_quality"] = adjusted_quality
+        model["adjusted_quality"] = quality
 
         ranked.append(model)
 

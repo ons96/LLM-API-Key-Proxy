@@ -879,7 +879,7 @@ class RouterCore:
 
             # Record success
             elapsed_ms = (time.time() - start_time) * 1000
-            self._update_metrics(
+            await self._update_metrics(
                 candidate.provider, candidate.model, elapsed_ms, True, response=response
             )
             return response
@@ -893,7 +893,7 @@ class RouterCore:
                     candidate.provider, candidate.model
                 )
 
-            self._update_metrics(
+            await self._update_metrics(
                 candidate.provider,
                 candidate.model,
                 time.time() - start_time,
@@ -912,12 +912,12 @@ class RouterCore:
                 return yaml.safe_load(f)
         except Exception as e:
             logger.warning(f"Failed to load config from {config_path}: {e}")
-            # Return default config
+            # Return default config - minimal cooldowns for instant fallback
             return {
                 "free_only_mode": True,
                 "routing": {
-                    "default_cooldown_seconds": 60,
-                    "rate_limit_cooldown_seconds": 300,
+                    "default_cooldown_seconds": 0.5,
+                    "rate_limit_cooldown_seconds": 5,
                 },
             }
 
@@ -1148,8 +1148,8 @@ class RouterCore:
                     try:
                         retry_after = int(retry_after)
                     except ValueError:
-                        retry_after = 60  # Default 1 minute
-            return ErrorCategory.RATE_LIMIT, retry_after or 60
+                        retry_after = 10  # Fast fallback
+            return ErrorCategory.RATE_LIMIT, retry_after or 10
 
         # Authentication errors
         if any(
@@ -1227,17 +1227,17 @@ class RouterCore:
             await self.rate_limiter.record_rate_limit_hit(
                 provider,
                 model,
-                retry_after=float(retry_after or 60),
+                retry_after=float(retry_after or 0.5),
                 reason=reason,
             )
             metrics = self._get_metrics(provider, model)
-            metrics.cooldown_until = time.time() + float(retry_after or 60)
+            metrics.cooldown_until = time.time() + float(retry_after or 0.5)
         elif error_category == ErrorCategory.AUTH_ERROR:
             metrics = self._get_metrics(provider, model)
-            metrics.cooldown_until = time.time() + 300
+            metrics.cooldown_until = time.time() + 60  # Auth errors take longer to fix
         elif error_category == ErrorCategory.TRANSIENT:
             metrics = self._get_metrics(provider, model)
-            metrics.cooldown_until = time.time() + 2
+            metrics.cooldown_until = time.time() + 0.5  # Instant retry for transient
 
     def _extract_requirements(self, request: Dict[str, Any]) -> CapabilityRequirements:
         """Extract capability requirements from request."""
@@ -1741,10 +1741,12 @@ class RouterCore:
             async for chunk in response:
                 chunk_count += 1
                 # Convert chunk to dict if necessary
-                if hasattr(chunk, "dict"):
+                if hasattr(chunk, "model_dump"):
+                    chunk_dict = chunk.model_dump(exclude_unset=True, exclude_none=True)
+                elif hasattr(chunk, "dict"):
                     chunk_dict = chunk.dict()
                 elif hasattr(chunk, "__dict__"):
-                    chunk_dict = chunk.__dict__
+                    chunk_dict = {k: v for k, v in chunk.__dict__.items() if not k.startswith("_")}
                 else:
                     chunk_dict = chunk
 
@@ -1763,7 +1765,7 @@ class RouterCore:
                 raise Exception("Stream ended with no chunks")
 
             latency_ms = (time.time() - start_time) * 1000
-            self._update_metrics(candidate.provider, candidate.model, latency_ms, True)
+            await self._update_metrics(candidate.provider, candidate.model, latency_ms, True)
 
             logger.info(
                 f"[{request_id}] Stream success: {candidate.provider}/{candidate.model} ({latency_ms:.1f}ms)"
@@ -1785,7 +1787,7 @@ class RouterCore:
                     )
                 )
 
-            self._update_metrics(
+            await self._update_metrics(
                 candidate.provider,
                 candidate.model,
                 latency_ms,
@@ -2086,7 +2088,7 @@ class RouterCore:
         response: Dict[str, Any],
         original_request: Dict[str, Any],
         request_id: str,
-        max_depth: int = 2,
+        max_depth: int = 1,
     ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
         """Detect finish_reason == 'length' and auto-continue up to max_depth."""
 
@@ -2108,6 +2110,14 @@ class RouterCore:
         message = choices[0].get("message") or {}
         assistant_content = message.get("content")
         if not assistant_content:
+            return response
+
+        # Skip auto-continuation for very short max_tokens (likely intentional short response)
+        requested_max_tokens = original_request.get("max_tokens", 0)
+        if requested_max_tokens > 0 and requested_max_tokens <= 50:
+            logger.info(
+                f"[{request_id}] finish_reason=length but max_tokens={requested_max_tokens} too low; skipping auto-continuation"
+            )
             return response
 
         # Build continuation request

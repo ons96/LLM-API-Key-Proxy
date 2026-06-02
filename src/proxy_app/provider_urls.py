@@ -30,6 +30,7 @@ PROVIDER_URL_MAP = {
     "kilo": "https://api.kilo.ai/api/gateway",
     "kilocloud": "https://api.kilocloud.ai/v1",
     "zenllm": "https://zenllm.org/v1",
+    "xinjianya": "https://api.xinjianya.top/v1",
 }
 
 
