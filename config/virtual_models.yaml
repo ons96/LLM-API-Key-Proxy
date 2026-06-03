@@ -1,5 +1,5 @@
 metadata:
-  generated_at: '2026-06-02T06:49:09.829943+00:00'
+  generated_at: '2026-06-03T07:00:43.768627+00:00'
   sources:
   - models.dev
   - telemetry
@@ -360,7 +360,8 @@ virtual_models:
       timeout_ms: 15000
       retry_on_rate_limit: true
   chat-rp:
-    description: Roleplay and creative writing models (no g4f, no llama 3.3 70b at top, NIM-first, fixed 2026-06-02)
+    description: Roleplay and creative writing models (no g4f, no llama 3.3 70b at
+      top, NIM-first, fixed 2026-06-02)
     fallback_chain:
     - provider: nvidia
       model: mistralai/mistral-small-4-119b-2603

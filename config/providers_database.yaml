@@ -3108,3 +3108,24 @@ providers:
   - id: poolside/laguna-m.1
     context: 131040
   notes: Discovered 2026-05-25
+- id: alibaba-token-plan
+  name: Alibaba Token Plan
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: kimi-k2.6
+    context: 262144
+  - id: qwen3.7-max
+    context: 1000000
+  - id: qwen3.6-plus
+    context: 1000000
+  - id: qwen3.6-flash
+    context: 1000000
+  - id: deepseek-v4-flash
+    context: 1000000
+  - id: deepseek-v4-pro
+    context: 1000000
+  - id: glm-5.1
+    context: 202752
+  notes: Discovered 2026-06-03
