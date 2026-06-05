@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-06-04T06:49:55.295720+00:00",
+  "generated_at": "2026-06-05T06:39:02.404984+00:00",
   "new_providers": 36,
   "updated_providers": 4,
-  "total_free_models": 319,
+  "total_free_models": 321,
   "top_models": [
     {
       "provider": "nvidia",
