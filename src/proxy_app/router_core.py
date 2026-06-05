@@ -1852,13 +1852,7 @@ class RouterCore:
                 )
                 continue
 
-        # All stream candidates failed - apply 5s timeout before final error
-        logger.warning(
-            f"[{request_id}] All stream providers exhausted. "
-            "Waiting 5s before final error (timeout for cleanup)..."
-        )
-        await asyncio.sleep(5)
-
+        # All stream candidates failed. Retry-until-done logic happens in route_request wrapper.
         if last_error:
             raise last_error
         raise HTTPException(status_code=503, detail="All stream providers failed")
@@ -1866,7 +1860,42 @@ class RouterCore:
     async def route_request(
         self, request: Dict[str, Any], request_id: str
     ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
-        """Main routing entry point."""
+        """Main routing entry point.
+
+        If GATEWAY_RETRY_UNTIL_DONE=true and all candidates fail, retry the whole
+        chain with exponential backoff (max 3 retries, 2s/4s/8s).
+        """
+        if os.getenv("GATEWAY_RETRY_UNTIL_DONE", "false").lower() == "true":
+            return await self._route_with_retry(request, request_id, max_retries=3)
+        return await self._route_request_inner(request, request_id)
+
+    async def _route_with_retry(
+        self, request: Dict[str, Any], request_id: str, max_retries: int = 3
+    ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
+        """Retry whole chain if all candidates fail. Backoff: 2s, 4s, 8s."""
+        last_err = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                return await self._route_request_inner(request, request_id)
+            except Exception as e:
+                last_err = e
+                if attempt >= max_retries:
+                    logger.error(
+                        f"[{request_id}] GATEWAY_RETRY_UNTIL_DONE: all {max_retries} attempts exhausted, giving up: {str(e)[:200]}"
+                    )
+                    raise
+                backoff = 2.0 * (2 ** (attempt - 1))
+                logger.warning(
+                    f"[{request_id}] GATEWAY_RETRY_UNTIL_DONE: attempt {attempt}/{max_retries} failed, "
+                    f"sleeping {backoff}s before retry: {str(e)[:100]}"
+                )
+                await asyncio.sleep(backoff)
+        raise last_err  # unreachable, but satisfies type checker
+
+    async def _route_request_inner(
+        self, request: Dict[str, Any], request_id: str
+    ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
+        """Main routing entry point (inner)."""
         model_id = request.get("model", "")
 
         # --- NEW: Alias Resolution & Chain Fallback Logic ---
@@ -1938,16 +1967,21 @@ class RouterCore:
             )
 
         # Filter candidates by health and FREE_ONLY_MODE
+        # Set GATEWAY_FORCE_TRY_COOLDOWN=true to ignore cooldown (try all)
+        force_try_cooldown = os.getenv("GATEWAY_FORCE_TRY_COOLDOWN", "false").lower() == "true"
         available_candidates = []
         for candidate in candidates:
             metrics = self._get_metrics(candidate.provider, candidate.model)
-
-            # Check cooldown
             if not metrics.is_healthy():
-                logger.debug(
-                    f"[{request_id}] Candidate {candidate.provider}/{candidate.model} in cooldown"
-                )
-                continue
+                if force_try_cooldown:
+                    logger.debug(
+                        f"[{request_id}] Candidate {candidate.provider}/{candidate.model} in cooldown but force-try enabled"
+                    )
+                else:
+                    logger.debug(
+                        f"[{request_id}] Candidate {candidate.provider}/{candidate.model} in cooldown"
+                    )
+                    continue
 
             # Check FREE_ONLY_MODE
             if self.free_only_mode:
@@ -2068,14 +2102,7 @@ class RouterCore:
                 logger.warning(f"[{request_id}] Provider error - trying next provider")
                 continue
 
-        # All candidates failed - apply 5s timeout before final error
-        # This gives a grace period for any background cleanup/retry
-        logger.warning(
-            f"[{request_id}] All provider candidates exhausted. "
-            "Waiting 5s before final error (timeout for cleanup)..."
-        )
-        await asyncio.sleep(5)
-
+        # All candidates failed. Retry-until-done logic happens in route_request wrapper.
         if last_error:
             raise last_error
         else:

@@ -186,3 +186,24 @@ Configured to use VPS gateway:
 ⚠️ **API key in header:** Use `Authorization: Bearer <key>` (not `X-API-Key`)
 ⚠️ **Free-only mode:** Gateway rejects non-free providers unless configured
 ⚠️ **G4F models:** Some complex IDs don't work (stick to simple names like `g4f/gpt-4`)
+
+
+## NEW ENV VARS (added 2026-06-04)
+
+### GATEWAY_RETRY_UNTIL_DONE
+- Default: `false`
+- When `true`: if all candidates in fallback chain fail, retry the whole chain with exponential backoff (2s, 4s, 8s). Max 3 retries (~14s total).
+- Use case: autonomous workflows that must never silently give up on a request.
+- Trade-off: can mask provider outages for ~14s. Disable for latency-sensitive use.
+
+### GATEWAY_FORCE_TRY_COOLDOWN
+- Default: `false`
+- When `true`: ignore provider cooldown state, try all candidates regardless of recent failures.
+- Use case: when gateway should never stop rotating, even on recently-failed providers.
+- Combine with GATEWAY_RETRY_UNTIL_DONE for full "never stop" mode.
+
+## FIXES APPLIED 2026-06-04
+
+- Removed 5s sleep before final error in router_core.py (both stream and non-stream paths). Was wasting 5s on hard failures.
+- Weakened cooldown filter: now configurable via GATEWAY_FORCE_TRY_COOLDOWN.
+- Wrapped route_request with _route_with_retry for GATEWAY_RETRY_UNTIL_DONE.
