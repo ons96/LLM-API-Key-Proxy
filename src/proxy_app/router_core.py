@@ -822,6 +822,12 @@ class RouterCore:
                 for k, v in request.items()
                 if not k.startswith("_") and k != "stream"
             }
+            requested_max_tokens = request_clean.get("max_tokens")
+            if isinstance(requested_max_tokens, int) and requested_max_tokens > 1024:
+                logger.info(
+                    f"[{request_id}] Capping max_tokens {requested_max_tokens} -> 1024 for provider fallback"
+                )
+                request_clean["max_tokens"] = 1024
             request_clean["model"] = f"{candidate.provider}/{candidate.model}"
 
             logger.info(
@@ -1728,14 +1734,61 @@ class RouterCore:
                 for k, v in request.items()
                 if not k.startswith("_") and k != "stream"
             }
+            requested_max_tokens = request_clean.get("max_tokens")
+            if isinstance(requested_max_tokens, int) and requested_max_tokens > 1024:
+                logger.info(
+                    f"[{request_id}] Capping max_tokens {requested_max_tokens} -> 1024 for provider fallback"
+                )
+                request_clean["max_tokens"] = 1024
 
             logger.info(
                 f"[{request_id}] Streaming {candidate.provider}/{candidate.model}"
             )
 
-            # Execute via LiteLLM
-            # Cast to Any to avoid LSP issues with Union[ModelResponse, CustomStreamWrapper]
-            response: Any = await litellm.acompletion(**request_clean, stream=True)
+            # Prefer provider adapters for config-driven OpenAI-compatible routes.
+            # Direct LiteLLM streaming needs explicit custom_llm_provider/api_base
+            # for many free providers; adapters already normalize that metadata.
+            provider_cfg = self.config.get("providers", {}).get(candidate.provider, {})
+            env_var = provider_cfg.get("env_var")
+            api_key = None
+            if env_var:
+                api_key = os.getenv(env_var) or os.getenv(f"{env_var}_1")
+
+            if candidate.provider == "groq":
+                api_key = (
+                    api_key
+                    or os.getenv("GROQ_API_KEY")
+                    or os.getenv("GROQ_API_KEY_1")
+                )
+            elif candidate.provider == "gemini":
+                api_key = (
+                    api_key
+                    or os.getenv("GEMINI_API_KEY")
+                    or os.getenv("GEMINI_API_KEY_1")
+                )
+            elif candidate.provider == "kilo":
+                api_key = (
+                    api_key
+                    or os.getenv("KILO_API_KEY")
+                    or os.getenv("KILO_API_KEY_1")
+                )
+
+            api_base = provider_cfg.get("base_url")
+            model_list = provider_cfg.get("free_tier_models", [])
+
+            try:
+                adapter = ProviderAdapterFactory.create_adapter(
+                    candidate.provider,
+                    api_key,
+                    api_base,
+                    model_list,
+                )
+                response = await adapter.chat_completions(
+                    request_clean, stream=True
+                )
+            except ValueError:
+                # Fallback to LiteLLM direct usage for providers without an adapter.
+                response = await litellm.acompletion(**request_clean, stream=True)
 
             chunk_count = 0
             async for chunk in response:

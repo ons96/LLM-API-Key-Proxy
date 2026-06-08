@@ -248,6 +248,30 @@ virtual_models:
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
+  title-fast:
+    description: Fast title generation with NVIDIA TTFT-ranked fallback chain
+    fallback_chain:
+    - provider: nvidia
+      model: nvidia/nemotron-mini-4b-instruct
+      priority: 1
+    - provider: nvidia
+      model: nvidia/nemotron-content-safety-reasoning-4b
+      priority: 2
+    - provider: nvidia
+      model: google/gemma-3n-e2b-it
+      priority: 3
+    - provider: nvidia
+      model: google/gemma-3n-e4b-it
+      priority: 4
+    - provider: nvidia
+      model: meta/llama-3.1-8b-instruct
+      priority: 5
+    - provider: nvidia
+      model: z-ai/glm-5.1
+      priority: 6
+    settings:
+      timeout_ms: 10000
+      retry_on_rate_limit: true
   chat-elite:
     description: Most intelligent chat models (g4f OK, no Claude, no gemini-2.5-pro)
     fallback_chain:

@@ -1077,7 +1077,40 @@ async def chat_completions(
                             yield f"data: {chunk}\n\n"
                     yield "data: [DONE]\n\n"
                 except Exception as e:
-                    yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
+                    # str(e) can contain quotes/newlines from LiteLLM/provider errors.
+                    # Streaming headers are already sent here, so emit an
+                    # OpenAI-compatible chunk instead of a bare {"error": ...}
+                    # object. AI SDK/OpenCode validates every SSE item as a
+                    # chat.completion.chunk and rejects non-OpenAI error shapes.
+                    error_text = f"Gateway stream error: {str(e)[:1000]}"
+                    error_chunk = {
+                        "id": request_id,
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": request_data.get("model", "unknown"),
+                        "choices": [
+                            {
+                                "index": 0,
+                                "delta": {"content": error_text},
+                                "finish_reason": None,
+                            }
+                        ],
+                    }
+                    final_chunk = {
+                        "id": request_id,
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": request_data.get("model", "unknown"),
+                        "choices": [
+                            {
+                                "index": 0,
+                                "delta": {},
+                                "finish_reason": "stop",
+                            }
+                        ],
+                    }
+                    yield f"data: {json.dumps(error_chunk)}\n\n"
+                    yield f"data: {json.dumps(final_chunk)}\n\n"
                     yield "data: [DONE]\n\n"
             return StreamingResponse(_sse_wrap(result), media_type="text/event-stream")
         return result

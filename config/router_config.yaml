@@ -92,6 +92,12 @@ providers:
     base_url: https://integrate.api.nvidia.com/v1
     free_tier: true
     free_tier_models:
+    - nvidia/nemotron-mini-4b-instruct
+    - nvidia/nemotron-content-safety-reasoning-4b
+    - google/gemma-3n-e2b-it
+    - google/gemma-3n-e4b-it
+    - meta/llama-3.1-8b-instruct
+    - z-ai/glm-5.1
     - nvidia/llama-3.3-70b-instruct
     - nvidia/llama-3.1-405b-instruct
     - nvidia/gemma-2-27b-it

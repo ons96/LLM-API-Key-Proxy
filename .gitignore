@@ -130,3 +130,13 @@ cache/
 *.env
 
 oauth_creds/
+
+# Local rescue files from manual gateway patching/debugging
+*.bak
+*.bak.*
+*.backup
+*.backup*
+*.old
+*.broken
+*.head
+*.restore
