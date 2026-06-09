@@ -140,3 +140,8 @@ oauth_creds/
 *.broken
 *.head
 *.restore
+
+# Runtime-generated gateway state
+provider_status.db
+config/discovered_models.json
+config/telemetry_summary.json
