@@ -1,5 +1,5 @@
 metadata:
-  generated_at: '2026-06-09T06:15:52.134063+00:00'
+  generated_at: '2026-06-10T06:38:06.098184+00:00'
   sources:
   - models.dev
   - telemetry
@@ -434,65 +434,65 @@ virtual_models:
   agent-oracle:
     description: Optimized for oracle agent - ['accuracy', 'depth']
     fallback_chain:
-    - provider: nvidia
-      model: z-ai/glm4.7
+    - provider: github-models
+      model: core42/jais-30b-chat
       priority: 1
-    - provider: nvidia
-      model: z-ai/glm-5.1
+    - provider: github-models
+      model: deepseek/deepseek-r1-0528
       priority: 2
-    - provider: nvidia
-      model: upstage/solar-10_7b-instruct
+    - provider: github-models
+      model: deepseek/deepseek-v3-0324
       priority: 3
-    - provider: nvidia
-      model: sarvamai/sarvam-m
+    - provider: github-models
+      model: deepseek/deepseek-r1
       priority: 4
-    - provider: nvidia
-      model: mistralai/magistral-small-2506
+    - provider: github-models
+      model: ai21-labs/ai21-jamba-1.5-large
       priority: 5
-    - provider: nvidia
-      model: mistralai/mistral-large-3-675b-instruct-2512
+    - provider: github-models
+      model: ai21-labs/ai21-jamba-1.5-mini
       priority: 6
-    - provider: nvidia
-      model: mistralai/mistral-nemotron
+    - provider: github-models
+      model: xai/grok-3
       priority: 7
-    - provider: nvidia
-      model: mistralai/mixtral-8x7b-instruct
+    - provider: github-models
+      model: xai/grok-3-mini
       priority: 8
-    - provider: nvidia
-      model: mistralai/mistral-7b-instruct-v03
+    - provider: github-models
+      model: cohere/cohere-command-r-plus-08-2024
       priority: 9
-    - provider: nvidia
-      model: mistralai/mixtral-8x22b-instruct
+    - provider: github-models
+      model: cohere/cohere-command-r-08-2024
       priority: 10
-    - provider: nvidia
-      model: mistralai/mistral-medium-3-instruct
+    - provider: github-models
+      model: cohere/cohere-command-r
       priority: 11
-    - provider: nvidia
-      model: mistralai/mistral-small-4-119b-2603
+    - provider: github-models
+      model: cohere/cohere-command-a
       priority: 12
-    - provider: nvidia
-      model: mistralai/devstral-2-123b-instruct-2512
+    - provider: github-models
+      model: cohere/cohere-command-r-plus
       priority: 13
-    - provider: nvidia
-      model: qwen/qwen2.5-coder-32b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-large-2411
       priority: 14
-    - provider: nvidia
-      model: qwen/qwen3.5-122b-a10b
+    - provider: github-models
+      model: mistral-ai/ministral-3b
       priority: 15
-    - provider: nvidia
-      model: qwen/qwen3-next-80b-a3b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-small-2503
       priority: 16
-    - provider: nvidia
-      model: qwen/qwen3-coder-480b-a35b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-nemo
       priority: 17
-    - provider: nvidia
-      model: qwen/qwen3-next-80b-a3b-thinking
+    - provider: github-models
+      model: mistral-ai/mistral-medium-2505
       priority: 18
-    - provider: nvidia
-      model: qwen/qwen3.5-397b-a17b
+    - provider: github-models
+      model: mistral-ai/codestral-2501
       priority: 19
-    - provider: nvidia
-      model: moonshotai/kimi-k2-thinking
+    - provider: github-models
+      model: microsoft/phi-3-medium-128k-instruct
       priority: 20
     settings:
       timeout_ms: 180000
@@ -500,65 +500,65 @@ virtual_models:
   agent-explore:
     description: Optimized for explore agent - ['latency', 'throughput']
     fallback_chain:
-    - provider: nvidia
-      model: z-ai/glm4.7
+    - provider: github-models
+      model: core42/jais-30b-chat
       priority: 1
-    - provider: nvidia
-      model: z-ai/glm-5.1
+    - provider: github-models
+      model: deepseek/deepseek-r1-0528
       priority: 2
-    - provider: nvidia
-      model: upstage/solar-10_7b-instruct
+    - provider: github-models
+      model: deepseek/deepseek-v3-0324
       priority: 3
-    - provider: nvidia
-      model: sarvamai/sarvam-m
+    - provider: github-models
+      model: deepseek/deepseek-r1
       priority: 4
-    - provider: nvidia
-      model: mistralai/magistral-small-2506
+    - provider: github-models
+      model: ai21-labs/ai21-jamba-1.5-large
       priority: 5
-    - provider: nvidia
-      model: mistralai/mistral-large-3-675b-instruct-2512
+    - provider: github-models
+      model: ai21-labs/ai21-jamba-1.5-mini
       priority: 6
-    - provider: nvidia
-      model: mistralai/mistral-nemotron
+    - provider: github-models
+      model: xai/grok-3
       priority: 7
-    - provider: nvidia
-      model: mistralai/mixtral-8x7b-instruct
+    - provider: github-models
+      model: xai/grok-3-mini
       priority: 8
-    - provider: nvidia
-      model: mistralai/mistral-7b-instruct-v03
+    - provider: github-models
+      model: cohere/cohere-command-r-plus-08-2024
       priority: 9
-    - provider: nvidia
-      model: mistralai/mixtral-8x22b-instruct
+    - provider: github-models
+      model: cohere/cohere-command-r-08-2024
       priority: 10
-    - provider: nvidia
-      model: mistralai/mistral-medium-3-instruct
+    - provider: github-models
+      model: cohere/cohere-command-r
       priority: 11
-    - provider: nvidia
-      model: mistralai/mistral-small-4-119b-2603
+    - provider: github-models
+      model: cohere/cohere-command-a
       priority: 12
-    - provider: nvidia
-      model: mistralai/devstral-2-123b-instruct-2512
+    - provider: github-models
+      model: cohere/cohere-command-r-plus
       priority: 13
-    - provider: nvidia
-      model: qwen/qwen2.5-coder-32b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-large-2411
       priority: 14
-    - provider: nvidia
-      model: qwen/qwen3.5-122b-a10b
+    - provider: github-models
+      model: mistral-ai/ministral-3b
       priority: 15
-    - provider: nvidia
-      model: qwen/qwen3-next-80b-a3b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-small-2503
       priority: 16
-    - provider: nvidia
-      model: qwen/qwen3-coder-480b-a35b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-nemo
       priority: 17
-    - provider: nvidia
-      model: qwen/qwen3-next-80b-a3b-thinking
+    - provider: github-models
+      model: mistral-ai/mistral-medium-2505
       priority: 18
-    - provider: nvidia
-      model: qwen/qwen3.5-397b-a17b
+    - provider: github-models
+      model: mistral-ai/codestral-2501
       priority: 19
-    - provider: nvidia
-      model: moonshotai/kimi-k2-thinking
+    - provider: github-models
+      model: microsoft/phi-3-medium-128k-instruct
       priority: 20
     settings:
       timeout_ms: 120000
@@ -566,65 +566,65 @@ virtual_models:
   agent-librarian:
     description: Optimized for librarian agent - ['availability', 'reliability']
     fallback_chain:
-    - provider: nvidia
-      model: z-ai/glm4.7
+    - provider: github-models
+      model: core42/jais-30b-chat
       priority: 1
-    - provider: nvidia
-      model: z-ai/glm-5.1
+    - provider: github-models
+      model: deepseek/deepseek-r1-0528
       priority: 2
-    - provider: nvidia
-      model: upstage/solar-10_7b-instruct
+    - provider: github-models
+      model: deepseek/deepseek-v3-0324
       priority: 3
-    - provider: nvidia
-      model: sarvamai/sarvam-m
+    - provider: github-models
+      model: deepseek/deepseek-r1
       priority: 4
-    - provider: nvidia
-      model: mistralai/magistral-small-2506
+    - provider: github-models
+      model: ai21-labs/ai21-jamba-1.5-large
       priority: 5
-    - provider: nvidia
-      model: mistralai/mistral-large-3-675b-instruct-2512
+    - provider: github-models
+      model: ai21-labs/ai21-jamba-1.5-mini
       priority: 6
-    - provider: nvidia
-      model: mistralai/mistral-nemotron
+    - provider: github-models
+      model: xai/grok-3
       priority: 7
-    - provider: nvidia
-      model: mistralai/mixtral-8x7b-instruct
+    - provider: github-models
+      model: xai/grok-3-mini
       priority: 8
-    - provider: nvidia
-      model: mistralai/mistral-7b-instruct-v03
+    - provider: github-models
+      model: cohere/cohere-command-r-plus-08-2024
       priority: 9
-    - provider: nvidia
-      model: mistralai/mixtral-8x22b-instruct
+    - provider: github-models
+      model: cohere/cohere-command-r-08-2024
       priority: 10
-    - provider: nvidia
-      model: mistralai/mistral-medium-3-instruct
+    - provider: github-models
+      model: cohere/cohere-command-r
       priority: 11
-    - provider: nvidia
-      model: mistralai/mistral-small-4-119b-2603
+    - provider: github-models
+      model: cohere/cohere-command-a
       priority: 12
-    - provider: nvidia
-      model: mistralai/devstral-2-123b-instruct-2512
+    - provider: github-models
+      model: cohere/cohere-command-r-plus
       priority: 13
-    - provider: nvidia
-      model: qwen/qwen2.5-coder-32b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-large-2411
       priority: 14
-    - provider: nvidia
-      model: qwen/qwen3.5-122b-a10b
+    - provider: github-models
+      model: mistral-ai/ministral-3b
       priority: 15
-    - provider: nvidia
-      model: qwen/qwen3-next-80b-a3b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-small-2503
       priority: 16
-    - provider: nvidia
-      model: qwen/qwen3-coder-480b-a35b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-nemo
       priority: 17
-    - provider: nvidia
-      model: qwen/qwen3-next-80b-a3b-thinking
+    - provider: github-models
+      model: mistral-ai/mistral-medium-2505
       priority: 18
-    - provider: nvidia
-      model: qwen/qwen3.5-397b-a17b
+    - provider: github-models
+      model: mistral-ai/codestral-2501
       priority: 19
-    - provider: nvidia
-      model: moonshotai/kimi-k2-thinking
+    - provider: github-models
+      model: microsoft/phi-3-medium-128k-instruct
       priority: 20
     settings:
       timeout_ms: 120000
@@ -632,65 +632,65 @@ virtual_models:
   agent-build:
     description: Optimized for build agent - ['balanced']
     fallback_chain:
-    - provider: nvidia
-      model: z-ai/glm4.7
+    - provider: github-models
+      model: core42/jais-30b-chat
       priority: 1
-    - provider: nvidia
-      model: z-ai/glm-5.1
+    - provider: github-models
+      model: deepseek/deepseek-r1-0528
       priority: 2
-    - provider: nvidia
-      model: upstage/solar-10_7b-instruct
+    - provider: github-models
+      model: deepseek/deepseek-v3-0324
       priority: 3
-    - provider: nvidia
-      model: sarvamai/sarvam-m
+    - provider: github-models
+      model: deepseek/deepseek-r1
       priority: 4
-    - provider: nvidia
-      model: mistralai/magistral-small-2506
+    - provider: github-models
+      model: ai21-labs/ai21-jamba-1.5-large
       priority: 5
-    - provider: nvidia
-      model: mistralai/mistral-large-3-675b-instruct-2512
+    - provider: github-models
+      model: ai21-labs/ai21-jamba-1.5-mini
       priority: 6
-    - provider: nvidia
-      model: mistralai/mistral-nemotron
+    - provider: github-models
+      model: xai/grok-3
       priority: 7
-    - provider: nvidia
-      model: mistralai/mixtral-8x7b-instruct
+    - provider: github-models
+      model: xai/grok-3-mini
       priority: 8
-    - provider: nvidia
-      model: mistralai/mistral-7b-instruct-v03
+    - provider: github-models
+      model: cohere/cohere-command-r-plus-08-2024
       priority: 9
-    - provider: nvidia
-      model: mistralai/mixtral-8x22b-instruct
+    - provider: github-models
+      model: cohere/cohere-command-r-08-2024
       priority: 10
-    - provider: nvidia
-      model: mistralai/mistral-medium-3-instruct
+    - provider: github-models
+      model: cohere/cohere-command-r
       priority: 11
-    - provider: nvidia
-      model: mistralai/mistral-small-4-119b-2603
+    - provider: github-models
+      model: cohere/cohere-command-a
       priority: 12
-    - provider: nvidia
-      model: mistralai/devstral-2-123b-instruct-2512
+    - provider: github-models
+      model: cohere/cohere-command-r-plus
       priority: 13
-    - provider: nvidia
-      model: qwen/qwen2.5-coder-32b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-large-2411
       priority: 14
-    - provider: nvidia
-      model: qwen/qwen3.5-122b-a10b
+    - provider: github-models
+      model: mistral-ai/ministral-3b
       priority: 15
-    - provider: nvidia
-      model: qwen/qwen3-next-80b-a3b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-small-2503
       priority: 16
-    - provider: nvidia
-      model: qwen/qwen3-coder-480b-a35b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-nemo
       priority: 17
-    - provider: nvidia
-      model: qwen/qwen3-next-80b-a3b-thinking
+    - provider: github-models
+      model: mistral-ai/mistral-medium-2505
       priority: 18
-    - provider: nvidia
-      model: qwen/qwen3.5-397b-a17b
+    - provider: github-models
+      model: mistral-ai/codestral-2501
       priority: 19
-    - provider: nvidia
-      model: moonshotai/kimi-k2-thinking
+    - provider: github-models
+      model: microsoft/phi-3-medium-128k-instruct
       priority: 20
     settings:
       timeout_ms: 120000
@@ -698,65 +698,65 @@ virtual_models:
   agent-metis:
     description: Optimized for metis agent - ['accuracy']
     fallback_chain:
-    - provider: nvidia
-      model: z-ai/glm4.7
+    - provider: github-models
+      model: core42/jais-30b-chat
       priority: 1
-    - provider: nvidia
-      model: z-ai/glm-5.1
+    - provider: github-models
+      model: deepseek/deepseek-r1-0528
       priority: 2
-    - provider: nvidia
-      model: upstage/solar-10_7b-instruct
+    - provider: github-models
+      model: deepseek/deepseek-v3-0324
       priority: 3
-    - provider: nvidia
-      model: sarvamai/sarvam-m
+    - provider: github-models
+      model: deepseek/deepseek-r1
       priority: 4
-    - provider: nvidia
-      model: mistralai/magistral-small-2506
+    - provider: github-models
+      model: ai21-labs/ai21-jamba-1.5-large
       priority: 5
-    - provider: nvidia
-      model: mistralai/mistral-large-3-675b-instruct-2512
+    - provider: github-models
+      model: ai21-labs/ai21-jamba-1.5-mini
       priority: 6
-    - provider: nvidia
-      model: mistralai/mistral-nemotron
+    - provider: github-models
+      model: xai/grok-3
       priority: 7
-    - provider: nvidia
-      model: mistralai/mixtral-8x7b-instruct
+    - provider: github-models
+      model: xai/grok-3-mini
       priority: 8
-    - provider: nvidia
-      model: mistralai/mistral-7b-instruct-v03
+    - provider: github-models
+      model: cohere/cohere-command-r-plus-08-2024
       priority: 9
-    - provider: nvidia
-      model: mistralai/mixtral-8x22b-instruct
+    - provider: github-models
+      model: cohere/cohere-command-r-08-2024
       priority: 10
-    - provider: nvidia
-      model: mistralai/mistral-medium-3-instruct
+    - provider: github-models
+      model: cohere/cohere-command-r
       priority: 11
-    - provider: nvidia
-      model: mistralai/mistral-small-4-119b-2603
+    - provider: github-models
+      model: cohere/cohere-command-a
       priority: 12
-    - provider: nvidia
-      model: mistralai/devstral-2-123b-instruct-2512
+    - provider: github-models
+      model: cohere/cohere-command-r-plus
       priority: 13
-    - provider: nvidia
-      model: qwen/qwen2.5-coder-32b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-large-2411
       priority: 14
-    - provider: nvidia
-      model: qwen/qwen3.5-122b-a10b
+    - provider: github-models
+      model: mistral-ai/ministral-3b
       priority: 15
-    - provider: nvidia
-      model: qwen/qwen3-next-80b-a3b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-small-2503
       priority: 16
-    - provider: nvidia
-      model: qwen/qwen3-coder-480b-a35b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-nemo
       priority: 17
-    - provider: nvidia
-      model: qwen/qwen3-next-80b-a3b-thinking
+    - provider: github-models
+      model: mistral-ai/mistral-medium-2505
       priority: 18
-    - provider: nvidia
-      model: qwen/qwen3.5-397b-a17b
+    - provider: github-models
+      model: mistral-ai/codestral-2501
       priority: 19
-    - provider: nvidia
-      model: moonshotai/kimi-k2-thinking
+    - provider: github-models
+      model: microsoft/phi-3-medium-128k-instruct
       priority: 20
     settings:
       timeout_ms: 180000
@@ -764,65 +764,65 @@ virtual_models:
   agent-momus:
     description: Optimized for momus agent - ['quality']
     fallback_chain:
-    - provider: nvidia
-      model: z-ai/glm4.7
+    - provider: github-models
+      model: core42/jais-30b-chat
       priority: 1
-    - provider: nvidia
-      model: z-ai/glm-5.1
+    - provider: github-models
+      model: deepseek/deepseek-r1-0528
       priority: 2
-    - provider: nvidia
-      model: upstage/solar-10_7b-instruct
+    - provider: github-models
+      model: deepseek/deepseek-v3-0324
       priority: 3
-    - provider: nvidia
-      model: sarvamai/sarvam-m
+    - provider: github-models
+      model: deepseek/deepseek-r1
       priority: 4
-    - provider: nvidia
-      model: mistralai/magistral-small-2506
+    - provider: github-models
+      model: ai21-labs/ai21-jamba-1.5-large
       priority: 5
-    - provider: nvidia
-      model: mistralai/mistral-large-3-675b-instruct-2512
+    - provider: github-models
+      model: ai21-labs/ai21-jamba-1.5-mini
       priority: 6
-    - provider: nvidia
-      model: mistralai/mistral-nemotron
+    - provider: github-models
+      model: xai/grok-3
       priority: 7
-    - provider: nvidia
-      model: mistralai/mixtral-8x7b-instruct
+    - provider: github-models
+      model: xai/grok-3-mini
       priority: 8
-    - provider: nvidia
-      model: mistralai/mistral-7b-instruct-v03
+    - provider: github-models
+      model: cohere/cohere-command-r-plus-08-2024
       priority: 9
-    - provider: nvidia
-      model: mistralai/mixtral-8x22b-instruct
+    - provider: github-models
+      model: cohere/cohere-command-r-08-2024
       priority: 10
-    - provider: nvidia
-      model: mistralai/mistral-medium-3-instruct
+    - provider: github-models
+      model: cohere/cohere-command-r
       priority: 11
-    - provider: nvidia
-      model: mistralai/mistral-small-4-119b-2603
+    - provider: github-models
+      model: cohere/cohere-command-a
       priority: 12
-    - provider: nvidia
-      model: mistralai/devstral-2-123b-instruct-2512
+    - provider: github-models
+      model: cohere/cohere-command-r-plus
       priority: 13
-    - provider: nvidia
-      model: qwen/qwen2.5-coder-32b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-large-2411
       priority: 14
-    - provider: nvidia
-      model: qwen/qwen3.5-122b-a10b
+    - provider: github-models
+      model: mistral-ai/ministral-3b
       priority: 15
-    - provider: nvidia
-      model: qwen/qwen3-next-80b-a3b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-small-2503
       priority: 16
-    - provider: nvidia
-      model: qwen/qwen3-coder-480b-a35b-instruct
+    - provider: github-models
+      model: mistral-ai/mistral-nemo
       priority: 17
-    - provider: nvidia
-      model: qwen/qwen3-next-80b-a3b-thinking
+    - provider: github-models
+      model: mistral-ai/mistral-medium-2505
       priority: 18
-    - provider: nvidia
-      model: qwen/qwen3.5-397b-a17b
+    - provider: github-models
+      model: mistral-ai/codestral-2501
       priority: 19
-    - provider: nvidia
-      model: moonshotai/kimi-k2-thinking
+    - provider: github-models
+      model: microsoft/phi-3-medium-128k-instruct
       priority: 20
     settings:
       timeout_ms: 180000
