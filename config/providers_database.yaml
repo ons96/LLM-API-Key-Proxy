@@ -3129,3 +3129,16 @@ providers:
   - id: glm-5.1
     context: 202752
   notes: Discovered 2026-06-03
+- id: llmtr
+  name: LLMTR
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: magibu-11b-v8
+    context: 8192
+  - id: trendyol-7b
+    context: 32768
+  - id: sincap
+    context: 128000
+  notes: Discovered 2026-06-11
