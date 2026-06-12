@@ -27,6 +27,8 @@ from .rate_limiter import REASON_RATE_LIMIT, REASON_USAGE_CAP
 
 logger = logging.getLogger(__name__)
 
+from .litellm_fallback import build_litellm_fallback_kwargs  # noqa: E402
+
 
 class ProviderStatus(Enum):
     """Provider health status."""
@@ -874,14 +876,16 @@ class RouterCore:
                 )
                 response = await adapter.chat_completions(request_clean)
             except ValueError:
-                # Fallback to LiteLLM direct usage
-                # Special handling for G4F if not in adapter factory (but it is now)
-                if candidate.provider == "g4f":
-                    # This path shouldn't be reached if G4F is in factory
-                    pass
-
-                # Execute
-                response = await litellm.acompletion(**request_clean, stream=False)
+                # Fallback to LiteLLM direct usage for providers without an adapter.
+                # See `build_litellm_fallback_kwargs` docstring for rationale.
+                fallback_kwargs = build_litellm_fallback_kwargs(
+                    request_clean,
+                    candidate.provider,
+                    candidate.model,
+                    api_key,
+                    api_base,
+                )
+                response = await litellm.acompletion(**fallback_kwargs, stream=False)
 
             # Record success
             elapsed_ms = (time.time() - start_time) * 1000
@@ -1788,7 +1792,15 @@ class RouterCore:
                 )
             except ValueError:
                 # Fallback to LiteLLM direct usage for providers without an adapter.
-                response = await litellm.acompletion(**request_clean, stream=True)
+                # See `build_litellm_fallback_kwargs` docstring for rationale.
+                fallback_kwargs = build_litellm_fallback_kwargs(
+                    request_clean,
+                    candidate.provider,
+                    candidate.model,
+                    api_key,
+                    api_base,
+                )
+                response = await litellm.acompletion(**fallback_kwargs, stream=True)
 
             chunk_count = 0
             async for chunk in response:
