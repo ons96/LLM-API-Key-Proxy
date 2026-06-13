@@ -129,4 +129,7 @@ logs/
 cache/
 *.env
 
+# Runtime state for rate limiter (active-day tracking, etc.)
+data/
+
 oauth_creds/
