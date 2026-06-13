@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Awaitable, TypeVar
 
 import pytest
 
@@ -22,6 +23,8 @@ from proxy_app.rate_limiter import (
     REASON_USAGE_CAP,
     RateLimitTracker,
 )
+
+T = TypeVar("T")
 
 
 def _today_utc() -> str:
@@ -208,7 +211,8 @@ def test_record_active_day_prunes_on_record(tracker: RateLimitTracker) -> None:
 # Async runner shim for sync tests                                            #
 # ---------------------------------------------------------------------------- #
 
-def asyncio_run(coro):
+def asyncio_run(coro: Awaitable[T]) -> T:
     """Run a coroutine to completion in tests (avoids pytest-asyncio dep)."""
     import asyncio
-    return asyncio.get_event_loop().run_until_complete(coro)
+
+    return asyncio.run(coro)

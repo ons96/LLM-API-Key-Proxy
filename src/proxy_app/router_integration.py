@@ -78,9 +78,10 @@ class RouterIntegration:
         try:
             import yaml as _yaml
             from pathlib import Path as _Path
-            _db_file = _Path(
-                "/home/ubuntu/LLM-API-Key-Proxy/config/providers_database.yaml"
-            )
+            # Resolve repo root from this file's location
+            # (src/proxy_app/router_integration.py -> parents[2] = repo root)
+            _repo_root = _Path(__file__).resolve().parent.parent.parent
+            _db_file = _repo_root / "config" / "providers_database.yaml"
             if _db_file.exists():
                 with open(_db_file, "r") as _f:
                     _db = _yaml.safe_load(_f) or {}
