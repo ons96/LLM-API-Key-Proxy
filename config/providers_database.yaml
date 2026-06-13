@@ -614,6 +614,12 @@ providers:
   - code
   rate_limits:
     rpm: 10
+  # 3 distinct calendar days per 12-day sliding window.
+  # Enforced by RateLimitTracker (data/active_days.json).
+  active_days_window:
+    window_days: 12
+    max_active_days: 3
+    tz: UTC
   notes: General G4F proxy — no API key required, rate limited
   free_models:
   - id: gpt-4o

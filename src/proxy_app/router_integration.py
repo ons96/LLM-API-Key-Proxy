@@ -71,6 +71,40 @@ class RouterIntegration:
             if p not in provider_configs:
                 provider_configs[p] = None
 
+        # Load active-day window configs from providers_database.yaml so the
+        # rate limiter can enforce sliding-window caps (e.g. g4f: 3 active days
+        # per 12-day window).
+        active_days_windows: Dict[str, Dict[str, Any]] = {}
+        try:
+            import yaml as _yaml
+            from pathlib import Path as _Path
+            _db_file = _Path(
+                "/home/ubuntu/LLM-API-Key-Proxy/config/providers_database.yaml"
+            )
+            if _db_file.exists():
+                with open(_db_file, "r") as _f:
+                    _db = _yaml.safe_load(_f) or {}
+                for _p in _db.get("providers", []) or []:
+                    if not isinstance(_p, dict):
+                        continue
+                    _pid = _p.get("id")
+                    _adw = _p.get("active_days_window")
+                    if _pid and isinstance(_adw, dict):
+                        active_days_windows[_pid] = _adw
+        except Exception as _e:
+            logger.debug(
+                f"Could not load active_days_window configs from database: {_e}"
+            )
+        if active_days_windows:
+            try:
+                self.router.rate_limiter.configure_active_days_windows(
+                    active_days_windows
+                )
+            except Exception as _e:  # pragma: no cover - defensive
+                logger.warning(
+                    f"Failed to configure active-days windows: {_e}"
+                )
+
         for provider_name, env_var in provider_configs.items():
             if env_var is None:  # No API key needed
                 try:
