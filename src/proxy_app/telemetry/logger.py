@@ -12,21 +12,22 @@ TPS formulas:
   non-stream:   completion_tokens / (total_ms / 1000)
 """
 import asyncio
-import json
+import datetime
 import logging
 import os
 import sqlite3
 import time
 import traceback
-from typing import Any, Optional
+from typing import Optional
 
 try:
-    import litellm
+    import litellm  # noqa: F401
     from litellm.integrations.custom_logger import CustomLogger
 except ImportError:  # allow import without litellm (e.g. schema inspection)
-    litellm = None
     class CustomLogger:  # type: ignore
         async def async_log_success_event(self, *a, **kw): pass
+        async def async_log_failure_event(self, *a, **kw): pass
+        async def async_log_stream_event(self, *a, **kw): pass
         def log_pre_api_call(self, *a, **kw): pass
         def log_post_api_call(self, *a, **kw): pass
 
@@ -92,6 +93,17 @@ def _now_ms() -> float:
     return time.time() * 1000.0
 
 
+def _to_ms(t) -> float:
+    """Convert datetime | float | int | None to epoch milliseconds."""
+    if t is None:
+        return _now_ms()
+    if isinstance(t, datetime.datetime):
+        return t.timestamp() * 1000.0
+    if isinstance(t, (int, float)):
+        return float(t) * 1000.0
+    return _now_ms()
+
+
 class TelemetryLogger(CustomLogger):
     """LiteLLM callback: capture TTFT/TPS, enqueue to async writer queue."""
 
@@ -113,7 +125,7 @@ class TelemetryLogger(CustomLogger):
                 pass  # no running loop yet; will start on first async hook
 
     # --- pre/post call hooks (sync, fast) ---
-    def log_pre_api_call(self, model, call_type, api_provider, **kwargs):
+    def log_pre_api_call(self, model, messages, kwargs):
         try:
             rid = kwargs.get("litellm_call_id") or str(id(kwargs))
             self._start_times[rid] = _now_ms()
@@ -123,11 +135,11 @@ class TelemetryLogger(CustomLogger):
         except Exception:
             pass  # never raise in callback
 
-    def log_post_api_call(self, response, start_time, end_time, **kwargs):
+    def log_post_api_call(self, kwargs, response_obj, start_time, end_time):
         try:
             rid = kwargs.get("litellm_call_id") or str(id(kwargs))
-            start = self._start_times.get(rid, start_time * 1000 if start_time else _now_ms())
-            end = end_time * 1000 if end_time else _now_ms()
+            start = self._start_times.get(rid, _to_ms(start_time))
+            end = _to_ms(end_time)
             total = end - start
             ttft = self._first_token_times.get(rid, 0.0)
             if ttft == 0.0:
@@ -135,8 +147,8 @@ class TelemetryLogger(CustomLogger):
         except Exception:
             pass
 
-    # --- streaming first-token capture ---
-    def log_streaming_chunk(self, response, start_time, end_time, **kwargs):
+    # --- streaming first-token capture (async) ---
+    async def async_log_stream_event(self, kwargs, response_obj, start_time, end_time):
         try:
             rid = kwargs.get("litellm_call_id") or str(id(kwargs))
             if rid in self._first_token_times and self._first_token_times[rid] == 0.0:
@@ -162,8 +174,8 @@ class TelemetryLogger(CustomLogger):
 
     async def _enqueue(self, kwargs, response_obj, start_time, end_time, status, error):
         rid = kwargs.get("litellm_call_id") or str(id(kwargs))
-        start_ms = self._start_times.pop(rid, (start_time or time.time()) * 1000)
-        end_ms = (end_time or time.time()) * 1000
+        start_ms = self._start_times.pop(rid, _to_ms(start_time))
+        end_ms = _to_ms(end_time)
         total_ms = end_ms - start_ms
         ttft_ms = self._first_token_times.pop(rid, total_ms)
         stream = 1 if kwargs.get("stream") else 0
@@ -253,5 +265,3 @@ class TelemetryLogger(CustomLogger):
             log.error("bulk insert failed: %s", traceback.format_exc())
         finally:
             conn.close()
-
-
