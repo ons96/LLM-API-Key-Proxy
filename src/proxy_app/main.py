@@ -117,6 +117,15 @@ print("  → Loading LiteLLM library...")
 with _console.status("[dim]Loading LiteLLM library...", spinner="dots"):
     import litellm
 
+    # Telemetry: register LiteLLM callback for TTFT/TPS capture
+    try:
+        from proxy_app.telemetry import TelemetryLogger, init_db
+        init_db()
+        litellm.callbacks = [TelemetryLogger()]
+        print("  → Telemetry logger registered")
+    except Exception as _e:
+        print(f"  → Telemetry init failed: {_e}")
+
 # Phase 4: Application imports with granular loading messages
 print("  → Initializing proxy core...")
 with _console.status("[dim]Initializing proxy core...", spinner="dots"):
