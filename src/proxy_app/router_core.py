@@ -1349,6 +1349,23 @@ class RouterCore:
                     )
                     chain = self.model_ranker.rank_candidates(model_id, chain)
 
+            # ponytail: penalty sort — healthiest first, penalized last. Never removes;
+            # just reorders. Disabled if PENALTY_ENABLED=0. Additive on top of auto_order.
+            # Global lock on penalty_store._lock; fine for our candidate-count (~5-10).
+            if os.environ.get("PENALTY_ENABLED", "1") != "0":
+                try:
+                    from .penalty_store import PenaltyStore
+                    pairs = [(c["provider"], c["model"]) for c in chain]
+                    scored = PenaltyStore.get().score_chain(pairs)
+                    # scored is sorted ASC by penalty (healthiest first).
+                    score_index = {(p, m): i for i, (p, m, _s) in enumerate(scored)}
+                    chain = sorted(
+                        chain,
+                        key=lambda c: score_index.get((c["provider"], c["model"]), len(score_index)),
+                    )
+                except Exception as exc:
+                    logger.debug(f"penalty sort skipped for {model_id}: {exc}")
+
             for candidate_cfg in chain:
                 # Check FREE_ONLY_MODE restrictions
                 if self.free_only_mode and not candidate_cfg.get(
