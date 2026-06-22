@@ -61,6 +61,7 @@ logger = logging.getLogger("reorder_chains")
 # ---------------------------------------------------------------------------
 
 DEFAULT_CONFIG_PATH = _REPO_ROOT / "config" / "virtual_models.yaml"
+DEFAULT_TIER_CONFIG = _REPO_ROOT / "config" / "tier_config.yaml"
 DEFAULT_TELEMETRY_DB = os.environ.get("TELEMETRY_DB_PATH", "/dev/shm/telemetry.db")
 DEFAULT_WINDOW_H = int(os.environ.get("REORDER_WINDOW_H", "24"))
 DEFAULT_MIN_SAMPLES = int(os.environ.get("REORDER_MIN_SAMPLES", "5"))
@@ -72,6 +73,25 @@ W_SUCCESS = float(os.environ.get("REORDER_W_SUCCESS", "0.40"))
 W_TPS = float(os.environ.get("REORDER_W_TPS", "0.30"))
 W_TTFT = float(os.environ.get("REORDER_W_TTFT", "0.20"))
 W_PENALTY = float(os.environ.get("REORDER_W_PENALTY", "0.10"))
+
+# U-formula paths (lazy import from rank_models sibling module).
+_RANK_MODELS = None
+
+
+def _get_rank_models():
+    """Lazy import of rank_models sibling module."""
+    global _RANK_MODELS
+    if _RANK_MODELS is None:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "rank_models", _REPO_ROOT / "scripts" / "rank_models.py"
+        )
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["rank_models"] = mod
+        spec.loader.exec_module(mod)
+        _RANK_MODELS = mod
+    return _RANK_MODELS
 
 
 @dataclass
@@ -323,11 +343,17 @@ def reorder_config(
     max_tps: float,
     max_ttft_ms: float,
     dry_run: bool = False,
+    use_u_formula: bool = False,
+    tier_config_path: Optional[Path] = None,
 ) -> Tuple[int, int, List[str]]:
     """Reorder all virtual_models in config. Returns (total_models, reordered_count, log).
 
     total_models = number of virtual models in config.
     reordered_count = number of models whose chain order changed.
+
+    When use_u_formula=True, uses U = A * (I^w / (C_opp * T)) from
+    rank_models.py (joins benchmark scores + provider categories + telemetry).
+    Otherwise uses the original telemetry-only composite.
     """
     with config_path.open("r") as f:
         config = yaml.safe_load(f)
@@ -340,7 +366,27 @@ def reorder_config(
     stats = load_telemetry(telemetry_db, window_h, min_samples)
     penalties = load_penalty_scores()
 
-    log_lines: List[str] = []
+    # U-formula loads (only when enabled — ponytail: pay only what you use).
+    tier_cfg: Dict[str, "object"] = {}
+    bench: Dict[str, "object"] = {}
+    cats: Dict[str, "object"] = {}
+    if use_u_formula:
+        rm = _get_rank_models()
+        tier_path = tier_config_path or DEFAULT_TIER_CONFIG
+        tier_cfg = rm.load_tier_config(tier_path)
+        bench = rm.load_benchmark_scores()
+        cats = rm.load_provider_categories()
+        log_lines_intro = (
+            f"U-formula mode: tier_cfg={tier_path.name} "
+            f"bench={len(bench)} cats={len(cats)} "
+            f"stats={len(stats)} pen={len(penalties)}"
+        )
+    else:
+        log_lines_intro = (
+            f"composite mode: stats={len(stats)} pen={len(penalties)}"
+        )
+
+    log_lines: List[str] = [log_lines_intro]
     reordered_count = 0
 
     for model_id, model_cfg in virtual_models.items():
@@ -348,9 +394,20 @@ def reorder_config(
         if not chain:
             continue
         original_order = [(c.get("provider"), c.get("model")) for c in chain]
-        new_chain, reasons = reorder_chain(
-            chain, stats, penalties, min_samples, max_tps, max_ttft_ms
-        )
+        if use_u_formula:
+            rm = _get_rank_models()
+            tier = rm.get_tier(tier_cfg, model_id)
+            new_chain, reasons_raw = rm.rank_chain(
+                chain, stats, penalties, bench, cats, tier
+            )
+            reasons = [
+                f"  #{i + 1} {r.provider}/{r.model}: U={r.score:.4f} — {r.reason}"
+                for i, r in enumerate(reasons_raw)
+            ]
+        else:
+            new_chain, reasons = reorder_chain(
+                chain, stats, penalties, min_samples, max_tps, max_ttft_ms
+            )
         new_order = [(c.get("provider"), c.get("model")) for c in new_chain]
         if new_order != original_order:
             reordered_count += 1
@@ -371,11 +428,12 @@ def reorder_config(
             "reordered": reordered_count,
             "window_h": window_h,
             "min_samples": min_samples,
+            "mode": "u_formula" if use_u_formula else "composite",
         }
         config["metadata"] = metadata
 
     if dry_run:
-        log_lines.insert(0, f"DRY RUN — would rewrite {config_path}")
+        log_lines.insert(1, f"DRY RUN — would rewrite {config_path}")
     else:
         backup_path = config_path.with_suffix(
             f".yaml.bak-{int(time.time())}"
@@ -384,7 +442,7 @@ def reorder_config(
         logger.info("backed up %s -> %s", config_path, backup_path)
         with config_path.open("w") as f:
             yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False)
-        log_lines.insert(0, f"REWROTE {config_path} (backup: {backup_path.name})")
+        log_lines.insert(1, f"REWROTE {config_path} (backup: {backup_path.name})")
 
     return len(virtual_models), reordered_count, log_lines
 
@@ -435,6 +493,17 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     parser.add_argument("--dry-run", action="store_true", help="Print plan, don't write")
     parser.add_argument("--verbose", "-v", action="store_true", help="Debug logging")
+    parser.add_argument(
+        "--use-u-formula",
+        action="store_true",
+        help="Use U = A * (I^w / (C_opp * T)) scoring (joins benchmark + provider categories)",
+    )
+    parser.add_argument(
+        "--tier-config",
+        type=Path,
+        default=DEFAULT_TIER_CONFIG,
+        help=f"Path to tier_config.yaml (default: {DEFAULT_TIER_CONFIG})",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -454,6 +523,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         max_tps=args.max_tps,
         max_ttft_ms=args.max_ttft_ms,
         dry_run=args.dry_run,
+        use_u_formula=args.use_u_formula,
+        tier_config_path=args.tier_config,
     )
 
     for line in log_lines:

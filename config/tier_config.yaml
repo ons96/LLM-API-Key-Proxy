@@ -1,0 +1,98 @@
+# Per-virtual-model U-formula tuning.
+# U = A * (I^w / (C_opp * T)) where A = adequacy binary (I >= I_floor).
+#
+# `w` = complexity exponent:
+#   1 = quick tasks (speed dominates, small intelligence delta)
+#   2 = balanced build tasks
+#   3 = complex planner tasks (intelligence exponentiates, flagship wins)
+#
+# `I_floor` = minimum intelligence for the tier (0.0-1.0). Below floor, A=0,
+# model drops to chain tail.
+#
+# `n_out_tokens` = typical output size used by latency estimate.
+#   T = ttft + n_out_tokens / tps (wall-clock seconds)
+#
+# `default` applied to any virtual model not listed.
+
+default:
+  w: 2
+  I_floor: 0.30
+  n_out_tokens: 4000
+  purpose: coding          # coding | chat
+
+virtual_models:
+  coding-elite:
+    w: 3
+    I_floor: 0.55
+    n_out_tokens: 8000
+    purpose: coding
+  coding-smart:
+    w: 2
+    I_floor: 0.45
+    n_out_tokens: 4000
+    purpose: coding
+  coding-fast:
+    w: 1
+    I_floor: 0.15
+    n_out_tokens: 2000
+    purpose: coding
+  title-fast:
+    w: 1
+    I_floor: 0.10
+    n_out_tokens: 80
+    purpose: chat
+  chat-elite:
+    w: 3
+    I_floor: 0.55
+    n_out_tokens: 4000
+    purpose: chat
+  chat-smart:
+    w: 2
+    I_floor: 0.45
+    n_out_tokens: 3000
+    purpose: chat
+  chat-fast:
+    w: 1
+    I_floor: 0.15
+    n_out_tokens: 1500
+    purpose: chat
+  chat-rp:
+    w: 1
+    I_floor: 0.10
+    n_out_tokens: 2000
+    purpose: chat
+  glm5-elite:
+    w: 2
+    I_floor: 0.40
+    n_out_tokens: 4000
+    purpose: coding
+  agent-oracle:
+    w: 3
+    I_floor: 0.55
+    n_out_tokens: 4000
+    purpose: coding
+  agent-explore:
+    w: 1
+    I_floor: 0.20
+    n_out_tokens: 2000
+    purpose: coding
+  agent-librarian:
+    w: 2
+    I_floor: 0.35
+    n_out_tokens: 2000
+    purpose: coding
+  agent-build:
+    w: 2
+    I_floor: 0.45
+    n_out_tokens: 6000
+    purpose: coding
+  agent-metis:
+    w: 3
+    I_floor: 0.55
+    n_out_tokens: 4000
+    purpose: chat
+  agent-momus:
+    w: 2
+    I_floor: 0.40
+    n_out_tokens: 3000
+    purpose: chat
