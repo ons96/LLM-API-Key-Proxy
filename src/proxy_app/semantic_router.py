@@ -227,8 +227,11 @@ def resolve_auto(
             if query:
                 try:
                     decision = sr(query)
-                    if decision is not None and decision.score is not None:
-                        confidence = float(decision.score)
+                    # getattr guard: semantic-router RouteChoice.score attr name
+                    # varies across versions (.score / .similarity_score / None).
+                    score = getattr(decision, "score", None) if decision else None
+                    if decision is not None and score is not None:
+                        confidence = float(score)
                         route_name = decision.name
                         intent = _ROUTE_NAME_TO_INTENT.get(route_name, MessageIntent.UNKNOWN)
                         if confidence >= threshold and intent != MessageIntent.UNKNOWN:
@@ -259,7 +262,7 @@ def resolve_auto(
         chain=chain,
         intent=kw_result.intent,
         confidence=kw_result.confidence,
-        source="keyword" if not _SR_LOAD_FAILED else "keyword",
+        source="keyword",
         reasoning=f"keyword fallback: {kw_result.reasoning}",
     )
 
@@ -282,7 +285,13 @@ def _apply_tool_guard(chain: str, needs_tools: bool) -> str:
 
 
 def _extract_query(request: Dict[str, Any]) -> str:
-    """Pull the most recent user message text for embedding lookup."""
+    """Pull the most recent user message text for embedding lookup.
+
+    Truncated to 512 chars: FastEmbed all-MiniLM-L6-v2 has a 256-token context
+    window; longer input is silently truncated by the tokenizer but the encoder
+    still allocates/encodes the full string first. 512 chars ≈ 128 tokens, safe
+    headroom under the limit and enough signal for intent classification.
+    """
     messages = request.get("messages", []) or []
     # Walk backwards to find the last user text content.
     for msg in reversed(messages):
@@ -290,16 +299,16 @@ def _extract_query(request: Dict[str, Any]) -> str:
             continue
         content = msg.get("content")
         if isinstance(content, str):
-            return content
+            return content[:512]
         if isinstance(content, list):
             parts = [
-                p.get("text", "")
+                (p.get("text", "") or "").strip()
                 for p in content
                 if isinstance(p, dict) and p.get("type") == "text"
             ]
-            text = " ".join(parts).strip()
+            text = " ".join(part for part in parts if part).strip()
             if text:
-                return text
+                return text[:512]
     return ""
 
 

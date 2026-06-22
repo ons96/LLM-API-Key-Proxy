@@ -39,18 +39,24 @@ class RouterWrapper:
         if model_id == "auto" or model_id == "router/auto":
             try:
                 result = resolve_auto(request_data, current_model=model_id)
-                logger.info(
+                logger.debug(
                     "auto-router: intent=%s chain=%s source=%s conf=%.2f",
                     result.intent.name, result.chain, result.source, result.confidence,
                 )
                 request_data["model"] = result.chain
                 model_id = result.chain
             except Exception as exc:
+                # Tool-aware fallback: if request carries tools, fall back to a
+                # tool-capable chain instead of chat-fast (which is non-tool).
+                # Never silently serve a non-tool chain when client asked for tools.
+                from .semantic_router import DEFAULT_CHAIN, DEFAULT_TOOL_CHAIN
+                needs_tools = bool(request_data.get("tools") or request_data.get("tool_choice"))
+                fallback = DEFAULT_TOOL_CHAIN if needs_tools else DEFAULT_CHAIN
                 logger.warning(
-                    "auto-router failed (%r); falling back to chat-fast", exc
+                    "auto-router failed (%r); falling back to %s", exc, fallback
                 )
-                request_data["model"] = "chat-fast"
-                model_id = "chat-fast"
+                request_data["model"] = fallback
+                model_id = fallback
         
         # Always use router for virtual models
         if model_id.startswith("router/"):

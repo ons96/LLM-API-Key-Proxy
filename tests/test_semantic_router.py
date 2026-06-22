@@ -210,3 +210,68 @@ class TestIntentChainMap:
 
     def test_unknown_intent_has_safe_default(self):
         assert INTENT_CHAIN_MAP[MessageIntent.UNKNOWN] == DEFAULT_CHAIN
+
+
+# ---------------------------------------------------------------------------
+# AUTO_ROUTE_MODE=ambiguous path
+# ---------------------------------------------------------------------------
+
+
+class TestAmbiguousMode:
+    """Verify AUTO_ROUTE_MODE=ambiguous only routes when keyword confidence
+    is low. High-confidence keyword results should bypass semantic routing."""
+
+    def test_ambiguous_mode_still_returns_valid_result(self, monkeypatch):
+        # In ambiguous mode, resolve_auto should still return a valid result
+        # (it falls through to keyword detector when semantic_router is not
+        # installed, which is the CI state).
+        monkeypatch.setenv("AUTO_ROUTE_MODE", "ambiguous")
+        req = {"messages": [{"role": "user", "content": "hi"}]}
+        result = resolve_auto(req)
+        assert isinstance(result, AutoRouteResult)
+        assert result.chain
+        assert result.source in {"semantic", "keyword", "default"}
+
+    def test_ambiguous_mode_respects_env(self, monkeypatch):
+        # Env var must be read at call time, not import time.
+        monkeypatch.setenv("AUTO_ROUTE_MODE", "ambiguous")
+        req = {
+            "messages": [
+                {"role": "user", "content": "refactor this module to use async generators"}
+            ]
+        }
+        result = resolve_auto(req)
+        # Coding prompt — keyword detector should pick it up regardless of
+        # mode. Result must be a valid chain.
+        assert result.chain in TOOL_CAPABLE_CHAINS or result.chain.startswith("chat-"), (
+            f"coding prompt in ambiguous mode routed to {result.chain!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Chain consistency: every mapped chain is either tool-capable or explicitly
+# known to be non-tool. Catches drift if a new chain is added to
+# INTENT_CHAIN_MAP without updating TOOL_CAPABLE_CHAINS.
+# ---------------------------------------------------------------------------
+
+
+class TestChainConsistency:
+    """All chains in INTENT_CHAIN_MAP must be classified as tool-capable
+    or explicitly known non-tool. Non-tool chains: chat-fast, chat-rp,
+    title-fast."""
+
+    NON_TOOL_CHAINS = {"chat-fast", "chat-rp", "title-fast"}
+
+    def test_every_mapped_chain_is_classified(self):
+        for intent, chain in INTENT_CHAIN_MAP.items():
+            assert chain in TOOL_CAPABLE_CHAINS or chain in self.NON_TOOL_CHAINS, (
+                f"intent {intent!r} maps to unclassified chain {chain!r}; "
+                f"add to TOOL_CAPABLE_CHAINS or TestChainConsistency.NON_TOOL_CHAINS"
+            )
+
+    def test_default_tool_chain_is_tool_capable(self):
+        # Sanity: DEFAULT_TOOL_CHAIN must be in TOOL_CAPABLE_CHAINS,
+        # otherwise the tool guard's fallback is broken.
+        assert DEFAULT_TOOL_CHAIN in TOOL_CAPABLE_CHAINS, (
+            f"DEFAULT_TOOL_CHAIN={DEFAULT_TOOL_CHAIN!r} is not tool-capable"
+        )

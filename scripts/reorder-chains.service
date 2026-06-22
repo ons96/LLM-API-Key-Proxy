@@ -1,0 +1,39 @@
+[Unit]
+Description=LLM-API-Key-Proxy: dynamic fallback chain reorder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Env overrides — copy to /etc/systemd/system/ and edit as needed.
+Environment=TELEMETRY_DB_PATH=/dev/shm/telemetry.db
+Environment=REORDER_WINDOW_H=24
+Environment=REORDER_MIN_SAMPLES=5
+Environment=REORDER_MAX_TPS=3000
+Environment=REORDER_MAX_TTFT_MS=30000
+# Composite weights (must sum to 1.0)
+Environment=REORDER_W_SUCCESS=0.40
+Environment=REORDER_W_TPS=0.30
+Environment=REORDER_W_TTFT=0.20
+Environment=REORDER_W_PENALTY=0.10
+# Path to repo + config
+Environment=REPO_PATH=/home/ubuntu/LLM-API-Key-Proxy
+WorkingDirectory=${REPO_PATH}
+ExecStart=/usr/bin/python3 ${REPO_PATH}/scripts/reorder_chains.py \
+  --config ${REPO_PATH}/config/virtual_models.yaml \
+  --telemetry-db ${TELEMETRY_DB_PATH} \
+  --window-h ${REORDER_WINDOW_H} \
+  --min-samples ${REORDER_MIN_SAMPLES}
+
+# Restart gateway to pick up new config (optional; remove if hot-reload is wired).
+# Post-restart leaves a 5s window where the gateway is unavailable.
+ExecStartPost=/bin/sh -c 'systemctl restart llm-gateway.service || true'
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=${REPO_PATH}/config
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -171,6 +171,19 @@ class TelemetryLogger(CustomLogger):
                                 error=str(getattr(response_obj, "message", "unknown")))
         except Exception:
             log.error("async_log_failure_event failed: %s", traceback.format_exc())
+        # ponytail: best-effort penalty recording for #196. Lazy import avoids
+        # circular dep; failure here must never break the request path.
+        try:
+            from ..penalty_store import PenaltyStore, classify_failure
+            model_id = kwargs.get("model", "unknown")
+            provider, model = _split_provider_model(model_id)
+            status_code = getattr(response_obj, "status_code", None)
+            error_message = getattr(response_obj, "message", None) or str(response_obj)
+            exception_type = type(response_obj).__name__
+            failure_type = classify_failure(status_code, error_message, exception_type)
+            await PenaltyStore.get().arecord_failure(provider, model, failure_type)
+        except Exception:
+            log.debug("penalty recording skipped: %s", traceback.format_exc())
 
     async def _enqueue(self, kwargs, response_obj, start_time, end_time, status, error):
         rid = kwargs.get("litellm_call_id") or str(id(kwargs))
@@ -265,3 +278,12 @@ class TelemetryLogger(CustomLogger):
             log.error("bulk insert failed: %s", traceback.format_exc())
         finally:
             conn.close()
+
+
+def _split_provider_model(model_id: str) -> tuple[str, str]:
+    """Split 'groq/llama-3.3-70b' → ('groq', 'llama-3.3-70b').
+    Plain 'llama-3.3-70b' → ('unknown', 'llama-3.3-70b')."""
+    if "/" in model_id:
+        provider, _, model = model_id.partition("/")
+        return provider, model
+    return "unknown", model_id

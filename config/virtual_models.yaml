@@ -1,5 +1,5 @@
 metadata:
-  generated_at: '2026-06-18T07:00:01.306619+00:00'
+  generated_at: '2026-06-21T06:57:51.282710+00:00'
   sources:
   - models.dev
   - telemetry
@@ -385,8 +385,20 @@ virtual_models:
       retry_on_rate_limit: true
   auto:
     description: Semantic auto-router (resolved at request time via semantic-router
-      or keyword intent fallback; tool-capability aware)
-    fallback_chain: []
+      or keyword intent fallback; tool-capability aware). fallback_chain below is
+      a safe default used only if resolve_auto is bypassed (e.g. embeddings/streaming
+      endpoints that skip router_wrapper). Normal path mutates request.model to a
+      concrete chain before this is consulted.
+    fallback_chain:
+    - provider: cliproxyapi
+      model: gemini-2.5-flash
+      priority: 1
+    - provider: cerebras
+      model: llama-3.3-70b
+      priority: 2
+    - provider: groq
+      model: llama-3.1-8b-instant
+      priority: 3
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
