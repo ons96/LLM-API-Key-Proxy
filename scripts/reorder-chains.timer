@@ -1,0 +1,11 @@
+[Unit]
+Description=LLM-API-Key-Proxy: trigger dynamic fallback chain reorder every 30 min
+Requires=reorder-chains.service
+
+[Timer]
+# Every 30 minutes, offset 5 min past the hour to avoid colliding with cron.
+OnCalendar=*:0/30
+Persistent=true
+
+[Install]
+WantedBy=timers.target

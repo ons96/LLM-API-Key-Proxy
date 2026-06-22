@@ -171,8 +171,8 @@ class TelemetryLogger(CustomLogger):
                                 error=str(getattr(response_obj, "message", "unknown")))
         except Exception:
             log.error("async_log_failure_event failed: %s", traceback.format_exc())
-
-        # ponytail: penalty record is best-effort; never fail the call path on it.
+        # ponytail: best-effort penalty recording for #196. Lazy import avoids
+        # circular dep; failure here must never break the request path.
         try:
             from ..penalty_store import PenaltyStore, classify_failure
             model_id = kwargs.get("model", "unknown")
@@ -180,16 +180,10 @@ class TelemetryLogger(CustomLogger):
             status_code = getattr(response_obj, "status_code", None)
             error_message = getattr(response_obj, "message", None) or str(response_obj)
             exception_type = type(response_obj).__name__
-            failure_type = classify_failure(
-                status_code=status_code,
-                error_message=error_message,
-                exception_type=exception_type,
-            )
+            failure_type = classify_failure(status_code, error_message, exception_type)
             await PenaltyStore.get().arecord_failure(provider, model, failure_type)
-            log.info("penalty recorded: provider=%s model=%s type=%s status=%s",
-                      provider, model, failure_type, status_code)
         except Exception:
-            log.debug("penalty record skipped: %s", traceback.format_exc())
+            log.debug("penalty recording skipped: %s", traceback.format_exc())
 
     async def _enqueue(self, kwargs, response_obj, start_time, end_time, status, error):
         rid = kwargs.get("litellm_call_id") or str(id(kwargs))
@@ -286,9 +280,9 @@ class TelemetryLogger(CustomLogger):
             conn.close()
 
 
-def _split_provider_model(model_id: str):
-    """Split 'groq/llama-3.3-70b' -> ('groq', 'llama-3.3-70b').
-    Plain 'llama-3.3-70b' -> ('unknown', 'llama-3.3-70b')."""
+def _split_provider_model(model_id: str) -> tuple[str, str]:
+    """Split 'groq/llama-3.3-70b' → ('groq', 'llama-3.3-70b').
+    Plain 'llama-3.3-70b' → ('unknown', 'llama-3.3-70b')."""
     if "/" in model_id:
         provider, _, model = model_id.partition("/")
         return provider, model
