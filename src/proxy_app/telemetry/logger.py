@@ -187,18 +187,9 @@ class TelemetryLogger(CustomLogger):
             )
             await PenaltyStore.get().arecord_failure(provider, model, failure_type)
             log.info("penalty recorded: provider=%s model=%s type=%s status=%s",
-                     provider, model, failure_type, status_code)
+                      provider, model, failure_type, status_code)
         except Exception:
             log.debug("penalty record skipped: %s", traceback.format_exc())
-
-
-def _split_provider_model(model_id: str):
-    """Split 'groq/llama-3.3-70b' -> ('groq', 'llama-3.3-70b').
-    Plain 'llama-3.3-70b' -> ('unknown', 'llama-3.3-70b')."""
-    if "/" in model_id:
-        provider, _, model = model_id.partition("/")
-        return provider, model
-    return "unknown", model_id
 
     async def _enqueue(self, kwargs, response_obj, start_time, end_time, status, error):
         rid = kwargs.get("litellm_call_id") or str(id(kwargs))
@@ -293,3 +284,12 @@ def _split_provider_model(model_id: str):
             log.error("bulk insert failed: %s", traceback.format_exc())
         finally:
             conn.close()
+
+
+def _split_provider_model(model_id: str):
+    """Split 'groq/llama-3.3-70b' -> ('groq', 'llama-3.3-70b').
+    Plain 'llama-3.3-70b' -> ('unknown', 'llama-3.3-70b')."""
+    if "/" in model_id:
+        provider, _, model = model_id.partition("/")
+        return provider, model
+    return "unknown", model_id
