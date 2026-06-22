@@ -1,0 +1,13 @@
+[Unit]
+Description=Trigger OCI A1.Flex capture on boot + every 6h while failing
+After=network-online.target
+Wants=network-online.target
+
+[Timer]
+# Run 2min after boot, then every 6h until success
+OnBootSec=120
+OnUnitActiveSec=21600
+Persistent=true
+
+[Install]
+WantedBy=timers.target
