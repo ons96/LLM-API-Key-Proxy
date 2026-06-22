@@ -51,7 +51,9 @@ from reorder_chains import (  # type: ignore
 
 
 def _make_telemetry_db(db_path: Path, rows: List[Dict]) -> None:
-    """Create llm_events table and insert synthetic rows."""
+    """Create llm_events table and insert synthetic rows. Supports both
+    alias-only and concrete (concrete_provider, concrete_model) rows; if a
+    row omits concrete columns they default to None (alias fallback path)."""
     conn = sqlite3.connect(str(db_path))
     try:
         conn.execute(
@@ -74,21 +76,25 @@ def _make_telemetry_db(db_path: Path, rows: List[Dict]) -> None:
                 caller TEXT,
                 agent_session TEXT,
                 status TEXT,
-                error TEXT
+                error TEXT,
+                concrete_provider TEXT,
+                concrete_model TEXT
             )
             """
         )
         conn.execute("CREATE INDEX idx_ts_start ON llm_events(ts_start)")
         conn.execute("CREATE INDEX idx_model ON llm_events(model)")
         conn.execute("CREATE INDEX idx_provider ON llm_events(provider)")
+        conn.execute("CREATE INDEX idx_concrete ON llm_events(concrete_provider, concrete_model)")
         for row in rows:
             conn.execute(
                 """
                 INSERT INTO llm_events (
                     request_id, ts_start, ts_end, ts_first_token,
                     model, provider, stream, prompt_tokens, completion_tokens,
-                    ttft_ms, total_ms, tps, cost_usd, caller, agent_session, status, error
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ttft_ms, total_ms, tps, cost_usd, caller, agent_session, status, error,
+                    concrete_provider, concrete_model
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     row.get("request_id", "req-1"),
@@ -108,6 +114,8 @@ def _make_telemetry_db(db_path: Path, rows: List[Dict]) -> None:
                     row.get("agent_session", ""),
                     row.get("status", "success"),
                     row.get("error", ""),
+                    row.get("concrete_provider"),
+                    row.get("concrete_model"),
                 ),
             )
         conn.commit()
@@ -404,6 +412,90 @@ class TestLoadTelemetry(unittest.TestCase):
         stats = load_telemetry(str(self.db_path), window_h=24, min_samples=1)
         self.assertIn(("new", "m"), stats)
         self.assertNotIn(("old", "m"), stats)
+
+    def test_prefers_concrete_over_alias(self):
+        """When concrete_provider/concrete_model are set, the stat is keyed
+        on them; alias-level (provider, model) is ignored. This is the core
+        fix for #195 reorder — telemetry records the alias the user requested
+        but the chain has concrete (provider, model) pairs."""
+        _make_telemetry_db(
+            self.db_path,
+            [
+                # All 3 events are alias="coding-fast" but actually hit
+                # different concrete providers. Without concrete columns,
+                # the aggregator can't distinguish groq vs cerebras.
+                {
+                    "provider": "coding-fast", "model": "coding-fast",
+                    "concrete_provider": "groq", "concrete_model": "llama-3.3-70b",
+                    "status": "success", "tps": 80.0, "ttft_ms": 200.0,
+                },
+                {
+                    "provider": "coding-fast", "model": "coding-fast",
+                    "concrete_provider": "groq", "concrete_model": "llama-3.3-70b",
+                    "status": "success", "tps": 90.0, "ttft_ms": 220.0,
+                },
+                {
+                    "provider": "coding-fast", "model": "coding-fast",
+                    "concrete_provider": "cerebras", "concrete_model": "llama-3.3-70b",
+                    "status": "error", "tps": 0.0, "ttft_ms": 5000.0,
+                },
+            ],
+        )
+        stats = load_telemetry(str(self.db_path), window_h=24, min_samples=1)
+        # groq + llama-3.3-70b is its own bucket (2 success)
+        self.assertIn(("groq", "llama-3.3-70b"), stats)
+        self.assertEqual(stats[("groq", "llama-3.3-70b")].samples, 2)
+        self.assertEqual(stats[("groq", "llama-3.3-70b")].success_rate, 1.0)
+        # cerebras + llama-3.3-70b is its own bucket (1 error)
+        self.assertIn(("cerebras", "llama-3.3-70b"), stats)
+        self.assertEqual(stats[("cerebras", "llama-3.3-70b")].samples, 1)
+        self.assertEqual(stats[("cerebras", "llama-3.3-70b")].success_rate, 0.0)
+        # Alias-level keys should NOT be present (concrete took over)
+        self.assertNotIn(("coding-fast", "coding-fast"), stats)
+
+    def test_falls_back_to_alias_when_concrete_null(self):
+        """Old rows (pre-#195 follow-up) have NULL concrete columns; the
+        aggregator must still key on alias-level (provider, model)."""
+        _make_telemetry_db(
+            self.db_path,
+            [
+                {
+                    "provider": "groq", "model": "llama-3.3-70b",
+                    "concrete_provider": None, "concrete_model": None,
+                    "status": "success", "tps": 50.0, "ttft_ms": 300.0,
+                },
+            ],
+        )
+        stats = load_telemetry(str(self.db_path), window_h=24, min_samples=1)
+        # NULL concrete → falls back to alias columns
+        self.assertIn(("groq", "llama-3.3-70b"), stats)
+        self.assertEqual(stats[("groq", "llama-3.3-70b")].samples, 1)
+
+    def test_mixed_concrete_and_alias_aggregated_separately(self):
+        """Concrete and alias rows for the same provider/model should NOT
+        collide — they represent different real events."""
+        _make_telemetry_db(
+            self.db_path,
+            [
+                {
+                    "provider": "groq", "model": "alias-name",
+                    "concrete_provider": "groq", "concrete_model": "llama-3.3-70b",
+                    "status": "success", "tps": 100.0, "ttft_ms": 100.0,
+                },
+                {
+                    "provider": "groq", "model": "alias-name",
+                    "concrete_provider": None, "concrete_model": None,
+                    "status": "error", "tps": 0.0, "ttft_ms": 5000.0,
+                },
+            ],
+        )
+        stats = load_telemetry(str(self.db_path), window_h=24, min_samples=1)
+        # The concrete row keys on (groq, llama-3.3-70b) with 1 sample
+        self.assertIn(("groq", "llama-3.3-70b"), stats)
+        self.assertEqual(stats[("groq", "llama-3.3-70b")].samples, 1)
+        # The alias-only row keys on (groq, alias-name) with 1 sample
+        self.assertIn(("groq", "alias-name"), stats)
+        self.assertEqual(stats[("groq", "alias-name")].samples, 1)
 
 
 if __name__ == "__main__":
