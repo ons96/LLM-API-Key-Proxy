@@ -225,16 +225,30 @@ class TelemetryLogger(CustomLogger):
             tps = 0.0
 
         model = kwargs.get("model", "unknown")
-        # Concrete (provider, model) pair from LiteLLM response. Falls back to
-        # alias-level (provider=alias) when not available, so reorder can still
-        # match on concrete_provider/concrete_model when response_obj exposes it.
-        concrete_full = getattr(response_obj, "model", None)
-        if concrete_full and "/" in concrete_full and concrete_full != model:
-            concrete_provider, _, concrete_model = concrete_full.partition("/")
-        else:
-            concrete_provider, concrete_model = None, None
-        provider = getattr(response_obj, "model", model)
+        # Concrete (provider, model) pair so reorder_chains can match chain
+        # entries on the actual provider+model used (not the user-facing alias).
+        # provider comes from litellm_params.custom_llm_provider (set in
+        # rotator_library/client.py + provider_adapter.py), model comes from
+        # response_obj.model (the upstream's bare model name).
         litellm_params = kwargs.get("litellm_params", {}) or {}
+        custom_provider = ""
+        if isinstance(litellm_params, dict):
+            custom_provider = litellm_params.get("custom_llm_provider", "") or ""
+        response_model = getattr(response_obj, "model", None) or ""
+        # Strip any "provider/" prefix from response_model since we want just
+        # the model name (e.g. "llama-3.3-70b-versatile", not "groq/llama-...").
+        if "/" in response_model:
+            _, _, response_model = response_model.partition("/")
+        concrete_provider = custom_provider or None
+        concrete_model = response_model or None
+        # Keep `model` = what litellm was called with (after alias resolution,
+        # usually the concrete model name). For backward compat the `provider`
+        # column is the custom_llm_provider when available, else falls back to
+        # the model name (matches pre-#195 behavior on the legacy column).
+        if custom_provider:
+            provider = custom_provider
+        else:
+            provider = response_model or model
         metadata = litellm_params.get("metadata", {}) if isinstance(litellm_params, dict) else {}
         caller = metadata.get("caller", "unknown") if isinstance(metadata, dict) else "unknown"
         agent_session = metadata.get("agent_session", "") if isinstance(metadata, dict) else ""
