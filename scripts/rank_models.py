@@ -205,15 +205,19 @@ def load_tier_config(config_path: Path = DEFAULT_TIER_CONFIG) -> Dict[str, TierC
 _ALIASES = [
     # (regex, canonical model_id). Order matters — first match wins.
     # Canonical names verified against llm-leaderboard-aggregate db/models.db.
+    # Note: DB uses hyphens (gemini-2-5-flash), not dots (gemini-2.5-flash).
     (r"^meta-llama/llama-3\.3-70b", "llama-3-3-70b-instruct"),
     (r"^llama-3\.3-70b", "llama-3-3-70b-instruct"),
     (r"^llama-3\.1-8b", "llama-3-1-8b-instruct"),
     (r"^llama-3\.1-70b", "llama-3-1-70b-instruct"),
     (r"^llama-3-70b", "llama-3-70b-instruct"),
     (r"^llama-3-8b", "llama-3-8b-instruct"),
+    (r"^llama3\.1-8b", "llama-3-1-8b-instruct"),  # cerebras naming
+    (r"^llama3-1-8b", "llama-3-1-8b-instruct"),  # cerebras alt
     (r"^gpt-4o-mini", "gpt-4o-mini"),
     (r"^gpt-5", "gpt-5-2"),
-    (r"^gemini-2\.5-flash", "gemini-2.5-flash"),
+    (r"^gemini-2\.5-flash", "gemini-2-5-flash"),
+    (r"^gemini-2\.5-pro", "gemini-2-5-pro"),
     (r"^gemini-3-flash", "gemini-3-flash"),
     (r"^gemini-3-pro", "gemini-3-pro"),
     (r"^claude-opus-4", "claude-opus-4-6"),
@@ -222,7 +226,7 @@ _ALIASES = [
     (r"^qwen3", "qwen3-max"),
     (r"^glm-5", "glm-5"),
     (r"^nemotron", "nvidia-llama-3-1-nemotron-70b-instruct"),
-    (r"^mistral-large", "mistralai/mistral-large-3-675b-instruct-2512"),
+    (r"^mistral-large", "mistral-large-2411"),
     (r"^mistral-embed|codestral-embed", "mistral-embed"),
 ]
 
