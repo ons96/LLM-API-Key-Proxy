@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS llm_events (
 CREATE INDEX IF NOT EXISTS idx_ts_start ON llm_events(ts_start);
 CREATE INDEX IF NOT EXISTS idx_model ON llm_events(model);
 CREATE INDEX IF NOT EXISTS idx_provider ON llm_events(provider);
-CREATE INDEX IF NOT EXISTS idx_concrete ON llm_events(concrete_provider, concrete_model);
+-- idx_concrete is created AFTER the ALTER TABLE loop in init_db() so it
+-- works on pre-#195 DBs that didn't have concrete_provider/concrete_model.
 """
 
 # Columns added post-launch (June 2026, #195 reorder follow-up). Existing
