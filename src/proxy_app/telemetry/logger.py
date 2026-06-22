@@ -62,12 +62,22 @@ CREATE TABLE IF NOT EXISTS llm_events (
     caller TEXT,
     agent_session TEXT,
     status TEXT,
-    error TEXT
+    error TEXT,
+    concrete_provider TEXT,
+    concrete_model TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_ts_start ON llm_events(ts_start);
 CREATE INDEX IF NOT EXISTS idx_model ON llm_events(model);
 CREATE INDEX IF NOT EXISTS idx_provider ON llm_events(provider);
+CREATE INDEX IF NOT EXISTS idx_concrete ON llm_events(concrete_provider, concrete_model);
 """
+
+# Columns added post-launch (June 2026, #195 reorder follow-up). Existing
+# telemetry DBs get these via ALTER TABLE below; new DBs get them from _SCHEMA.
+_POST_LAUNCH_COLUMNS = [
+    ("concrete_provider", "TEXT"),
+    ("concrete_model", "TEXT"),
+]
 
 
 def init_db(db_path: str = DB_PATH) -> None:
@@ -83,6 +93,15 @@ def init_db(db_path: str = DB_PATH) -> None:
         except sqlite3.OperationalError:
             pass  # auto_vacuum must be set before any table creation
         conn.executescript(_SCHEMA)
+        # ponytail: idempotent ALTER for post-launch columns. Existing DBs
+        # from before #195 reorder follow-up may not have these.
+        existing = {row[1] for row in conn.execute("PRAGMA table_info(llm_events)").fetchall()}
+        for col, decl in _POST_LAUNCH_COLUMNS:
+            if col not in existing:
+                conn.execute(f"ALTER TABLE llm_events ADD COLUMN {col} {decl}")
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_concrete ON llm_events(concrete_provider, concrete_model)"
+        )
         conn.commit()
     finally:
         conn.close()
@@ -205,6 +224,14 @@ class TelemetryLogger(CustomLogger):
             tps = 0.0
 
         model = kwargs.get("model", "unknown")
+        # Concrete (provider, model) pair from LiteLLM response. Falls back to
+        # alias-level (provider=alias) when not available, so reorder can still
+        # match on concrete_provider/concrete_model when response_obj exposes it.
+        concrete_full = getattr(response_obj, "model", None)
+        if concrete_full and "/" in concrete_full and concrete_full != model:
+            concrete_provider, _, concrete_model = concrete_full.partition("/")
+        else:
+            concrete_provider, concrete_model = None, None
         provider = getattr(response_obj, "model", model)
         litellm_params = kwargs.get("litellm_params", {}) or {}
         metadata = litellm_params.get("metadata", {}) if isinstance(litellm_params, dict) else {}
@@ -219,6 +246,7 @@ class TelemetryLogger(CustomLogger):
             int(prompt_tokens or 0), int(completion_tokens or 0),
             float(ttft_ms), float(total_ms), float(tps),
             float(cost or 0.0), caller, agent_session, status, error,
+            concrete_provider, concrete_model,
         )
 
         try:
@@ -269,8 +297,9 @@ class TelemetryLogger(CustomLogger):
                 """INSERT INTO llm_events
                    (request_id, ts_start, ts_end, ts_first_token, model, provider, stream,
                     prompt_tokens, completion_tokens, ttft_ms, total_ms, tps, cost_usd,
-                    caller, agent_session, status, error)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    caller, agent_session, status, error,
+                    concrete_provider, concrete_model)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 batch,
             )
             conn.commit()

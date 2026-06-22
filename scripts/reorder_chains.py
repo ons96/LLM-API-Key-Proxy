@@ -133,21 +133,46 @@ def load_telemetry(
             return {}
 
         cutoff = time.time() - (window_h * 3600)
-        cur = conn.execute(
-            """
-            SELECT provider, model,
-                   COUNT(*) AS samples,
-                   SUM(CASE WHEN status='success' THEN 1.0 ELSE 0.0 END) AS successes,
-                   AVG(tps) AS avg_tps,
-                   AVG(ttft_ms) AS avg_ttft_ms
-            FROM llm_events
-            WHERE ts_start >= ?
-              AND provider IS NOT NULL
-              AND model IS NOT NULL
-            GROUP BY provider, model
-            """,
-            (cutoff,),
-        )
+        # ponytail: prefer (concrete_provider, concrete_model) when present
+        # (recorded post #195 reorder follow-up); fall back to (provider, model)
+        # alias-level for older rows. sqlite NULL-aware COALESCE via CASE.
+        has_concrete = {"concrete_provider", "concrete_model"}.issubset(cols)
+        if has_concrete:
+            cur = conn.execute(
+                """
+                SELECT
+                    COALESCE(NULLIF(concrete_provider, ''), provider) AS provider,
+                    COALESCE(NULLIF(concrete_model, ''), model) AS model,
+                    COUNT(*) AS samples,
+                    SUM(CASE WHEN status='success' THEN 1.0 ELSE 0.0 END) AS successes,
+                    AVG(tps) AS avg_tps,
+                    AVG(ttft_ms) AS avg_ttft_ms
+                FROM llm_events
+                WHERE ts_start >= ?
+                  AND provider IS NOT NULL
+                  AND model IS NOT NULL
+                GROUP BY COALESCE(NULLIF(concrete_provider, ''), provider),
+                         COALESCE(NULLIF(concrete_model, ''), model)
+                """,
+                (cutoff,),
+            )
+        else:
+            logger.info("llm_events lacks concrete_provider/concrete_model; using alias columns")
+            cur = conn.execute(
+                """
+                SELECT provider, model,
+                       COUNT(*) AS samples,
+                       SUM(CASE WHEN status='success' THEN 1.0 ELSE 0.0 END) AS successes,
+                       AVG(tps) AS avg_tps,
+                       AVG(ttft_ms) AS avg_ttft_ms
+                FROM llm_events
+                WHERE ts_start >= ?
+                  AND provider IS NOT NULL
+                  AND model IS NOT NULL
+                GROUP BY provider, model
+                """,
+                (cutoff,),
+            )
         stats: Dict[Tuple[str, str], TelemetryStat] = {}
         for row in cur.fetchall():
             samples = int(row["samples"] or 0)
