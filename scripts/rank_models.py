@@ -204,9 +204,13 @@ def load_tier_config(config_path: Path = DEFAULT_TIER_CONFIG) -> Dict[str, TierC
 
 _ALIASES = [
     # (regex, canonical model_id). Order matters — first match wins.
-    (r"^meta-llama/llama-3\.3-70b", "meta-llama/llama-3.3-70b-instruct"),
-    (r"^llama-3\.3-70b", "meta-llama/llama-3.3-70b-instruct"),
-    (r"^llama-3\.1-8b", "meta-llama/llama-3.1-8b-instruct"),
+    # Canonical names verified against llm-leaderboard-aggregate db/models.db.
+    (r"^meta-llama/llama-3\.3-70b", "llama-3-3-70b-instruct"),
+    (r"^llama-3\.3-70b", "llama-3-3-70b-instruct"),
+    (r"^llama-3\.1-8b", "llama-3-1-8b-instruct"),
+    (r"^llama-3\.1-70b", "llama-3-1-70b-instruct"),
+    (r"^llama-3-70b", "llama-3-70b-instruct"),
+    (r"^llama-3-8b", "llama-3-8b-instruct"),
     (r"^gpt-4o-mini", "gpt-4o-mini"),
     (r"^gpt-5", "gpt-5-2"),
     (r"^gemini-2\.5-flash", "gemini-2.5-flash"),
@@ -217,7 +221,7 @@ _ALIASES = [
     (r"^deepseek-v3", "deepseek-v3-2"),
     (r"^qwen3", "qwen3-max"),
     (r"^glm-5", "glm-5"),
-    (r"^nemotron", "nvidia/nemotron-mini-4b-instruct"),
+    (r"^nemotron", "nvidia-llama-3-1-nemotron-70b-instruct"),
     (r"^mistral-large", "mistralai/mistral-large-3-675b-instruct-2512"),
     (r"^mistral-embed|codestral-embed", "mistral-embed"),
 ]

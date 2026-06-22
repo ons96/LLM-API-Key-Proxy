@@ -33,7 +33,7 @@ virtual_models:
     purpose: coding
   coding-fast:
     w: 1
-    I_floor: 0.15
+    I_floor: 0.20
     n_out_tokens: 2000
     purpose: coding
   title-fast:
@@ -53,7 +53,7 @@ virtual_models:
     purpose: chat
   chat-fast:
     w: 1
-    I_floor: 0.15
+    I_floor: 0.20
     n_out_tokens: 1500
     purpose: chat
   chat-rp:

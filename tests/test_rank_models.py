@@ -119,12 +119,12 @@ class TestComputeIntelligence:
 
     def test_alias_normalization_llama(self):
         bench = {
-            "meta-llama/llama-3.3-70b-instruct": rank_models.BenchmarkScore(
-                "meta-llama/llama-3.3-70b-instruct", coding=0.50, chat=0.40
+            "llama-3-3-70b-instruct": rank_models.BenchmarkScore(
+                "llama-3-3-70b-instruct", coding=0.50, chat=0.40
             )
         }
         # Variants all resolve to the canonical alias.
-        for variant in ["llama-3.3-70b", "llama-3.3-70b-versatile", "groq/llama-3.3-70b-versatile"]:
+        for variant in ["llama-3.3-70b", "llama-3.3-70b-versatile", "groq/llama-3.3-70b-versatile", "meta-llama/llama-3.3-70b-instruct"]:
             I = rank_models.compute_intelligence(variant, "coding", bench)
             assert I == pytest.approx(0.50, abs=0.001), f"failed for {variant}"
 
