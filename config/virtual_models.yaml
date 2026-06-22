@@ -383,6 +383,27 @@ virtual_models:
     settings:
       timeout_ms: 15000
       retry_on_rate_limit: true
+  auto:
+    description: Semantic auto-router (resolved at request time via semantic-router
+      or keyword intent fallback; tool-capability aware). fallback_chain below is
+      a safe default used only if resolve_auto is bypassed (e.g. embeddings/streaming
+      endpoints that skip router_wrapper). Normal path mutates request.model to a
+      concrete chain before this is consulted.
+    fallback_chain:
+    - provider: cliproxyapi
+      model: gemini-2.5-flash
+      priority: 1
+    - provider: cerebras
+      model: llama-3.3-70b
+      priority: 2
+    - provider: groq
+      model: llama-3.1-8b-instant
+      priority: 3
+    settings:
+      timeout_ms: 180000
+      retry_on_rate_limit: true
+      auto_continue_on_truncate: true
+      auto_route: true
   chat-rp:
     description: Roleplay and creative writing models (no g4f, no llama 3.3 70b at
       top, NIM-first, fixed 2026-06-02)
