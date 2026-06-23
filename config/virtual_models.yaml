@@ -12,142 +12,355 @@ metadata:
   - metis
   - momus
 virtual_models:
+  coding-free:
+    description: Pure free-tier agentic coding models (no paid fallback). Daily checkin
+      required for freetheai. Updated 2026-06-23 from live probe.
+    fallback_chain:
+    - provider: freetheai
+      model: glm/glm-5.2
+      priority: 1
+    - provider: freetheai
+      model: bbl/gpt-5.5-mini
+      priority: 2
+    - provider: blaze-free
+      model: qwen3.7-plus-official
+      priority: 3
+    - provider: freetheai
+      model: bbl/gemini-3.5-flash
+      priority: 4
+    - provider: freetheai
+      model: olm/deepseek-v4-pro
+      priority: 5
+    - provider: tokenrouter
+      model: MiniMax-M3
+      priority: 6
+    - provider: blaze-free
+      model: MiniMax-M3-official
+      priority: 7
+    - provider: futureppo
+      model: kimi-k2.6
+      priority: 8
+    - provider: freetheai
+      model: min/minimax-m3
+      priority: 9
+    - provider: freetheai
+      model: glm/glm-5.1
+      priority: 10
+    - provider: blaze-free
+      model: glm-5.2-china
+      priority: 11
+    - provider: pooled
+      model: MiniMax-M3-Official
+      priority: 12
+    - provider: futureppo
+      model: gemini-3.5-flash
+      priority: 13
+    - provider: futureppo
+      model: qwen3.7-max-t
+      priority: 14
+    - provider: freetheai
+      model: olm/kimi-k2.7-code
+      priority: 15
+    - provider: kilocode
+      model: stepfun/step-3.7-flash:free
+      priority: 16
+    - provider: blaze-free
+      model: gemini-2.5-flash-lite
+      priority: 17
+    - provider: iamhc
+      model: Kimi-K2.6
+      priority: 18
+    - provider: koyeb-new
+      model: kimi-k2.6
+      priority: 19
+    - provider: pooled
+      model: z-ai/glm-5.1-slow
+      priority: 20
+    - provider: kilocode
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+      priority: 21
+    - provider: freetheai
+      model: glm/glm-5
+      priority: 22
+    - provider: freetheai
+      model: glm/glm-5-turbo
+      priority: 23
+    - provider: freetheai
+      model: opc/deepseek-v4-flash-free
+      priority: 24
+    - provider: freetheai
+      model: bbl/gemini-3.0-flash
+      priority: 25
+    - provider: freetheai
+      model: bbl/gemini-3.1-flash-lite
+      priority: 26
+    - provider: kilocode
+      model: poolside/laguna-m.1:free
+      priority: 27
+    - provider: kilocode
+      model: poolside/laguna-xs.2:free
+      priority: 28
+    - provider: kilocode
+      model: kilo-auto/free
+      priority: 29
+    - provider: blaze-free
+      model: qwen3.6-plus
+      priority: 30
+    - provider: blaze-free
+      model: glm-4.7-china
+      priority: 31
+    - provider: blaze-free
+      model: MiniMax-M2.5-official
+      priority: 32
+    - provider: blaze-free
+      model: MiniMax-M2.7-official
+      priority: 33
+    - provider: blaze-free
+      model: glm-5.1-slow
+      priority: 34
+    - provider: blaze-free
+      model: glm-5.1-china
+      priority: 35
+    - provider: blaze-free
+      model: gemini-2.5-flash-lite-rp
+      priority: 36
+    - provider: pooled
+      model: qwen3.7-max-official
+      priority: 37
+    - provider: zenllm-free
+      model: free/claude-opus-4.8
+      priority: 38
+    - provider: zenllm-free
+      model: free/gpt-5.5
+      priority: 39
+    - provider: zenllm-free
+      model: free/gemini-3.1-pro
+      priority: 40
+    settings:
+      timeout_ms: 120000
+      retry_on_rate_limit: true
+      auto_continue_on_truncate: true
   glm5-elite:
     description: NVIDIA GLM-5 primary with intelligent gateway fallback
     fallback_chain:
+    - provider: freetheai
+      model: glm/glm-5.2
+      priority: 1
     - provider: nvidia
       model: GLM5
-      priority: 1
+      priority: 2
+    - provider: freetheai
+      model: glm/glm-5.1
+      priority: 3
+    - provider: freetheai
+      model: glm/glm-5
+      priority: 4
+    - provider: freetheai
+      model: glm/glm-5-turbo
+      priority: 5
     - provider: antigravity
       model: gemini-3.1-pro
-      priority: 2
+      priority: 6
     - provider: antigravity
       model: gemini-3-flash
-      priority: 3
+      priority: 7
     - provider: supacoder
       model: gpt-5.4
-      priority: 4
+      priority: 8
     - provider: supacoder
       model: gpt-5.3-codex
-      priority: 5
+      priority: 9
     - provider: aihubmix
       model: coding-glm-5-free
-      priority: 6
+      priority: 10
     - provider: cliproxyapi
       model: gemini-2.5-flash
-      priority: 7
+      priority: 11
     - provider: gemini
       model: gemini-2.5-flash
-      priority: 8
+      priority: 12
     - provider: kilo
       model: minimax/minimax-m2.5:free
-      priority: 9
+      priority: 13
     - provider: cerebras
       model: llama-3.3-70b
-      priority: 10
+      priority: 14
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
       auto_continue_on_truncate: true
   coding-elite:
-    description: Best to worst agentic coding performance (free models only, tool-capable)
+    description: Best to worst agentic coding performance (free models first, paid as
+      backup). Updated 2026-06-23 from live probe.
     fallback_chain:
+    - provider: freetheai
+      model: glm/glm-5.2
+      priority: 1
+    - provider: freetheai
+      model: bbl/gpt-5.5-mini
+      priority: 2
+    - provider: blaze-free
+      model: qwen3.7-plus-official
+      priority: 3
+    - provider: freetheai
+      model: bbl/gemini-3.5-flash
+      priority: 4
+    - provider: freetheai
+      model: olm/deepseek-v4-pro
+      priority: 5
+    - provider: tokenrouter
+      model: MiniMax-M3
+      priority: 6
+    - provider: futureppo
+      model: kimi-k2.6
+      priority: 7
     - provider: cliproxyapi
       model: gemini-3.1-pro-preview
-      priority: 1
+      priority: 8
     - provider: supacoder
       model: gpt-5-codex
-      priority: 2
-    - provider: cliproxyapi
-      model: gemini-3-pro-preview
-      priority: 3
-    - provider: supacoder
-      model: gpt-5.1-codex-mini
-      priority: 4
-    - provider: cliproxyapi
-      model: gemini-3-flash
-      priority: 5
-    - provider: gemini
-      model: gemini-3-flash
-      priority: 6
-    - provider: antigravity
-      model: gemini-3-pro
-      priority: 7
-    - provider: supacoder
-      model: gpt-5.4
-      priority: 8
-    - provider: cliproxyapi
-      model: gemini-3.1-pro-low
       priority: 9
     - provider: cliproxyapi
-      model: gemini-2.5-flash
+      model: gemini-3-pro-preview
       priority: 10
     - provider: supacoder
-      model: gpt-5.3-codex
+      model: gpt-5.1-codex-mini
       priority: 11
+    - provider: cliproxyapi
+      model: gemini-3-flash
+      priority: 12
+    - provider: gemini
+      model: gemini-3-flash
+      priority: 13
+    - provider: antigravity
+      model: gemini-3-pro
+      priority: 14
+    - provider: supacoder
+      model: gpt-5.4
+      priority: 15
+    - provider: cliproxyapi
+      model: gemini-3.1-pro-low
+      priority: 16
+    - provider: cliproxyapi
+      model: gemini-2.5-flash
+      priority: 17
+    - provider: supacoder
+      model: gpt-5.3-codex
+      priority: 18
     - provider: gemini
       model: gemini-3-pro
-      priority: 12
+      priority: 19
     - provider: supacoder
       model: gpt-5.2
-      priority: 13
+      priority: 20
     - provider: cliproxyapi
       model: gemini-3-pro-low
-      priority: 14
+      priority: 21
     - provider: nvidia
       model: GLM5
-      priority: 15
-    - provider: supacoder
-      model: gpt-5.2-codex
-      priority: 16
-    - provider: supacoder
-      model: gpt-5.1-codex-max
-      priority: 17
-    - provider: cliproxyapi
-      model: gpt-oss-120b-medium
-      priority: 18
-    - provider: cerebras
-      model: glm-5
-      priority: 19
-    - provider: aihubmix
-      model: coding-glm-5-free
-      priority: 20
-    - provider: supacoder
-      model: gpt-5.1-codex
-      priority: 21
-    - provider: supacoder
-      model: gpt-5
       priority: 22
     - provider: supacoder
-      model: gpt-5.4-mini
+      model: gpt-5.2-codex
       priority: 23
-    - provider: cliproxyapi
-      model: coder-model
+    - provider: supacoder
+      model: gpt-5.1-codex-max
       priority: 24
-    - provider: aihubmix
-      model: glm-4.7-free
+    - provider: cliproxyapi
+      model: gpt-oss-120b-medium
       priority: 25
     - provider: cerebras
-      model: llama-3.3-70b
+      model: glm-5
+      priority: 26
+    - provider: aihubmix
+      model: coding-glm-5-free
       priority: 27
+    - provider: supacoder
+      model: gpt-5.1-codex
+      priority: 28
+    - provider: supacoder
+      model: gpt-5
+      priority: 29
+    - provider: supacoder
+      model: gpt-5.4-mini
+      priority: 30
+    - provider: cliproxyapi
+      model: coder-model
+      priority: 31
+    - provider: aihubmix
+      model: glm-4.7-free
+      priority: 32
+    - provider: cerebras
+      model: llama-3.3-70b
+      priority: 33
     - provider: groq
       model: llama-3.3-70b-versatile
-      priority: 28
+      priority: 34
     - provider: kilo
       model: nvidia/nemotron-3-super-120b-a12b:free
-      priority: 29
+      priority: 35
     - provider: kilo
       model: x-ai/grok-code-fast-1:optimized:free
-      priority: 30
+      priority: 36
     - provider: cerebras
       model: qwen-3-235b-a22b-instruct-2507
-      priority: 31
+      priority: 37
     - provider: kilo
       model: qwen/qwen3-coder:free
-      priority: 32
+      priority: 38
     - provider: kilo
       model: meta-llama/llama-3.3-70b-instruct:free
-      priority: 33
+      priority: 39
+    - provider: kilocode
+      model: stepfun/step-3.7-flash:free
+      priority: 40
+    - provider: freetheai
+      model: min/minimax-m3
+      priority: 41
+    - provider: freetheai
+      model: olm/kimi-k2.7-code
+      priority: 42
+    - provider: freetheai
+      model: glm/glm-5.1
+      priority: 43
+    - provider: futureppo
+      model: gemini-3.5-flash
+      priority: 44
+    - provider: futureppo
+      model: qwen3.7-max-t
+      priority: 45
+    - provider: pooled
+      model: MiniMax-M3-Official
+      priority: 46
+    - provider: pooled
+      model: z-ai/glm-5.1-slow
+      priority: 47
+    - provider: blaze-free
+      model: MiniMax-M3-official
+      priority: 48
+    - provider: blaze-free
+      model: qwen3.6-plus
+      priority: 49
+    - provider: blaze-free
+      model: glm-5.2-china
+      priority: 50
+    - provider: blaze-free
+      model: glm-5.1-slow
+      priority: 51
+    - provider: iamhc
+      model: Kimi-K2.6
+      priority: 52
+    - provider: koyeb-new
+      model: kimi-k2.6
+      priority: 53
+    - provider: zenllm-free
+      model: free/claude-opus-4.8
+      priority: 54
+    - provider: zenllm-free
+      model: free/gpt-5.5
+      priority: 55
+    - provider: zenllm-free
+      model: free/gemini-3.1-pro
+      priority: 56
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
@@ -213,38 +426,107 @@ virtual_models:
       timeout_ms: 120000
       retry_on_rate_limit: true
   coding-fast:
-    description: Fastest coding models (TPS/latency ranked, no g4f)
+    description: Fastest coding models (TPS/latency ranked, no g4f, free first)
     fallback_chain:
+    - provider: futureppo
+      model: kimi-k2.6
+      priority: 1
+    - provider: kilocode
+      model: poolside/laguna-xs.2:free
+      priority: 2
+    - provider: kilocode
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+      priority: 3
+    - provider: freetheai
+      model: olm/deepseek-v4-pro
+      priority: 4
+    - provider: freetheai
+      model: olm/kimi-k2.7-code
+      priority: 5
+    - provider: freetheai
+      model: bbl/gemini-3.5-flash
+      priority: 6
+    - provider: freetheai
+      model: bbl/gemini-3.1-flash-lite
+      priority: 7
+    - provider: freetheai
+      model: bbl/gemini-3.0-flash
+      priority: 8
+    - provider: freetheai
+      model: bbl/gpt-5.5-mini
+      priority: 9
+    - provider: freetheai
+      model: min/minimax-m3
+      priority: 10
+    - provider: tokenrouter
+      model: MiniMax-M3
+      priority: 11
+    - provider: pooled
+      model: MiniMax-M3-Official
+      priority: 12
+    - provider: pooled
+      model: z-ai/glm-5.1-slow
+      priority: 13
+    - provider: futureppo
+      model: gemini-3.5-flash
+      priority: 14
+    - provider: futureppo
+      model: qwen3.7-max-t
+      priority: 15
+    - provider: blaze-free
+      model: MiniMax-M3-official
+      priority: 16
+    - provider: blaze-free
+      model: qwen3.7-plus-official
+      priority: 17
+    - provider: blaze-free
+      model: gemini-2.5-flash-lite
+      priority: 18
+    - provider: iamhc
+      model: Kimi-K2.6
+      priority: 19
+    - provider: koyeb-new
+      model: kimi-k2.6
+      priority: 20
+    - provider: kilocode
+      model: poolside/laguna-m.1:free
+      priority: 21
+    - provider: kilocode
+      model: stepfun/step-3.7-flash:free
+      priority: 22
+    - provider: kilocode
+      model: kilo-auto/free
+      priority: 23
     - provider: cliproxyapi
       model: gemini-2.5-flash
-      priority: 1
+      priority: 24
     - provider: cerebras
       model: llama-3.3-70b
-      priority: 2
+      priority: 25
     - provider: cerebras
       model: llama3.1-8b
-      priority: 3
+      priority: 26
     - provider: groq
       model: llama-3.1-8b-instant
-      priority: 4
+      priority: 27
     - provider: groq
       model: meta-llama/llama-4-scout-17b-16e-instruct
-      priority: 5
+      priority: 28
     - provider: cliproxyapi
       model: gemini-3-flash
-      priority: 6
+      priority: 29
     - provider: groq
       model: llama-3.3-70b-versatile
-      priority: 7
+      priority: 30
     - provider: gemini
       model: gemini-3-flash
-      priority: 8
+      priority: 31
     - provider: cerebras
       model: glm-5
-      priority: 9
+      priority: 32
     - provider: aihubmix
       model: glm-4-flash
-      priority: 10
+      priority: 33
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
