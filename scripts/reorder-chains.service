@@ -33,7 +33,7 @@ ExecStartPost=/bin/sh -c 'systemctl restart llm-gateway.service || true'
 # Security hardening
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=${REPO_PATH}/config
+ReadWritePaths=/home/ubuntu/LLM-API-Key-Proxy/config
 PrivateTmp=true
 
 [Install]
