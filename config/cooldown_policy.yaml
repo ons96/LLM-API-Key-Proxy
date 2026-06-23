@@ -1,0 +1,29 @@
+# Per-provider 429 wait-vs-fallback policy (#218)
+#
+# Providers with prompt caching on free-credit tiers benefit from waiting
+# out rate limits (preserves cache, avoids re-compute on a fresh provider).
+# Default: rotate immediately (current behavior).
+#
+# wait_on_429: true  -> current request waits retry_after (capped at max_wait_s), retries same provider
+# wait_on_429: false -> current request rotates to next provider immediately (legacy behavior)
+#
+# Eligibility (all must be true): (1) supports prompt caching, (2) free-credit tier (not unlimited-free, not paid),
+# (3) cache benefit meaningful (>=20% speedup OR >=20% price discount).
+
+providers:
+  anthropic:
+    wait_on_429: true
+    max_wait_s: 300
+    reason: prompt-cache-discount
+  openai:
+    wait_on_429: true
+    max_wait_s: 120
+    reason: implicit-cache
+  gemini:
+    wait_on_429: true
+    max_wait_s: 60
+    reason: implicit-cache-free-tier
+
+default:
+  wait_on_429: false
+  max_wait_s: 0

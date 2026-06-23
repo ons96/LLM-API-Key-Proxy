@@ -35,7 +35,7 @@ from .error_handler import (
 from .providers import PROVIDER_PLUGINS
 from .providers.openai_compatible_provider import OpenAICompatibleProvider
 from .request_sanitizer import sanitize_request_payload
-from .cooldown_manager import CooldownManager
+from .cooldown_manager import CooldownManager, CooldownPolicy
 from .credential_manager import CredentialManager
 from .background_refresher import BackgroundRefresher
 from .model_definitions import ModelDefinitions
@@ -282,6 +282,7 @@ class RotatingClient:
         self.http_client = httpx.AsyncClient()
         self.all_providers = AllProviders()
         self.cooldown_manager = CooldownManager()
+        self.cooldown_policy = CooldownPolicy()
         self.litellm_provider_params = litellm_provider_params or {}
         self.ignore_models = ignore_models or {}
         self.whitelist_models = whitelist_models or {}
@@ -304,6 +305,54 @@ class RotatingClient:
                     f"Invalid max_concurrent for '{provider}': {max_val}. Setting to 1."
                 )
                 self.max_concurrent_requests_per_key[provider] = 1
+
+    async def _try_wait_on_rate_limit(
+        self,
+        provider: str,
+        classified_error,
+        litellm_kwargs: dict,
+        deadline: float,
+    ) -> bool:
+        """
+        #218: For cache-supporting free-credit providers, wait out a 429 rate-limit
+        and retry the same provider/key instead of rotating. Returns True if the
+        caller should `continue` (retry same key), False if it should rotate (break).
+
+        Sets litellm_kwargs['metadata']['waited_for_429'] and ['wait_duration_s']
+        so the telemetry callback can record the wait.
+        """
+        retry_after_s = classified_error.retry_after
+        wait, wait_deadline = self.cooldown_policy.should_wait_on_429(provider, retry_after_s)
+        if not wait:
+            return False
+        # Respect the outer request deadline (don't wait past it)
+        now = time.time()
+        if wait_deadline > deadline:
+            wait_deadline = deadline
+        if wait_deadline <= now:
+            return False
+        wait_s = wait_deadline - now
+        lib_logger.info(
+            "429 rate-limit for %s: waiting %.2fs (retry_after=%s) before retry (policy reason: %s)",
+            provider,
+            wait_s,
+            retry_after_s,
+            self.cooldown_policy.get_policy(provider).get("reason", "?"),
+        )
+        ok = await self.cooldown_policy.wait_until(provider, wait_deadline)
+        if not ok:
+            return False
+        # Record wait in metadata for telemetry
+        try:
+            meta = litellm_kwargs.setdefault("metadata", {})
+            if not isinstance(meta, dict):
+                meta = {}
+                litellm_kwargs["metadata"] = meta
+            meta["waited_for_429"] = True
+            meta["wait_duration_s"] = wait_s
+        except Exception:
+            pass
+        return True
 
     def _is_model_ignored(self, provider: str, model_id: str) -> bool:
         """
@@ -1307,6 +1356,11 @@ class RotatingClient:
 
                             # Handle rate limits with cooldown (exclude quota_exceeded)
                             if classified_error.error_type == "rate_limit":
+                                # #218: wait-vs-fallback policy for cache-supporting providers
+                                if await self._try_wait_on_rate_limit(
+                                    provider, classified_error, litellm_kwargs, deadline
+                                ):
+                                    continue  # retry same key after waiting
                                 cooldown_duration = classified_error.retry_after or 60
                                 await self.cooldown_manager.start_cooldown(
                                     provider, cooldown_duration
@@ -1409,6 +1463,11 @@ class RotatingClient:
                                 classified_error.status_code == 429
                                 and classified_error.error_type != "quota_exceeded"
                             ) or classified_error.error_type == "rate_limit":
+                                # #218: wait-vs-fallback policy for cache-supporting providers
+                                if await self._try_wait_on_rate_limit(
+                                    provider, classified_error, litellm_kwargs, deadline
+                                ):
+                                    continue  # retry same key after waiting
                                 cooldown_duration = classified_error.retry_after or 60
                                 await self.cooldown_manager.start_cooldown(
                                     provider, cooldown_duration
@@ -1642,6 +1701,11 @@ class RotatingClient:
 
                             # Handle rate limits with cooldown (exclude quota_exceeded from provider-wide cooldown)
                             if classified_error.error_type == "rate_limit":
+                                # #218: wait-vs-fallback policy for cache-supporting providers
+                                if await self._try_wait_on_rate_limit(
+                                    provider, classified_error, litellm_kwargs, deadline
+                                ):
+                                    continue  # retry same key after waiting
                                 cooldown_duration = classified_error.retry_after or 60
                                 await self.cooldown_manager.start_cooldown(
                                     provider, cooldown_duration
@@ -1702,6 +1766,11 @@ class RotatingClient:
                                 classified_error.status_code == 429
                                 and classified_error.error_type != "quota_exceeded"
                             ) or classified_error.error_type == "rate_limit":
+                                # #218: wait-vs-fallback policy for cache-supporting providers
+                                if await self._try_wait_on_rate_limit(
+                                    provider, classified_error, litellm_kwargs, deadline
+                                ):
+                                    continue  # retry same key after waiting
                                 cooldown_duration = classified_error.retry_after or 60
                                 await self.cooldown_manager.start_cooldown(
                                     provider, cooldown_duration
@@ -2109,6 +2178,11 @@ class RotatingClient:
 
                                 # Handle rate limits with cooldown (exclude quota_exceeded)
                                 if classified_error.error_type == "rate_limit":
+                                    # #218: wait-vs-fallback policy for cache-supporting providers
+                                    if await self._try_wait_on_rate_limit(
+                                        provider, classified_error, litellm_kwargs, deadline
+                                    ):
+                                        continue  # retry same key after waiting
                                     cooldown_duration = (
                                         classified_error.retry_after or 60
                                     )
@@ -2429,6 +2503,11 @@ class RotatingClient:
                                 )
 
                                 if classified_error.error_type == "rate_limit":
+                                    # #218: wait-vs-fallback policy for cache-supporting providers
+                                    if await self._try_wait_on_rate_limit(
+                                        provider, classified_error, litellm_kwargs, deadline
+                                    ):
+                                        continue  # retry same key after waiting
                                     cooldown_duration = (
                                         classified_error.retry_after or 60
                                     )
@@ -2525,6 +2604,11 @@ class RotatingClient:
                                 classified_error.status_code == 429
                                 and classified_error.error_type != "quota_exceeded"
                             ) or classified_error.error_type == "rate_limit":
+                                # #218: wait-vs-fallback policy for cache-supporting providers
+                                if await self._try_wait_on_rate_limit(
+                                    provider, classified_error, litellm_kwargs, deadline
+                                ):
+                                    continue  # retry same key after waiting
                                 cooldown_duration = classified_error.retry_after or 60
                                 await self.cooldown_manager.start_cooldown(
                                     provider, cooldown_duration

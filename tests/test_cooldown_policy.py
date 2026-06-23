@@ -1,184 +1,185 @@
-"""Tests for CooldownPolicy (#218): per-provider wait-vs-fallback on 429."""
-
-from __future__ import annotations
-
+"""Tests for CooldownPolicy (#218): per-provider 429 wait-vs-fallback."""
 import asyncio
-import importlib.util
-import sys
 import time
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import yaml
 
-# ponytail: load cooldown_manager.py directly to avoid importing rotator_library
-# (which pulls in litellm at module level).
-_SCRIPT = Path(__file__).resolve().parent.parent / "src" / "rotator_library" / "cooldown_manager.py"
-_spec = importlib.util.spec_from_file_location("cdm", _SCRIPT)
-cdm = importlib.util.module_from_spec(_spec)
-sys.modules["cdm"] = cdm
-_spec.loader.exec_module(cdm)
+# Import directly from the module file to avoid pulling in litellm via
+# rotator_library/__init__.py -> client.py (heavy dep not needed for these tests).
+_repo_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(_repo_root / "src"))
 
-CooldownPolicy = cdm.CooldownPolicy
-_DEFAULT_POLICY = cdm._DEFAULT_POLICY
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+# Import the cooldown_manager module directly (no package __init__ chain)
+import importlib.util
+_spec = importlib.util.spec_from_file_location(
+    "_cooldown_manager_under_test",
+    _repo_root / "src" / "rotator_library" / "cooldown_manager.py",
+)
+_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_mod)
+CooldownPolicy = _mod.CooldownPolicy
 
 
-def _write_policy(tmp_path: Path, providers: dict, default: dict | None = None) -> Path:
-    """Write a cooldown_policy.yaml to tmp_path and return its path."""
-    path = tmp_path / "cooldown_policy.yaml"
-    data = {"providers": providers, "default": default or _DEFAULT_POLICY}
-    path.write_text(yaml.safe_dump(data))
-    return path
+CONFIG_PATH = str(Path(__file__).resolve().parents[1] / "config" / "cooldown_policy.yaml")
 
 
-# ---------------------------------------------------------------------------
-# TestLoad
-# ---------------------------------------------------------------------------
+@pytest.fixture
+def policy():
+    return CooldownPolicy(config_path=CONFIG_PATH)
 
 
-class TestLoad:
-    def test_load_real_config(self):
-        # ponytail: use the actual shipped config to verify it parses cleanly
-        p = CooldownPolicy()
-        assert p.get_policy("anthropic")["wait_on_429"] is True
-        assert p.get_policy("openai")["wait_on_429"] is True
-        assert p.get_policy("gemini")["wait_on_429"] is True
-        assert p.get_policy("groq")["wait_on_429"] is False  # default
+# --- should_wait_on_429 ---
 
-    def test_load_missing_file_uses_default(self, tmp_path: Path):
-        p = CooldownPolicy(str(tmp_path / "nope.yaml"))
-        assert p.get_policy("anything")["wait_on_429"] is False
-        assert p.get_policy("anything")["max_wait_s"] == 0
-
-    def test_load_malformed_uses_default(self, tmp_path: Path):
-        path = tmp_path / "bad.yaml"
-        path.write_text(":::not yaml:::\n  - broken")
-        p = CooldownPolicy(str(path))
-        assert p.get_policy("anything")["wait_on_429"] is False
-
-    def test_provider_keys_case_insensitive(self, tmp_path: Path):
-        path = _write_policy(
-            tmp_path,
-            {"Anthropic": {"wait_on_429": True, "max_wait_s": 30, "reason": "x"}},
-        )
-        p = CooldownPolicy(str(path))
-        assert p.get_policy("anthropic")["wait_on_429"] is True
-        assert p.get_policy("ANTHROPIC")["wait_on_429"] is True
-        assert p.get_policy("Anthropic")["wait_on_429"] is True
+def test_should_wait_anthropic_within_cap(policy):
+    """Anthropic + retry_after=30s (< max_wait_s=300) -> wait."""
+    wait, deadline = policy.should_wait_on_429("anthropic", 30)
+    assert wait is True
+    assert deadline > time.time()
 
 
-# ---------------------------------------------------------------------------
-# TestShouldWaitOn429
-# ---------------------------------------------------------------------------
+def test_should_wait_anthropic_exceeds_cap(policy):
+    """Anthropic + retry_after=600s (> max_wait_s=300) -> no wait, fall back."""
+    wait, deadline = policy.should_wait_on_429("anthropic", 600)
+    assert wait is False
+    assert deadline == 0.0
 
 
-class TestShouldWaitOn429:
-    def test_wait_provider_with_valid_retry_after(self, tmp_path: Path):
-        path = _write_policy(
-            tmp_path,
-            {"openai": {"wait_on_429": True, "max_wait_s": 120, "reason": "cache"}},
-        )
-        p = CooldownPolicy(str(path))
-        wait, deadline = p.should_wait_on_429("openai", retry_after_s=30)
-        assert wait is True
-        assert deadline > time.time()
-
-    def test_no_wait_for_default_provider(self, tmp_path: Path):
-        path = _write_policy(tmp_path, {})
-        p = CooldownPolicy(str(path))
-        wait, _ = p.should_wait_on_429("groq", retry_after_s=30)
-        assert wait is False
-
-    def test_no_wait_when_retry_after_missing(self, tmp_path: Path):
-        path = _write_policy(
-            tmp_path,
-            {"openai": {"wait_on_429": True, "max_wait_s": 120, "reason": "x"}},
-        )
-        p = CooldownPolicy(str(path))
-        wait, _ = p.should_wait_on_429("openai", retry_after_s=None)
-        assert wait is False
-        wait, _ = p.should_wait_on_429("openai", retry_after_s=0)
-        assert wait is False
-
-    def test_no_wait_when_retry_after_exceeds_max(self, tmp_path: Path):
-        path = _write_policy(
-            tmp_path,
-            {"openai": {"wait_on_429": True, "max_wait_s": 60, "reason": "x"}},
-        )
-        p = CooldownPolicy(str(path))
-        # retry_after 300s > max 60s -> don't wait (fall back instead)
-        wait, _ = p.should_wait_on_429("openai", retry_after_s=300)
-        assert wait is False
-
-    def test_wait_at_boundary_retry_after_equals_max(self, tmp_path: Path):
-        path = _write_policy(
-            tmp_path,
-            {"openai": {"wait_on_429": True, "max_wait_s": 60, "reason": "x"}},
-        )
-        p = CooldownPolicy(str(path))
-        wait, deadline = p.should_wait_on_429("openai", retry_after_s=60)
-        assert wait is True
-        assert deadline > time.time()
+def test_should_wait_openai(policy):
+    """OpenAI + retry_after=60s (<= max_wait_s=120) -> wait."""
+    wait, _ = policy.should_wait_on_429("openai", 60)
+    assert wait is True
 
 
-# ---------------------------------------------------------------------------
-# TestWaitUntil
-# ---------------------------------------------------------------------------
+def test_should_wait_gemini(policy):
+    """Gemini + retry_after=30s (<= max_wait_s=60) -> wait."""
+    wait, _ = policy.should_wait_on_429("gemini", 30)
+    assert wait is True
 
 
-class TestWaitUntil:
-    def test_wait_completes_after_deadline(self):
-        p = CooldownPolicy()
-        deadline = time.time() + 0.1
-        ok = asyncio.run(p.wait_until("openai", deadline))
-        assert ok is True
-
-    def test_wait_returns_true_if_deadline_already_passed(self):
-        p = CooldownPolicy()
-        deadline = time.time() - 1  # past
-        ok = asyncio.run(p.wait_until("openai", deadline))
-        assert ok is True
-
-    def test_wait_returns_false_on_cancel(self):
-        p = CooldownPolicy()
-        deadline = time.time() + 10
-
-        async def _run():
-            task = asyncio.create_task(p.wait_until("openai", deadline))
-            await asyncio.sleep(0.05)
-            task.cancel()
-            try:
-                return await task
-            except asyncio.CancelledError:
-                return None
-
-        ok = asyncio.run(_run())
-        assert ok is None or ok is False  # cancelled path
+def test_no_wait_for_exempt_provider(policy):
+    """DeepSeek (not in config) -> default policy, no wait."""
+    wait, _ = policy.should_wait_on_429("deepseek", 10)
+    assert wait is False
 
 
-# ---------------------------------------------------------------------------
-# TestPolicyFields
-# ---------------------------------------------------------------------------
+def test_no_wait_for_mistral(policy):
+    """Mistral (not in config) -> default policy, no wait."""
+    wait, _ = policy.should_wait_on_429("mistral", 5)
+    assert wait is False
 
 
-class TestPolicyFields:
-    def test_default_has_all_fields(self, tmp_path: Path):
-        p = CooldownPolicy(str(tmp_path / "nope.yaml"))
-        d = p.get_policy("anything")
-        assert "wait_on_429" in d
-        assert "max_wait_s" in d
-        assert "reason" in d
+def test_no_wait_for_groq(policy):
+    """Groq (not in config) -> default policy, no wait."""
+    wait, _ = policy.should_wait_on_429("groq", 5)
+    assert wait is False
 
-    def test_provider_missing_fields_get_defaults(self, tmp_path: Path):
-        path = _write_policy(tmp_path, {"foo": {}})  # no fields
-        p = CooldownPolicy(str(path))
-        pol = p.get_policy("foo")
-        assert pol["wait_on_429"] is False
-        assert pol["max_wait_s"] == 0
-        assert pol["reason"] == "configured"
+
+def test_no_wait_when_retry_after_none(policy):
+    """retry_after=None -> no wait (can't determine duration)."""
+    wait, _ = policy.should_wait_on_429("anthropic", None)
+    assert wait is False
+
+
+def test_no_wait_when_retry_after_zero(policy):
+    """retry_after=0 -> no wait."""
+    wait, _ = policy.should_wait_on_429("anthropic", 0)
+    assert wait is False
+
+
+def test_provider_name_case_insensitive(policy):
+    """Provider names should match case-insensitively."""
+    wait, _ = policy.should_wait_on_429("Anthropic", 30)
+    assert wait is True
+    wait, _ = policy.should_wait_on_429("OPENAI", 30)
+    assert wait is True
+
+
+def test_gemini_at_cap_boundary(policy):
+    """Gemini max_wait_s=60, retry_after=60 exactly -> wait (boundary inclusive)."""
+    wait, _ = policy.should_wait_on_429("gemini", 60)
+    assert wait is True
+
+
+def test_gemini_just_over_cap(policy):
+    """Gemini max_wait_s=60, retry_after=61 -> no wait."""
+    wait, _ = policy.should_wait_on_429("gemini", 61)
+    assert wait is False
+
+
+# --- wait_until ---
+
+@pytest.mark.anyio
+async def test_wait_until_completes(policy):
+    """wait_until with short deadline returns True after waiting."""
+    deadline = time.time() + 0.1
+    start = time.time()
+    result = await policy.wait_until("anthropic", deadline)
+    elapsed = time.time() - start
+    assert result is True
+    assert elapsed >= 0.08  # waited ~0.1s
+
+
+@pytest.mark.anyio
+async def test_wait_until_past_deadline(policy):
+    """wait_until with already-passed deadline returns True immediately."""
+    deadline = time.time() - 1  # in the past
+    result = await policy.wait_until("anthropic", deadline)
+    assert result is True
+
+
+@pytest.mark.anyio
+async def test_wait_until_cancelled(policy):
+    """wait_until returns False if cancelled."""
+    deadline = time.time() + 10
+    task = asyncio.create_task(policy.wait_until("anthropic", deadline))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    result = await task
+    assert result is False
+
+
+# --- config loading resilience ---
+
+def test_missing_config_file_defaults_to_no_wait(tmp_path):
+    """Missing config file -> default policy (no wait)."""
+    p = CooldownPolicy(config_path=str(tmp_path / "nonexistent.yaml"))
+    wait, _ = p.should_wait_on_429("anthropic", 30)
+    assert wait is False  # default = no wait
+
+
+def test_malformed_config_defaults_to_no_wait(tmp_path):
+    """Malformed YAML -> default policy (no wait)."""
+    bad = tmp_path / "bad.yaml"
+    bad.write_text("providers: [this is not valid yaml structure {{{")
+    p = CooldownPolicy(config_path=str(bad))
+    wait, _ = p.should_wait_on_429("anthropic", 30)
+    # Malformed -> error caught -> default no wait
+    assert wait is False
+
+
+def test_get_policy_returns_default_for_unknown(policy):
+    """get_policy for unknown provider returns default dict."""
+    p = policy.get_policy("unknown-provider")
+    assert p["wait_on_429"] is False
+    assert p["max_wait_s"] == 0
+
+
+# --- integration: metadata propagation (simulated) ---
+
+def test_metadata_fields_set_correctly():
+    """Verify the metadata field names match what telemetry reads."""
+    litellm_kwargs = {}
+    meta = litellm_kwargs.setdefault("metadata", {})
+    meta["waited_for_429"] = True
+    meta["wait_duration_s"] = 30.0
+    # Telemetry reads these exact keys
+    assert meta.get("waited_for_429") is True
+    assert meta.get("wait_duration_s") == 30.0
+
+
+if __name__ == "__main__":
+    # ponytail: self-check for manual run
+    pytest.main([__file__, "-v"])

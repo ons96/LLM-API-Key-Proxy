@@ -64,7 +64,9 @@ CREATE TABLE IF NOT EXISTS llm_events (
     status TEXT,
     error TEXT,
     concrete_provider TEXT,
-    concrete_model TEXT
+    concrete_model TEXT,
+    waited_for_429 INTEGER DEFAULT 0,
+    wait_duration_s REAL
 );
 CREATE INDEX IF NOT EXISTS idx_ts_start ON llm_events(ts_start);
 CREATE INDEX IF NOT EXISTS idx_model ON llm_events(model);
@@ -78,6 +80,8 @@ CREATE INDEX IF NOT EXISTS idx_provider ON llm_events(provider);
 _POST_LAUNCH_COLUMNS = [
     ("concrete_provider", "TEXT"),
     ("concrete_model", "TEXT"),
+    ("waited_for_429", "INTEGER DEFAULT 0"),
+    ("wait_duration_s", "REAL"),
 ]
 
 
@@ -252,6 +256,8 @@ class TelemetryLogger(CustomLogger):
         metadata = litellm_params.get("metadata", {}) if isinstance(litellm_params, dict) else {}
         caller = metadata.get("caller", "unknown") if isinstance(metadata, dict) else "unknown"
         agent_session = metadata.get("agent_session", "") if isinstance(metadata, dict) else ""
+        waited_for_429 = int(metadata.get("waited_for_429", 0)) if isinstance(metadata, dict) else 0
+        wait_duration_s = float(metadata.get("wait_duration_s", 0.0)) if isinstance(metadata, dict) else 0.0
         cost = getattr(response_obj, "_hidden_params", {}).get("response_cost", 0.0) if hasattr(response_obj, "_hidden_params") else 0.0
 
         event = (
@@ -262,6 +268,7 @@ class TelemetryLogger(CustomLogger):
             float(ttft_ms), float(total_ms), float(tps),
             float(cost or 0.0), caller, agent_session, status, error,
             concrete_provider, concrete_model,
+            waited_for_429, wait_duration_s,
         )
 
         try:
@@ -313,8 +320,9 @@ class TelemetryLogger(CustomLogger):
                    (request_id, ts_start, ts_end, ts_first_token, model, provider, stream,
                     prompt_tokens, completion_tokens, ttft_ms, total_ms, tps, cost_usd,
                     caller, agent_session, status, error,
-                    concrete_provider, concrete_model)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    concrete_provider, concrete_model,
+                    waited_for_429, wait_duration_s)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 batch,
             )
             conn.commit()
