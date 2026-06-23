@@ -54,9 +54,15 @@ WORKING_FREE_TIER = {
 
 
 def load_working_models(path="/tmp/opencode/working_models.json"):
-    """Load {provider: [(model, n, ttft, tps), ...]} from JSON dump."""
-    with open(path) as f:
-        raw = json.load(f)
+    """Load {provider: [(model, n, ttft, tps), ...]} from JSON dump.
+
+    Returns empty dict if file is missing (verification step is skipped).
+    """
+    try:
+        with open(path) as f:
+            raw = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
     out = defaultdict(list)
     for entry in raw:
         provider = entry["provider"]
