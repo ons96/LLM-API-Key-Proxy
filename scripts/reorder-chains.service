@@ -5,6 +5,9 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+# reorder_chains.py exits 2 when no reorder needed (all chains unchanged).
+# Tell systemd this is success, not failure.
+SuccessExitStatus=2
 # Env overrides — copy to /etc/systemd/system/ and edit as needed.
 Environment=TELEMETRY_DB_PATH=/dev/shm/telemetry.db
 Environment=REORDER_WINDOW_H=24
