@@ -1,5 +1,5 @@
 metadata:
-  generated_at: '2026-06-22T07:35:22.313848+00:00'
+  generated_at: '2026-06-23T06:17:04.994637+00:00'
   sources:
   - models.dev
   - telemetry
@@ -190,8 +190,8 @@ virtual_models:
       retry_on_rate_limit: true
       auto_continue_on_truncate: true
   coding-elite:
-    description: Best to worst agentic coding performance (free models first, paid as
-      backup). Updated 2026-06-23 from live probe.
+    description: Best to worst agentic coding performance (free models first, paid
+      as backup). Updated 2026-06-23 from live probe.
     fallback_chain:
     - provider: freetheai
       model: glm/glm-5.2
