@@ -1,5 +1,5 @@
 [Unit]
-Description=LLM-API-Key-Proxy: dynamic fallback chain reorder
+Description=LLM-API-Key-Proxy: dynamic fallback chain reorder (U-formula)
 After=network-online.target
 Wants=network-online.target
 
@@ -11,17 +11,17 @@ Environment=REORDER_WINDOW_H=24
 Environment=REORDER_MIN_SAMPLES=5
 Environment=REORDER_MAX_TPS=3000
 Environment=REORDER_MAX_TTFT_MS=30000
-# Composite weights (must sum to 1.0)
-Environment=REORDER_W_SUCCESS=0.40
-Environment=REORDER_W_TPS=0.30
-Environment=REORDER_W_TTFT=0.20
-Environment=REORDER_W_PENALTY=0.10
+# U-formula inputs (benchmark scores + provider category metadata).
+Environment=LLM_BENCHMARK_DB=/home/ubuntu/gateway-data/benchmark.db
+Environment=LLM_PROVIDERS_DB=/home/ubuntu/gateway-data/providers.db
 # Path to repo + config
 Environment=REPO_PATH=/home/ubuntu/LLM-API-Key-Proxy
 WorkingDirectory=${REPO_PATH}
 ExecStart=/usr/bin/python3 ${REPO_PATH}/scripts/reorder_chains.py \
   --config ${REPO_PATH}/config/virtual_models.yaml \
   --telemetry-db ${TELEMETRY_DB_PATH} \
+  --tier-config ${REPO_PATH}/config/tier_config.yaml \
+  --use-u-formula \
   --window-h ${REORDER_WINDOW_H} \
   --min-samples ${REORDER_MIN_SAMPLES}
 
