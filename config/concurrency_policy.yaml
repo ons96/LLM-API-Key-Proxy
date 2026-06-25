@@ -1,0 +1,31 @@
+# Per-(provider, model) concurrency + min-interval policy (task-board #233).
+#
+# Consumed by src/rotator_library/distributed_gate.py::ConcurrencyGate.
+# Resolution order for any (provider, model): models[<provider/model>] >
+# providers[<provider>] > default. Keys are case-insensitive.
+#
+# max_concurrent  : max simultaneous in-flight requests THIS process sends to
+#                   the key. When full, the gate returns False and the caller
+#                   falls back to the next provider immediately (no blocking).
+# min_interval_ms : minimum gap between request *starts* for the key. 0 = off.
+#
+# NOTE: two different models on the same provider get INDEPENDENT slots and are
+# NOT throttled together.
+
+default:
+  max_concurrent: 2
+  min_interval_ms: 0
+
+providers:
+  groq:
+    max_concurrent: 3
+  cerebras:
+    max_concurrent: 5
+  freetheai:
+    max_concurrent: 1
+    min_interval_ms: 250
+
+# Optional finer-grained overrides keyed by "<provider>/<model>":
+# models:
+#   "groq/llama-3.3-70b-versatile":
+#     max_concurrent: 2
