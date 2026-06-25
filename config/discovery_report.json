@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-06-24T06:15:02.781044+00:00",
+  "generated_at": "2026-06-25T06:17:19.376702+00:00",
   "new_providers": 37,
   "updated_providers": 4,
-  "total_free_models": 333,
+  "total_free_models": 332,
   "top_models": [
     {
       "provider": "github-models",
