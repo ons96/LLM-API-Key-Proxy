@@ -36,6 +36,7 @@ from .providers import PROVIDER_PLUGINS
 from .providers.openai_compatible_provider import OpenAICompatibleProvider
 from .request_sanitizer import sanitize_request_payload
 from .cooldown_manager import CooldownManager, CooldownPolicy
+from .distributed_gate import ConcurrencyGate, SharedCooldownStore
 from .credential_manager import CredentialManager
 from .background_refresher import BackgroundRefresher
 from .model_definitions import ModelDefinitions
@@ -283,6 +284,14 @@ class RotatingClient:
         self.all_providers = AllProviders()
         self.cooldown_manager = CooldownManager()
         self.cooldown_policy = CooldownPolicy()
+        # #233: cross-process shared cooldown + per-(provider,model) concurrency gate.
+        # SharedCooldownStore lives in /dev/shm by default (per-host cross-process);
+        # pass a shared-mount path for real cross-machine coordination.
+        shared_db = os.environ.get(
+            "GATEWAY_SHARED_COOLDOWN_DB", "/dev/shm/gateway_cooldowns.db"
+        )
+        self.shared_cooldown = SharedCooldownStore(db_path=shared_db)
+        self.concurrency_gate = ConcurrencyGate()
         self.litellm_provider_params = litellm_provider_params or {}
         self.ignore_models = ignore_models or {}
         self.whitelist_models = whitelist_models or {}
@@ -305,6 +314,71 @@ class RotatingClient:
                     f"Invalid max_concurrent for '{provider}': {max_val}. Setting to 1."
                 )
                 self.max_concurrent_requests_per_key[provider] = 1
+
+    # ----------------------------------------------------------------------
+    # #233: distributed cooldown + (provider,model) concurrency gate helpers
+    # ----------------------------------------------------------------------
+    def preflight_gate(self, provider: str, model: str) -> dict:
+        """Check (shared_cooldown, in-process gate) for (provider, model).
+
+        Returns a dict with:
+            - ok: True if we should attempt the request, False to fall back.
+            - reason: "cooldown_shared" | "concurrency_full" | "" (when ok).
+            - cooldown_remaining_s: float.
+            - concurrency_slots_in_use: int.
+            - concurrency_slots_max: int.
+        """
+        provider = provider or ""
+        model = model or ""
+        rem = self.shared_cooldown.cooldown_remaining(provider, model)
+        if rem > 0.0:
+            return {
+                "ok": False,
+                "reason": "cooldown_shared",
+                "cooldown_remaining_s": float(rem),
+                "concurrency_slots_in_use": 0,
+                "concurrency_slots_max": 0,
+            }
+        if not self.concurrency_gate.try_acquire(provider, model):
+            # Inch-inaccurate slot count for telemetry; acquire() = False means slots are full.
+            return {
+                "ok": False,
+                "reason": "concurrency_full",
+                "cooldown_remaining_s": 0.0,
+                # -1 sentinel: caller didn't get a slot, we don't track in-flight count.
+                "concurrency_slots_in_use": -1,
+                "concurrency_slots_max": self.concurrency_gate._resolve(provider, model)[0],
+            }
+        return {
+            "ok": True,
+            "reason": "",
+            "cooldown_remaining_s": 0.0,
+            "concurrency_slots_in_use": -1,
+            "concurrency_slots_max": self.concurrency_gate._resolve(provider, model)[0],
+        }
+
+    def record_shared_cooldown(
+        self, provider: str, model: str, retry_after_s: float
+    ) -> None:
+        """Persist a 429 cooldown into the cross-process store + release gate."""
+        try:
+            self.shared_cooldown.start_cooldown(provider, model, retry_after_s)
+        except Exception as e:  # pragma: no cover - never let telemetry crash the request path
+            lib_logger.debug("shared_cooldown.start_cooldown failed: %s", e)
+        # Always release the gate slot we acquired in preflight_gate; we may not have
+        # a slot if preflight returned ok=False for "cooldown_shared", in which case
+        # nothing was acquired.
+        try:
+            self.concurrency_gate.release(provider, model)
+        except Exception:
+            pass
+
+    def release_gate(self, provider: str, model: str) -> None:
+        """Release the in-process concurrency gate slot on success or non-429 failure."""
+        try:
+            self.concurrency_gate.release(provider, model)
+        except Exception:
+            pass
 
     async def _try_wait_on_rate_limit(
         self,
@@ -982,6 +1056,9 @@ class RotatingClient:
                     cost_estimate_usd=None,
                 )
 
+                self.release_gate(  # #233: release the in-process slot on success.
+                    provider, model
+                )
                 return response
             except Exception as e:
                 last_exception = e
@@ -1259,6 +1336,26 @@ class RotatingClient:
                     # Retry loop for custom providers - mirrors streaming path error handling
                     for attempt in range(self.max_retries):
                         try:
+                            # #233: acquire concurrency slot + check shared cooldown before
+                            # any provider call. Returns a preflight dict; if the slot could
+                            # not be acquired, the inner preflight_skip flag short-circuits
+                            # this attempt by raising below.
+                            preflight = self.preflight_gate(provider, model)
+                            if not preflight.get("proceed", True):
+                                skip_reason = preflight.get("reason", "gate_denied")
+                                lib_logger.debug(
+                                    f"Preflight gate denied {provider}/{model}: "
+                                    f"{skip_reason} ({preflight})"
+                                )
+                                # Concurrency saturated for this model — break to rotate
+                                # to the next candidate rather than burning more attempts
+                                # here. router_core-level fallback handles chain rotation.
+                                raise litellm.RateLimitError(
+                                    message=f"concurrency gate: {skip_reason}",
+                                    llm_provider=provider,
+                                    model=model,
+                                )
+
                             lib_logger.info(
                                 f"Attempting call with credential {mask_credential(current_cred)} (Attempt {attempt + 1}/{self.max_retries})"
                             )
@@ -1322,6 +1419,7 @@ class RotatingClient:
                             )
                             await self.usage_manager.release_key(current_cred, model)
                             key_acquired = False
+                            self.release_gate(provider, model)  # #233
                             return response
 
                         except (
@@ -1364,6 +1462,9 @@ class RotatingClient:
                                 cooldown_duration = classified_error.retry_after or 60
                                 await self.cooldown_manager.start_cooldown(
                                     provider, cooldown_duration
+                                )
+                                self.record_shared_cooldown(
+                                    provider, model, cooldown_duration
                                 )
 
                             await self.usage_manager.record_failure(
@@ -1472,6 +1573,9 @@ class RotatingClient:
                                 await self.cooldown_manager.start_cooldown(
                                     provider, cooldown_duration
                                 )
+                                self.record_shared_cooldown(
+                                    provider, model, cooldown_duration
+                                )
 
                             await self.usage_manager.record_failure(
                                 current_cred, model, classified_error
@@ -1535,6 +1639,26 @@ class RotatingClient:
 
                     for attempt in range(self.max_retries):
                         try:
+                            # #233: acquire concurrency slot + check shared cooldown before
+                            # any provider call. Returns a preflight dict; if the slot could
+                            # not be acquired, the inner preflight_skip flag short-circuits
+                            # this attempt by raising below.
+                            preflight = self.preflight_gate(provider, model)
+                            if not preflight.get("proceed", True):
+                                skip_reason = preflight.get("reason", "gate_denied")
+                                lib_logger.debug(
+                                    f"Preflight gate denied {provider}/{model}: "
+                                    f"{skip_reason} ({preflight})"
+                                )
+                                # Concurrency saturated for this model — break to rotate
+                                # to the next candidate rather than burning more attempts
+                                # here. router_core-level fallback handles chain rotation.
+                                raise litellm.RateLimitError(
+                                    message=f"concurrency gate: {skip_reason}",
+                                    llm_provider=provider,
+                                    model=model,
+                                )
+
                             lib_logger.info(
                                 f"Attempting call with credential {mask_credential(current_cred)} (Attempt {attempt + 1}/{self.max_retries})"
                             )
@@ -1567,6 +1691,7 @@ class RotatingClient:
                             )
                             await self.usage_manager.release_key(current_cred, model)
                             key_acquired = False
+                            self.release_gate(provider, model)  # #233
                             return response
 
                         except litellm.RateLimitError as e:
@@ -1602,6 +1727,9 @@ class RotatingClient:
                                 cooldown_duration = classified_error.retry_after or 60
                                 await self.cooldown_manager.start_cooldown(
                                     provider, cooldown_duration
+                                )
+                                self.record_shared_cooldown(
+                                    provider, model, cooldown_duration
                                 )
 
                             await self.usage_manager.record_failure(
@@ -1710,6 +1838,9 @@ class RotatingClient:
                                 await self.cooldown_manager.start_cooldown(
                                     provider, cooldown_duration
                                 )
+                                self.record_shared_cooldown(
+                                    provider, model, cooldown_duration
+                                )
 
                             # Check if we should retry same key (server errors with retries left)
                             if (
@@ -1774,6 +1905,9 @@ class RotatingClient:
                                 cooldown_duration = classified_error.retry_after or 60
                                 await self.cooldown_manager.start_cooldown(
                                     provider, cooldown_duration
+                                )
+                                self.record_shared_cooldown(
+                                    provider, model, cooldown_duration
                                 )
 
                             # Check if this error should trigger rotation
@@ -2349,6 +2483,26 @@ class RotatingClient:
 
                     for attempt in range(self.max_retries):
                         try:
+                            # #233: acquire concurrency slot + check shared cooldown before
+                            # any provider call. Returns a preflight dict; if the slot could
+                            # not be acquired, the inner preflight_skip flag short-circuits
+                            # this attempt by raising below.
+                            preflight = self.preflight_gate(provider, model)
+                            if not preflight.get("proceed", True):
+                                skip_reason = preflight.get("reason", "gate_denied")
+                                lib_logger.debug(
+                                    f"Preflight gate denied {provider}/{model}: "
+                                    f"{skip_reason} ({preflight})"
+                                )
+                                # Concurrency saturated for this model — break to rotate
+                                # to the next candidate rather than burning more attempts
+                                # here. router_core-level fallback handles chain rotation.
+                                raise litellm.RateLimitError(
+                                    message=f"concurrency gate: {skip_reason}",
+                                    llm_provider=provider,
+                                    model=model,
+                                )
+
                             lib_logger.info(
                                 f"Attempting stream with credential {mask_credential(current_cred)} (Attempt {attempt + 1}/{self.max_retries})"
                             )
@@ -2612,6 +2766,9 @@ class RotatingClient:
                                 cooldown_duration = classified_error.retry_after or 60
                                 await self.cooldown_manager.start_cooldown(
                                     provider, cooldown_duration
+                                )
+                                self.record_shared_cooldown(
+                                    provider, model, cooldown_duration
                                 )
                                 lib_logger.warning(
                                     f"Rate limit detected for {provider}. Starting {cooldown_duration}s cooldown."

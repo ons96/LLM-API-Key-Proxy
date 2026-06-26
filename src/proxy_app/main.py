@@ -1235,13 +1235,37 @@ def read_root():
 async def health_check(request: Request):
     client = request.app.state.rotating_client
     providers_up = bool(client.all_credentials)
-    return {
+    health = {
         "status": "healthy" if providers_up else "degraded",
         "providers_configured": providers_up,
         "uptime_seconds": int(time.time() - request.app.state._start_time)
         if hasattr(request.app.state, "_start_time")
         else None,
     }
+    # Distributed gate observability (#233): expose counts so external
+    # dashboards / health probes can see shared state at a glance.
+    try:
+        sc = getattr(client, "shared_cooldown", None)
+        cg = getattr(client, "concurrency_gate", None)
+        if sc is not None and cg is not None:
+            health["distributed_gate"] = {
+                "shared_cooldown_db": getattr(sc, "db_path", None),
+                "machine_id": getattr(sc, "machine_id", None),
+                "active_cooldowns": sum(
+                    1
+                    for v in cg.active_per_pair.values()
+                    if v
+                ),
+                "active_concurrent_requests": sum(
+                    cg.active_per_pair.values()
+                ),
+                "source_machines": list(
+                    {row["source_machine"] for row in sc.recent_cooldowns()[:50]}
+                ),
+            }
+    except Exception as exc:  # pragma: no cover - observability only
+        health["distributed_gate_error"] = str(exc)
+    return health
 
 
 @app.get("/v1/models")

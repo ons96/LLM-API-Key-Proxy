@@ -149,6 +149,19 @@ class SharedCooldownStore:
         c.commit()
         return cur.rowcount
 
+    def recent_cooldowns(self, *, limit: int = 100) -> list:
+        """Return up to `limit` cooldown rows for dashboards / health probes.
+
+        Rows are returned as sqlite3.Row dicts (.keys() is the column list).
+        """
+        c = self._conn()
+        cur = c.execute(
+            "SELECT provider, model, cooldown_until_ts, retry_after_s, source_machine, updated_at "
+            "FROM cooldowns ORDER BY updated_at DESC LIMIT ?",
+            (int(limit),),
+        )
+        return cur.fetchall()
+
 
 # ===========================================================================
 # 2. Per-(provider,model) concurrency gate (in-process, thread-safe)
@@ -277,6 +290,27 @@ class ConcurrencyGate:
         finally:
             if acquired:
                 self.release(provider, model)
+
+    def snapshot(self) -> dict:
+        """Read-only view of gate state for observability.
+
+        Returns:
+            {
+              "active_pairs":    [(provider, model, in_flight, max), ...],
+              "total_in_flight": int,
+              "tracked_pairs":   int,
+            }
+        """
+        with self._lock:
+            pairs = []
+            for key, slot in self._slots.items():
+                if slot.in_flight > 0:
+                    pairs.append((key[0], key[1], slot.in_flight, slot.max_concurrent))
+            return {
+                "active_pairs": pairs,
+                "total_in_flight": sum(p[2] for p in pairs),
+                "tracked_pairs": len(self._slots),
+            }
 
 
 # ---- runnable self-test (no framework; `python distributed_gate.py`) -------
