@@ -1,3 +1,25 @@
+"""
+Provider Plugin Registry
+
+Auto-discovery and registration system for LLM provider adapters.
+All provider classes inheriting from ProviderInterface are automatically
+discovered and registered in PROVIDER_PLUGINS on package import.
+
+Provider Naming:
+    File: {name}_provider.py → Provider: {name}
+    Example: groq_provider.py → PROVIDER_PLUGINS['groq']
+
+Dynamic Providers:
+    Custom OpenAI-compatible providers can be created at runtime
+    by setting {PROVIDER}_API_BASE environment variable.
+
+Example:
+    from rotator_library.providers import PROVIDER_PLUGINS
+    provider_class = PROVIDER_PLUGINS['groq']
+    provider = provider_class()
+
+"""
+
 import importlib
 import pkgutil
 import os
