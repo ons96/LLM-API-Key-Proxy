@@ -129,6 +129,8 @@ logs/
 cache/
 *.env
 
+# Runtime state for rate limiter (active-day tracking, etc.)
+data/
 oauth_creds/
 
 # Local rescue files from manual gateway patching/debugging
