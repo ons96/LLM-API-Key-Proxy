@@ -651,8 +651,6 @@ providers:
   - code
   rate_limits:
     rpm: 10
-  # 3 distinct calendar days per 12-day sliding window.
-  # Enforced by RateLimitTracker (data/active_days.json).
   active_days_window:
     window_days: 12
     max_active_days: 3
@@ -1390,7 +1388,8 @@ providers:
   base_url: https://api.iflow.cn/v1
   enabled: true
   free_tier: true
-  notes: Free DeepSeek/Qwen/Kimi models via Chinese aggregator. Requires OAuth (WeChat or Chinese phone).
+  notes: Free DeepSeek/Qwen/Kimi models via Chinese aggregator. Requires OAuth (WeChat
+    or Chinese phone).
   capabilities:
   - chat
   - code
@@ -3005,7 +3004,8 @@ providers:
     rpm: 10
     daily: 5000000
     daily_reset_utc: 00:00
-  notes: 'Free starter plan: 41 models. Paid plans: Pro $10/mo, Max $20/mo. $20 signup credit.'
+  notes: 'Free starter plan: 41 models. Paid plans: Pro $10/mo, Max $20/mo. $20 signup
+    credit.'
   free_models:
   - id: gpt-5.3-codex
     context: 400000
@@ -3449,3 +3449,12 @@ providers:
     free_type: unlimited_rate_limited
     initial_allowance: -1
     reset_period: never
+- id: subconscious
+  name: Subconscious
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: subconscious/tim-qwen3.6-27b
+    context: 8192
+  notes: Discovered 2026-06-30
