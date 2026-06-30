@@ -169,8 +169,52 @@ class TelemetryManager:
         """)
 
         cursor.execute("""
-            CREATE INDEX IF NOT EXISTS idx_search_usage_time 
+            CREATE INDEX IF NOT EXISTS idx_search_usage_time
             ON search_api_usage(provider, timestamp)
+        """)
+
+        # LLM provider credit tracking (one-time credit / daily renewable /
+        # unlimited-rate-limited / freemium). Mirrors search_api_credits so
+        # rotator can pick a gate-aware replacement on exhaustion.
+        # See task-board #290 for free_type taxonomy.
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS llm_provider_credits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                provider TEXT NOT NULL,
+                api_key_hash TEXT NOT NULL,
+                free_type TEXT NOT NULL DEFAULT 'unlimited_rate_limited',
+                credits_remaining REAL DEFAULT -1,  /* -1 = unlimited */
+                credits_used_total REAL DEFAULT 0,
+                initial_allowance REAL DEFAULT -1,
+                reset_period TEXT,                   /* daily|monthly|never */
+                reset_date TEXT,                     /* ISO timestamp */
+                is_exhausted BOOLEAN DEFAULT 0,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(provider, api_key_hash)
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS llm_provider_usage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                provider TEXT NOT NULL,
+                api_key_hash TEXT NOT NULL,
+                model TEXT,
+                credits_consumed REAL DEFAULT 1.0,
+                success BOOLEAN DEFAULT 1,
+                error_message TEXT
+            )
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_llm_credits_provider
+            ON llm_provider_credits(provider, is_exhausted)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_llm_usage_provider_time
+            ON llm_provider_usage(provider, timestamp)
         """)
 
         cursor.execute("""
@@ -739,6 +783,266 @@ class TelemetryManager:
 
         except Exception as e:
             logger.error(f"Failed to mark search key exhausted: {e}")
+
+    # ──────────────────────────────────────────────────────────────────
+    # LLM provider credit tracking (task-board #290 free_type taxonomy)
+    # ------------------------------------------------------------------
+    # free_type semantics:
+    #   one_time_credit       – fixed pool that depletes; never refills
+    #   daily_renewable       – resets to initial_allowance every reset_date
+    #   unlimited_rate_limited – credits_remaining = -1; only RPM/TPM gates
+    #   freemium              – soft tier; rollover usage but provider decides
+
+    def register_llm_provider_credits(
+        self,
+        provider: str,
+        api_key: str,
+        free_type: str = "unlimited_rate_limited",
+        initial_allowance: float = -1.0,
+        reset_period: str = "never",
+        reset_date: Optional[str] = None,
+    ):
+        """Register an LLM provider API key for credit tracking. UNIQUE(provider, api_key_hash)."""
+        import hashlib
+
+        key_hash = hashlib.sha256(api_key.encode()).hexdigest()[:16]
+
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO llm_provider_credits
+                (provider, api_key_hash, free_type, credits_remaining,
+                 initial_allowance, reset_period, reset_date,
+                 is_exhausted, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+                """,
+                (
+                    provider,
+                    key_hash,
+                    free_type,
+                    initial_allowance,
+                    initial_allowance,
+                    reset_period,
+                    reset_date,
+                ),
+            )
+            conn.commit()
+            conn.close()
+            logger.info(
+                f"Registered LLM provider {provider} ({free_type}, "
+                f"allowance={initial_allowance})"
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to register LLM provider credits: {e}")
+
+    def decrement_llm_credentials(
+        self,
+        provider: str,
+        api_key: str,
+        model: str = "",
+        credits_consumed: float = 1.0,
+        success: bool = True,
+        error_message: Optional[str] = None,
+    ):
+        """Record an LLM call and decrement the credit balance.
+
+        Skips decrement entirely for unlimited_rate_limited (credits_remaining
+        will stay at -1) — caller should gate via check_available first.
+        """
+        import hashlib
+
+        key_hash = hashlib.sha256(api_key.encode()).hexdigest()[:16]
+
+        try:
+            with self._pooled_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO llm_provider_usage
+                    (provider, api_key_hash, model, credits_consumed,
+                     success, error_message)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        provider,
+                        key_hash,
+                        model,
+                        credits_consumed,
+                        success,
+                        error_message,
+                    ),
+                )
+                cursor.execute(
+                    """
+                    UPDATE llm_provider_credits
+                    SET credits_used_total = credits_used_total + ?,
+                        credits_remaining = CASE
+                            WHEN credits_remaining < 0 THEN credits_remaining
+                            ELSE MAX(0, credits_remaining - ?)
+                        END,
+                        is_exhausted = CASE
+                            WHEN credits_remaining < 0 THEN 0
+                            WHEN credits_remaining - ? <= 0 THEN 1
+                            ELSE is_exhausted
+                        END,
+                        last_updated = CURRENT_TIMESTAMP
+                    WHERE provider = ? AND api_key_hash = ?
+                    """,
+                    (
+                        credits_consumed,
+                        credits_consumed,
+                        credits_consumed,
+                        provider,
+                        key_hash,
+                    ),
+                )
+                conn.commit()
+
+        except Exception as e:
+            logger.error(f"Failed to decrement LLM credentials: {e}")
+
+    def get_llm_provider_credit_status(self, provider: str, api_key: str) -> dict:
+        """Get current credit status for an LLM provider API key."""
+        import hashlib
+
+        key_hash = hashlib.sha256(api_key.encode()).hexdigest()[:16]
+
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT free_type, credits_remaining, credits_used_total,
+                       initial_allowance, reset_period, reset_date,
+                       is_exhausted, last_updated
+                FROM llm_provider_credits
+                WHERE provider = ? AND api_key_hash = ?
+                """,
+                (provider, key_hash),
+            )
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                return {
+                    "provider": provider,
+                    "free_type": row[0],
+                    "credits_remaining": row[1],
+                    "credits_used_total": row[2],
+                    "initial_allowance": row[3],
+                    "reset_period": row[4],
+                    "reset_date": row[5],
+                    "is_exhausted": bool(row[6]),
+                    "last_updated": row[7],
+                }
+            # No row → assume unlimited (unregistered providers default to free)
+            return {
+                "provider": provider,
+                "free_type": "unlimited_rate_limited",
+                "credits_remaining": -1,
+                "is_exhausted": False,
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to get LLM provider credit status: {e}")
+            return {"provider": provider, "error": str(e), "is_exhausted": True}
+
+    def check_llm_provider_available(
+        self, provider: str, api_key: str, required_credits: float = 1.0
+    ) -> bool:
+        """Return True iff provider has enough credits to take another call.
+
+        Unlimited-rate-limited (credits_remaining = -1) providers always pass
+        the credit check; rate-limit cooldown is handled by the router.
+        """
+        status = self.get_llm_provider_credit_status(provider, api_key)
+        if status.get("is_exhausted", True):
+            return False
+        remaining = status.get("credits_remaining", -1)
+        if remaining < 0:
+            return True  # unlimited
+        return remaining >= required_credits
+
+    def mark_llm_provider_exhausted(self, provider: str, api_key: str):
+        """Permanently mark an API key as exhausted (e.g. one-time credit used)."""
+        import hashlib
+
+        key_hash = hashlib.sha256(api_key.encode()).hexdigest()[:16]
+
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE llm_provider_credits
+                SET is_exhausted = 1, credits_remaining = 0,
+                    last_updated = CURRENT_TIMESTAMP
+                WHERE provider = ? AND api_key_hash = ?
+                """,
+                (provider, key_hash),
+            )
+            conn.commit()
+            conn.close()
+            logger.warning(
+                f"Marked LLM provider {provider} as exhausted (one_time credit)"
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to mark LLM provider exhausted: {e}")
+
+    def reset_daily_llm_provider_credits(self, provider: Optional[str] = None, api_key: Optional[str] = None):
+        """Reset daily_renewable providers (or a single key) when reset_date has passed.
+
+        When called with no args, resets all due daily_renewable entries (suitable for cron).
+        When called with (provider, api_key), resets just that one entry.
+        """
+        import hashlib
+
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+
+            where_clauses = [
+                "reset_period = 'daily'",
+                "reset_date IS NOT NULL",
+                "datetime(reset_date) <= datetime('now')",
+                "initial_allowance >= 0",
+            ]
+            params: list = []
+            if provider is not None:
+                where_clauses.append("provider = ?")
+                params.append(provider)
+            if api_key is not None:
+                key_hash = hashlib.sha256(api_key.encode()).hexdigest()[:16]
+                where_clauses.append("api_key_hash = ?")
+                params.append(key_hash)
+
+            cursor.execute(
+                f"""
+                UPDATE llm_provider_credits
+                SET credits_remaining = initial_allowance,
+                    is_exhausted = 0,
+                    credits_used_total = 0,
+                    reset_date = datetime('now', '+1 day'),
+                    last_updated = CURRENT_TIMESTAMP
+                WHERE {" AND ".join(where_clauses)}
+                """,
+                tuple(params),
+            )
+            conn.commit()
+            affected = cursor.rowcount
+            conn.close()
+            if affected:
+                logger.info(
+                    f"Reset daily LLM provider credits for {affected} entries"
+                )
+            return affected
+
+        except Exception as e:
+            logger.error(f"Failed to reset daily LLM provider credits: {e}")
+            return 0
 
 
 # Global telemetry instance

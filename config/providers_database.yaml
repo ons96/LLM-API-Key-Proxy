@@ -136,6 +136,10 @@ providers:
     capabilities:
     - chat
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: daily_renewable
+    initial_allowance: 14400
+    reset_period: daily
 - id: gemini
   name: Google Gemini (AI Studio)
   signup_url: https://aistudio.google.com
@@ -220,6 +224,10 @@ providers:
     - vision
     - long_context
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: daily_renewable
+    initial_allowance: 1500
+    reset_period: daily
 - id: cerebras
   name: Cerebras
   signup_url: https://cloud.cerebras.ai
@@ -284,6 +292,10 @@ providers:
     - code
     - tools
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: nvidia
   name: NVIDIA NIM API
   signup_url: https://build.nvidia.com
@@ -321,6 +333,10 @@ providers:
     - chat
     - code
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: daily_renewable
+    initial_allowance: 1000
+    reset_period: daily
 - id: mistral
   name: Mistral AI
   signup_url: https://console.mistral.ai
@@ -357,6 +373,10 @@ providers:
     - chat
     - code
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: daily_renewable
+    initial_allowance: 500
+    reset_period: daily
 - id: together
   name: Together AI
   signup_url: https://api.together.xyz
@@ -403,6 +423,11 @@ providers:
     - code
     - tools
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: one_time_credit
+    initial_allowance: 5.0
+    currency: usd
+    reset_period: never
 - id: kilo
   name: Kilo AI
   signup_url: https://api.kilo.ai
@@ -527,6 +552,10 @@ providers:
     - chat
     - code
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: freemium
+    initial_allowance: -1
+    reset_period: never
 - id: openrouter
   name: OpenRouter
   signup_url: https://openrouter.ai
@@ -566,6 +595,10 @@ providers:
     - vision
     - fast
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: daily_renewable
+    initial_allowance: 50
+    reset_period: daily
 - id: openai
   name: OpenAI
   signup_url: https://platform.openai.com
@@ -601,6 +634,10 @@ providers:
     - tools
     - fast
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: freemium
+    initial_allowance: -1
+    reset_period: never
 - id: g4f
   name: G4F Main (g4f.space)
   signup_url: https://g4f.space
@@ -648,6 +685,10 @@ providers:
     - chat
     - code
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: g4f_nvidia
   name: G4F NVIDIA Proxy (g4f.space)
   signup_url: https://g4f.space
@@ -801,6 +842,10 @@ providers:
     - chat
     - code
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: g4f_groq
   name: G4F Groq Proxy (g4f.space)
   signup_url: https://g4f.space
@@ -850,6 +895,10 @@ providers:
     - chat
     - code
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: g4f_gemini
   name: G4F Gemini Proxy (g4f.space)
   signup_url: https://g4f.space
@@ -892,6 +941,10 @@ providers:
     - long_context
     - reasoning
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: g4f_ollama
   name: G4F Ollama Proxy (g4f.space)
   signup_url: https://g4f.space
@@ -971,6 +1024,10 @@ providers:
     - code
     - fast
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: g4f_pollinations
   name: G4F Pollinations Proxy (g4f.space)
   signup_url: https://g4f.space
@@ -1049,6 +1106,10 @@ providers:
     - chat
     - code
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: sambanova
   name: SambaNova Cloud
   signup_url: https://cloud.sambanova.ai
@@ -1122,6 +1183,10 @@ providers:
     - chat
     - code
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: daily_renewable
+    initial_allowance: 100
+    reset_period: daily
 - id: github-models
   name: GitHub Models
   signup_url: https://github.com/marketplace/models
@@ -1193,6 +1258,10 @@ providers:
     - code
     - tools
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: daily_renewable
+    initial_allowance: 100
+    reset_period: daily
 - id: cloudflare
   name: Cloudflare Workers AI
   signup_url: https://workers.cloudflare.com/workers-ai
@@ -1247,6 +1316,10 @@ providers:
     - chat
     - fast
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: daily_renewable
+    initial_allowance: 10000
+    reset_period: daily
 - id: opencode_zen
   name: OpenCode Zen
   signup_url: https://opencode.ai/zen
@@ -1300,6 +1373,10 @@ providers:
     - chat
     - code
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: iflow
   name: iFlow (OAuth)
   signup_url: https://iflow.cn
@@ -1307,8 +1384,7 @@ providers:
   base_url: https://api.iflow.cn/v1
   enabled: true
   free_tier: true
-  notes: Free DeepSeek/Qwen/Kimi models via Chinese aggregator. Requires OAuth (WeChat
-    or Chinese phone).
+  notes: Free DeepSeek/Qwen/Kimi models via Chinese aggregator. Requires OAuth (WeChat or Chinese phone).
   capabilities:
   - chat
   - code
@@ -1397,6 +1473,10 @@ providers:
     - code
     - tools
   last_verified: '2026-03-17'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: aihubmix
   name: AIHubMix
   signup_url: https://aihubmix.com
@@ -1438,6 +1518,10 @@ providers:
     - function_calling
     - fast
   last_verified: '2026-03-24'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: noobrouter
   name: NoobRouter
   signup_url: https://noobrouter.azurewebsites.net
@@ -1572,6 +1656,10 @@ providers:
     - tools
     - function_calling
   last_verified: '2026-03-24'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: supacoder
   name: Supacoder
   signup_url: https://supacoder.top
@@ -2278,6 +2366,10 @@ providers:
     - function_calling
     - coding
   last_verified: '2026-03-24'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: wiwi
   name: WiWi
   signup_url: https://wiwi.up.railway.app
@@ -2359,6 +2451,10 @@ providers:
     - tools
     - function_calling
   last_verified: '2026-03-24'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: llmgateway
   name: LLM Gateway
   enabled: false
@@ -2386,6 +2482,10 @@ providers:
   - id: seedream-4-5
     context: 2000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: zhipuai-coding-plan
   name: Zhipu AI Coding Plan
   enabled: false
@@ -2413,6 +2513,10 @@ providers:
   - id: glm-4.5
     context: 131072
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: zai-coding-plan
   name: Z.AI Coding Plan
   enabled: false
@@ -2438,6 +2542,10 @@ providers:
   - id: glm-4.7-flash
     context: 200000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: llama
   name: Llama
   enabled: false
@@ -2459,6 +2567,10 @@ providers:
   - id: llama-4-maverick-17b-128e-instruct-fp8
     context: 128000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: modelscope
   name: ModelScope
   enabled: false
@@ -2480,6 +2592,11 @@ providers:
   - id: ZhipuAI/GLM-4.6
     context: 202752
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: one_time_credit
+    initial_allowance: 100.0
+    currency: credits
+    reset_period: never
 - id: siliconflow-cn
   name: SiliconFlow (China)
   enabled: false
@@ -2497,6 +2614,10 @@ providers:
   - id: deepseek-ai/DeepSeek-OCR
     context: 8192
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: daily_renewable
+    initial_allowance: 100
+    reset_period: daily
 - id: tencent-coding-plan
   name: Tencent Coding Plan (China)
   enabled: false
@@ -2514,6 +2635,10 @@ providers:
   - id: hunyuan-2.0-thinking
     context: 131072
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: iflowcn
   name: iFlow
   enabled: false
@@ -2529,6 +2654,10 @@ providers:
   - id: qwen3-max-preview
     context: 256000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: alibaba-coding-plan
   name: Alibaba Coding Plan
   enabled: false
@@ -2542,6 +2671,10 @@ providers:
   - id: qwen3-coder-next
     context: 262144
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: alibaba-coding-plan-cn
   name: Alibaba Coding Plan (China)
   enabled: false
@@ -2555,6 +2688,10 @@ providers:
   - id: qwen3-coder-next
     context: 262144
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: cortecs
   name: Cortecs
   enabled: false
@@ -2568,6 +2705,10 @@ providers:
   - id: llama-3.1-405b-instruct
     context: 128000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: poe
   name: Poe
   enabled: false
@@ -2581,6 +2722,10 @@ providers:
   - id: google/gemma-4-31b
     context: 262144
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: daily_renewable
+    initial_allowance: 1000000
+    reset_period: monthly
 - id: zenmux
   name: ZenMux
   enabled: false
@@ -2594,6 +2739,10 @@ providers:
   - id: z-ai/glm-4.6v-flash-free
     context: 200000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: alibaba-cn
   name: Alibaba (China)
   enabled: false
@@ -2605,6 +2754,10 @@ providers:
   - id: deepseek-r1-distill-llama-8b
     context: 32768
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: minimax-cn-coding-plan
   name: MiniMax Coding Plan (minimaxi.com)
   enabled: false
@@ -2616,6 +2769,10 @@ providers:
   - id: MiniMax-M2.5-highspeed
     context: 204800
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: minimax-coding-plan
   name: MiniMax Coding Plan (minimax.io)
   enabled: false
@@ -2627,6 +2784,10 @@ providers:
   - id: MiniMax-M2.5-highspeed
     context: 204800
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: nova
   name: Nova
   enabled: false
@@ -2638,6 +2799,10 @@ providers:
   - id: nova-2-pro-v1
     context: 1000000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: xiaomi-token-plan-ams
   name: Xiaomi Token Plan (Europe)
   enabled: false
@@ -2649,6 +2814,10 @@ providers:
   - id: mimo-v2-omni
     context: 256000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: xiaomi-token-plan-cn
   name: Xiaomi Token Plan (China)
   enabled: false
@@ -2660,6 +2829,10 @@ providers:
   - id: mimo-v2-pro
     context: 1000000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: xiaomi-token-plan-sgp
   name: Xiaomi Token Plan (Singapore)
   enabled: false
@@ -2671,6 +2844,10 @@ providers:
   - id: mimo-v2-omni
     context: 256000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: zai
   name: Z.AI
   enabled: false
@@ -2682,6 +2859,10 @@ providers:
   - id: glm-4.7-flash
     context: 200000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: zhipuai
   name: Zhipu AI
   enabled: false
@@ -2693,6 +2874,10 @@ providers:
   - id: glm-4.5-flash
     context: 131072
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: fireworks-ai
   name: Fireworks AI
   enabled: false
@@ -2702,6 +2887,11 @@ providers:
   - id: accounts/fireworks/routers/kimi-k2p5-turbo
     context: 256000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: one_time_credit
+    initial_allowance: 1.0
+    currency: usd
+    reset_period: never
 - id: huggingface
   name: Hugging Face
   enabled: false
@@ -2711,6 +2901,10 @@ providers:
   - id: zai-org/GLM-4.7-Flash
     context: 200000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: daily_renewable
+    initial_allowance: 1000
+    reset_period: daily
 - id: jiekou
   name: Jiekou.AI
   enabled: false
@@ -2720,6 +2914,10 @@ providers:
   - id: xiaomimimo/mimo-v2-flash
     context: 262144
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: kimi-for-coding
   name: Kimi For Coding
   enabled: false
@@ -2729,6 +2927,10 @@ providers:
   - id: k2p5
     context: 262144
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: meganova
   name: Meganova
   enabled: false
@@ -2738,6 +2940,10 @@ providers:
   - id: mistralai/Mistral-Small-3.2-24B-Instruct-2506
     context: 32768
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: nano-gpt
   name: NanoGPT
   enabled: false
@@ -2747,6 +2953,10 @@ providers:
   - id: auto-model
     context: 1000000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: novita-ai
   name: NovitaAI
   enabled: false
@@ -2756,6 +2966,10 @@ providers:
   - id: kwaipilot/kat-coder
     context: 256000
   notes: Discovered 2026-04-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: siliconflow
   name: SiliconFlow
   enabled: false
@@ -2765,6 +2979,10 @@ providers:
   - id: tencent/Hunyuan-MT-7B
     context: 33000
     notes: Discovered 2026-04-10
+  free_quota:
+    free_type: daily_renewable
+    initial_allowance: 100
+    reset_period: daily
 - id: swiftrouter
   name: SwiftRouter
   signup_url: https://swiftrouter.com
@@ -2781,8 +2999,7 @@ providers:
     rpm: 10
     daily: 5000000
     daily_reset_utc: 00:00
-  notes: 'Free starter plan: 41 models. Paid plans: Pro $10/mo, Max $20/mo. $20 signup
-    credit.'
+  notes: 'Free starter plan: 41 models. Paid plans: Pro $10/mo, Max $20/mo. $20 signup credit.'
   free_models:
   - id: gpt-5.3-codex
     context: 400000
@@ -3010,6 +3227,10 @@ providers:
     tier: paid
     notes: Requires Pro/Max plan
   last_verified: '2026-04-10'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: tencent-token-plan
   name: Tencent Token Plan
   enabled: false
@@ -3019,6 +3240,10 @@ providers:
   - id: hy3-preview
     context: 256000
   notes: Discovered 2026-04-19
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: tencent-tokenhub
   name: Tencent TokenHub
   enabled: false
@@ -3028,6 +3253,10 @@ providers:
   - id: hy3-preview
     context: 256000
   notes: Discovered 2026-04-19
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: wafer.ai
   name: Wafer
   enabled: false
@@ -3037,6 +3266,10 @@ providers:
   - id: GLM-5.1
     context: 202752
   notes: Discovered 2026-04-20
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: kiro
   name: Kiro
   enabled: false
@@ -3062,6 +3295,10 @@ providers:
   - id: claude-sonnet-4.6
     context: 1000000
   notes: Discovered 2026-05-07
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: firepass
   name: Fireworks (Firepass)
   enabled: false
@@ -3071,6 +3308,10 @@ providers:
   - id: accounts/fireworks/routers/kimi-k2p6-turbo
     context: 262000
   notes: Discovered 2026-05-10
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: umans-ai-coding-plan
   name: Umans AI Coding Plan
   enabled: false
@@ -3088,6 +3329,10 @@ providers:
   - id: umans-kimi-k2.6
     context: 262144
   notes: Discovered 2026-05-15
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: orcarouter
   name: OrcaRouter
   enabled: false
@@ -3097,6 +3342,10 @@ providers:
   - id: orcarouter/auto
     context: 128000
   notes: Discovered 2026-05-16
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: poolside
   name: Poolside
   enabled: false
@@ -3108,6 +3357,10 @@ providers:
   - id: poolside/laguna-m.1
     context: 131040
   notes: Discovered 2026-05-25
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: alibaba-token-plan
   name: Alibaba Token Plan
   enabled: false
@@ -3129,6 +3382,10 @@ providers:
   - id: glm-5.1
     context: 202752
   notes: Discovered 2026-06-03
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: llmtr
   name: LLMTR
   enabled: false
@@ -3142,6 +3399,10 @@ providers:
   - id: sincap
     context: 128000
   notes: Discovered 2026-06-11
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: alibaba-token-plan-cn
   name: Alibaba Token Plan (China)
   enabled: false
@@ -3165,6 +3426,10 @@ providers:
   - id: qwen3.6-plus
     context: 1000000
   notes: Discovered 2026-06-12
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: zeldoc
   name: Zeldoc
   enabled: false
@@ -3174,3 +3439,7 @@ providers:
   - id: z-code
     context: 262144
   notes: Discovered 2026-06-12
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
