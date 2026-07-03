@@ -3458,3 +3458,30 @@ providers:
   - id: subconscious/tim-qwen3.6-27b
     context: 8192
   notes: Discovered 2026-06-30
+- id: kenari
+  name: Kenari
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: deepseek-v4-flash
+    context: 1000000
+  - id: kimi-k2-6
+    context: 262144
+  - id: glm-5-1
+    context: 200000
+  - id: gemma-4-31b-it
+    context: 262144
+  - id: grok-4-3
+    context: 1000000
+  - id: qwen3-7-plus
+    context: 1000000
+  - id: kimi-k2-7-code
+    context: 262144
+  - id: deepseek-v4-pro
+    context: 1000000
+  - id: deepseek-v4-flash:free
+    context: 1000000
+  - id: minimax-m3
+    context: 512000
+  notes: Discovered 2026-07-03
