@@ -38,10 +38,22 @@ class RouterWrapper:
         # in place; downstream code is unaware that "auto" was ever requested.
         if model_id == "auto" or model_id == "router/auto":
             try:
-                result = resolve_auto(request_data, current_model=model_id)
+                # X-Phase-Router-Phase: sent by the opencode-phase-router
+                # plugin (chat.headers hook) when it has classified the
+                # prompt into a development phase. When present, the gateway
+                # trusts the client and routes to the phase chain, bypassing
+                # semantic/keyword routing. Starlette headers are
+                # case-insensitive; .get lowercases the lookup.
+                phase_header = raw_request.headers.get("x-phase-router-phase")
+                result = resolve_auto(
+                    request_data,
+                    current_model=model_id,
+                    phase_header=phase_header,
+                )
                 logger.debug(
                     "auto-router: intent=%s chain=%s source=%s conf=%.2f",
-                    result.intent.name, result.chain, result.source, result.confidence,
+                    result.intent.name, result.chain, result.source,
+                    result.confidence,
                 )
                 request_data["model"] = result.chain
                 model_id = result.chain
