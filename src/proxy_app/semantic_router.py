@@ -70,6 +70,18 @@ DEFAULT_CHAIN = "chat-fast"
 # Safe tool-capable chain when request needs tools but intent routed to non-tool.
 DEFAULT_TOOL_CHAIN = "coding-fast"
 
+# Phase-header routing (task-board #252 / #347): when an opencode client sends
+# X-Phase-Router-Phase, the client has ALREADY classified the prompt (Tier-1
+# keyword + optional Tier-2 embedding) into a development phase. Trust it and
+# route to the phase-mapped chain, bypassing semantic/keyword routing here.
+# Mirrors opencode-phase-router defaultRouting (src/phase-state.ts).
+PHASE_CHAIN_MAP: Dict[str, str] = {
+    "plan": "agent-oracle",
+    "build_exploration": "coding-elite",
+    "build_iteration": "coding-fast",
+    "build_verification": "coding-elite",
+}
+
 
 # ---------------------------------------------------------------------------
 # semantic-router integration (lazy-loaded)
@@ -104,7 +116,9 @@ def _load_semantic_router():
         _SR_LOAD_FAILED = True
         return None
     except Exception as exc:  # pragma: no cover - FastEmbed model download errors
-        logger.warning(f"semantic-router load failed: {exc!r}; falling back to keywords")
+        logger.warning(
+            f"semantic-router load failed: {exc!r}; falling back to keywords"
+        )
         _SR_LOAD_FAILED = True
         return None
 
@@ -117,7 +131,9 @@ def _load_semantic_router():
             len(routes),
         )
     except Exception as exc:  # pragma: no cover - encoder model download
-        logger.warning(f"semantic-router init failed: {exc!r}; falling back to keywords")
+        logger.warning(
+            f"semantic-router init failed: {exc!r}; falling back to keywords"
+        )
         _SR_LAYER = None
         _SR_LOAD_FAILED = True
     return _SR_LAYER
@@ -207,10 +223,16 @@ class AutoRouteResult:
 def resolve_auto(
     request: Dict[str, Any],
     current_model: Optional[str] = None,
+    phase_header: Optional[str] = None,
 ) -> AutoRouteResult:
     """Resolve `model="auto"` to a concrete virtual-model chain.
 
     Steps:
+    0. If a client phase header is present and maps to a known phase, trust
+       the client's classification and route directly to the phase chain.
+       The opencode-phase-router plugin has already classified the prompt;
+       re-running semantic/keyword here would be redundant work + risk
+       divergence. Tool-capability guard still applies.
     1. Try semantic-router (FastEmbed local). If confidence >= threshold, use it.
     2. Else fall back to keyword intent_detector.
     3. Apply tool-capability guard: if request has tools, force tool-capable chain.
@@ -218,6 +240,29 @@ def resolve_auto(
     threshold = float(os.getenv("AUTO_ROUTE_THRESHOLD", "0.30"))
     mode = os.getenv("AUTO_ROUTE_MODE", "all").lower()
     needs_tools = bool(request.get("tools") or request.get("tool_choice"))
+
+    # Step 0: client phase header (opencode-phase-router plugin)
+    if phase_header:
+        chain = PHASE_CHAIN_MAP.get(phase_header)
+        if chain is not None:
+            chain = _apply_tool_guard(chain, needs_tools)
+            logger.info(
+                "auto-router: phase-header=%s -> chain=%s (tool_guard=%s)",
+                phase_header,
+                chain,
+                needs_tools,
+            )
+            return AutoRouteResult(
+                chain=chain,
+                intent=MessageIntent.UNKNOWN,
+                confidence=1.0,
+                source="phase-header",
+                reasoning=f"client phase={phase_header}",
+            )
+        logger.debug(
+            "auto-router: phase-header=%r unknown; falling through",
+            phase_header,
+        )
 
     # Step 1: semantic-router
     if mode == "all":
@@ -233,7 +278,9 @@ def resolve_auto(
                     if decision is not None and score is not None:
                         confidence = float(score)
                         route_name = decision.name
-                        intent = _ROUTE_NAME_TO_INTENT.get(route_name, MessageIntent.UNKNOWN)
+                        intent = _ROUTE_NAME_TO_INTENT.get(
+                            route_name, MessageIntent.UNKNOWN
+                        )
                         if confidence >= threshold and intent != MessageIntent.UNKNOWN:
                             chain = INTENT_CHAIN_MAP[intent]
                             chain = _apply_tool_guard(chain, needs_tools)
@@ -251,7 +298,10 @@ def resolve_auto(
                             route_name,
                         )
                 except Exception as exc:  # pragma: no cover - defensive
-                    logger.warning(f"semantic_router query failed: {exc!r}; falling back to keywords")
+                    logger.warning(
+                        "semantic_router query failed: %r; falling back to keywords",
+                        exc,
+                    )
 
     # Step 2: keyword fallback
     messages = request.get("messages", [])
@@ -331,9 +381,7 @@ def _self_test() -> None:
         ),
         (
             {
-                "messages": [
-                    {"role": "user", "content": "continue the story"}
-                ],
+                "messages": [{"role": "user", "content": "continue the story"}],
                 "tools": [{"type": "function", "function": {"name": "dice"}}],
             },
             True,
