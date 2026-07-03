@@ -385,15 +385,30 @@ class TelemetryManager:
         }
 
     def cleanup_old_data(self, days: int = 7):
-        """Remove telemetry data older than specified days."""
+        """Remove telemetry data older than specified days across all tables."""
         cutoff = datetime.now() - timedelta(days=days)
 
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
         cursor.execute("DELETE FROM api_calls WHERE timestamp < ?", (cutoff,))
-
         deleted = cursor.rowcount
+
+        # rate_limits + provider_health + tps_metrics were added alongside
+        # api_calls; purge them on the same rolling window so the DB stays
+        # bounded on the 1GB VPS. rate_limits resets via new INSERTs rather
+        # than UPDATE, so stale rows have no reset_time or expired ones.
+        cursor.execute("DELETE FROM rate_limits WHERE last_updated < ?", (cutoff,))
+        deleted += cursor.rowcount
+
+        cursor.execute(
+            "DELETE FROM provider_health WHERE last_check_time < ?", (cutoff,)
+        )
+        deleted += cursor.rowcount
+
+        cursor.execute("DELETE FROM tps_metrics WHERE timestamp < ?", (cutoff,))
+        deleted += cursor.rowcount
+
         conn.commit()
         conn.close()
 
@@ -427,6 +442,58 @@ class TelemetryManager:
         except Exception as e:
             logger.error(f"Failed to increment rate limit: {e}")
 
+    def record_rate_limit_hit(
+        self,
+        provider: str,
+        model: str,
+        limit_type: str = "rpm",
+        retry_after: float = 60.0,
+        reset_time: Optional[str] = None,
+    ):
+        """Record an explicit rate-limit hit with a reset time.
+
+        Complements ``increment_rate_limit`` (counter-only) by persisting
+        ``reset_time`` so ``check_rate_limit`` can compute retry_after
+        across process restarts. Called by RateLimitTracker when an
+        upstream 429/usage-cap is observed.
+        """
+        try:
+            if reset_time is None:
+                reset_time = (
+                    datetime.now() + timedelta(seconds=retry_after)
+                ).isoformat()
+
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO rate_limits
+                (provider, model, limit_type, current_count, reset_time,
+                 last_updated)
+                VALUES (?, ?, ?,
+                        COALESCE(
+                            (SELECT current_count FROM rate_limits
+                             WHERE provider = ? AND model = ?
+                               AND limit_type = ?),
+                            0) + 1,
+                        ?, CURRENT_TIMESTAMP)
+            """,
+                (
+                    provider,
+                    model,
+                    limit_type,
+                    provider,
+                    model,
+                    limit_type,
+                    reset_time,
+                ),
+            )
+            conn.commit()
+            conn.close()
+
+        except Exception as e:
+            logger.error(f"Failed to record rate limit hit: {e}")
+
     def check_rate_limit(
         self,
         provider: str,
@@ -457,16 +524,30 @@ class TelemetryManager:
 
             current, limit_value, reset_time = row
 
-            if limit_value and current >= limit_value:
-                if reset_time:
-                    try:
-                        reset_dt = datetime.fromisoformat(reset_time)
-                        retry_after = max(
-                            0, int((reset_dt - datetime.now()).total_seconds() * 1000)
-                        )
+            # If a future reset_time is recorded, treat as limited even when
+            # limit_value is NULL (rate-limit hit persisted via
+            # record_rate_limit_hit without a known numeric cap).
+            if reset_time:
+                try:
+                    reset_dt = datetime.fromisoformat(reset_time)
+                    # reset_time may be tz-aware (from rate_limiter's UTC
+                    # timestamp) or naive (CURRENT_TIMESTAMP). Compare in a
+                    # tz-consistent way to avoid aware-vs-naive TypeError.
+                    if reset_dt.tzinfo is not None:
+                        now_dt = datetime.now(reset_dt.tzinfo)
+                    else:
+                        now_dt = datetime.now()
+                    retry_after = max(
+                        0,
+                        int((reset_dt - now_dt).total_seconds() * 1000),
+                    )
+                    if retry_after > 0:
                         return True, retry_after
-                    except (ValueError, TypeError):
-                        pass
+                    # Reset time has passed -> not limited; fall through
+                except (ValueError, TypeError):
+                    pass
+
+            if limit_value and current >= limit_value:
                 return True, 60000
 
             return False, None
@@ -505,19 +586,37 @@ class TelemetryManager:
         is_healthy: bool,
         failure_rate: float = 0,
     ):
-        """Update provider health status."""
+        """Update provider health status.
+
+        provider_health has no UNIQUE constraint, so ``INSERT OR REPLACE``
+        would always start consecutive_failures from NULL (-> 1). We
+        read the latest existing consecutive_failures via a subquery so
+        failures accumulate across checks.
+        """
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-
             cursor.execute(
                 """
-                INSERT OR REPLACE INTO provider_health
+                INSERT INTO provider_health
                 (provider, model, is_healthy, last_check_time, failure_rate,
                  consecutive_failures, last_success_time)
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?,
-                 CASE WHEN ? = 1 THEN 0 ELSE consecutive_failures + 1 end,
-                 CASE WHEN ? = 1 THEN CURRENT_TIMESTAMP ELSE last_success_time end)
+                 CASE WHEN ? = 1
+                      THEN 0
+                      ELSE COALESCE(
+                          (SELECT consecutive_failures
+                             FROM provider_health
+                            WHERE provider = ?
+                              AND (model IS ? OR model = ?)
+                            ORDER BY last_check_time DESC, rowid DESC
+                            LIMIT 1),
+                          0) + 1
+                 END,
+                 CASE WHEN ? = 1
+                      THEN CURRENT_TIMESTAMP
+                      ELSE NULL
+                 END)
             """,
                 (
                     provider,
@@ -525,10 +624,12 @@ class TelemetryManager:
                     is_healthy,
                     failure_rate,
                     int(is_healthy),
+                    provider,
+                    model,
+                    model,
                     int(is_healthy),
                 ),
             )
-
             conn.commit()
             conn.close()
 
@@ -551,7 +652,7 @@ class TelemetryManager:
                     SELECT is_healthy, failure_rate, consecutive_failures, last_success_time
                     FROM provider_health
                     WHERE provider = ? AND model = ?
-                    ORDER BY last_check_time DESC
+                    ORDER BY last_check_time DESC, rowid DESC
                     LIMIT 1
                 """,
                     (provider, model),
@@ -992,7 +1093,9 @@ class TelemetryManager:
         except Exception as e:
             logger.error(f"Failed to mark LLM provider exhausted: {e}")
 
-    def reset_daily_llm_provider_credits(self, provider: Optional[str] = None, api_key: Optional[str] = None):
+    def reset_daily_llm_provider_credits(
+        self, provider: Optional[str] = None, api_key: Optional[str] = None
+    ):
         """Reset daily_renewable providers (or a single key) when reset_date has passed.
 
         When called with no args, resets all due daily_renewable entries (suitable for cron).
@@ -1035,9 +1138,7 @@ class TelemetryManager:
             affected = cursor.rowcount
             conn.close()
             if affected:
-                logger.info(
-                    f"Reset daily LLM provider credits for {affected} entries"
-                )
+                logger.info(f"Reset daily LLM provider credits for {affected} entries")
             return affected
 
         except Exception as e:

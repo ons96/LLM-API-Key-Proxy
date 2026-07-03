@@ -52,9 +52,7 @@ def _resolve_tz(tz_name: str):
         try:
             return ZoneInfo(tz_name)
         except Exception as e:  # pragma: no cover - defensive
-            logger.warning(
-                f"Unknown timezone '{tz_name}', falling back to UTC: {e}"
-            )
+            logger.warning(f"Unknown timezone '{tz_name}', falling back to UTC: {e}")
     return timezone.utc
 
 
@@ -167,9 +165,7 @@ class RateLimitTracker:
                 f"Failed to save active days to {self._active_days_path}: {e}"
             )
 
-    def configure_active_days_windows(
-        self, windows: Dict[str, Dict[str, Any]]
-    ) -> None:
+    def configure_active_days_windows(self, windows: Dict[str, Dict[str, Any]]) -> None:
         """Configure per-provider active-day window caps.
 
         Example::
@@ -194,9 +190,7 @@ class RateLimitTracker:
             f"{len(self._active_days_windows)} providers"
         )
 
-    def _prune_active_days(
-        self, provider: str, today: date_cls
-    ) -> Set[str]:
+    def _prune_active_days(self, provider: str, today: date_cls) -> Set[str]:
         """Drop active dates older than (today - window_days + 1)."""
         cfg = self._active_days_windows.get(provider)
         if not cfg:
@@ -209,9 +203,7 @@ class RateLimitTracker:
             existing -= to_remove
         return existing
 
-    def check_active_days(
-        self, provider: str
-    ) -> Tuple[bool, str, Dict[str, Any]]:
+    def check_active_days(self, provider: str) -> Tuple[bool, str, Dict[str, Any]]:
         """Check whether a provider may be used under its active-day window.
 
         Returns ``(allowed, reason, info)``. ``info`` is a dict with::
@@ -247,9 +239,7 @@ class RateLimitTracker:
         if used >= limit and pruned:
             oldest = date_cls.fromisoformat(min(pruned))
             unlock_date = oldest + timedelta(days=cfg["window_days"])
-            unlock_dt = datetime.combine(
-                unlock_date, dt_time(0, 0, 0), tzinfo=tz
-            )
+            unlock_dt = datetime.combine(unlock_date, dt_time(0, 0, 0), tzinfo=tz)
             info["next_slot_unlocks_on"] = unlock_dt.isoformat()
             return False, REASON_USAGE_CAP, info
         return True, "", info
@@ -275,9 +265,7 @@ class RateLimitTracker:
         existing.add(date_str)
         # Opportunistic prune on record
         today = _today_in_tz(cfg["tzinfo"])
-        cutoff_iso = (
-            today - timedelta(days=cfg["window_days"] - 1)
-        ).isoformat()
+        cutoff_iso = (today - timedelta(days=cfg["window_days"] - 1)).isoformat()
         to_remove = {d for d in existing if d < cutoff_iso}
         if to_remove:
             existing -= to_remove
@@ -347,6 +335,29 @@ class RateLimitTracker:
             # Check hard rate limit backoff
             if now < status.rate_limited_until:
                 return False, status.block_reason or REASON_RATE_LIMIT
+
+            # Restart survival: if no in-memory block is active, consult the
+            # persisted DB. A prior process may have recorded a rate-limit hit
+            # whose reset_time is still in the future. If so, restore the
+            # in-memory block and refuse. Runs only when in-memory has no
+            # active block so it never overrides a freshly-observed 429.
+            try:
+                from rotator_library.telemetry import get_telemetry_manager
+
+                is_limited, retry_after_ms = get_telemetry_manager().check_rate_limit(
+                    prov_name, model
+                )
+                if is_limited and retry_after_ms and retry_after_ms > 0:
+                    restored_until = now + (retry_after_ms / 1000.0)
+                    status.rate_limited_until = restored_until
+                    status.block_reason = REASON_RATE_LIMIT
+                    logger.info(
+                        f"Restored persisted rate-limit block for {key} "
+                        f"(retry_after={retry_after_ms}ms)"
+                    )
+                    return False, REASON_RATE_LIMIT
+            except Exception as e:
+                logger.debug(f"Could not consult persisted rate limit: {e}")
 
             # Active-days window check (on-the-fly; must run under lock so
             # pruning + check are consistent with the in-memory set). If the
@@ -493,6 +504,23 @@ class RateLimitTracker:
                 f"Provider {key} blocked ({reason}) until "
                 f"{datetime.fromtimestamp(block_until, tz=timezone.utc).isoformat()}"
             )
+
+        # Persist so a fresh process can restore the block before the reset
+        # time elapses (restart survival). Telemetry uses its own sqlite
+        # connection (outside the asyncio lock), so this is async-safe.
+        try:
+            from rotator_library.telemetry import get_telemetry_manager
+
+            reset_dt = datetime.fromtimestamp(block_until, tz=timezone.utc)
+            get_telemetry_manager().record_rate_limit_hit(
+                provider=prov_name,
+                model=model,
+                limit_type=("usage_cap" if reason == REASON_USAGE_CAP else "rpm"),
+                retry_after=retry_after,
+                reset_time=reset_dt.isoformat(),
+            )
+        except Exception as e:
+            logger.debug(f"Could not persist rate-limit hit: {e}")
 
     async def get_usage_stats(self) -> Dict[str, Any]:
         """Get current usage statistics, including active-day state per provider."""
