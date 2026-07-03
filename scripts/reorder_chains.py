@@ -177,7 +177,9 @@ def load_telemetry(
                 (cutoff,),
             )
         else:
-            logger.info("llm_events lacks concrete_provider/concrete_model; using alias columns")
+            logger.info(
+                "llm_events lacks concrete_provider/concrete_model; using alias columns"
+            )
             cur = conn.execute(
                 """
                 SELECT provider, model,
@@ -265,7 +267,9 @@ def compute_composite(
 
     success = max(0.0, min(1.0, stat.success_rate))
     tps_norm = max(0.0, min(1.0, stat.avg_tps / max_tps)) if max_tps > 0 else 0.0
-    ttft_norm = max(0.0, 1.0 - (stat.avg_ttft_ms / max_ttft_ms)) if max_ttft_ms > 0 else 0.0
+    ttft_norm = (
+        max(0.0, 1.0 - (stat.avg_ttft_ms / max_ttft_ms)) if max_ttft_ms > 0 else 0.0
+    )
     penalty_inv = 1.0 / (1.0 + max(0.0, penalty))
 
     score = (
@@ -310,9 +314,7 @@ def reorder_chain(
         entry = ChainEntry(provider, model, priority, idx)
         stat = stats.get((provider, model))
         pen = penalties.get((provider, model), 0.0)
-        score, reason = compute_composite(
-            stat, pen, min_samples, max_tps, max_ttft_ms
-        )
+        score, reason = compute_composite(stat, pen, min_samples, max_tps, max_ttft_ms)
         entries.append((entry, score, reason))
 
     # ponytail: stable sort — entries with score=-1 (insufficient samples)
@@ -333,6 +335,91 @@ def reorder_chain(
             f"  #{new_idx + 1} {entry.provider}/{entry.model}: score={score:.3f} — {reason}"
         )
     return new_chain, reasons
+
+
+# ---------------------------------------------------------------------------
+# Free-model baseline enforcement (#343)
+# ---------------------------------------------------------------------------
+
+
+def is_free_provider(provider: str, categories: Dict[str, object]) -> bool:
+    """True if the provider is classified as free-tier.
+
+    Duck-types ProviderCategory.kind from rank_models — avoids importing
+    rank_models here. Free kinds: free_unlimited, free_daily, free_one_time,
+    no_key. Anything else (paid, unknown, missing) is not free.
+    """
+    cat = categories.get(provider)
+    if cat is None:
+        return False
+    kind = getattr(cat, "kind", "paid")
+    return kind in ("free_unlimited", "free_daily", "free_one_time", "no_key")
+
+
+def apply_free_baseline(
+    chain: List[Dict],
+    score_lookup: Dict[Tuple[str, str], float],
+    categories: Dict[str, object],
+    baseline_floor_min: float = 0.0,
+) -> Tuple[List[Dict], List[str]]:
+    """Demote non-free entries scoring below the free-tier quality floor.
+
+    Baseline = min score among free entries with a valid (>=0) score.
+    Floor = max(baseline, baseline_floor_min). Any non-free entry with a
+    valid (>=0) score strictly below the floor is moved to a last-resort
+    priority slot (99, 100, ...). Entries with invalid scores (e.g. -1
+    insufficient samples) are never demoted — they keep their ranked
+    position so untested-but-potentially-good models aren't penalised.
+
+    Returns (new_chain, log_lines). When no free entries have valid scores,
+    returns the chain unchanged (current-behaviour fallback per #343).
+    """
+    free_scores = [
+        score_lookup.get((c.get("provider", ""), c.get("model", "")))
+        for c in chain
+        if is_free_provider(c.get("provider", ""), categories)
+    ]
+    free_scores = [s for s in free_scores if s is not None and s >= 0]
+    if not free_scores:
+        return chain, []  # no free data -> fall back to current behaviour
+
+    baseline = min(free_scores)
+    floor = max(baseline, baseline_floor_min)
+
+    kept: List[Dict] = []
+    demoted: List[Dict] = []
+    log_lines: List[str] = []
+    for c in chain:
+        provider = c.get("provider", "")
+        model = c.get("model", "")
+        score = score_lookup.get((provider, model))
+        if (
+            not is_free_provider(provider, categories)
+            and score is not None
+            and score >= 0
+            and score < floor
+        ):
+            demoted.append(c)
+            log_lines.append(
+                f"[BASELINE] {provider}/{model} score={score:.4f} "
+                f"demoted below free baseline {floor:.4f}"
+            )
+        else:
+            kept.append(c)
+
+    if not demoted:
+        return chain, log_lines  # order unchanged, but log_lines may be empty
+
+    new_chain: List[Dict] = []
+    for idx, c in enumerate(kept):
+        new_entry = dict(c)
+        new_entry["priority"] = idx + 1
+        new_chain.append(new_entry)
+    for idx, c in enumerate(demoted):
+        new_entry = dict(c)
+        new_entry["priority"] = 99 + idx
+        new_chain.append(new_entry)
+    return new_chain, log_lines
 
 
 def reorder_config(
@@ -382,8 +469,18 @@ def reorder_config(
             f"stats={len(stats)} pen={len(penalties)}"
         )
     else:
+        # #343: provider categories needed for the free-baseline filter even
+        # in composite mode. Loaded once, reused across all chains.
+        try:
+            rm = _get_rank_models()
+            cats = rm.load_provider_categories()
+        except Exception as exc:
+            logger.debug(
+                "provider categories unavailable, free-baseline skipped: %r",
+                exc,
+            )
         log_lines_intro = (
-            f"composite mode: stats={len(stats)} pen={len(penalties)}"
+            f"composite mode: stats={len(stats)} pen={len(penalties)} cats={len(cats)}"
         )
 
     log_lines: List[str] = [log_lines_intro]
@@ -400,6 +497,10 @@ def reorder_config(
             new_chain, reasons_raw = rm.rank_chain(
                 chain, stats, penalties, bench, cats, tier
             )
+            # Build score lookup from RankReason objects for #343 baseline.
+            score_lookup: Dict[Tuple[str, str], float] = {
+                (r.provider, r.model): r.score for r in reasons_raw
+            }
             reasons = [
                 f"  #{i + 1} {r.provider}/{r.model}: U={r.score:.4f} — {r.reason}"
                 for i, r in enumerate(reasons_raw)
@@ -408,6 +509,27 @@ def reorder_config(
             new_chain, reasons = reorder_chain(
                 chain, stats, penalties, min_samples, max_tps, max_ttft_ms
             )
+            # Build score lookup by recomputing composite per entry.
+            score_lookup = {}
+            for c in chain:
+                prov = c.get("provider", "")
+                mdl = c.get("model", "")
+                stat = stats.get((prov, mdl))
+                pen = penalties.get((prov, mdl), 0.0)
+                s, _ = compute_composite(stat, pen, min_samples, max_tps, max_ttft_ms)
+                score_lookup[(prov, mdl)] = s
+
+        # #343: free-model baseline — demote non-free entries scoring below
+        # the worst free entry to last-resort (priority 99). Only applies
+        # when provider categories are available.
+        if cats:
+            new_chain, baseline_logs = apply_free_baseline(
+                new_chain, score_lookup, cats
+            )
+            if baseline_logs:
+                log_lines.append(f"[{model_id}] free-baseline demotions:")
+                log_lines.extend(f"  {line}" for line in baseline_logs)
+
         new_order = [(c.get("provider"), c.get("model")) for c in new_chain]
         if new_order != original_order:
             reordered_count += 1
@@ -420,9 +542,7 @@ def reorder_config(
     # Update metadata.generated_at (if present) for audit trail.
     metadata = config.get("metadata", {})
     if metadata:
-        metadata["last_reorder_at"] = time.strftime(
-            "%Y-%m-%dT%H:%M:%SZ", time.gmtime()
-        )
+        metadata["last_reorder_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         metadata["last_reorder_stats"] = {
             "total_models": len(virtual_models),
             "reordered": reordered_count,
@@ -435,9 +555,7 @@ def reorder_config(
     if dry_run:
         log_lines.insert(1, f"DRY RUN — would rewrite {config_path}")
     else:
-        backup_path = config_path.with_suffix(
-            f".yaml.bak-{int(time.time())}"
-        )
+        backup_path = config_path.with_suffix(f".yaml.bak-{int(time.time())}")
         shutil.copy2(config_path, backup_path)
         logger.info("backed up %s -> %s", config_path, backup_path)
         with config_path.open("w") as f:
@@ -491,7 +609,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         default=DEFAULT_MAX_TTFT_MS,
         help=f"TTFT normalization ceiling in ms (default: {DEFAULT_MAX_TTFT_MS})",
     )
-    parser.add_argument("--dry-run", action="store_true", help="Print plan, don't write")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print plan, don't write"
+    )
     parser.add_argument("--verbose", "-v", action="store_true", help="Debug logging")
     parser.add_argument(
         "--use-u-formula",
