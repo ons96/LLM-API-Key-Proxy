@@ -54,7 +54,7 @@ providers:
     free_tier: true
     no_api_key_required: true
   gemini:
-    enabled: false
+    enabled: true
     env_var: GEMINI_API_KEY
     base_url: https://generativelanguage.googleapis.com/v1beta
     free_tier: true
@@ -66,7 +66,6 @@ providers:
     - gemma-3-27b-it
     - gemini-1.5-flash
     - gemini-1.5-pro
-    _auto_disabled_reason: HTTP 404
   cerebras:
     enabled: true
     env_var: CEREBRAS_API_KEY
@@ -221,7 +220,8 @@ providers:
     - minimax-m2.7
     - mimo-v2-pro
     - mimo-v2-omni
-    _auto_disabled_reason: Request URL is missing an 'http://' or 'https://' protocol.
+    _dead: true
+    _dead_reason: Railway app down — all routes return 404 JSON status page (audit 2026-07-03). Not recoverable.
   brave_search:
     enabled: true
     env_var: BRAVE_API_KEY
@@ -244,195 +244,6 @@ providers:
     env_var: JINA_API_KEY
     free_tier: true
     no_api_key_required: true
-  router/best-coding:
-    description: Best for coding tasks
-    candidates:
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 1
-      capabilities:
-      - tools
-      - function_calling
-    - provider: gemini
-      model: gemini-3-pro
-      priority: 2
-      capabilities:
-      - tools
-      - function_calling
-      fallback_only: true
-    - provider: g4f
-      model: gpt-4
-      priority: 3
-      fallback_only: true
-  router/best-reasoning:
-    description: Best for reasoning and analysis
-    candidates:
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 1
-      capabilities:
-      - reasoning
-    - provider: gemini
-      model: gemini-3-pro
-      priority: 2
-      capabilities:
-      - reasoning
-      - long_context
-      fallback_only: true
-  router/best-research:
-    description: Best for research with search capabilities
-    candidates:
-    - provider: gemini
-      model: gemini-3-pro
-      priority: 1
-      capabilities:
-      - tools
-      - long_context
-      search_enabled: true
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 2
-      capabilities:
-      - tools
-      search_enabled: true
-      fallback_only: true
-  router/best-chat:
-    description: Best for general chat
-    candidates:
-    - provider: groq
-      model: llama-3.1-8b-instant
-      priority: 1
-      capabilities:
-      - fast
-    - provider: gemini
-      model: gemini-2.5-flash
-      priority: 2
-      capabilities:
-      - fast
-      fallback_only: true
-    - provider: g4f
-      model: gpt-3.5-turbo
-      priority: 3
-      fallback_only: true
-  router/best-coding-moe:
-    description: Committee/MoE mode for coding
-    moe_mode: true
-    max_experts: 3
-    aggregator_model: groq/llama-3.3-70b-versatile
-    candidates:
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      role: expert-architect
-    - provider: gemini
-      model: gemini-3-pro
-      role: expert-secure-coding
-    - provider: groq
-      model: mixtral-8x7b-32768
-      role: expert-optimization
-      fallback_only: true
-  coding-smart:
-    description: Best models for complex coding tasks (Free tier)
-    candidates:
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 1
-      capabilities:
-      - tools
-      - function_calling
-      - reasoning
-    - provider: cerebras
-      model: llama-3.3-70b
-      priority: 2
-      capabilities:
-      - tools
-      - function_calling
-      - reasoning
-    - provider: gemini
-      model: gemini-2.5-flash
-      priority: 3
-      capabilities:
-      - tools
-      - function_calling
-      - fast
-    - provider: gemini
-      model: gemini-2.5-pro
-      priority: 4
-      capabilities:
-      - tools
-      - function_calling
-      - reasoning
-      fallback_only: true
-    - provider: g4f_nvidia
-      model: meta/llama-3.3-70b-instruct
-      priority: 5
-      capabilities:
-      - tools
-      - function_calling
-      fallback_only: true
-    - provider: g4f_nvidia
-      model: deepseek-ai/deepseek-v3.1
-      priority: 6
-      capabilities:
-      - tools
-      - function_calling
-      fallback_only: true
-    - provider: g4f
-      model: gpt-4
-      priority: 7
-      fallback_only: true
-  coding-fast:
-    description: Fastest models for quick coding tasks (Free tier)
-    candidates:
-    - provider: groq
-      model: llama-3.1-8b-instant
-      priority: 1
-      capabilities:
-      - tools
-      - function_calling
-      - fast
-    - provider: gemini
-      model: gemini-2.5-flash
-      priority: 2
-      fallback_only: true
-    - provider: g4f
-      model: gpt-4
-      priority: 3
-      fallback_only: true
-  chat-smart:
-    description: High intelligence chat models (Free tier)
-    candidates:
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 1
-      capabilities:
-      - tools
-      - function_calling
-      - reasoning
-    - provider: gemini
-      model: gemini-1.5-pro
-      priority: 2
-      fallback_only: true
-    - provider: g4f
-      model: gpt-4
-      priority: 3
-      fallback_only: true
-  chat-fast:
-    description: Low latency chat models (Free tier)
-    candidates:
-    - provider: groq
-      model: llama-3.1-8b-instant
-      priority: 1
-      capabilities:
-      - fast
-      - tools
-    - provider: gemini
-      model: gemini-2.5-flash
-      priority: 2
-      fallback_only: true
-    - provider: g4f
-      model: gpt-3.5-turbo
-      priority: 3
-      fallback_only: true
   g4f_nvidia:
     enabled: true
     env_var: G4F_NVIDIA_API_KEY
@@ -635,7 +446,8 @@ providers:
     free_tier: true
     free_tier_models:
     - auto
-    _auto_disabled_reason: HTTP 404
+    _dead: true
+    _dead_reason: No OpenAI-compat API at base_url — all /v1 routes 404 (nginx), root 200 only (audit 2026-07-03). Base URL wrong or API removed.
   xinjianya:
     enabled: false
     env_var: XINJIANYA_API_KEY
@@ -652,7 +464,8 @@ providers:
     - z-ai/glm5
     - moonshotai/kimi-k2.5
     - minimaxai/minimax-m2.5
-    _auto_disabled_reason: '[Errno -2] Name or service not known'
+    _dead: true
+    _dead_reason: DNS fail — Name or service not known (audit 2026-07-03). Domain dead.
   freemodel:
     enabled: true
     env_var: FREEMODEL_API_KEY
