@@ -102,6 +102,26 @@ class HealthChecker:
             provider_name, status = result
             self.provider_status[provider_name] = status
 
+            # Persist to telemetry so router scoring + restart survival see
+            # real health state. Maps "healthy" -> True, everything else
+            # (unhealthy/error/skipped) -> False with the ping latency when
+            # available.
+            try:
+                from rotator_library.telemetry import get_telemetry_manager
+
+                is_healthy = status.get("status") == "healthy"
+                latency = status.get("avg_latency_ms")
+                get_telemetry_manager().update_provider_health(
+                    provider=provider_name,
+                    model=status.get("model_used"),
+                    is_healthy=is_healthy,
+                    failure_rate=0.0 if is_healthy else 1.0,
+                )
+                if latency is not None:
+                    _ = latency  # available for future latency-aware scoring
+            except Exception as e:
+                logger.debug(f"Could not persist health for {provider_name}: {e}")
+
     async def _ping_provider(self, provider: str, model: str) -> bool:
         """Send a minimal request to the provider."""
         try:

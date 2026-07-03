@@ -63,6 +63,66 @@ def export_telemetry_summary(hours: int = 168):
             "max_latency_ms": round(row["max_latency_ms"] or 0, 1),
         }
 
+    # Active rate-limit blocks (latest row per provider/model with a future
+    # reset_time). Feeds router cooldown decisions + phase-router diagnostics.
+    cursor.execute(
+        """
+        SELECT provider, model, limit_type, current_count, limit_limit,
+               reset_time, last_updated
+        FROM rate_limits
+        WHERE reset_time IS NOT NULL
+          AND (provider, model, last_updated) IN (
+              SELECT provider, model, MAX(last_updated)
+              FROM rate_limits
+              GROUP BY provider, model
+          )
+    """
+    )
+    rate_limits = {}
+    now = datetime.now()
+    for row in cursor.fetchall():
+        reset_time = row["reset_time"]
+        try:
+            reset_dt = datetime.fromisoformat(reset_time)
+            retry_after_ms = max(0, int((reset_dt - now).total_seconds() * 1000))
+        except (ValueError, TypeError):
+            retry_after_ms = None
+        rate_limits[f"{row['provider']}/{row['model']}"] = {
+            "provider": row["provider"],
+            "model": row["model"],
+            "limit_type": row["limit_type"],
+            "current_count": row["current_count"],
+            "limit_limit": row["limit_limit"],
+            "reset_time": reset_time,
+            "retry_after_ms": retry_after_ms,
+            "last_updated": row["last_updated"],
+        }
+
+    # Latest health snapshot per provider/model (most recent check).
+    cursor.execute(
+        """
+        SELECT provider, model, is_healthy, failure_rate,
+               consecutive_failures, last_check_time, last_success_time
+        FROM provider_health
+        WHERE (provider, model, last_check_time) IN (
+            SELECT provider, model, MAX(last_check_time)
+            FROM provider_health
+            GROUP BY provider, model
+        )
+    """
+    )
+    health = {}
+    for row in cursor.fetchall():
+        health[f"{row['provider']}/{row['model'] or '*'}"] = {
+            "provider": row["provider"],
+            "model": row["model"],
+            "is_healthy": bool(row["is_healthy"]),
+            "failure_rate": row["failure_rate"] or 0,
+            "consecutive_failures": row["consecutive_failures"] or 0,
+            "last_check_time": row["last_check_time"],
+            "last_success_time": row["last_success_time"],
+        }
+
     conn.close()
 
     summary = {
@@ -71,6 +131,8 @@ def export_telemetry_summary(hours: int = 168):
         "total_providers": len(set(p.split("/")[0] for p in providers.keys())),
         "total_models": len(providers),
         "providers": providers,
+        "rate_limits": rate_limits,
+        "provider_health": health,
     }
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
