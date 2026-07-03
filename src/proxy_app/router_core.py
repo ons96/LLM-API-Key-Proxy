@@ -1925,8 +1925,16 @@ class RouterCore:
 
             except Exception as e:
                 last_error = e
-                error_classification = await self._classify_error(e)
-                error_category = error_classification[0]
+                error_category, retry_after = await self._classify_error(e)
+                error_str = str(e).lower()
+
+                await self._apply_error_cooldown(
+                    candidate.provider,
+                    candidate.model,
+                    error_category,
+                    retry_after,
+                    error_str,
+                )
 
                 logger.warning(
                     f"[{request_id}] Stream candidate {candidate.provider}/{candidate.model} failed "
