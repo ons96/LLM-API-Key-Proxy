@@ -28,22 +28,23 @@ CONFIG_DIR = PROJECT_ROOT / "config"
 # 2. SWE-bench + Agentic coding get highest combined weight for coding
 # 3. Logarithmic TPS scaling prevents ultra-fast from dominating
 WEIGHTS = {
+    # ponytail: 80/15/5 split (agentic_family/tps/hallucination) per DESIGN.md #341
     "coding-elite": {
         # Agentic coding benchmarks dominate - actual measure of ability
-        "swe_bench": 0.35,  # Primary: SWE-bench (most reliable)
-        "agentic": 0.30,  # Secondary: Agentic coding composite
-        "livecodebench": 0.18,  # LiveBench coding
-        "humaneval": 0.12,  # Classic coding benchmark
-        "tps": 0.03,  # Minimal speed weight (was 0.10)
-        "hallucination_penalty": 0.02,
+        "swe_bench": 0.30,  # Primary: SWE-bench (most reliable)
+        "agentic": 0.25,  # Secondary: Agentic coding composite
+        "livecodebench": 0.15,  # LiveBench coding
+        "humaneval": 0.10,  # Classic coding benchmark
+        "tps": 0.15,
+        "hallucination_penalty": 0.05,
     },
     "coding-smart": {
-        "swe_bench": 0.30,
-        "agentic": 0.25,
+        "swe_bench": 0.28,
+        "agentic": 0.22,
         "livecodebench": 0.15,
-        "humaneval": 0.12,
-        "tps": 0.08,  # Slightly higher for "smart but reasonable"
-        "hallucination_penalty": 0.10,
+        "humaneval": 0.15,
+        "tps": 0.15,
+        "hallucination_penalty": 0.05,
     },
     "coding-fast": {
         "swe_bench": 0.22,  # Still need quality floor
