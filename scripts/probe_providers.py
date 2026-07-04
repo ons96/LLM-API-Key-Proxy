@@ -30,6 +30,14 @@ from typing import Any, Dict, List, Optional, Tuple
 import yaml
 from openai import OpenAI
 
+# ponytail: load .env so standalone probe sees provider API keys (gateway loads
+# it at startup via dotenv; standalone scripts do not). Graceful no-op if missing.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+except ImportError:
+    pass
+
 # Make src importable when run from repo root. TelemetryManager is imported
 # lazily inside run() so this module can be imported without litellm (which
 # rotator_library/__init__ pulls in transitively) — keeps unit tests hermetic.
