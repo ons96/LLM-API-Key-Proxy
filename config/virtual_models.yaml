@@ -1,5 +1,5 @@
 metadata:
-  generated_at: '2026-07-03T06:02:04.363691+00:00'
+  generated_at: '2026-07-04T05:54:34.429937+00:00'
   sources:
   - models.dev
   - telemetry
@@ -737,65 +737,65 @@ virtual_models:
   agent-oracle:
     description: Optimized for oracle agent - ['accuracy', 'depth']
     fallback_chain:
-    - provider: github-models
-      model: ai21-labs/ai21-jamba-1.5-mini
+    - provider: nvidia
+      model: baai/bge-m3
       priority: 1
-    - provider: github-models
-      model: ai21-labs/ai21-jamba-1.5-large
+    - provider: nvidia
+      model: moonshotai/kimi-k2-instruct-0905
       priority: 2
-    - provider: github-models
-      model: core42/jais-30b-chat
+    - provider: nvidia
+      model: moonshotai/kimi-k2.6
       priority: 3
-    - provider: github-models
-      model: xai/grok-3-mini
+    - provider: nvidia
+      model: minimaxai/minimax-m3
       priority: 4
-    - provider: github-models
-      model: xai/grok-3
+    - provider: nvidia
+      model: minimaxai/minimax-m2.7
       priority: 5
-    - provider: github-models
-      model: microsoft/phi-3.5-moe-instruct
+    - provider: nvidia
+      model: stepfun-ai/step-3.7-flash
       priority: 6
-    - provider: github-models
-      model: microsoft/phi-3-small-128k-instruct
+    - provider: nvidia
+      model: stepfun-ai/step-3.5-flash
       priority: 7
-    - provider: github-models
-      model: microsoft/phi-3.5-mini-instruct
+    - provider: nvidia
+      model: google/gemma-3n-e4b-it
       priority: 8
-    - provider: github-models
-      model: microsoft/phi-3-medium-128k-instruct
+    - provider: nvidia
+      model: google/gemma-3n-e2b-it
       priority: 9
-    - provider: github-models
-      model: microsoft/phi-3-small-8k-instruct
+    - provider: nvidia
+      model: google/google-paligemma
       priority: 10
-    - provider: github-models
-      model: microsoft/phi-4-reasoning
+    - provider: nvidia
+      model: google/gemma-4-31b-it
       priority: 11
-    - provider: github-models
-      model: microsoft/mai-ds-r1
+    - provider: nvidia
+      model: google/gemma-2-2b-it
       priority: 12
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-mini-instruct
       priority: 13
-    - provider: github-models
-      model: microsoft/phi-4
-      priority: 14
-    - provider: github-models
-      model: microsoft/phi-3.5-vision-instruct
-      priority: 15
-    - provider: github-models
-      model: microsoft/phi-3-medium-4k-instruct
-      priority: 16
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-multimodal-instruct
+      priority: 14
+    - provider: nvidia
+      model: z-ai/glm-5.2
+      priority: 15
+    - provider: nvidia
+      model: openai/gpt-oss-120b
+      priority: 16
+    - provider: nvidia
+      model: openai/gpt-oss-20b
       priority: 17
-    - provider: github-models
-      model: microsoft/phi-4-mini-reasoning
+    - provider: nvidia
+      model: bytedance/seed-oss-36b-instruct
       priority: 18
-    - provider: github-models
-      model: microsoft/phi-3-mini-128k-instruct
+    - provider: nvidia
+      model: mistralai/mistral-7b-instruct-v03
       priority: 19
-    - provider: github-models
-      model: microsoft/phi-3-mini-4k-instruct
+    - provider: nvidia
+      model: mistralai/magistral-small-2506
       priority: 20
     settings:
       timeout_ms: 180000
@@ -803,65 +803,65 @@ virtual_models:
   agent-explore:
     description: Optimized for explore agent - ['latency', 'throughput']
     fallback_chain:
-    - provider: github-models
-      model: ai21-labs/ai21-jamba-1.5-mini
+    - provider: nvidia
+      model: baai/bge-m3
       priority: 1
-    - provider: github-models
-      model: ai21-labs/ai21-jamba-1.5-large
+    - provider: nvidia
+      model: moonshotai/kimi-k2-instruct-0905
       priority: 2
-    - provider: github-models
-      model: core42/jais-30b-chat
+    - provider: nvidia
+      model: moonshotai/kimi-k2.6
       priority: 3
-    - provider: github-models
-      model: xai/grok-3-mini
+    - provider: nvidia
+      model: minimaxai/minimax-m3
       priority: 4
-    - provider: github-models
-      model: xai/grok-3
+    - provider: nvidia
+      model: minimaxai/minimax-m2.7
       priority: 5
-    - provider: github-models
-      model: microsoft/phi-3.5-moe-instruct
+    - provider: nvidia
+      model: stepfun-ai/step-3.7-flash
       priority: 6
-    - provider: github-models
-      model: microsoft/phi-3-small-128k-instruct
+    - provider: nvidia
+      model: stepfun-ai/step-3.5-flash
       priority: 7
-    - provider: github-models
-      model: microsoft/phi-3.5-mini-instruct
+    - provider: nvidia
+      model: google/gemma-3n-e4b-it
       priority: 8
-    - provider: github-models
-      model: microsoft/phi-3-medium-128k-instruct
+    - provider: nvidia
+      model: google/gemma-3n-e2b-it
       priority: 9
-    - provider: github-models
-      model: microsoft/phi-3-small-8k-instruct
+    - provider: nvidia
+      model: google/google-paligemma
       priority: 10
-    - provider: github-models
-      model: microsoft/phi-4-reasoning
+    - provider: nvidia
+      model: google/gemma-4-31b-it
       priority: 11
-    - provider: github-models
-      model: microsoft/mai-ds-r1
+    - provider: nvidia
+      model: google/gemma-2-2b-it
       priority: 12
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-mini-instruct
       priority: 13
-    - provider: github-models
-      model: microsoft/phi-4
-      priority: 14
-    - provider: github-models
-      model: microsoft/phi-3.5-vision-instruct
-      priority: 15
-    - provider: github-models
-      model: microsoft/phi-3-medium-4k-instruct
-      priority: 16
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-multimodal-instruct
+      priority: 14
+    - provider: nvidia
+      model: z-ai/glm-5.2
+      priority: 15
+    - provider: nvidia
+      model: openai/gpt-oss-120b
+      priority: 16
+    - provider: nvidia
+      model: openai/gpt-oss-20b
       priority: 17
-    - provider: github-models
-      model: microsoft/phi-4-mini-reasoning
+    - provider: nvidia
+      model: bytedance/seed-oss-36b-instruct
       priority: 18
-    - provider: github-models
-      model: microsoft/phi-3-mini-128k-instruct
+    - provider: nvidia
+      model: mistralai/mistral-7b-instruct-v03
       priority: 19
-    - provider: github-models
-      model: microsoft/phi-3-mini-4k-instruct
+    - provider: nvidia
+      model: mistralai/magistral-small-2506
       priority: 20
     settings:
       timeout_ms: 120000
@@ -869,65 +869,65 @@ virtual_models:
   agent-librarian:
     description: Optimized for librarian agent - ['availability', 'reliability']
     fallback_chain:
-    - provider: github-models
-      model: ai21-labs/ai21-jamba-1.5-mini
+    - provider: nvidia
+      model: baai/bge-m3
       priority: 1
-    - provider: github-models
-      model: ai21-labs/ai21-jamba-1.5-large
+    - provider: nvidia
+      model: moonshotai/kimi-k2-instruct-0905
       priority: 2
-    - provider: github-models
-      model: core42/jais-30b-chat
+    - provider: nvidia
+      model: moonshotai/kimi-k2.6
       priority: 3
-    - provider: github-models
-      model: xai/grok-3-mini
+    - provider: nvidia
+      model: minimaxai/minimax-m3
       priority: 4
-    - provider: github-models
-      model: xai/grok-3
+    - provider: nvidia
+      model: minimaxai/minimax-m2.7
       priority: 5
-    - provider: github-models
-      model: microsoft/phi-3.5-moe-instruct
+    - provider: nvidia
+      model: stepfun-ai/step-3.7-flash
       priority: 6
-    - provider: github-models
-      model: microsoft/phi-3-small-128k-instruct
+    - provider: nvidia
+      model: stepfun-ai/step-3.5-flash
       priority: 7
-    - provider: github-models
-      model: microsoft/phi-3.5-mini-instruct
+    - provider: nvidia
+      model: google/gemma-3n-e4b-it
       priority: 8
-    - provider: github-models
-      model: microsoft/phi-3-medium-128k-instruct
+    - provider: nvidia
+      model: google/gemma-3n-e2b-it
       priority: 9
-    - provider: github-models
-      model: microsoft/phi-3-small-8k-instruct
+    - provider: nvidia
+      model: google/google-paligemma
       priority: 10
-    - provider: github-models
-      model: microsoft/phi-4-reasoning
+    - provider: nvidia
+      model: google/gemma-4-31b-it
       priority: 11
-    - provider: github-models
-      model: microsoft/mai-ds-r1
+    - provider: nvidia
+      model: google/gemma-2-2b-it
       priority: 12
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-mini-instruct
       priority: 13
-    - provider: github-models
-      model: microsoft/phi-4
-      priority: 14
-    - provider: github-models
-      model: microsoft/phi-3.5-vision-instruct
-      priority: 15
-    - provider: github-models
-      model: microsoft/phi-3-medium-4k-instruct
-      priority: 16
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-multimodal-instruct
+      priority: 14
+    - provider: nvidia
+      model: z-ai/glm-5.2
+      priority: 15
+    - provider: nvidia
+      model: openai/gpt-oss-120b
+      priority: 16
+    - provider: nvidia
+      model: openai/gpt-oss-20b
       priority: 17
-    - provider: github-models
-      model: microsoft/phi-4-mini-reasoning
+    - provider: nvidia
+      model: bytedance/seed-oss-36b-instruct
       priority: 18
-    - provider: github-models
-      model: microsoft/phi-3-mini-128k-instruct
+    - provider: nvidia
+      model: mistralai/mistral-7b-instruct-v03
       priority: 19
-    - provider: github-models
-      model: microsoft/phi-3-mini-4k-instruct
+    - provider: nvidia
+      model: mistralai/magistral-small-2506
       priority: 20
     settings:
       timeout_ms: 120000
@@ -935,65 +935,65 @@ virtual_models:
   agent-build:
     description: Optimized for build agent - ['balanced']
     fallback_chain:
-    - provider: github-models
-      model: ai21-labs/ai21-jamba-1.5-mini
+    - provider: nvidia
+      model: baai/bge-m3
       priority: 1
-    - provider: github-models
-      model: ai21-labs/ai21-jamba-1.5-large
+    - provider: nvidia
+      model: moonshotai/kimi-k2-instruct-0905
       priority: 2
-    - provider: github-models
-      model: core42/jais-30b-chat
+    - provider: nvidia
+      model: moonshotai/kimi-k2.6
       priority: 3
-    - provider: github-models
-      model: xai/grok-3-mini
+    - provider: nvidia
+      model: minimaxai/minimax-m3
       priority: 4
-    - provider: github-models
-      model: xai/grok-3
+    - provider: nvidia
+      model: minimaxai/minimax-m2.7
       priority: 5
-    - provider: github-models
-      model: microsoft/phi-3.5-moe-instruct
+    - provider: nvidia
+      model: stepfun-ai/step-3.7-flash
       priority: 6
-    - provider: github-models
-      model: microsoft/phi-3-small-128k-instruct
+    - provider: nvidia
+      model: stepfun-ai/step-3.5-flash
       priority: 7
-    - provider: github-models
-      model: microsoft/phi-3.5-mini-instruct
+    - provider: nvidia
+      model: google/gemma-3n-e4b-it
       priority: 8
-    - provider: github-models
-      model: microsoft/phi-3-medium-128k-instruct
+    - provider: nvidia
+      model: google/gemma-3n-e2b-it
       priority: 9
-    - provider: github-models
-      model: microsoft/phi-3-small-8k-instruct
+    - provider: nvidia
+      model: google/google-paligemma
       priority: 10
-    - provider: github-models
-      model: microsoft/phi-4-reasoning
+    - provider: nvidia
+      model: google/gemma-4-31b-it
       priority: 11
-    - provider: github-models
-      model: microsoft/mai-ds-r1
+    - provider: nvidia
+      model: google/gemma-2-2b-it
       priority: 12
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-mini-instruct
       priority: 13
-    - provider: github-models
-      model: microsoft/phi-4
-      priority: 14
-    - provider: github-models
-      model: microsoft/phi-3.5-vision-instruct
-      priority: 15
-    - provider: github-models
-      model: microsoft/phi-3-medium-4k-instruct
-      priority: 16
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-multimodal-instruct
+      priority: 14
+    - provider: nvidia
+      model: z-ai/glm-5.2
+      priority: 15
+    - provider: nvidia
+      model: openai/gpt-oss-120b
+      priority: 16
+    - provider: nvidia
+      model: openai/gpt-oss-20b
       priority: 17
-    - provider: github-models
-      model: microsoft/phi-4-mini-reasoning
+    - provider: nvidia
+      model: bytedance/seed-oss-36b-instruct
       priority: 18
-    - provider: github-models
-      model: microsoft/phi-3-mini-128k-instruct
+    - provider: nvidia
+      model: mistralai/mistral-7b-instruct-v03
       priority: 19
-    - provider: github-models
-      model: microsoft/phi-3-mini-4k-instruct
+    - provider: nvidia
+      model: mistralai/magistral-small-2506
       priority: 20
     settings:
       timeout_ms: 120000
@@ -1001,65 +1001,65 @@ virtual_models:
   agent-metis:
     description: Optimized for metis agent - ['accuracy']
     fallback_chain:
-    - provider: github-models
-      model: ai21-labs/ai21-jamba-1.5-mini
+    - provider: nvidia
+      model: baai/bge-m3
       priority: 1
-    - provider: github-models
-      model: ai21-labs/ai21-jamba-1.5-large
+    - provider: nvidia
+      model: moonshotai/kimi-k2-instruct-0905
       priority: 2
-    - provider: github-models
-      model: core42/jais-30b-chat
+    - provider: nvidia
+      model: moonshotai/kimi-k2.6
       priority: 3
-    - provider: github-models
-      model: xai/grok-3-mini
+    - provider: nvidia
+      model: minimaxai/minimax-m3
       priority: 4
-    - provider: github-models
-      model: xai/grok-3
+    - provider: nvidia
+      model: minimaxai/minimax-m2.7
       priority: 5
-    - provider: github-models
-      model: microsoft/phi-3.5-moe-instruct
+    - provider: nvidia
+      model: stepfun-ai/step-3.7-flash
       priority: 6
-    - provider: github-models
-      model: microsoft/phi-3-small-128k-instruct
+    - provider: nvidia
+      model: stepfun-ai/step-3.5-flash
       priority: 7
-    - provider: github-models
-      model: microsoft/phi-3.5-mini-instruct
+    - provider: nvidia
+      model: google/gemma-3n-e4b-it
       priority: 8
-    - provider: github-models
-      model: microsoft/phi-3-medium-128k-instruct
+    - provider: nvidia
+      model: google/gemma-3n-e2b-it
       priority: 9
-    - provider: github-models
-      model: microsoft/phi-3-small-8k-instruct
+    - provider: nvidia
+      model: google/google-paligemma
       priority: 10
-    - provider: github-models
-      model: microsoft/phi-4-reasoning
+    - provider: nvidia
+      model: google/gemma-4-31b-it
       priority: 11
-    - provider: github-models
-      model: microsoft/mai-ds-r1
+    - provider: nvidia
+      model: google/gemma-2-2b-it
       priority: 12
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-mini-instruct
       priority: 13
-    - provider: github-models
-      model: microsoft/phi-4
-      priority: 14
-    - provider: github-models
-      model: microsoft/phi-3.5-vision-instruct
-      priority: 15
-    - provider: github-models
-      model: microsoft/phi-3-medium-4k-instruct
-      priority: 16
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-multimodal-instruct
+      priority: 14
+    - provider: nvidia
+      model: z-ai/glm-5.2
+      priority: 15
+    - provider: nvidia
+      model: openai/gpt-oss-120b
+      priority: 16
+    - provider: nvidia
+      model: openai/gpt-oss-20b
       priority: 17
-    - provider: github-models
-      model: microsoft/phi-4-mini-reasoning
+    - provider: nvidia
+      model: bytedance/seed-oss-36b-instruct
       priority: 18
-    - provider: github-models
-      model: microsoft/phi-3-mini-128k-instruct
+    - provider: nvidia
+      model: mistralai/mistral-7b-instruct-v03
       priority: 19
-    - provider: github-models
-      model: microsoft/phi-3-mini-4k-instruct
+    - provider: nvidia
+      model: mistralai/magistral-small-2506
       priority: 20
     settings:
       timeout_ms: 180000
@@ -1067,65 +1067,65 @@ virtual_models:
   agent-momus:
     description: Optimized for momus agent - ['quality']
     fallback_chain:
-    - provider: github-models
-      model: ai21-labs/ai21-jamba-1.5-mini
+    - provider: nvidia
+      model: baai/bge-m3
       priority: 1
-    - provider: github-models
-      model: ai21-labs/ai21-jamba-1.5-large
+    - provider: nvidia
+      model: moonshotai/kimi-k2-instruct-0905
       priority: 2
-    - provider: github-models
-      model: core42/jais-30b-chat
+    - provider: nvidia
+      model: moonshotai/kimi-k2.6
       priority: 3
-    - provider: github-models
-      model: xai/grok-3-mini
+    - provider: nvidia
+      model: minimaxai/minimax-m3
       priority: 4
-    - provider: github-models
-      model: xai/grok-3
+    - provider: nvidia
+      model: minimaxai/minimax-m2.7
       priority: 5
-    - provider: github-models
-      model: microsoft/phi-3.5-moe-instruct
+    - provider: nvidia
+      model: stepfun-ai/step-3.7-flash
       priority: 6
-    - provider: github-models
-      model: microsoft/phi-3-small-128k-instruct
+    - provider: nvidia
+      model: stepfun-ai/step-3.5-flash
       priority: 7
-    - provider: github-models
-      model: microsoft/phi-3.5-mini-instruct
+    - provider: nvidia
+      model: google/gemma-3n-e4b-it
       priority: 8
-    - provider: github-models
-      model: microsoft/phi-3-medium-128k-instruct
+    - provider: nvidia
+      model: google/gemma-3n-e2b-it
       priority: 9
-    - provider: github-models
-      model: microsoft/phi-3-small-8k-instruct
+    - provider: nvidia
+      model: google/google-paligemma
       priority: 10
-    - provider: github-models
-      model: microsoft/phi-4-reasoning
+    - provider: nvidia
+      model: google/gemma-4-31b-it
       priority: 11
-    - provider: github-models
-      model: microsoft/mai-ds-r1
+    - provider: nvidia
+      model: google/gemma-2-2b-it
       priority: 12
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-mini-instruct
       priority: 13
-    - provider: github-models
-      model: microsoft/phi-4
-      priority: 14
-    - provider: github-models
-      model: microsoft/phi-3.5-vision-instruct
-      priority: 15
-    - provider: github-models
-      model: microsoft/phi-3-medium-4k-instruct
-      priority: 16
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-multimodal-instruct
+      priority: 14
+    - provider: nvidia
+      model: z-ai/glm-5.2
+      priority: 15
+    - provider: nvidia
+      model: openai/gpt-oss-120b
+      priority: 16
+    - provider: nvidia
+      model: openai/gpt-oss-20b
       priority: 17
-    - provider: github-models
-      model: microsoft/phi-4-mini-reasoning
+    - provider: nvidia
+      model: bytedance/seed-oss-36b-instruct
       priority: 18
-    - provider: github-models
-      model: microsoft/phi-3-mini-128k-instruct
+    - provider: nvidia
+      model: mistralai/mistral-7b-instruct-v03
       priority: 19
-    - provider: github-models
-      model: microsoft/phi-3-mini-4k-instruct
+    - provider: nvidia
+      model: mistralai/magistral-small-2506
       priority: 20
     settings:
       timeout_ms: 180000
