@@ -35,58 +35,77 @@ class DynamicScoringEngine:
     providers are skipped at runtime instead.
     """
 
+    # ponytail: 80/15/5 per DESIGN.md #341 (agentic/tps/availability).
+    # Hallucination is a subtractive penalty, NOT part of the 80/15/5 split,
+    # so weight sums below exclude it. Availability IS now scored (5%).
     CATEGORY_WEIGHTS = {
         "coding-elite": {
-            "agentic": 0.75,
+            "agentic": 0.80,
             "tps": 0.15,
+            "availability": 0.05,
             "hallucination_penalty": 0.10,
         },
         "coding-smart": {
-            "agentic": 0.65,
-            "tps": 0.20,
+            "agentic": 0.80,
+            "tps": 0.15,
+            "availability": 0.05,
             "hallucination_penalty": 0.15,
         },
         "coding-fast": {
-            "agentic": 0.30,
-            "tps": 0.55,
+            "agentic": 0.80,
+            "tps": 0.15,
+            "availability": 0.05,
             "hallucination_penalty": 0.15,
         },
         "chat-elite": {
             "intelligence": 0.80,
+            "tps": 0.15,
+            "availability": 0.05,
             "hallucination_penalty": 0.20,
         },
         "chat-smart": {
-            "intelligence": 0.50,
-            "tps": 0.30,
+            "intelligence": 0.80,
+            "tps": 0.15,
+            "availability": 0.05,
             "hallucination_penalty": 0.20,
         },
         "chat-fast": {
-            "tps": 0.60,
-            "intelligence": 0.20,
+            "intelligence": 0.80,
+            "tps": 0.15,
+            "availability": 0.05,
             "hallucination_penalty": 0.20,
         },
     }
 
     CODING_WEIGHTS = {
-        "agentic": 0.75,
+        "agentic": 0.80,
         "tps": 0.15,
+        "availability": 0.05,
         "hallucination_penalty": 0.10,
     }
 
     CHAT_WEIGHTS = {
-        "intelligence": 0.60,
-        "tps": 0.25,
+        "intelligence": 0.80,
+        "tps": 0.15,
+        "availability": 0.05,
         "hallucination_penalty": 0.15,
     }
 
+    # ponytail: SWE-bench floors per #341. Below-floor models demoted to
+    # last-resort priority slot, NOT excluded (chain stays resilient).
     THRESHOLDS = {
-        "coding-elite": 75.0,
+        "coding-elite": 70.0,
         "coding-smart": 65.0,
-        "coding-fast": 40.0,
+        "coding-fast": 0.0,  # fast tier: no SWE floor, speed-first
         "chat-elite": 0.0,
         "chat-smart": 0.0,
         "chat-fast": 0.0,
     }
+
+    # ponytail: free-model baseline = worst available free model's agentic
+    # score. Models below baseline excluded from coding-* chains entirely.
+    # Upgraded to per-tier if FREEDOT_BASELINES set, else computed at load.
+    FREE_BASELINE_FLOOR = 30.0  # hard floor; computed baseline >= this
 
     def __init__(
         self,
@@ -116,11 +135,43 @@ class DynamicScoringEngine:
 
             self._rankings_cache = rankings
             self._last_refresh = time.time()
+            self._compute_free_baseline(rankings)
             return rankings
 
         except Exception as e:
             logger.error(f"Failed to load model rankings: {e}")
             return {}
+
+    def _compute_free_baseline(self, rankings: Dict[str, Dict]) -> None:
+        """Compute the free-model baseline: worst agentic score among free
+        providers. Models scoring below this are excluded from coding chains.
+        Runs at load + every reload (per #341 acceptance criterion 5).
+        """
+        # ponytail: FREE_PROVIDERS matches generate_virtual_models.py list.
+        free_providers = {
+            "groq", "cerebras", "gemini", "together", "g4f",
+            "nvidia", "github-models", "kilo", "modal",
+        }
+        free_scores = []
+        for key, model_data in rankings.items():
+            provider = key.split("/", 1)[0] if "/" in key else ""
+            if provider not in free_providers:
+                continue
+            scores = model_data.get("scores", {})
+            ag = scores.get("agentic_coding", scores.get("swe_bench", 0.0))
+            if ag > 0:
+                free_scores.append(ag)
+
+        if free_scores:
+            self._free_baseline = max(min(free_scores), self.FREE_BASELINE_FLOOR)
+            logger.info(f"Free-model baseline: {self._free_baseline}")
+        else:
+            self._free_baseline = self.FREE_BASELINE_FLOOR
+
+    def _below_free_baseline(self, agentic_score: float) -> bool:
+        """True if model scores below the free-model baseline."""
+        baseline = getattr(self, "_free_baseline", self.FREE_BASELINE_FLOOR)
+        return 0 < agentic_score < baseline
 
     def get_model_score(self, provider: str, model: str) -> Optional[float]:
         """Get agentic coding score for a model."""
@@ -259,7 +310,10 @@ class DynamicScoringEngine:
         hallucination_rate = self.get_hallucination_rate(provider, model)
         web_search_capable = self.get_web_search_capable(provider, model)
 
+        # ponytail: normalize to 0-100 range to match agentic_score scale.
+        # tps/20 caps at 100 (200+ TPS = max). availability already 0-1 -> *100.
         tps_normalized = min(tps / 20.0, 100.0)
+        availability_normalized = availability * 100.0
         hallucination_penalty = min(hallucination_rate / 20.0, 100.0)
 
         if web_search_capable:
@@ -274,11 +328,22 @@ class DynamicScoringEngine:
             total_score += agentic_score * weights["intelligence"]
         if "tps" in weights:
             total_score += tps_normalized * weights["tps"]
+        if "availability" in weights:
+            total_score += availability_normalized * weights["availability"]
         if "hallucination_penalty" in weights:
             total_score -= hallucination_penalty * weights["hallucination_penalty"]
 
         threshold = self.THRESHOLDS.get(virtual_model_type, 0.0)
         meets_threshold = agentic_score >= threshold
+
+        # ponytail: free-baseline exclusion (#341) — coding-* only. Chat
+        # chains use intelligence, not agentic_coding, so the coding baseline
+        # would wrongly penalize good chat models with low SWE-bench scores.
+        if virtual_model_type.startswith("coding") and self._below_free_baseline(
+            agentic_score
+        ):
+            total_score = 0.0
+            meets_threshold = False
 
         return ModelScore(
             provider=provider,
@@ -302,7 +367,8 @@ class DynamicScoringEngine:
             candidates: List of (provider, model) tuples
 
         Returns:
-            List of ModelScore objects sorted by total_score descending
+            List of ModelScore objects sorted by total_score descending.
+            Below-threshold models demoted to tail (last-resort) per #341.
         """
         scores = []
 
@@ -310,8 +376,13 @@ class DynamicScoringEngine:
             score = self.calculate_coding_score(provider, model, virtual_model_type)
             scores.append(score)
 
-        # Sort by total_score descending
-        scores.sort(key=lambda s: s.total_score, reverse=True)
+        # ponytail: #341 threshold enforcement. Sort by (meets_threshold,
+        # total_score) so below-threshold models sink to tail regardless of
+        # their raw score. Free-baseline-excluded (score=0) sort last too.
+        scores.sort(
+            key=lambda s: (s.meets_threshold, s.total_score),
+            reverse=True,
+        )
 
         return scores
 

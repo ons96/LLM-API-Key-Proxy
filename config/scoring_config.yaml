@@ -4,11 +4,11 @@
 scoring:
   virtual_models:
     name: "Virtual Models (coding-elite, chat-smart, etc.)"
-    description: "Virtual models use Agentic(70%) + TPS(30%), Availability is yes/no filter"
+    description: "Virtual models use Agentic(80%) + TPS(15%) + Availability(5%) per DESIGN.md Quality-First"
     weights:
-      agentic_score: 0.70
-      tps_score: 0.30
-      availability_score: 0.0
+      agentic_score: 0.80
+      tps_score: 0.15
+      availability_score: 0.05
     use_case: "For agentic coding and general chat - quality first, then speed"
 
   specific_models:

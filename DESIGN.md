@@ -20,12 +20,12 @@ Use when user wants "best overall" for a task (virtual models)
 
 **Score Formula:**
 ```
-Score = (AgenticScore × 0.60) + (TPS_Score × 0.30) + (AvailabilityScore × 0.10)
+Score = (AgenticScore × 0.80) + (TPS_Score × 0.15) + (AvailabilityScore × 0.05)
 ```
 
 **Components:**
 
-1. **AgenticScore (60% weight)**
+1. **AgenticScore (80% weight)**
    - Source: SWE-bench / HumanEval benchmark scores
    - File: `config/model_rankings.yaml`
    - Range: 0-100 (normalized to 0-1 for formula)
@@ -34,7 +34,7 @@ Score = (AgenticScore × 0.60) + (TPS_Score × 0.30) + (AvailabilityScore × 0.1
      - Gemini 3 Pro: 74.2 → 0.742
      - GPT-5.2: 71.8 → 0.718
 
-2. **TPS_Score (30% weight)**
+2. **TPS_Score (15% weight)**
    - Source: Real telemetry measurement (tokens_per_second)
    - Calculation: measured_TPS / max_observed_TPS
    - Range: 0-1
@@ -42,13 +42,19 @@ Score = (AgenticScore × 0.60) + (TPS_Score × 0.30) + (AvailabilityScore × 0.1
      - Groq: 1050 TPS / 3000 max = 0.35
      - Cerebras: 2500 TPS / 3000 max = 0.83
 
-3. **AvailabilityScore (10% weight)**
+3. **AvailabilityScore (5% weight)**
    - Source: Health monitoring + rate limit status
    - Calculation: (1 - failure_rate) × (1 - rate_limit_penalty)
    - Range: 0-1
    - Example:
      - Healthy, no rate limits: (1-0.02) × (1-0) = 0.98
      - Rate limited: (1-0.02) × (1-1) = 0.0
+
+**SWE-bench Thresholds (per #341):**
+- coding-elite: min 70.0 SWE-bench (below = last-resort slot)
+- coding-smart: min 65.0 SWE-bench (below = last-resort slot)
+- coding-fast / chat-*: no SWE threshold
+- Free-model baseline: models worse than worst free model excluded entirely
 
 **Example Calculation:**
 ```
@@ -57,18 +63,18 @@ Groq/llama-3.3-70b-versatile:
   TPS_Score: 0.35 (1050/3000)
   AvailabilityScore: 0.98 (2% failure, no rate limits)
 
-Score = (0.652 × 0.6) + (0.35 × 0.3) + (0.98 × 0.10)
-     = 0.3912 + 0.105 + 0.098
-     = 0.594
+Score = (0.652 × 0.80) + (0.35 × 0.15) + (0.98 × 0.05)
+      = 0.5216 + 0.0525 + 0.049
+      = 0.623
 
 Cerebras/llama-3.3-70b:
   AgenticScore: 0.652
   TPS_Score: 0.83 (2500/3000)
   AvailabilityScore: 0.99
 
-Score = (0.652 × 0.6) + (0.83 × 0.3) + (0.99 × 0.10)
-     = 0.3912 + 0.249 + 0.099
-     = 0.740 ✅ HIGHER - would be tried first
+Score = (0.652 × 0.80) + (0.83 × 0.15) + (0.99 × 0.05)
+      = 0.5216 + 0.1245 + 0.0495
+      = 0.696 ✅ HIGHER - would be tried first
 ```
 
 ### Specific Models (gemini-3-pro, gpt-4o, gpt-4, etc.)
@@ -166,7 +172,7 @@ Provider+Model is **SKIPPED** if ANY of these are true:
    - Filter out: rate-limited, unhealthy, down providers
 
 3. Calculate score for each valid combination
-   - Use: Score = Agentic(60%) + TPS(30%) + Availability(10%)
+   - Use: Score = Agentic(80%) + TPS(15%) + Availability(5%)
    - Sort by score descending
 
 4. Attempt requests in order
@@ -288,9 +294,9 @@ virtual_models:
 scoring:
   virtual_models:
     weights:
-      agentic_score: 0.60
-      tps_score: 0.30
-      availability_score: 0.10
+      agentic_score: 0.80
+      tps_score: 0.15
+      availability_score: 0.05
 
   specific_models:
     weights:
