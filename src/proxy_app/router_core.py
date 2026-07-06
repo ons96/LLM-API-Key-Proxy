@@ -653,6 +653,7 @@ class RouterCore:
         self.model_ranker = ModelRanker()
         self.scoring_engine = get_scoring_engine(get_telemetry_manager())
         self.provider_configs = self.config.get("providers", {})
+        self._providers_db_cache: Optional[dict] = None
         self.model_registry = ModelRegistry(self.config_path)
 
         self._initialize_components()
@@ -721,16 +722,154 @@ class RouterCore:
         except Exception as telemetry_err:
             logger.debug(f"Telemetry record failed (non-fatal): {telemetry_err}")
 
+    def _resolve_llm_api_key(self, candidate_cfg: Dict[str, Any], provider: str) -> Optional[str]:
+        """Resolve the API key for a provider from env vars (config + per-provider fallbacks).
+
+        # ponytail: 3x duplication at _execute_single_candidate + streaming variant; this
+        # consolidates the 2 identical-shape sites. The env_var_map.get site (~L1031) has
+        # a different shape and is left untouched.
+        """
+        provider_cfg = self.config.get("providers", {}).get(provider, {})
+        env_var = provider_cfg.get("env_var")
+        api_key = None
+        if env_var:
+            api_key = os.getenv(env_var) or os.getenv(f"{env_var}_1")
+
+        if provider == "groq":
+            api_key = api_key or os.getenv("GROQ_API_KEY") or os.getenv("GROQ_API_KEY_1")
+        elif provider == "gemini":
+            api_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY_1")
+        elif provider == "kilo":
+            api_key = api_key or os.getenv("KILO_API_KEY") or os.getenv("KILO_API_KEY_1")
+        return api_key
+
+    def _get_provider_credit_cfg(self, provider: str) -> Dict[str, Any]:
+        """Return providers_database.yaml config for credit taxonomy."""
+        try:
+            if self._providers_db_cache is None:
+                repo_root = Path(__file__).resolve().parents[2]
+                db_path = repo_root / "config" / "providers_database.yaml"
+                if not db_path.exists():
+                    db_path = Path("/home/ubuntu/LLM-API-Key-Proxy/config/providers_database.yaml")
+                with open(db_path, "r") as fp:
+                    self._providers_db_cache = yaml.safe_load(fp) or {}
+            providers = (self._providers_db_cache or {}).get("providers", {})
+            return providers.get(provider, {}) or {}
+        except Exception as exc:
+            logger.debug(f"_get_provider_credit_cfg({provider}) failed: {exc}")
+            return {}
+
+    def _check_credit_exhaustion(
+        self, candidate_cfg: Dict[str, Any], provider: str, api_key: Optional[str]
+    ) -> bool:
+        """Return True if the candidate can be used given credit-exhaustion state.
+
+        - unlimited_rate_limited / freemium / missing -> True (backwards-compat)
+        - one_time_credit + is_exhausted -> False (permanently exhausted, skip)
+        - daily_renewable + is_exhausted:
+            * if reset_date passed: reset_daily_llm_provider_credits + recheck -> True/False
+            * else -> False (wait for daily reset)
+
+        # ponytail: O(1) per-call DB hit + occasional reset write. Acceptable while
+        # gateway uses SQLite on /dev/shm; if telemetry moves to network store,
+        # switch to a background cron driving reset_daily_llm_provider_credits.
+        """
+        provider_cfg = self.config.get("providers", {}).get(provider, {})
+        db_cfg = self._get_provider_credit_cfg(provider)
+        free_type = (
+            candidate_cfg.get("free_type")
+            or provider_cfg.get("free_type")
+            or db_cfg.get("free_type", "unlimited_rate_limited")
+        )
+        if free_type not in ("one_time_credit", "daily_renewable"):
+            return True
+        if not api_key:
+            # No key resolved: don't block on credits we can't track.
+            return True
+        try:
+            from rotator_library.telemetry import get_telemetry_manager
+
+            tm = get_telemetry_manager()
+            status = tm.get_llm_provider_credit_status(provider, api_key)
+            # Lazy-register if row was default (free_type defaults to unlimited).
+            if status.get("free_type", "unlimited_rate_limited") == "unlimited_rate_limited":
+                # We only know the free_type from the config; persist it so future
+                # checks skip the lazy-register path. Use a sane default allowance.
+                free_quota = (
+                    candidate_cfg.get("free_quota")
+                    or provider_cfg.get("free_quota")
+                    or db_cfg.get("free_quota")
+                )
+                initial_allowance = (
+                    free_quota.get("initial_allowance")
+                    if isinstance(free_quota, dict)
+                    and free_quota.get("initial_allowance") is not None
+                    else candidate_cfg.get(
+                        "initial_allowance",
+                        provider_cfg.get(
+                            "initial_allowance", db_cfg.get("initial_allowance", -1.0)
+                        ),
+                    )
+                )
+                reset_period = (
+                    candidate_cfg.get("reset_period")
+                    or provider_cfg.get("reset_period")
+                    or db_cfg.get("reset_period")
+                    or ("daily" if free_type == "daily_renewable" else "never")
+                )
+                tm.register_llm_provider_credits(
+                    provider=provider,
+                    api_key=api_key,
+                    free_type=free_type,
+                    initial_allowance=initial_allowance,
+                    reset_period=reset_period,
+                )
+                status = tm.get_llm_provider_credit_status(provider, api_key)
+
+            if status.get("is_exhausted"):
+                if free_type == "daily_renewable":
+                    reset_date = status.get("reset_date")
+                    if reset_date:
+                        try:
+                            from datetime import datetime
+
+                            passed = datetime.fromisoformat(reset_date) <= datetime.utcnow()
+                        except (ValueError, TypeError):
+                            passed = False
+                        if passed:
+                            tm.reset_daily_llm_provider_credits(
+                                provider=provider, api_key=api_key
+                            )
+                            return tm.check_llm_provider_available(provider, api_key)
+                # one_time_credit exhausted, or daily_renewable not yet reset.
+                return False
+            return tm.check_llm_provider_available(provider, api_key)
+        except Exception as exc:
+            # Telemetry must never block routing. Treat any failure as "available".
+            logger.debug(f"Credit check failed (non-fatal, treating as available): {exc}")
+            return True
+
     async def _check_conditions(
         self, candidate_cfg: Dict[str, Any], provider: str, model: str
     ) -> bool:
-        """Check if candidate conditions are met using RateLimitTracker."""
+        """Check rate limits AND credit exhaustion for a candidate."""
         limits = self._compute_rate_limits(provider, model, candidate_cfg)
 
         can_use = await self.rate_limiter.can_use_provider(provider, model, limits)
         if isinstance(can_use, tuple):
-            return can_use[0]
-        return can_use
+            if not can_use[0]:
+                return False
+        elif not can_use:
+            return False
+
+        # Credit / quota exhaustion check (task-board #290 Phase 2).
+        api_key = self._resolve_llm_api_key(candidate_cfg, provider)
+        if not self._check_credit_exhaustion(candidate_cfg, provider, api_key):
+            logger.info(
+                f"Skipping {provider}/{model}: credits exhausted (will retry after daily reset)"
+            )
+            return False
+        return True
 
     def _is_provider_allowed_in_free_mode(self, provider: str) -> bool:
         """Check if a provider is allowed under FREE_ONLY_MODE.
@@ -840,29 +979,7 @@ class RouterCore:
             provider_cfg = self.config.get("providers", {}).get(
                 candidate.provider, {}
             )
-            env_var = provider_cfg.get("env_var")
-            api_key = None
-            if env_var:
-                api_key = os.getenv(env_var) or os.getenv(f"{env_var}_1")
-
-            if candidate.provider == "groq":
-                api_key = (
-                    api_key
-                    or os.getenv("GROQ_API_KEY")
-                    or os.getenv("GROQ_API_KEY_1")
-                )
-            elif candidate.provider == "gemini":
-                api_key = (
-                    api_key
-                    or os.getenv("GEMINI_API_KEY")
-                    or os.getenv("GEMINI_API_KEY_1")
-                )
-            elif candidate.provider == "kilo":
-                api_key = (
-                    api_key
-                    or os.getenv("KILO_API_KEY")
-                    or os.getenv("KILO_API_KEY_1")
-                )
+            api_key = self._resolve_llm_api_key(provider_cfg, candidate.provider)
 
             api_base = provider_cfg.get("base_url")
             model_list = provider_cfg.get("free_tier_models", [])
@@ -892,6 +1009,17 @@ class RouterCore:
             await self._update_metrics(
                 candidate.provider, candidate.model, elapsed_ms, True, response=response
             )
+            try:
+                from rotator_library.telemetry import get_telemetry_manager
+
+                get_telemetry_manager().record_llm_call_outcome(
+                    provider=candidate.provider,
+                    api_key=api_key or "",
+                    success=True,
+                    model=candidate.model,
+                )
+            except Exception as telemetry_err:
+                logger.debug(f"LLM credit decrement failed (non-fatal): {telemetry_err}")
             return response
 
         except Exception as e:
@@ -910,6 +1038,27 @@ class RouterCore:
                 False,
                 error_type,
             )
+            # Map rate-limit errors to quota_exceeded for credit accounting.
+            # _classify_error already folds quota keywords into RATE_LIMIT, so any
+            # RATE_LIMIT likely indicates quota exhaustion for credit-tracked providers.
+            try:
+                from rotator_library.telemetry import get_telemetry_manager
+
+                get_telemetry_manager().record_llm_call_outcome(
+                    provider=candidate.provider,
+                    api_key=self._resolve_llm_api_key(
+                        self.config.get("providers", {}).get(candidate.provider, {}),
+                        candidate.provider,
+                    )
+                    or "",
+                    success=False,
+                    error_type="quota_exceeded"
+                    if error_type == ErrorCategory.RATE_LIMIT
+                    else None,
+                    model=candidate.model,
+                )
+            except Exception as telemetry_err:
+                logger.debug(f"LLM credit mark failed (non-fatal): {telemetry_err}")
             logger.warning(
                 f"[{request_id}] Candidate {candidate.provider}/{candidate.model} failed: {e} ({error_type.value})"
             )
@@ -1770,29 +1919,7 @@ class RouterCore:
             # Direct LiteLLM streaming needs explicit custom_llm_provider/api_base
             # for many free providers; adapters already normalize that metadata.
             provider_cfg = self.config.get("providers", {}).get(candidate.provider, {})
-            env_var = provider_cfg.get("env_var")
-            api_key = None
-            if env_var:
-                api_key = os.getenv(env_var) or os.getenv(f"{env_var}_1")
-
-            if candidate.provider == "groq":
-                api_key = (
-                    api_key
-                    or os.getenv("GROQ_API_KEY")
-                    or os.getenv("GROQ_API_KEY_1")
-                )
-            elif candidate.provider == "gemini":
-                api_key = (
-                    api_key
-                    or os.getenv("GEMINI_API_KEY")
-                    or os.getenv("GEMINI_API_KEY_1")
-                )
-            elif candidate.provider == "kilo":
-                api_key = (
-                    api_key
-                    or os.getenv("KILO_API_KEY")
-                    or os.getenv("KILO_API_KEY_1")
-                )
+            api_key = self._resolve_llm_api_key(provider_cfg, candidate.provider)
 
             api_base = provider_cfg.get("base_url")
             model_list = provider_cfg.get("free_tier_models", [])
@@ -1849,6 +1976,18 @@ class RouterCore:
             latency_ms = (time.time() - start_time) * 1000
             await self._update_metrics(candidate.provider, candidate.model, latency_ms, True)
 
+            try:
+                from rotator_library.telemetry import get_telemetry_manager
+
+                get_telemetry_manager().record_llm_call_outcome(
+                    provider=candidate.provider,
+                    api_key=api_key or "",
+                    success=True,
+                    model=candidate.model,
+                )
+            except Exception as telemetry_err:
+                logger.debug(f"LLM credit decrement failed (non-fatal): {telemetry_err}")
+
             logger.info(
                 f"[{request_id}] Stream success: {candidate.provider}/{candidate.model} ({latency_ms:.1f}ms)"
             )
@@ -1876,6 +2015,21 @@ class RouterCore:
                 False,
                 error_category,
             )
+
+            try:
+                from rotator_library.telemetry import get_telemetry_manager
+
+                get_telemetry_manager().record_llm_call_outcome(
+                    provider=candidate.provider,
+                    api_key=api_key or "",
+                    success=False,
+                    error_type="quota_exceeded"
+                    if error_category == ErrorCategory.RATE_LIMIT
+                    else None,
+                    model=candidate.model,
+                )
+            except Exception as telemetry_err:
+                logger.debug(f"LLM credit mark failed (non-fatal): {telemetry_err}")
 
             logger.error(
                 f"[{request_id}] Stream error {candidate.provider}/{candidate.model}: {e} ({error_category.value})"

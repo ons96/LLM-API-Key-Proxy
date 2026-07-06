@@ -31,6 +31,7 @@ import os
 import random
 import httpx
 import litellm
+import yaml
 from litellm.exceptions import APIConnectionError
 from litellm.litellm_core_utils.token_counter import token_counter
 import logging
@@ -66,7 +67,7 @@ from .background_refresher import BackgroundRefresher
 from .model_definitions import ModelDefinitions
 from .utils.paths import get_default_root, get_logs_dir, get_oauth_dir, get_data_file
 from .provider_priority_manager import ProviderPriorityManager
-from .telemetry import TelemetryManager
+from .telemetry import TelemetryManager, get_telemetry_manager
 
 
 class StreamedAPIError(Exception):
@@ -324,6 +325,10 @@ class RotatingClient:
 
         # Initialize telemetry manager for metrics tracking
         self.telemetry = TelemetryManager()
+        # ponytail: lazy-loaded providers_database.yaml cache for free_type lookups.
+        # Single load per process; client.py is the batch/tooling path (router_core
+        # owns provider_cfg directly). O(1) dict lookups after first call.
+        self._providers_db_cache: Optional[dict] = None
 
         # Initialize provider priority manager for tier-based fallback routing
         self.priority_manager = ProviderPriorityManager(os.environ)
@@ -338,6 +343,64 @@ class RotatingClient:
                     f"Invalid max_concurrent for '{provider}': {max_val}. Setting to 1."
                 )
                 self.max_concurrent_requests_per_key[provider] = 1
+
+    # ----------------------------------------------------------------------
+    # #290: LLM provider credit-exhaustion helpers (free_type taxonomy)
+    # ----------------------------------------------------------------------
+    def _get_provider_credit_cfg(self, provider: str) -> Dict[str, Any]:
+        """Return the configured credit metadata for `provider`.
+
+        Lazy-loads config/providers_database.yaml once per process. Failures
+        return {} (fail-open: never block on telemetry).
+        """
+        try:
+            if self._providers_db_cache is None:
+                repo_root = get_default_root()
+                db_path = repo_root / "config" / "providers_database.yaml"
+                if not db_path.exists():
+                    db_path = repo_root.parent / "config" / "providers_database.yaml"
+                if not db_path.exists():
+                    # VPS layout fallback
+                    db_path = Path("/home/ubuntu/LLM-API-Key-Proxy/config/providers_database.yaml")
+                with open(db_path, "r") as fp:
+                    self._providers_db_cache = yaml.safe_load(fp) or {}
+            providers = self._providers_db_cache.get("providers", {})
+            return providers.get(provider, {}) or {}
+        except Exception as e:
+            lib_logger.debug(f"_get_provider_credit_cfg({provider}) failed: {e}")
+            return {}
+
+    def _is_cred_credit_available(self, provider: str, cred: str, model: str = "") -> bool:
+        """Per-credential credit availability for #290 exhaustion-aware routing.
+
+        True = OK to attempt. False = permanently exhausted or daily-quota burned.
+        Fail-open: returns True on telemetry unavailability or unlimited/freemium.
+        """
+        try:
+            cfg = self._get_provider_credit_cfg(provider)
+            free_type = cfg.get("free_type", "unlimited_rate_limited")
+            free_quota = cfg.get("free_quota")
+            initial_allowance = (
+                free_quota.get("initial_allowance")
+                if isinstance(free_quota, dict)
+                and free_quota.get("initial_allowance") is not None
+                else cfg.get("initial_allowance", -1.0)
+            )
+            reset_period = cfg.get("reset_period") or (
+                "daily" if free_type == "daily_renewable" else "never"
+            )
+            tm = get_telemetry_manager()
+            return tm.check_and_lazy_register(
+                provider,
+                cred or "",
+                free_type=free_type,
+                initial_allowance=initial_allowance,
+                reset_period=reset_period,
+                reset_date=cfg.get("reset_date"),
+            )
+        except Exception as e:
+            lib_logger.debug(f"_is_cred_credit_available({provider}) failed: {e}")
+            return True
 
     # ----------------------------------------------------------------------
     # #233: distributed cooldown + (provider,model) concurrency gate helpers
@@ -1166,6 +1229,17 @@ class RotatingClient:
             # If all credentials are unavailable, keep the original list
             # (better to try unavailable creds than fail immediately)
 
+        # #290: filter out credit-exhausted credentials (one_time Credit burned,
+        # daily_renewable quota exhausted for today). Falls back to full list
+        # if all filtered (fail-open: telemetry must never prevent a request).
+        credit_available_creds = [
+            cred
+            for cred in credentials_for_provider
+            if self._is_cred_credit_available(provider, cred, model)
+        ]
+        if credit_available_creds:
+            credentials_for_provider = credit_available_creds
+
         tried_creds = set()
         last_exception = None
         kwargs = self._convert_model_params(**kwargs)
@@ -1444,6 +1518,13 @@ class RotatingClient:
                             await self.usage_manager.release_key(current_cred, model)
                             key_acquired = False
                             self.release_gate(provider, model)  # #233
+                            # ponytail: credit decrement on call success; O(1) telemetry write, no-op for unlimited
+                            try:
+                                get_telemetry_manager().record_llm_call_outcome(
+                                    provider, current_cred or "", True, model=model
+                                )
+                            except Exception:
+                                lib_logger.debug("telemetry record_outcome failed", exc_info=True)
                             return response
 
                         except (
@@ -1468,6 +1549,16 @@ class RotatingClient:
                             error_accumulator.record_error(
                                 current_cred, classified_error, error_message
                             )
+
+                            # ponytail: mark credit-tier exhausted on quota; one_time permanent, daily resets via cron
+                            if classified_error.error_type == "quota_exceeded":
+                                try:
+                                    get_telemetry_manager().record_llm_call_outcome(
+                                        provider, current_cred or "", False,
+                                        error_type="quota_exceeded", model=model,
+                                    )
+                                except Exception:
+                                    lib_logger.debug("telemetry record_outcome failed", exc_info=True)
 
                             # Check if this error should trigger rotation
                             if not should_rotate_on_error(classified_error):
@@ -1716,6 +1807,13 @@ class RotatingClient:
                             await self.usage_manager.release_key(current_cred, model)
                             key_acquired = False
                             self.release_gate(provider, model)  # #233
+                            # ponytail: credit decrement on call success; no-op for unlimited free_type
+                            try:
+                                get_telemetry_manager().record_llm_call_outcome(
+                                    provider, current_cred or "", True, model=model
+                                )
+                            except Exception:
+                                lib_logger.debug("telemetry record_outcome failed", exc_info=True)
                             return response
 
                         except litellm.RateLimitError as e:
@@ -1738,6 +1836,16 @@ class RotatingClient:
                             error_accumulator.record_error(
                                 current_cred, classified_error, error_message
                             )
+
+                            # ponytail: mark credit-tier exhausted on quota; one_time permanent, daily resets via cron
+                            if classified_error.error_type == "quota_exceeded":
+                                try:
+                                    get_telemetry_manager().record_llm_call_outcome(
+                                        provider, current_cred or "", False,
+                                        error_type="quota_exceeded", model=model,
+                                    )
+                                except Exception:
+                                    lib_logger.debug("telemetry record_outcome failed", exc_info=True)
 
                             lib_logger.info(
                                 f"Key {mask_credential(current_cred)} hit rate limit for {model}. Rotating key."
@@ -2061,6 +2169,16 @@ class RotatingClient:
                 credentials_for_provider = available_creds
             # If all credentials are unavailable, keep the original list
             # (better to try unavailable creds than fail immediately)
+
+        # #290: filter out credit-exhausted credentials (one_time Credit burned,
+        # daily_renewable quota exhausted for today). Fail-open to full list.
+        credit_available_creds = [
+            cred
+            for cred in credentials_for_provider
+            if self._is_cred_credit_available(provider, cred, model)
+        ]
+        if credit_available_creds:
+            credentials_for_provider = credit_available_creds
 
         deadline = time.time() + self.global_timeout
         tried_creds = set()

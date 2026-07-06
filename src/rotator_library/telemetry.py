@@ -1145,6 +1145,72 @@ class TelemetryManager:
             logger.error(f"Failed to reset daily LLM provider credits: {e}")
             return 0
 
+    def check_and_lazy_register(
+        self,
+        provider: str,
+        api_key: str,
+        free_type: str = "unlimited_rate_limited",
+        initial_allowance: float = -1.0,
+        reset_period: str = "never",
+        reset_date: Optional[str] = None,
+    ) -> bool:
+        """Register provider credits if no row exists, then return availability.
+
+        ponytail: collapses the lazy-init + availability-check pattern into one
+        call so router/client sites don't repeat the register-then-check dance.
+        Unlimited/freemium providers return True without consuming DB rows.
+        """
+        # ponytail: unlimited + freemium have no exhaustion semantics; skip DB entirely
+        if free_type in ("unlimited_rate_limited", "freemium"):
+            return True
+        status = self.get_llm_provider_credit_status(provider, api_key)
+        # A row exists iff free_type was persisted; default row reports unlimited.
+        if status.get("free_type") == "unlimited_rate_limited" and free_type != "unlimited_rate_limited":
+            # No prior row (default returned). Register now so exhaustion can track.
+            self.register_llm_provider_credits(
+                provider,
+                api_key,
+                free_type=free_type,
+                initial_allowance=initial_allowance,
+                reset_period=reset_period,
+                reset_date=reset_date,
+            )
+        return self.check_llm_provider_available(provider, api_key)
+
+    def record_llm_call_outcome(
+        self,
+        provider: str,
+        api_key: str,
+        success: bool,
+        error_type: Optional[str] = None,
+        model: str = "",
+    ) -> None:
+        """Glue method for router/client to record call outcome + exhaustion state.
+
+        On success: decrement_llm_credentials (no-op for unlimited).
+        On quota_exceeded: mark_llm_provider_exhausted. Permanence is derived
+        from the persisted free_type: one_time_credit = permanent, daily_renewable
+        = transient (daily cron resets), unlimited/freemium = no-op.
+
+        ponytail: caller passes error_type only; permanence auto-derived here so
+        call sites stay uniform. DB is source of truth for free_type.
+        """
+        try:
+            if success:
+                self.decrement_llm_credentials(
+                    provider, api_key, model=model, success=True
+                )
+                return
+            if error_type != "quota_exceeded":
+                return  # ponytail: only quota_exceeded drives exhaustion; auth/rate-limit handled elsewhere
+            status = self.get_llm_provider_credit_status(provider, api_key)
+            free_type = status.get("free_type", "unlimited_rate_limited")
+            if free_type in ("one_time_credit", "daily_renewable"):
+                self.mark_llm_provider_exhausted(provider, api_key)
+                # daily_renewable gets cleared by reset_daily_llm_provider_credits cron
+        except Exception as e:
+            logger.error(f"record_llm_call_outcome failed for {provider}: {e}")
+
 
 # Global telemetry instance
 _telemetry_manager: Optional[TelemetryManager] = None
@@ -1156,3 +1222,36 @@ def get_telemetry_manager() -> TelemetryManager:
     if _telemetry_manager is None:
         _telemetry_manager = TelemetryManager()
     return _telemetry_manager
+
+
+if __name__ == "__main__":
+    # ponytail: smallest self-test that fails if glue methods break.
+    # Verifies: check_and_lazy_register no-op for unlimited, record_llm_call_outcome
+    # marks one_time_credit exhausted on quota_exceeded, daily_renewable stays
+    # available after success, unlimited unaffected by quota.
+    import os
+    import tempfile
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    tmp.close()
+    tm = TelemetryManager(db_path=tmp.name)
+    tm._init_db()
+
+    # 1. unlimited via check_and_lazy_register -> True, no row created
+    assert tm.check_and_lazy_register("groq", "k1", free_type="unlimited_rate_limited") is True
+    # 2. one_time_credit: register -> available, quota_exceeded -> exhausted -> unavailable
+    assert tm.check_and_lazy_register("together", "k2", free_type="one_time_credit", initial_allowance=5.0) is True
+    tm.record_llm_call_outcome("together", "k2", success=False, error_type="quota_exceeded")
+    assert tm.check_llm_provider_available("together", "k2") is False, "one_time_credit should be exhausted after quota"
+    # 3. daily_renewable: success decrements, quota -> exhausted (until reset_date passes)
+    assert tm.check_and_lazy_register("gemini", "k3", free_type="daily_renewable", initial_allowance=10.0, reset_period="daily", reset_date="2099-01-01") is True
+    tm.record_llm_call_outcome("gemini", "k3", success=True, model="gemini-pro")
+    assert tm.check_llm_provider_available("gemini", "k3") is True, "daily_renewable should have credits left"
+    tm.record_llm_call_outcome("gemini", "k3", success=False, error_type="quota_exceeded")
+    assert tm.check_llm_provider_available("gemini", "k3") is False, "daily_renewable should be exhausted after quota (reset_date future)"
+    # 4. unlimited + quota -> no-op, still available (no row)
+    tm.record_llm_call_outcome("groq", "k1", success=False, error_type="quota_exceeded")
+    assert tm.check_llm_provider_available("groq", "k1") is True, "unlimited must remain available on quota"
+
+    os.unlink(tmp.name)
+    print("telemetry glue self-test: OK")
