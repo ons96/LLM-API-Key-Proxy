@@ -1150,6 +1150,26 @@ async def chat_completions(
                     yield f"data: {json.dumps(final_chunk)}\n\n"
                     yield "data: [DONE]\n\n"
             return StreamingResponse(_sse_wrap(result), media_type="text/event-stream")
+        # ponytail: serialize litellm ModelResponse to dict before FastAPI return.
+        # OpenAI SDK Message/Choices expect 10 fields but litellm returns 5 populated;
+        # Pydantic UserWarning on serialize -> malformed JSON -> opencode UnknownError.
+        # Stream path already dumps to dict in _sse_wrap.
+        import warnings
+        if isinstance(result, dict):
+            return JSONResponse(content=result)
+        if isinstance(result, JSONResponse):
+            return result
+        if hasattr(result, "model_dump"):
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning)
+                dumped = result.model_dump(exclude_unset=True, exclude_none=True)
+            return JSONResponse(content=dumped)
+        if hasattr(result, "dict"):
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning)
+                dumped = result.dict()
+            return JSONResponse(content=dumped)
+        logging.warning(f"chat_completions: unserializable result type {type(result)}")
         return result
     except Exception as e:
         logging.error(f"Router delegation failed: {e}.")
