@@ -2,7 +2,7 @@
 
 Canonical specification for the LLM-API-Key-Proxy gateway. Status tags: `[built]` = live in production, `[partial]` = implemented with gaps, `[planned]` = not yet implemented.
 
-Truth source: live code in `src/proxy_app/` + `src/rotator_library/` + `config/` on VPS 40.233.101.233. DESIGN.md covers the dynamic-fallback subsystem in depth; this SPEC consolidates all subsystems.
+Truth source: live code in `src/proxy_app/` + `src/rotator_library/` + `config/` on VPS 40.233.101.233. This SPEC consolidates all subsystems (former DESIGN.md + INTEGRATION_ROADMAP.md content folded in 2026-07-10).
 
 **Repo:** `ons96/LLM-API-Key-Proxy` (private). **VPS:** 40.233.101.233 (Tailscale 100.71.95.75:8000, SSH-only firewall). **Task-board:** `ons96/task-board` (issues = tracker).
 
@@ -100,6 +100,28 @@ Virtual models are aliases that resolve to ordered fallback chains of concrete (
 **Chain-gen weights:** `scripts/generate_virtual_models.py:30-78` `WEIGHTS` dict (hardcoded per VM type, rebalanced #341). `calculate_score(model, weights)` (line 140): log2 TPS scaling, arena_elo normalize (1200-1500), benchmarks /100. `generate_fallback_chain()` (line 278): filters by min thresholds, scores, sorts desc, dedups, caps at max_models.
 
 **U-formula reorder:** `scripts/rank_models.py` + `scripts/unified_ranking.py` `rank_candidates()` -- elite mode 0.75/0.20/0.05 (closest to 80/15/5), smart 0.65/0.25/0.10, fast 0.60/0.30/0.10.
+
+### Scoring Detail (from former DESIGN.md)
+
+**Virtual model formula:**
+```
+Score = (AgenticScore * 0.80) + (TPS_Score * 0.15) + (AvailabilityScore * 0.05)
+```
+- `AgenticScore`: SWE-bench / HumanEval from `config/model_rankings.yaml`, range 0-100 normalized to 0-1. Examples: Claude Opus 4.5 = 74.4 (0.744), Gemini 3 Pro = 74.2 (0.742), GPT-5.2 = 71.8 (0.718).
+- `TPS_Score`: measured_TPS / max_observed_TPS. Examples: Groq 1050/3000 = 0.35, Cerebras 2500/3000 = 0.83.
+- `AvailabilityScore`: (1 - failure_rate) * (1 - rate_limit_penalty). Healthy no-limits = 0.98; rate limited = 0.0.
+
+**Worked example:**
+- `groq/llama-3.3-70b-versatile`: agentic 0.652, tps 0.35, avail 0.98 -> Score = 0.5216 + 0.0525 + 0.049 = **0.623**
+- `cerebras/llama-3.3-70b`: agentic 0.652, tps 0.83, avail 0.99 -> Score = 0.5216 + 0.1245 + 0.0495 = **0.696** (ranked first)
+
+**Specific model formula** (user asks for concrete model, not virtual):
+```
+Score = (TPS_Score * 0.70) + (AvailabilityScore * 0.30)
+```
+No AgenticScore (model already fixed by user). Example ZenMux/gemini-3-pro: tps 0.90, avail 0.95 -> 0.915 (first choice); Google/gemini-3-pro: tps 0.60, avail 0.85 -> 0.675 (second).
+
+**Telemetry schema** (active DB, `/tmp/llm_proxy_telemetry.db`): tables `api_calls` (id, timestamp, provider, model, success, error_reason, response_time_ms, ttft_ms, tps, input_tokens, output_tokens), `rate_limits` (limit_type rpm/daily/monthly, current_count, limit_limit, reset_time), `provider_health` (is_healthy, failure_rate, consecutive_failures, last_success_time), `tps_metrics` (tps, window_minutes 1/5/15/60). Rate-limit tracker: `rate_limiter.py` `RateLimitTracker` w/ `can_use_provider()`, `rate_limited_until` cooldown (default 300s), distinguish rpm vs daily vs monthly limit types (enhancement Feb 2026).
 
 | Feature | Status | Issue |
 |---|---|---|
@@ -293,23 +315,29 @@ Endpoints exposing gateway state for monitoring + router consumption.
 
 ---
 
-## Deviations from DESIGN.md
+## Deviations from original design
 
-DESIGN.md (331L) is scoped to the dynamic-fallback subsystem. This SPEC is broader. Deviations:
+The former DESIGN.md (331L) scoped the dynamic-fallback subsystem. The former INTEGRATION_ROADMAP.md (362L) tracked the evolution log. Both consolidated into this SPEC on 2026-07-10. Deviations captured:
 
-1. **Scoring weights:** DESIGN.md lines 16-37 specify 80/15/5 (AgenticScore/TPS_Score/AvailabilityScore). `config/scoring_config.yaml` previously had 0.70/0.30/0.0 -- corrected to 0.80/0.15/0.05 per #341. DESIGN.md was updated in #341 to reflect this.
+1. **Scoring weight transition (#341):** Original 60% agentic + 30% TPS + 10% availability -> corrected to **80/15/5** because the old formula let fast-but-weak models (e.g., Llama 3.3 70B at 65.2 SWE-bench) outrank slow-strong ones. `config/scoring_config.yaml` updated; `scoring_engine.py` `CATEGORY_WEIGHTS` enforces.
 
-2. **SWE-bench thresholds:** DESIGN.md specifies coding-elite >= 70.0, coding-smart >= 65.0. Implemented in `scoring_engine.py` `THRESHOLDS` dict + `rank_models_for_virtual` (sorts meets_threshold first). Chain-gen script (`generate_virtual_models.py`) does NOT enforce per-metric SWE-bench floor -- it uses composite `min_score`. Runtime `scoring_engine.py` is the authoritative threshold path. This is intentional: runtime filter catches models added after chain generation.
+2. **SWE-bench thresholds:** coding-elite >= 70.0, coding-smart >= 65.0. Implemented in `scoring_engine.py` `THRESHOLDS` dict + `rank_models_for_virtual` (sorts meets_threshold first). Chain-gen script (`generate_virtual_models.py`) does NOT enforce per-metric SWE-bench floor -- it uses composite `min_score`. Runtime `scoring_engine.py` is the authoritative threshold path. Intentional: runtime filter catches models added after chain generation.
 
-3. **Specific models scoring:** DESIGN.md says 70/30 (TPS/Availability, no AgenticScore). `scoring_config.yaml` `specific_models.weights = {tps_score: 0.70, agentic_score: 0.30}` -- includes AgenticScore, not AvailabilityScore. Deviation: agentic is weighted, availability is not. Rationale: specific models are direct provider/model pairs where agentic quality matters more than uptime (uptime handled by health checker separately).
+3. **Specific models scoring:** Specific models formula is 70/30 (TPS/Agentic), NOT (TPS/Availability) per original DESIGN. `scoring_config.yaml` `specific_models.weights = {tps_score: 0.70, agentic_score: 0.30}`. Deviation: agentic is weighted, availability is not. Rationale: specific models are direct provider/model pairs where agentic quality matters more than uptime (uptime handled by health checker separately).
 
-4. **Telemetry DB path:** DESIGN.md references `/dev/shm/telemetry.db` (passive LiteLLM). Active rotator telemetry uses `/tmp/llm_proxy_telemetry.db`. Two separate DBs -- passive captures real traffic, active captures probe data. `/v1/tps-stats` reads the active DB.
+4. **Telemetry DB split:** Passive LiteLLM uses `/dev/shm/telemetry.db` (real traffic). Active rotator uses `/tmp/llm_proxy_telemetry.db` (probe data). `/v1/tps-stats` reads the active DB.
 
-5. **Scheduled task intervals:** DESIGN.md specifies health check 5min, rate limit reset 1min, daily reset midnight UTC, TPS recalc hourly, ranking update 5min. Active probe (#332) adds a 30min interval not in DESIGN.md.
+5. **Scheduled task intervals:** Health check 5min, rate limit reset 1min, daily reset midnight UTC, TPS recalc hourly, ranking update 5min (per DESIGN original). Active probe (#332) adds 30min, reorder timer fires every 30min -- neither in original DESIGN.
 
-6. **AGENTS.md in repo is STALE** (2026-02-05, commit 0342491): claims `main.py` 1357L / `router_core.py` 1683L vs actual 62.5K / 90.0K (~2352L). References G4F/legacy virtual models. Treat AGENTS.md as historical only; this SPEC + DESIGN.md are canonical.
+6. **AGENTS.md in repo is STALE** (2026-02-05, commit 0342491): claims `main.py` 1357L / `router_core.py` 1683L vs actual 62.5K / 90.0K (~2352L). References G4F/legacy virtual models. Treat AGENTS.md as historical only; this SPEC is canonical.
 
 7. **RouterCore bypass (BUGS.md item #2):** BUGS.md (Jan 15 2026) claimed `/v1/chat/completions` bypasses RouterCore. #340 investigation proved this STALE -- full chain verified: main.py -> RouterWrapper -> RouterIntegration -> RouterCore.route_request -> `_route_request_inner` with complete fallback traversal. Real bug found+fixed: streaming fallback exception handler was not applying cooldown (now fixed, router_core.py:1925-1943).
+
+8. **Threshold review conclusion (from INTEGRATION_ROADMAP.md):** 65.0 floor for coding-smart keeps all quality models (Claude Opus 4.5 74.4, GPT-5.2 71.8, Gemini 2.5 Pro 73.2, DeepSeek V3.5 68.9, Qwen 3 Max 66.5, Kimi K2 65.8, Mistral Codestral 2 65.3, Grok 3.5 65.1) and excludes weak ones (GPT-4o 56.7, Grok 2 54.5, Gemini 1.5 Pro 53.8, Llama 3.1 405B 51.1). Could lower to 60.0 for more variety but kept 65.0. Llama 3.3 70B at 65.2 is borderline (qualifies coding-smart only).
+
+9. **OpenCode Zen free baseline models:** minimax m2.1 free, trinity large preview, kimi k2.5 free, glm-4.7 free, big pickle (per INTEGRATION_ROADMAP). These define the minimum quality bar; models worse than worst of these get excluded from coding chains (#343, floor 30.0).
+
+10. **Not-implemented INTEGRATION_ROADMAP items** (stayed planned): event-driven recalculation (manual `/v1/admin/recalculate-rankings` endpoint -- never built), individual-model dynamic virtual-model creation (HIGH complexity, deferred), reasoning-effort-specific scores (additional schema, deferred). Provider model list refresh every 6h never wired. Rate-limit score (10% weight in intro formula) superseded by current 80/15/5. Aggregate chat score formula (AA 0.40 + Arena 0.30 + LiveBench 0.20 + MMLU 0.10) -- aggregator scrapes AA/LiveBench/Arena but the weighted-blend not enforced as a single Intelligence column; aggregator publishes individual fields and scoring_engine reads them per-VM-weights.
 
 ---
 
@@ -338,7 +366,6 @@ DESIGN.md (331L) is scoped to the dynamic-fallback subsystem. This SPEC is broad
 
 ## Related Documentation
 
-- `DESIGN.md` -- dynamic-fallback system (325L, canonical for scoring + telemetry schema)
 - `README.md` -- project overview
 - `DEPLOYMENT_GUIDE.md` -- deployment steps
 - `ROUTER_DOCUMENTATION.md` -- router internals
@@ -346,5 +373,7 @@ DESIGN.md (331L) is scoped to the dynamic-fallback subsystem. This SPEC is broad
 - `BUGS.md` -- known bugs snapshot (Jan 15 2026, item #2 resolved via #340)
 - `HANDOFF_OPUS_2026-06-24.md` -- dynamic_chain/distributed_gate/cost_efficiency wiring
 - `AGENTS.md` -- STALE (2026-02-05), historical only
+
+**Consolidated 2026-07-10:** former `DESIGN.md` (331L, dynamic-fallback subsystem) and `INTEGRATION_ROADMAP.md` (362L, evolution log) folded into this SPEC; original files deleted via `git rm`.
 
 **Task-board:** `ons96/task-board` (issues = tracker). Labels: `status:new|in_progress|done|blocked`, `priority:P0-P9`, `project:*`, `tag:*`, `category:*`.
