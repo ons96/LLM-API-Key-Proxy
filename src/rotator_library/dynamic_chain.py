@@ -47,6 +47,11 @@ COLD_START_S = 10 * 60               # first N seconds: trust static order
 LOOKBACK_S = 60 * 60                 # only consider events from the last hour
 
 DEFAULT_DB_PATH = "/dev/shm/telemetry.db"
+# On-disk snapshot read when the tmpfs DB is missing (e.g. just after a reboot
+# wipes /dev/shm). Reuses the existing telemetry-snapshot cron output so ALL
+# signals (uptime_ema + fail_penalty) survive reboot, not just a bespoke one.
+# ponytail: read-only fallback, no new writer; empty env => feature off.
+DEFAULT_DB_FALLBACK = os.environ.get("TELEMETRY_DB_FALLBACK", "")
 
 
 @dataclass
@@ -61,6 +66,7 @@ class ProviderStats:
 @dataclass
 class DynamicChainRanker:
     db_path: str = DEFAULT_DB_PATH
+    db_fallback: str = DEFAULT_DB_FALLBACK
     quality: Dict[str, float] = field(default_factory=dict)   # provider -> 0..1
     cost: Dict[str, float] = field(default_factory=dict)      # provider -> $/unit (lower better)
     enabled: bool = True
@@ -121,13 +127,19 @@ class DynamicChainRanker:
     # -- internals ---------------------------------------------------------
     def _load_stats(self, candidates: Sequence[str], now: float) -> Dict[str, ProviderStats]:
         stats = {c: ProviderStats(provider=c) for c in candidates}
-        if not os.path.exists(self.db_path):
-            return stats
+        db_path = self.db_path
+        if not os.path.exists(db_path):
+            # tmpfs DB gone (reboot wiped /dev/shm). Fall back to the on-disk
+            # telemetry snapshot if one is configured and present.
+            if self.db_fallback and os.path.exists(self.db_fallback):
+                db_path = self.db_fallback
+            else:
+                return stats
         since = now - LOOKBACK_S
         try:
             # read-only, immutable-ish: don't create the file, short timeout.
             conn = sqlite3.connect(
-                f"file:{self.db_path}?mode=ro", uri=True, timeout=0.5
+                f"file:{db_path}?mode=ro", uri=True, timeout=0.5
             )
         except sqlite3.Error:
             return stats
@@ -356,6 +368,16 @@ def _demo() -> None:
     r3 = DynamicChainRanker(db_path="/nonexistent/telemetry.db")
     r3._started_at = now - COLD_START_S - 1
     assert r3.rank(["a", "b"], now=now) == ["a", "b"]
+
+    # Snapshot fallback: primary DB gone, db_fallback present -> stats still load.
+    r4 = DynamicChainRanker(
+        db_path="/nonexistent/telemetry.db",
+        db_fallback=tmp.name,
+        quality={"groq": 0.9, "flaky": 0.9, "stale": 0.9},
+    )
+    r4._started_at = now - COLD_START_S - 1
+    order4 = r4.rank(["stale", "flaky", "groq"], now=now, force=True)
+    assert order4.index("groq") < order4.index("flaky"), order4
 
     os.unlink(tmp.name)
     print("dynamic_chain self-test: OK")
