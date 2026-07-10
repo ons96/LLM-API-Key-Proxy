@@ -317,6 +317,42 @@ class RotatingClient:
         )
         self.shared_cooldown = SharedCooldownStore(db_path=shared_db)
         self.concurrency_gate = ConcurrencyGate()
+        # #251: optional telemetry-driven dynamic chain reorder.
+        # No-op unless USE_DYNAMIC_CHAIN=1 env var set (per opus-prebank design).
+        self._dynamic_ranker = None
+        if os.environ.get("USE_DYNAMIC_CHAIN", "").lower() in ("1", "true", "yes"):
+            try:
+                from .dynamic_chain import DynamicChainRanker
+
+                self._dynamic_ranker = DynamicChainRanker(
+                    db_path=os.environ.get("TELEMETRY_DB_PATH", "/dev/shm/telemetry.db"),
+                    enabled=True,
+                )
+                lib_logger.info("DynamicChainRanker enabled (USE_DYNAMIC_CHAIN=1)")
+            except Exception as e:
+                lib_logger.warning(
+                    f"DynamicChainRanker init failed: {e}; using static chain"
+                )
+        # #253: cost-efficiency classifier (always constructed — read-only DB, lazy-fail).
+        self._cost_classifier = None
+        try:
+            from .cost_efficiency import CostEfficiencyClassifier
+
+            # ponytail: VPS providers.db at ~/gateway-data/providers.db (per #367 release);
+            # laptop dev at ~/CodingProjects/llm-provider-manager/llm_providers.db.
+            cost_db = os.environ.get(
+                "LLM_PROVIDERS_DB",
+                "/home/ubuntu/gateway-data/providers.db"
+                if os.path.exists("/home/ubuntu")
+                else os.path.expanduser(
+                    "~/CodingProjects/llm-provider-manager/llm_providers.db"
+                ),
+            )
+            self._cost_classifier = CostEfficiencyClassifier(db_path=cost_db)
+        except Exception as e:
+            lib_logger.debug(
+                f"CostEfficiencyClassifier init failed: {e}; cost archetype = default B"
+            )
         self.litellm_provider_params = litellm_provider_params or {}
         self.ignore_models = ignore_models or {}
         self.whitelist_models = whitelist_models or {}
@@ -1101,6 +1137,9 @@ class RotatingClient:
         )
         if not chain:
             chain = [original_provider]
+        # #251: telemetry-driven rerank if optional DynamicChainRanker is armed.
+        if self._dynamic_ranker is not None:
+            chain = self._dynamic_ranker.rank(chain)
 
         last_exception = None
 
@@ -1581,6 +1620,8 @@ class RotatingClient:
                                 self.record_shared_cooldown(
                                     provider, model, cooldown_duration
                                 )
+                                if self._dynamic_ranker is not None:
+                                    chain = self._dynamic_ranker.rank(chain, force=True)
 
                             await self.usage_manager.record_failure(
                                 current_cred, model, classified_error
@@ -1691,6 +1732,8 @@ class RotatingClient:
                                 self.record_shared_cooldown(
                                     provider, model, cooldown_duration
                                 )
+                                if self._dynamic_ranker is not None:
+                                    chain = self._dynamic_ranker.rank(chain, force=True)
 
                             await self.usage_manager.record_failure(
                                 current_cred, model, classified_error
@@ -2096,6 +2139,9 @@ class RotatingClient:
         )
         if not chain:
             chain = [original_provider]
+        # #251: telemetry-driven rerank if optional DynamicChainRanker is armed.
+        if self._dynamic_ranker is not None:
+            chain = self._dynamic_ranker.rank(chain)
 
         last_exception = None
 
