@@ -3485,3 +3485,41 @@ providers:
   - id: minimax-m3
     context: 512000
   notes: Discovered 2026-07-03
+- id: unorouter
+  name: UnoRouter
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: gpt-5.5:free
+    context: 1050000
+  - id: gpt-5.4:free
+    context: 1050000
+  - id: glm-4.5-flash:free
+    context: 131072
+  - id: minimax-m2.7:free
+    context: 204800
+  - id: step-3.7-flash:free
+    context: 256000
+  - id: qwen3.5-397b-a17b:free
+    context: 262144
+  - id: nemotron-3-ultra-550b-a55b:free
+    context: 1000000
+  - id: deepseek-v4-flash:free
+    context: 1000000
+  - id: glm-5.2:free
+    context: 1000000
+  - id: gemma-4-31b-it:free
+    context: 262144
+  notes: Discovered 2026-07-11
+- id: empiriolabs
+  name: EmpirioLabs AI
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: glm-4-5-flash
+    context: 200000
+  - id: glm-4-7-flash
+    context: 200000
+  notes: Discovered 2026-07-11

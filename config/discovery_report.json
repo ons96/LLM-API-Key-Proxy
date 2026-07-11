@@ -1,13 +1,35 @@
 {
-  "generated_at": "2026-07-10T06:13:31.465998+00:00",
-  "new_providers": 38,
+  "generated_at": "2026-07-11T05:21:15.933048+00:00",
+  "new_providers": 40,
   "updated_providers": 4,
-  "total_free_models": 350,
+  "total_free_models": 361,
   "top_models": [
     {
-      "provider": "nvidia",
-      "model": "baai/bge-m3",
-      "model_id": "nvidia/baai/bge-m3",
+      "provider": "github-models",
+      "model": "ai21-labs/ai21-jamba-1.5-mini",
+      "model_id": "github-models/ai21-labs/ai21-jamba-1.5-mini",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 256000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "github-models",
+      "model": "ai21-labs/ai21-jamba-1.5-large",
+      "model_id": "github-models/ai21-labs/ai21-jamba-1.5-large",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 256000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "github-models",
+      "model": "core42/jais-30b-chat",
+      "model_id": "github-models/core42/jais-30b-chat",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 8192,
@@ -16,75 +38,9 @@
       "latency_score": 0.933
     },
     {
-      "provider": "nvidia",
-      "model": "moonshotai/kimi-k2-instruct-0905",
-      "model_id": "nvidia/moonshotai/kimi-k2-instruct-0905",
-      "composite_score": 0.547,
-      "capabilities": [],
-      "context_window": 262144,
-      "benchmark_score": 0.1,
-      "success_rate": 0.8,
-      "latency_score": 0.933
-    },
-    {
-      "provider": "nvidia",
-      "model": "moonshotai/kimi-k2.6",
-      "model_id": "nvidia/moonshotai/kimi-k2.6",
-      "composite_score": 0.547,
-      "capabilities": [],
-      "context_window": 262144,
-      "benchmark_score": 0.1,
-      "success_rate": 0.8,
-      "latency_score": 0.933
-    },
-    {
-      "provider": "nvidia",
-      "model": "minimaxai/minimax-m3",
-      "model_id": "nvidia/minimaxai/minimax-m3",
-      "composite_score": 0.547,
-      "capabilities": [],
-      "context_window": 1000000,
-      "benchmark_score": 0.1,
-      "success_rate": 0.8,
-      "latency_score": 0.933
-    },
-    {
-      "provider": "nvidia",
-      "model": "minimaxai/minimax-m2.7",
-      "model_id": "nvidia/minimaxai/minimax-m2.7",
-      "composite_score": 0.547,
-      "capabilities": [],
-      "context_window": 204800,
-      "benchmark_score": 0.1,
-      "success_rate": 0.8,
-      "latency_score": 0.933
-    },
-    {
-      "provider": "nvidia",
-      "model": "stepfun-ai/step-3.7-flash",
-      "model_id": "nvidia/stepfun-ai/step-3.7-flash",
-      "composite_score": 0.547,
-      "capabilities": [],
-      "context_window": 256000,
-      "benchmark_score": 0.1,
-      "success_rate": 0.8,
-      "latency_score": 0.933
-    },
-    {
-      "provider": "nvidia",
-      "model": "stepfun-ai/step-3.5-flash",
-      "model_id": "nvidia/stepfun-ai/step-3.5-flash",
-      "composite_score": 0.547,
-      "capabilities": [],
-      "context_window": 256000,
-      "benchmark_score": 0.1,
-      "success_rate": 0.8,
-      "latency_score": 0.933
-    },
-    {
-      "provider": "nvidia",
-      "model": "google/gemma-3n-e4b-it",
-      "model_id": "nvidia/google/gemma-3n-e4b-it",
+      "provider": "github-models",
+      "model": "xai/grok-3-mini",
+      "model_id": "github-models/xai/grok-3-mini",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 128000,
@@ -93,9 +49,9 @@
       "latency_score": 0.933
     },
     {
-      "provider": "nvidia",
-      "model": "google/gemma-3n-e2b-it",
-      "model_id": "nvidia/google/gemma-3n-e2b-it",
+      "provider": "github-models",
+      "model": "xai/grok-3",
+      "model_id": "github-models/xai/grok-3",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 128000,
@@ -104,12 +60,56 @@
       "latency_score": 0.933
     },
     {
-      "provider": "nvidia",
-      "model": "google/google-paligemma",
-      "model_id": "nvidia/google/google-paligemma",
+      "provider": "github-models",
+      "model": "microsoft/phi-3.5-moe-instruct",
+      "model_id": "github-models/microsoft/phi-3.5-moe-instruct",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 128000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "github-models",
+      "model": "microsoft/phi-3-small-128k-instruct",
+      "model_id": "github-models/microsoft/phi-3-small-128k-instruct",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 128000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "github-models",
+      "model": "microsoft/phi-3.5-mini-instruct",
+      "model_id": "github-models/microsoft/phi-3.5-mini-instruct",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 128000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "github-models",
+      "model": "microsoft/phi-3-medium-128k-instruct",
+      "model_id": "github-models/microsoft/phi-3-medium-128k-instruct",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 128000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "github-models",
+      "model": "microsoft/phi-3-small-8k-instruct",
+      "model_id": "github-models/microsoft/phi-3-small-8k-instruct",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 8192,
       "benchmark_score": 0.1,
       "success_rate": 0.8,
       "latency_score": 0.933
