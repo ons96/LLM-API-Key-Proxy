@@ -3523,3 +3523,22 @@ providers:
   - id: glm-4-7-flash
     context: 200000
   notes: Discovered 2026-07-11
+- id: inferx
+  name: InferX
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: google/gemma-4-31b-it-fp8
+    context: 262144
+  - id: qwen/qwen3-coder-next-fp8-1m
+    context: 1024000
+  - id: qwen/qwen3.5-122b-a10b-nvfp4
+    context: 256144
+  - id: qwen/qwen3.6-35b-a3b-fp8
+    context: 262000
+  - id: qwen/qwen3-coder-next-fp8
+    context: 256144
+  - id: qwen/qwen3.6-27b-fp8
+    context: 262144
+  notes: Discovered 2026-07-12
