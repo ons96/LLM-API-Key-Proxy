@@ -3542,3 +3542,94 @@ providers:
   - id: qwen/qwen3.6-27b-fp8
     context: 262144
   notes: Discovered 2026-07-12
+- id: redwakeai
+  name: RedwakeAI (Vercel)
+  signup_url: https://redwakeai.vercel.app
+  env_var: REDWAKEAI_API_KEY
+  base_url: https://redwakeai.vercel.app/api/v1
+  enabled: false
+  free_tier: true
+  capabilities:
+  - chat
+  - reasoning
+  notes: 429 limit_error during initial validation (transient); provider confirmed alive
+  free_models:
+  - id: zxz/claude-opus-4-6
+    capabilities: [chat, reasoning]
+  - id: zxz/claude-opus-4-7
+    capabilities: [chat, reasoning]
+  - id: zxz/claude-opus-4-8
+    capabilities: [chat, reasoning]
+  - id: fable-5
+    capabilities: [chat, reasoning]
+  - id: zxz/gpt-5.5
+    capabilities: [chat, reasoning]
+  - id: zxz/gpt-5.6-luna
+    capabilities: [chat, reasoning]
+  - id: zxz/glm-5p2
+    capabilities: [chat, reasoning]
+- id: gcli
+  name: GCLI (ggchan.dev)
+  signup_url: https://gcli.ggchan.dev
+  env_var: GCLI_API_KEY
+  base_url: https://gcli.ggchan.dev
+  enabled: true
+  free_tier: true
+  capabilities:
+  - chat
+  - reasoning
+  notes: Gemini models; chat confirmed 200 on gemini-2.5-pro. pseudo-streaming variants
+    (假流式-*) skipped.
+  free_models:
+  - id: gemini-2.5-pro
+    capabilities: [chat, reasoning]
+  - id: gemini-2.5-flash
+    capabilities: [chat, reasoning]
+  - id: gemini-2.5-flash-lite
+    capabilities: [chat, reasoning]
+  - id: gemini-3-flash-preview
+    capabilities: [chat, reasoning]
+  - id: gemini-3.1-pro-preview
+    capabilities: [chat, reasoning]
+- id: agnes-ai
+  name: Agnes-AI Hub
+  signup_url: https://agnes-ai.com
+  env_var: AGNES_AI_API_KEY
+  base_url: https://apihub.agnes-ai.com/v1
+  enabled: true
+  free_tier: true
+  capabilities:
+  - chat
+  - image
+  - video
+  notes: Chat confirmed 200 on agnes-1.5-flash. agnes-image-* and agnes-video-* are
+    non-chat multimodal endpoints (not OpenAI chat compatible).
+  free_models:
+  - id: agnes-1.5-flash
+    capabilities: [chat]
+  - id: agnes-2.0-flash
+    capabilities: [chat]
+  - id: agnes-image-2.0-flash
+    capabilities: [image]
+  - id: agnes-image-2.1-flash
+    capabilities: [image]
+  - id: agnes-video-v2.0
+    capabilities: [video]
+- id: yungnet
+  name: YungNet (internal.model.yungnet.cn)
+  signup_url: ''
+  env_var: YUNGNET_API_KEY
+  base_url: https://internal.model.yungnet.cn/v1
+  enabled: false
+  free_tier: true
+  capabilities: []
+  notes: ARCHIVED 2026-07-13 — 401 Invalid token on all auth variants. new_api framework.
+- id: euromodels
+  name: EuroModels (euromodels.xyz)
+  signup_url: ''
+  env_var: EUROMODELS_API_KEY
+  base_url: https://euromodels.xyz/v1
+  enabled: false
+  free_tier: true
+  capabilities: []
+  notes: ARCHIVED 2026-07-13 — 403 Cloudflare access-gated from this network.

@@ -486,6 +486,64 @@ providers:
     - claude-sonnet-4-6
     - claude-opus-4-6
     - claude-haiku-4-5-20251001
+  zyf:
+    enabled: true
+    env_var: ZYF_API_KEY
+    base_url: https://zyf.12040414.xyz/v1
+    free_tier: true
+    free_tier_models:
+    - DeepSeek-V4-Flash
+    - DeepSeek-V4-Pro
+    - Kimi-K2.6
+    - glm-4.7
+    - glm-5.1
+    - glm-5.2
+  redwakeai:
+    enabled: false
+    env_var: REDWAKEAI_API_KEY
+    base_url: https://redwakeai.vercel.app/api/v1
+    free_tier: true
+    _auto_disabled_reason: 429 limit_error on all chat during validation (server-wide, transient)
+    free_tier_models:
+    - zxz/claude-opus-4-6
+    - zxz/claude-opus-4-7
+    - zxz/claude-opus-4-8
+    - fable-5
+    - zxz/gpt-5.5
+    - zxz/gpt-5.6-luna
+    - zxz/glm-5p2
+  gcli:
+    enabled: true
+    env_var: GCLI_API_KEY
+    base_url: https://gcli.ggchan.dev
+    free_tier: true
+    free_tier_models:
+    - gemini-2.5-pro
+    - gemini-2.5-flash
+    - gemini-2.5-flash-lite
+    - gemini-3-flash-preview
+    - gemini-3.1-pro-preview
+  agnes-ai:
+    enabled: true
+    env_var: AGNES_AI_API_KEY
+    base_url: https://apihub.agnes-ai.com/v1
+    free_tier: true
+    free_tier_models:
+    - agnes-1.5-flash
+    - agnes-2.0-flash
+  yungnet:
+    enabled: false
+    env_var: YUNGNET_API_KEY
+    base_url: https://internal.model.yungnet.cn/v1
+    free_tier: true
+    _auto_disabled_reason: 401 Invalid token during validation
+  euromodels:
+    enabled: false
+    env_var: EUROMODELS_API_KEY
+    base_url: https://euromodels.xyz/v1
+    free_tier: true
+    _auto_disabled_reason: 403 Cloudflare access-gated from this network
+
 search:
   default_enabled: true
   max_additional_searches: 2
