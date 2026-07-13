@@ -515,7 +515,7 @@ providers:
   gcli:
     enabled: true
     env_var: GCLI_API_KEY
-    base_url: https://gcli.ggchan.dev
+    base_url: https://gcli.ggchan.dev/v1
     free_tier: true
     free_tier_models:
     - gemini-2.5-pro
