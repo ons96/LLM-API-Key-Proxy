@@ -3591,7 +3591,7 @@ providers:
     capabilities: [chat, reasoning]
   - id: gemini-3.1-pro-preview
     capabilities: [chat, reasoning]
-- id: agnes-ai
+- id: agnes_ai
   name: Agnes-AI Hub
   signup_url: https://agnes-ai.com
   env_var: AGNES_AI_API_KEY

@@ -523,7 +523,7 @@ providers:
     - gemini-2.5-flash-lite
     - gemini-3-flash-preview
     - gemini-3.1-pro-preview
-  agnes-ai:
+  agnes_ai:
     enabled: true
     env_var: AGNES_AI_API_KEY
     base_url: https://apihub.agnes-ai.com/v1
