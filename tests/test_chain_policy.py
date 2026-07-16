@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from stat import S_IMODE
 
 import yaml
 
@@ -157,6 +158,29 @@ class TestChainPolicy(unittest.TestCase):
             coding_fast["fallback_chain"], [{"provider": "groq", "model": "new"}]
         )
 
+    def test_generated_merge_rejects_malformed_live_model(self) -> None:
+        with self.assertRaisesRegex(ValueError, "live coding-fast virtual model"):
+            generate_virtual_models.merge_generated_virtual_models(
+                {"virtual_models": {"coding-fast": "invalid"}},
+                {
+                    "virtual_models": {
+                        "coding-fast": {
+                            "fallback_chain": [{"provider": "groq", "model": "new"}]
+                        }
+                    }
+                },
+            )
+
+    def test_atomic_yaml_write_preserves_existing_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.yaml"
+            path.write_text("old: value\n")
+            path.chmod(0o640)
+            chain_policy.write_yaml_atomic(path, {"new": "value"})
+            self.assertEqual(yaml.safe_load(path.read_text()), {"new": "value"})
+            self.assertEqual(S_IMODE(path.stat().st_mode), 0o640)
+            self.assertFalse(list(Path(directory).glob(".config.yaml.*.tmp")))
+
 
 class TestRebuildChains(unittest.TestCase):
     @classmethod
@@ -212,12 +236,16 @@ class TestRebuildChains(unittest.TestCase):
         )
 
     def test_static_candidates_require_current_telemetry(self) -> None:
-        candidates = {"coding-fast": [("groq", "llama-3.3-70b-versatile"), ("mistral", "x")]}
+        candidates = {
+            "coding-fast": [("groq", "llama-3.3-70b-versatile"), ("mistral", "x")],
+            "chat-fast": [("gemini", "gemini-2.5-flash")],
+        }
         filtered = rebuild_chains.filter_new_tops_by_observed_models(
             candidates,
             {"groq": [{"model": "llama-3.3-70b-versatile"}, "malformed"]},
         )
         self.assertEqual(filtered, {"coding-fast": [("groq", "llama-3.3-70b-versatile")]})
+        self.assertNotIn("chat-fast", filtered)
         self.assertEqual(rebuild_chains.filter_new_tops_by_observed_models(candidates, {}), {})
 
     def test_rebuild_dry_run_creates_no_backup_or_write(self) -> None:

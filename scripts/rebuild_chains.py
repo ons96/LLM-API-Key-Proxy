@@ -9,7 +9,13 @@ from typing import Any, Dict, Iterable, List, Mapping, Tuple
 
 import yaml
 
-from chain_policy import candidate_key, blocked_reason, load_policy, sanitize_chain
+from chain_policy import (
+    blocked_reason,
+    candidate_key,
+    load_policy,
+    sanitize_chain,
+    write_yaml_atomic,
+)
 
 
 DEFAULT_CONFIG = Path("/tmp/opencode/virtual_models.yaml")
@@ -169,14 +175,16 @@ def filter_new_tops_by_observed_models(
     }
     if not observed:
         return {}
-    return {
-        name: [
+    filtered = {}
+    for name, entries in new_tops.items():
+        observed_candidates = [
             (provider, model)
             for provider, model in entries
             if candidate_key(provider, model) in observed
         ]
-        for name, entries in new_tops.items()
-    }
+        if observed_candidates:
+            filtered[name] = observed_candidates
+    return filtered
 
 
 def rebuild_document(
@@ -245,7 +253,7 @@ def main(argv: List[str] | None = None) -> int:
 
     backup = args.config.with_name(f"{args.config.name}.bak-pre-rebuild")
     backup.write_text(args.config.read_text())
-    args.config.write_text(yaml.safe_dump(rebuilt, default_flow_style=False, sort_keys=False))
+    write_yaml_atomic(args.config, rebuilt)
     print(f"Backup: {backup}")
     print(f"Wrote: {args.config}")
     return 0

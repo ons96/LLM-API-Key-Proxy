@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional
 import requests
 import yaml
 
-from chain_policy import blocked_reason, load_policy, sanitize_chain
+from chain_policy import blocked_reason, load_policy, sanitize_chain, write_yaml_atomic
 
 PROJECT_ROOT = Path(__file__).parent.parent
 CONFIG_DIR = PROJECT_ROOT / "config"
@@ -501,19 +501,21 @@ def merge_generated_virtual_models(live_document: Dict, generated_output: Dict) 
     for name, generated_model in generated_models.items():
         if not isinstance(generated_model, dict):
             raise ValueError(f"generated {name} virtual model must be a mapping")
-        live_model = merged_models.get(name)
-        if isinstance(live_model, dict):
-            updated_model = dict(live_model)
-            if "fallback_chain" in generated_model:
-                updated_model["fallback_chain"] = generated_model["fallback_chain"]
-            merged_models[name] = updated_model
-        else:
+        if name not in merged_models:
             merged_models[name] = dict(generated_model)
+            continue
+        live_model = merged_models[name]
+        if not isinstance(live_model, dict):
+            raise ValueError(f"live {name} virtual model must be a mapping")
+        updated_model = dict(live_model)
+        if "fallback_chain" in generated_model:
+            updated_model["fallback_chain"] = generated_model["fallback_chain"]
+        merged_models[name] = updated_model
     merged["virtual_models"] = merged_models
     return merged
 
 
-def main(argv: Optional[List[str]] = None):
+def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Generate policy-safe virtual model chains")
     parser.add_argument("--dry-run", action="store_true", help="generate but write no files")
     parser.add_argument(
@@ -536,10 +538,7 @@ def main(argv: Optional[List[str]] = None):
     if args.dry_run:
         print(f"\nDry run: would write {output_path}")
     else:
-        with open(output_path, "w") as f:
-            yaml.safe_dump(
-                output, f, default_flow_style=False, sort_keys=False, allow_unicode=True
-            )
+        write_yaml_atomic(output_path, output, allow_unicode=True)
         print(f"\nGenerated: {output_path}")
 
     print("\n" + "=" * 70)
@@ -565,9 +564,7 @@ def main(argv: Optional[List[str]] = None):
                 f"{live_path.name}.bak-pre-generate-{datetime.now():%Y%m%dT%H%M%S}"
             )
             backup_path.write_text(live_path.read_text())
-            live_path.write_text(
-                yaml.safe_dump(merged, default_flow_style=False, sort_keys=False)
-            )
+            write_yaml_atomic(live_path, merged)
             print(f"\nBacked up live config: {backup_path}")
             print(f"Merged generated virtual models into {live_path}")
     elif not args.dry_run:

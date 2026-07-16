@@ -6,6 +6,8 @@ benchmark data, or other historical records.
 
 from __future__ import annotations
 
+import os
+import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -135,6 +137,37 @@ def validate_chain(entries: Iterable[Mapping[str, Any]], policy: Mapping[str, An
         reason = blocked_reason(provider, model, policy)
         if reason:
             raise ValueError(f"blocklisted fallback entry {provider}/{model}: {reason}")
+
+
+def write_yaml_atomic(path: Path, document: Any, *, allow_unicode: bool = False) -> None:
+    """Replace a YAML file without exposing a partially written config."""
+    mode = path.stat().st_mode & 0o777 if path.exists() else 0o644
+    rendered = yaml.safe_dump(
+        document,
+        default_flow_style=False,
+        sort_keys=False,
+        allow_unicode=allow_unicode,
+    )
+    temporary: Optional[Path] = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            handle.write(rendered)
+            handle.flush()
+            os.fsync(handle.fileno())
+            temporary = Path(handle.name)
+        temporary.chmod(mode)
+        temporary.replace(path)
+    except Exception:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+        raise
 
 
 def sanitize_chain(
