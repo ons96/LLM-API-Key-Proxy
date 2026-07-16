@@ -11,13 +11,17 @@ Generates intelligent fallback chains for virtual models based on:
 Outputs: config/virtual_models_generated.yaml
 """
 
-import sys
-import yaml
-import requests
+import argparse
 import math
+import sys
 from pathlib import Path
-from typing import Dict, List, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import requests
+import yaml
+
+from chain_policy import blocked_reason, load_policy, sanitize_chain, write_yaml_atomic
 
 PROJECT_ROOT = Path(__file__).parent.parent
 CONFIG_DIR = PROJECT_ROOT / "config"
@@ -286,7 +290,9 @@ def generate_fallback_chain(
     min_ugi: float = 0.0,
     min_ugi_entertainment: float = 0.0,
     max_hallucination: float = 100.0,
+    policy: Optional[Dict[str, Any]] = None,
 ) -> List[Dict]:
+    policy = policy or load_policy()
     scored = []
     for m in models:
         if min_intelligence > 0 and m.get("intelligence", 0) < min_intelligence:
@@ -317,23 +323,29 @@ def generate_fallback_chain(
     chain = []
     for m in scored:
         key = f"{m['provider']}/{m['model']}"
-        if key not in seen and m["provider"] in FREE_PROVIDERS:
-            seen.add(key)
-            chain.append(
-                {
-                    "provider": m["provider"],
-                    "model": m["model"],
-                    "priority": len(chain) + 1,
-                    "reasoning_effort": m.get("reasoning_effort", "None"),
-                }
-            )
+        if m["provider"] not in FREE_PROVIDERS:
+            continue
+        if blocked_reason(m["provider"], m["model"], policy):
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        chain.append(
+            {
+                "provider": m["provider"],
+                "model": m["model"],
+                "priority": len(chain) + 1,
+                "reasoning_effort": m.get("reasoning_effort", "None"),
+            }
+        )
         if len(chain) >= max_models:
             break
 
-    return chain
+    return sanitize_chain(chain, policy, max_entries=max_models)
 
 
-def generate_virtual_models_yaml() -> Dict:
+def generate_virtual_models_yaml(policy: Optional[Dict[str, Any]] = None) -> Dict:
+    policy = policy or load_policy()
     print("Loading ranking data...")
     coding_models = load_coding_models()
     chat_models = load_chat_models()
@@ -347,7 +359,7 @@ def generate_virtual_models_yaml() -> Dict:
 
     print("\nGenerating coding-elite...")
     chain = generate_fallback_chain(
-        coding_models, WEIGHTS["coding-elite"], "coding", min_score=0.5
+        coding_models, WEIGHTS["coding-elite"], "coding", min_score=0.5, policy=policy
     )
     virtual_models["coding-elite"] = {
         "description": "Best agentic coding models (SWE-bench + LiveCodeBench weighted)",
@@ -358,7 +370,7 @@ def generate_virtual_models_yaml() -> Dict:
 
     print("\nGenerating coding-smart...")
     chain = generate_fallback_chain(
-        coding_models, WEIGHTS["coding-smart"], "coding", min_score=0.35
+        coding_models, WEIGHTS["coding-smart"], "coding", min_score=0.35, policy=policy
     )
     virtual_models["coding-smart"] = {
         "description": "High-quality coding with balanced performance",
@@ -369,7 +381,7 @@ def generate_virtual_models_yaml() -> Dict:
 
     print("\nGenerating coding-fast...")
     chain = generate_fallback_chain(
-        coding_models, WEIGHTS["coding-fast"], "coding", min_score=0.3
+        coding_models, WEIGHTS["coding-fast"], "coding", min_score=0.3, policy=policy
     )
     virtual_models["coding-fast"] = {
         "description": "Fastest coding models (TPS priority with quality floor)",
@@ -380,7 +392,7 @@ def generate_virtual_models_yaml() -> Dict:
 
     print("\nGenerating chat-smart...")
     chain = generate_fallback_chain(
-        chat_models, WEIGHTS["chat-smart"], "chat", min_score=0.4
+        chat_models, WEIGHTS["chat-smart"], "chat", min_score=0.4, policy=policy
     )
     virtual_models["chat-smart"] = {
         "description": "Best intelligence-to-speed ratio (smart AND reasonably fast)",
@@ -391,7 +403,7 @@ def generate_virtual_models_yaml() -> Dict:
 
     print("\nGenerating chat-elite...")
     chain = generate_fallback_chain(
-        chat_models, WEIGHTS["chat-elite"], "chat", min_score=0.5
+        chat_models, WEIGHTS["chat-elite"], "chat", min_score=0.5, policy=policy
     )
     virtual_models["chat-elite"] = {
         "description": "Most intelligent models regardless of speed (pure intelligence ranking)",
@@ -408,6 +420,7 @@ def generate_virtual_models_yaml() -> Dict:
         min_score=0.3,
         min_intelligence=30.0,
         max_hallucination=25.0,
+        policy=policy,
     )
     virtual_models["chat-fast"] = {
         "description": "Fastest models that aren't stupid (TPS priority, min intelligence threshold)",
@@ -426,6 +439,7 @@ def generate_virtual_models_yaml() -> Dict:
             max_models=20,
             min_ugi=25.0,
             min_ugi_entertainment=15.0,
+            policy=policy,
         )
     else:
         chain = [
@@ -447,6 +461,12 @@ def generate_virtual_models_yaml() -> Dict:
     }
     print(f"  Generated {len(chain)} models")
 
+    for name, virtual_model in virtual_models.items():
+        limit = 20 if name == "chat-rp" else 30
+        virtual_model["fallback_chain"] = sanitize_chain(
+            virtual_model["fallback_chain"], policy, max_entries=limit
+        )
+
     providers = load_yaml("virtual_models.yaml").get("providers", {})
 
     output = {
@@ -465,20 +485,61 @@ def generate_virtual_models_yaml() -> Dict:
     return output
 
 
-def main():
+def merge_generated_virtual_models(live_document: Dict, generated_output: Dict) -> Dict:
+    """Merge generated chains without replacing live per-model settings."""
+    if not isinstance(live_document, dict):
+        raise ValueError("live virtual model config must be a mapping")
+    live_models = live_document.get("virtual_models", {})
+    if not isinstance(live_models, dict):
+        raise ValueError("live virtual_models must be a mapping")
+
+    merged = dict(live_document)
+    merged_models = dict(live_models)
+    generated_models = generated_output.get("virtual_models", {})
+    if not isinstance(generated_models, dict):
+        raise ValueError("generated virtual_models must be a mapping")
+    for name, generated_model in generated_models.items():
+        if not isinstance(generated_model, dict):
+            raise ValueError(f"generated {name} virtual model must be a mapping")
+        if name not in merged_models:
+            merged_models[name] = dict(generated_model)
+            continue
+        live_model = merged_models[name]
+        if not isinstance(live_model, dict):
+            raise ValueError(f"live {name} virtual model must be a mapping")
+        updated_model = dict(live_model)
+        if "fallback_chain" in generated_model:
+            updated_model["fallback_chain"] = generated_model["fallback_chain"]
+        merged_models[name] = updated_model
+    merged["virtual_models"] = merged_models
+    return merged
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    parser = argparse.ArgumentParser(description="Generate policy-safe virtual model chains")
+    parser.add_argument("--dry-run", action="store_true", help="generate but write no files")
+    parser.add_argument(
+        "--policy", type=Path, help="path to the fallback-chain exclusion policy"
+    )
+    parser.add_argument(
+        "--write-live",
+        action="store_true",
+        help="merge generated virtual models into config/virtual_models.yaml",
+    )
+    args = parser.parse_args(argv)
+
     print("=" * 70)
     print("VIRTUAL MODEL GENERATOR")
     print("=" * 70)
 
-    output = generate_virtual_models_yaml()
+    output = generate_virtual_models_yaml(load_policy(args.policy))
 
     output_path = CONFIG_DIR / "virtual_models_generated.yaml"
-    with open(output_path, "w") as f:
-        yaml.dump(
-            output, f, default_flow_style=False, sort_keys=False, allow_unicode=True
-        )
-
-    print(f"\n✓ Generated: {output_path}")
+    if args.dry_run:
+        print(f"\nDry run: would write {output_path}")
+    else:
+        write_yaml_atomic(output_path, output, allow_unicode=True)
+        print(f"\nGenerated: {output_path}")
 
     print("\n" + "=" * 70)
     print("SUMMARY: TOP 5 MODELS PER VIRTUAL MODEL")
@@ -490,11 +551,24 @@ def main():
         for i, m in enumerate(chain, 1):
             print(f"  {i}. {m['provider']}/{m['model']}")
 
-    # Write output to file
-    output_path = PROJECT_ROOT / "config" / "virtual_models.yaml"
-    with open(output_path, "w") as f:
-        yaml.dump(output, f, default_flow_style=False, sort_keys=False)
-    print(f"\nWrote virtual models to {output_path}")
+    if args.write_live:
+        live_path = CONFIG_DIR / "virtual_models.yaml"
+        live_document = yaml.safe_load(live_path.read_text()) or {}
+        merged = merge_generated_virtual_models(live_document, output)
+        if merged == live_document:
+            print(f"\nLive config unchanged: {live_path}")
+        elif args.dry_run:
+            print(f"\nDry run: would merge generated models into {live_path}")
+        else:
+            backup_path = live_path.with_name(
+                f"{live_path.name}.bak-pre-generate-{datetime.now():%Y%m%dT%H%M%S}"
+            )
+            backup_path.write_text(live_path.read_text())
+            write_yaml_atomic(live_path, merged)
+            print(f"\nBacked up live config: {backup_path}")
+            print(f"Merged generated virtual models into {live_path}")
+    elif not args.dry_run:
+        print("\nLive config unchanged (use --write-live to merge generated models).")
 
     return 0
 
