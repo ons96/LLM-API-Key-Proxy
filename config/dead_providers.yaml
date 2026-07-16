@@ -1,0 +1,52 @@
+version: 1
+
+# This filters fallback-chain membership only. Provider/model catalogs and
+# benchmark history remain intact so a provider can be restored after a recheck.
+blocked_providers:
+  - provider: kilo
+    reason: Kilo API endpoint returned a Vercel 404 page
+    last_confirmed_dead: "2026-07-16"
+  - provider: antigravity
+    reason: OAuth route is unavailable
+    last_confirmed_dead: "2026-07-16"
+
+blocked_provider_prefixes:
+  - prefix: g4f_
+    reason: g4f provider variants are unreliable fallbacks
+    last_confirmed_dead: "2026-07-16"
+
+blocked_models:
+  - provider: cliproxyapi
+    model_prefix: gemini-3
+    allow_models:
+      - gemini-3-flash
+    reason: Gemini 3 variants are unsupported by CLIProxyAPI
+    last_confirmed_dead: "2026-07-16"
+  - provider: cerebras
+    model: qwen-3-235b-a22b-instruct-2507
+    reason: Model returned NotFound
+    last_confirmed_dead: "2026-07-16"
+  - provider: supacoder
+    model: gpt-5.4
+    reason: Provider blocks requests for this model
+    last_confirmed_dead: "2026-07-16"
+  - provider: gemini
+    model: gemini-3-pro
+    reason: Model is unavailable
+    last_confirmed_dead: "2026-07-16"
+  - provider: gemini
+    model: gemini-3.1-pro
+    reason: Model is unavailable
+    last_confirmed_dead: "2026-07-16"
+
+# At least one of these direct providers must remain in every generated or
+# rebuilt chain so free aggregator failures cannot exhaust the chain.
+direct_free_fallbacks:
+  - provider: groq
+    model: llama-3.3-70b-versatile
+  - provider: cerebras
+    model: llama-3.3-70b
+  - provider: gemini
+    model: gemini-2.5-flash
+  - provider: cliproxyapi
+    model: gemini-2.5-flash
