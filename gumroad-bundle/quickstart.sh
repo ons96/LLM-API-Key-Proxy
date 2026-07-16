@@ -1,233 +1,148 @@
 #!/usr/bin/env bash
-# =============================================================================
-# Free LLM Gateway -- one-click setup script
-# Bundle: gumroad-bundle/quickstart.sh
+# Free LLM Gateway -- loopback-only installer
 #
-# Run this ON your fresh Oracle Cloud (or any Ubuntu/Debian) VPS, as a normal
-# user with sudo. It:
-#   1. Installs uv + Python 3.12 if missing
-#   2. Creates a venv and installs gateway deps
-#   3. Writes a systemd service (MemoryMax=400M, auto-restart, port 8000)
-#   4. Starts the service
-#   5. Runs a smoke test (curl /v1/models)
-#   6. Prints the gateway URL and next steps
-#
-# Idempotent: safe to re-run. Does not overwrite an existing .env.
-#
-# Usage:  bash gumroad-bundle/quickstart.sh
-# =============================================================================
+# Run from a source checkout with this bundle at gumroad-bundle/. The service
+# binds only to 127.0.0.1. It never opens a firewall or public listener.
 set -euo pipefail
 
-# ---- config -----------------------------------------------------------------
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 SERVICE_NAME="llm-gateway"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 PORT="${GATEWAY_PORT:-8000}"
-HOST="0.0.0.0"
-LOG_FILE="/var/log/${SERVICE_NAME}.log"
+HOST="127.0.0.1"
 VENV_DIR="${REPO_DIR}/venv"
 MEMORY_MAX_MB="${GATEWAY_MEMORY_MAX_MB:-400}"
+ENV_FILE="${REPO_DIR}/.env"
 
-# ---- helpers ----------------------------------------------------------------
-log()  { printf '[setup] %s\n' "$*"; }
-err()  { printf '[setup] ERROR: %s\n' "$*" >&2; }
-die()  { err "$*"; exit 1; }
+log() { printf '[setup] %s\n' "$*"; }
+die() { printf '[setup] ERROR: %s\n' "$*" >&2; exit 1; }
 step() { printf '\n=== %s ===\n' "$*"; }
 
-# ---- preflight --------------------------------------------------------------
-step "Preflight checks"
-[ -d "${REPO_DIR}/src/proxy_app" ] || die "Repo not found at ${REPO_DIR}. Run from inside the cloned LLM-API-Key-Proxy directory."
-[ -f "${REPO_DIR}/requirements.txt" ] || die "requirements.txt missing. Is this the right repo?"
+env_value() {
+    local key="$1" line value=""
+    while IFS= read -r line || [ -n "${line}" ]; do
+        if [[ "${line}" == "${key}="* ]]; then
+            value="${line#*=}"
+        fi
+    done < "${ENV_FILE}"
+    value="${value#\"}"
+    value="${value%\"}"
+    printf '%s' "${value}"
+}
 
-# Determine the service user. On Oracle Ubuntu images it's 'ubuntu'; on
-# others it may be the current user. We use SUDO_USER if invoked via sudo,
-# otherwise the current user.
+step "Preflight"
+[ -d "${REPO_DIR}/src/proxy_app" ] || die "Run from an LLM-API-Key-Proxy source checkout."
+[ -f "${REPO_DIR}/requirements.txt" ] || die "requirements.txt is missing."
+[[ "${PORT}" =~ ^[0-9]+$ ]] && [ "${PORT}" -gt 0 ] && [ "${PORT}" -lt 65536 ] \
+    || die "GATEWAY_PORT must be an integer from 1 through 65535."
+
 if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
     RUN_USER="${SUDO_USER}"
 else
     RUN_USER="$(id -un)"
 fi
-[ "${RUN_USER}" = "root" ] && die "Don't run this as root directly. Run as a normal user (the script will sudo when needed)."
+[ "${RUN_USER}" != "root" ] || die "Run as a normal user; the script uses sudo when needed."
 RUN_HOME="$(getent passwd "${RUN_USER}" | cut -d: -f6)"
-log "Repo:      ${REPO_DIR}"
-log "Service:   ${SERVICE_NAME} (port ${PORT}, user ${RUN_USER})"
-log "Memory cap: ${MEMORY_MAX_MB} MB"
+sudo -v
 
-# Require sudo access for systemd install
-if ! sudo -n true 2>/dev/null && [ ! -w /etc/systemd/system ]; then
-    die "This script needs sudo to install a systemd service. Re-run with: sudo -E bash gumroad-bundle/quickstart.sh  (or just provide your password when prompted)."
+step "Check configuration"
+if [ ! -f "${ENV_FILE}" ]; then
+    [ -f "${REPO_DIR}/gumroad-bundle/.env.starter" ] || die "Missing .env and starter template."
+    cp "${REPO_DIR}/gumroad-bundle/.env.starter" "${ENV_FILE}"
+    chmod 600 "${ENV_FILE}"
+    die "Created ${ENV_FILE}. Generate a key with: openssl rand -hex 32; set PROXY_API_KEY, add provider credentials, then rerun."
 fi
+chmod 600 "${ENV_FILE}"
+PROXY_KEY="$(env_value PROXY_API_KEY)"
+case "${PROXY_KEY}" in
+    ''|change-this*|YOUR_*|*TODO*) die "Set PROXY_API_KEY to a generated, non-placeholder value before starting." ;;
+esac
+[ "${#PROXY_KEY}" -ge 32 ] || die "PROXY_API_KEY must be at least 32 characters. Generate one with: openssl rand -hex 32"
 
-# ---- .env check -------------------------------------------------------------
-step "Check .env"
-if [ ! -f "${REPO_DIR}/.env" ]; then
-    if [ -f "${REPO_DIR}/gumroad-bundle/.env.starter" ]; then
-        log "No .env found. Copying starter template..."
-        cp "${REPO_DIR}/gumroad-bundle/.env.starter" "${REPO_DIR}/.env"
-        chmod 600 "${REPO_DIR}/.env"
-        log "Copied. Now edit it and fill in your free keys:"
-        log "  nano ${REPO_DIR}/.env"
-        log "Then re-run this script. Aborting so you can fill in keys first."
-        exit 0
-    else
-        die "No .env and no gumroad-bundle/.env.starter found. Create .env manually (see SETUP_GUIDE.md)."
-    fi
-fi
-
-# Warn if .env still has TODO placeholders for the two essential providers
-if grep -qE 'GROQ_API_KEY_1="(# TODO|YOUR_)' "${REPO_DIR}/.env" 2>/dev/null \
-   && grep -qE 'GEMINI_API_KEY_1="(# TODO|YOUR_)' "${REPO_DIR}/.env" 2>/dev/null; then
-    log "WARNING: GROQ_API_KEY_1 and GEMINI_API_KEY_1 still look like placeholders."
-    log "The gateway will start but may have no working providers. Edit ${REPO_DIR}/.env"
-    log "and fill in at least one real key. Continuing anyway (you can restart later)..."
-fi
-
-# ---- install uv + python ----------------------------------------------------
 step "Install uv and Python"
 if ! command -v uv >/dev/null 2>&1; then
-    log "Installing uv (fast Python package manager)..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
     # shellcheck disable=SC1091
     source "${RUN_HOME}/.local/bin/env" 2>/dev/null || source "${RUN_HOME}/.cargo/env" 2>/dev/null || true
     export PATH="${RUN_HOME}/.local/bin:${PATH}"
 fi
-if ! command -v uv >/dev/null 2>&1; then
-    die "uv install failed. Install manually: https://docs.astral.sh/uv/"
-fi
-log "uv: $(uv --version)"
+command -v uv >/dev/null 2>&1 || die "uv installation failed; install it manually and rerun."
+uv python find 3.12 >/dev/null 2>&1 || uv python install 3.12
 
-# Ensure python 3.12 via uv (does not touch system python)
-if ! uv python find 3.12 >/dev/null 2>&1; then
-    log "Installing Python 3.12 via uv..."
-    uv python install 3.12
-fi
-
-# ---- venv + deps ------------------------------------------------------------
-step "Create venv and install dependencies"
+step "Install dependencies"
 cd "${REPO_DIR}"
-if [ ! -d "${VENV_DIR}" ]; then
-    log "Creating venv at ${VENV_DIR}..."
-    uv venv "${VENV_DIR}" --python 3.12
-fi
+[ -d "${VENV_DIR}" ] || uv venv "${VENV_DIR}" --python 3.12
 # shellcheck disable=SC1091
 source "${VENV_DIR}/bin/activate"
-log "Installing requirements (this takes a few minutes on first run)..."
 uv pip install -r requirements.txt
 
-# ---- systemd service --------------------------------------------------------
-step "Install systemd service"
-# ponytail: hardcoded user/home paths because systemd does not expand shell
-# vars in ExecStart reliably; we template them in below.
+step "Install loopback-only service"
 cat > "/tmp/${SERVICE_NAME}.service" <<SERVICEEOF
 [Unit]
-Description=LLM API Gateway Proxy (free multi-provider)
-After=network.target
+Description=LLM API Gateway Proxy
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=${RUN_USER}
 WorkingDirectory=${REPO_DIR}
-EnvironmentFile=${REPO_DIR}/.env
+EnvironmentFile=${ENV_FILE}
 ExecStart=${VENV_DIR}/bin/python src/proxy_app/main.py --host ${HOST} --port ${PORT}
 Restart=on-failure
 RestartSec=10
-StandardOutput=append:${LOG_FILE}
-StandardError=append:${LOG_FILE}
-# Memory cap: keeps the gateway from OOMing a 1 GB VPS. Raise to 800M on the
-# 6 GB ARM shape if you have headroom.
+NoNewPrivileges=true
 MemoryMax=${MEMORY_MAX_MB}M
 
 [Install]
 WantedBy=multi-user.target
 SERVICEEOF
-
-sudo cp "/tmp/${SERVICE_NAME}.service" "${SERVICE_FILE}"
-sudo chown root:root "${SERVICE_FILE}"
-sudo chmod 644 "${SERVICE_FILE}"
+sudo install -o root -g root -m 0644 "/tmp/${SERVICE_NAME}.service" "${SERVICE_FILE}"
 rm -f "/tmp/${SERVICE_NAME}.service"
-
-# Make sure the log file is writable by the service user
-sudo touch "${LOG_FILE}"
-sudo chown "${RUN_USER}":"$(id -gn "${RUN_USER}")" "${LOG_FILE}"
-
 sudo systemctl daemon-reload
 sudo systemctl enable "${SERVICE_NAME}"
-
-# ---- start / restart --------------------------------------------------------
-step "Start the gateway"
 sudo systemctl restart "${SERVICE_NAME}"
 
-# ---- wait for health --------------------------------------------------------
-step "Wait for health"
+step "Verify loopback service"
 HEALTH_OK=false
 for i in $(seq 1 12); do
     sleep 3
-    if curl -sf --max-time 5 "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; then
+    if curl -fsS --max-time 5 "http://127.0.0.1:${PORT}/health" >/dev/null; then
         HEALTH_OK=true
-        log "Health check passed (attempt ${i})."
         break
     fi
-    log "Waiting for gateway... (attempt ${i}/12)"
 done
-
-if [ "${HEALTH_OK}" != "true" ]; then
-    err "Gateway did not become healthy in time. Recent logs:"
+[ "${HEALTH_OK}" = true ] || {
     sudo journalctl -u "${SERVICE_NAME}" -n 30 --no-pager || true
-    die "See SETUP_GUIDE.md -> Troubleshooting. Common causes: bad provider key (still starts, check /v1/models), port in use, OOM (lower MemoryMax)."
-fi
+    die "Gateway did not become healthy."
+}
+LISTENERS="$(sudo ss -ltnH "sport = :${PORT}" || true)"
+printf '%s\n' "${LISTENERS}" | grep -Fq "127.0.0.1:${PORT}" || die "Gateway is not listening on loopback only. Check the service definition."
+case "${LISTENERS}" in
+    *"0.0.0.0:${PORT}"*|*"[::]:${PORT}"*) die "Gateway has a non-loopback listener. Check the service definition." ;;
+esac
 
-# ---- smoke test -------------------------------------------------------------
-step "Smoke test: list models"
-PROXY_KEY="$(grep -E '^PROXY_API_KEY=' "${REPO_DIR}/.env" | head -1 | sed -E 's/^PROXY_API_KEY="?([^"]*)"?$/\1/')"
-MODELS_RESP=""
-if [ -n "${PROXY_KEY}" ]; then
-    MODELS_RESP="$(curl -sf --max-time 10 "http://127.0.0.1:${PORT}/v1/models" -H "Authorization: Bearer ${PROXY_KEY}" 2>/dev/null || true)"
-else
-    MODELS_RESP="$(curl -sf --max-time 10 "http://127.0.0.1:${PORT}/v1/models" 2>/dev/null || true)"
-fi
-
+step "Authenticated smoke test"
+MODELS_RESP="$(curl -fsS --max-time 10 "http://127.0.0.1:${PORT}/v1/models" -H "Authorization: Bearer ${PROXY_KEY}" || true)"
 if [ -n "${MODELS_RESP}" ]; then
     MODEL_COUNT="$(printf '%s' "${MODELS_RESP}" | grep -o '"id"' | wc -l | tr -d ' ')"
-    log "Models endpoint responded. ~${MODEL_COUNT} models available."
+    log "Models endpoint responded; approximately ${MODEL_COUNT} models returned."
 else
-    log "WARNING: /v1/models returned empty or failed. The service is up (/health ok) but"
-    log "no providers may be configured. Check your .env keys and restart:"
-    log "  sudo systemctl restart ${SERVICE_NAME}"
+    log "Gateway is healthy but /v1/models did not return data. Check provider credentials and journalctl."
 fi
 
-# ---- firewall reminder ------------------------------------------------------
-step "Firewall reminder"
-PUBLIC_IP="$(curl -sf --max-time 5 https://ifconfig.me 2>/dev/null || true)"
-if [ -n "${PUBLIC_IP}" ]; then
-    log "Your VPS public IP appears to be: ${PUBLIC_IP}"
-fi
-log "Port ${PORT} must be open in the Oracle Cloud security list (Ingress, TCP,"
-log "source = your IP/32 or a Tailscale range). See SETUP_GUIDE.md Step 1.5."
-log "Do NOT open it to 0.0.0.0/0 unless you accept that the gateway is reachable"
-log "by anyone (even with a PROXY_API_KEY, that is not recommended)."
-
-# ---- done -------------------------------------------------------------------
-step "Done"
 cat <<DONEEOF
 
-============================================================
-  Your free LLM gateway is live.
+Gateway is running only at http://127.0.0.1:${PORT}/v1.
 
-  Local URL:   http://127.0.0.1:${PORT}/v1
-  Public URL:  http://${PUBLIC_IP:-YOUR_VPS_IP}:${PORT}/v1
-  API key:     the PROXY_API_KEY you set in ${REPO_DIR}/.env
-  Logs:        sudo journalctl -u ${SERVICE_NAME} -f
-               (or: tail -f ${LOG_FILE})
-  Restart:     sudo systemctl restart ${SERVICE_NAME}
-  Status:      sudo systemctl status ${SERVICE_NAME}
+For personal remote access, use an SSH tunnel from your client:
+  ssh -N -L ${PORT}:127.0.0.1:${PORT} ${RUN_USER}@YOUR_SERVER
 
-  Next steps:
-    1. Open port ${PORT} in the Oracle security list (see SETUP_GUIDE.md 1.5)
-    2. Point your tools at the Public URL above (see SETUP_GUIDE.md Step 5)
-    3. Test a chat completion:
-       curl -X POST http://${PUBLIC_IP:-YOUR_VPS_IP}:${PORT}/v1/chat/completions \\
-         -H "Content-Type: application/json" \\
-         -H "Authorization: Bearer YOUR_PROXY_API_KEY" \\
-         -d '{"model":"coding-elite","messages":[{"role":"user","content":"Hello"}],"max_tokens":50}'
-============================================================
+Then point the client to http://127.0.0.1:${PORT}/v1.
+For internet-facing access, configure an HTTPS reverse proxy on ports 80/443
+that forwards to 127.0.0.1:${PORT}. Never expose TCP/${PORT} directly.
+
+Logs:    sudo journalctl -u ${SERVICE_NAME} -f
+Restart: sudo systemctl restart ${SERVICE_NAME}
+Status:  sudo systemctl status ${SERVICE_NAME}
 DONEEOF
