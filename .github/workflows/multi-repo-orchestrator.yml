@@ -36,13 +36,13 @@ jobs:
           REPOS='${{ github.event.inputs.repos }}'
         elif [ "${{ github.event_name }}" = "repository_dispatch" ]; then
           REPOS=$(gh repo list ${{ github.repository_owner }} \
-            --json name \
-            --jq '[.[].name | "${{ github.repository_owner }}/" + .]' \
+            --json name,defaultBranchRef \
+            --jq '[.[] | select(.defaultBranchRef != null) | "${{ github.repository_owner }}/" + .name]' \
             --limit 100)
         else
           REPOS=$(gh repo list ${{ github.repository_owner }} \
-            --json name \
-            --jq '[.[].name | "${{ github.repository_owner }}/" + .]' \
+            --json name,defaultBranchRef \
+            --jq '[.[] | select(.defaultBranchRef != null) | "${{ github.repository_owner }}/" + .name]' \
             --limit 100)
         fi
         echo "repos=${REPOS}" >> $GITHUB_OUTPUT
