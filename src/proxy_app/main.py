@@ -1694,5 +1694,22 @@ if __name__ == "__main__":
                 console.print("\nStarting proxy server...\n")
 
         import uvicorn
-
+        import socket, time
+        # ponytail: reorder-chains restart can race Restart=always, leaving the
+        # old listener bound briefly -> [Errno 98]. Wait up to 15s for the port
+        # to free before bind. Raise the ceiling if reorder cadence tightens.
+        def _wait_port_free(host, port, timeout=15.0):
+            h = "127.0.0.1" if host in ("0.0.0.0", "::") else host
+            deadline = time.monotonic() + timeout
+            while time.monotonic() < deadline:
+                probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                probe.settimeout(0.5)
+                try:
+                    if probe.connect_ex((h, port)) != 0:
+                        return True
+                finally:
+                    probe.close()
+                time.sleep(0.5)
+            return False
+        _wait_port_free(args.host, args.port)
         uvicorn.run(app, host=args.host, port=args.port)
