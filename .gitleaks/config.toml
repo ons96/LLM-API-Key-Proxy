@@ -1,0 +1,24 @@
+# gitleaks config — allowlist verified false-positives (task-board #423)
+# All entries manually verified benign 2026-07-23:
+#  - config/virtual_models.yaml*, render.yaml: env-var NAMES (api_key_env:/- key:), not values
+#  - .env.example: literal placeholder (YOUR_PROXY_API_KEY)
+#  - *_auth_base.py CLIENT_ID/CLIENT_SECRET: PUBLIC OAuth installed-app secrets
+#    (qwen/gemini/antigravity/iflow CLI clients), public-by-design per RFC 8252
+#  - ai_output_raw.txt / conftest.py / docs/iflow_auth_flow_extracted.md: history-only
+#    (deleted from tree), redacted logs / env-name test fixtures / doc snippets
+# NOTE: gitleaks 8.21 requires SINGULAR [allowlist]; plural [[allowlists]] is
+# silently ignored in git-mode (--log-opts) history scans.
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+  '''config/virtual_models\.ya?ml''',
+  '''config/virtual_models\.yaml\.(bak|backup|backup2|old)''',
+  '''render\.yaml''',
+  '''\.env\.example''',
+  '''.*_auth_base\.py''',
+  '''ai_output_raw\.txt''',
+  '''docs/iflow_auth_flow_extracted\.md''',
+  '''src/tests/conftest\.py''',
+]
