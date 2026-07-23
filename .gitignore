@@ -147,3 +147,8 @@ oauth_creds/
 provider_status.db
 config/discovered_models.json
 config/telemetry_summary.json
+
+# Timestamped rescue backups (reorder_chains writes one every 30min)
+*.bak-*
+# Env variants (secrets) - never track
+.env.*
