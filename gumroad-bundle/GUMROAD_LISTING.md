@@ -1,170 +1,83 @@
-# GUMROAD LISTING - Free LLM Gateway Starter Kit
+# Product listing draft -- Free LLM Gateway Starter Kit
 
-> This is the copy for the Gumroad product page. Paste the sections below into
-> the Gumroad product editor. Keep the tone honest and practical.
+This is draft copy. Complete marketplace identity, payout, tax, refund, and
+launch-date fields manually before publishing.
 
----
+## Title
 
-## Product title
-
-Free LLM Gateway Starter Kit -- 9 Providers, 30-Minute Setup
+Free LLM Gateway Starter Kit -- Secure Self-Hosted Setup
 
 ## Tagline
 
-Your own always-on, OpenAI-compatible gateway that aggregates free LLM
-providers with automatic fallback. Zero monthly cost.
+Setup materials for running a loopback-only, OpenAI-compatible gateway from a
+source checkout you control.
 
 ## Price
 
-**$29** -- Standard tier (setup guide + templates + one-click script + 30-day email support)
+One one-time product. Charge USD 19 for the first 10 completed purchases or
+the first 14 calendar days after launch, whichever comes first, then USD 29.
+Immediately before publishing, add the exact UTC launch deadline to the product
+page. Keep the same price across checkout platforms; taxes and currency
+conversion can vary at checkout.
 
-**$49** -- Bonus tier (everything above + the auto-optimizing reorder service
-that re-ranks your fallback chains from live speed data every 30 minutes)
+## What buyers receive
 
-### Why two tiers
-The standard tier gets you a working free gateway in 30 minutes. The bonus tier
-adds a self-optimizing layer: a systemd timer that reads your gateway's
-telemetry and rewrites the fallback chains to favor whichever free providers are
-actually fastest for you right now. Over a few days, your `coding-elite` chain
-quietly tunes itself. If you are comfortable on the command line and want the
-gateway to get better on its own, get the bonus tier. If you just want it
-working and forget about it, the standard tier is enough.
+- A security-first installation guide for Ubuntu/Debian.
+- A sanitized `.env` template with no real credentials.
+- An idempotent systemd installer that binds the gateway to `127.0.0.1` only.
+- SSH-tunnel and optional HTTPS reverse-proxy guidance.
+- Local health and authenticated model-list smoke tests.
+- An explicit release script that packages only these buyer-facing files.
 
-## What you get
-
-- **The 30-minute setup guide** (`SETUP_GUIDE.md`) -- step-by-step, from Oracle
-  Cloud signup to a working gateway to pointing your coding tools at it. No
-  assumed knowledge beyond basic terminal use.
-- **Sanitized config template** (`.env.starter`) -- every env var you need,
-  pre-filled with safe defaults and clear `# TODO` markers for your free keys.
-  No internal paths, no leaked secrets, no guesswork.
-- **One-click setup script** (`quickstart.sh`) -- run it on your VPS; it installs
-  deps, writes the systemd service (auto-restart on crash, memory-capped for 1GB
-  VPS), starts the gateway, and runs a smoke test. Idempotent -- safe to re-run.
-- **Virtual model config** -- the four virtual models (`coding-elite`,
-  `coding-fast`, `chat-smart`, `chat-fast`) backed by deep fallback chains, ready
-  to use the moment the gateway boots.
-- **Tool integration examples** -- working config snippets for opencode, Cursor,
-  continue.dev, and LangChain so you can point your tools at the gateway in
-  under a minute.
-- **30 days of email support** -- stuck on a step? Email with your redacted
-  `.env` and log output; response within 2 business days.
-- **Bonus tier only: the reorder service** -- systemd unit + timer that
-  re-optimizes your fallback chains from live telemetry every 30 minutes.
-
-## Who it's for
-
-- Developers who want free LLMs for coding and chat without stitching nine
-  provider accounts into their tools by hand.
-- opencode, Cursor, and continue.dev users who want a single custom OpenAI
-  endpoint instead of juggling provider configs.
-- Hobbyists and indie hackers who want an always-on LLM endpoint for side
-  projects without a monthly bill.
-- Anyone on a tight budget who has heard "just use free LLM providers" but
-  bounced off the setup complexity.
-
-## What it saves you
-
-The underlying gateway is open source and free. What you are paying for is the
-hours this bundle removes:
-
-- Reading a large repo to figure out which env vars matter and which are
-  internal noise.
-- Signing up for nine providers and not knowing which two are enough to start.
-- Debugging the first boot (port not open, wrong key format, OOM on 1GB,
-  virtual model name typo) -- the troubleshooting section covers each.
-- Writing a systemd unit that survives reboots and does not OOM your VPS.
-- Figuring out how to point opencode/Cursor/continue.dev at a custom endpoint.
-
-If your time is worth more than about $6/hour to you, the standard tier pays for
-itself in the first afternoon.
+The source repository is public at
+`https://github.com/ons96/LLM-API-Key-Proxy`. This product sells curated setup
+materials, not exclusive source access. Gateway source licensing remains
+separate: the proxy application is MIT and the rotator library is LGPL-3.0.
 
 ## Requirements
 
-- An Oracle Cloud account (Always Free tier, credit card for identity verify
-  only -- never billed for free-tier resources).
-- 2 to 5 free LLM provider API keys (Groq + Gemini minimum; all free, links in
-  the guide). About 10 minutes of signup.
-- Basic terminal comfort (SSH in, edit a file, run a script). No Python or
-  networking expertise needed.
+- A source checkout of the gateway and an Ubuntu/Debian host where you have
+  normal-user sudo access.
+- Provider credentials and hosting accounts controlled by the buyer.
+- Basic command-line comfort: SSH, editing a file, and running a script.
+- A personal SSH tunnel or, for public use, a domain and separately configured
+  HTTPS reverse proxy.
+
+Provider, hosting, marketplace, quota, eligibility, and pricing terms can
+change. Review current third-party terms before creating an account or adding a
+credential. This bundle does not promise a particular provider, model, rate
+limit, cost, uptime, or result.
+
+## Security model
+
+The installer keeps the gateway on `127.0.0.1:8000`. It does not open a
+firewall port or print a public HTTP endpoint. For remote personal use, tunnel
+the port over SSH. For internet-facing use, configure HTTPS on ports 80/443 and
+reverse-proxy only to the loopback gateway. Keep `PROXY_API_KEY` enabled in all
+cases. Never upload or send `.env` files, provider keys, or proxy keys.
+
+## Product scope
+
+Buyers receive published v1.x updates to these bundle materials. Purchase does
+not include hosting, provider accounts, API keys, a service-level commitment,
+personal support, or a future major version. Configure any refund policy in the
+checkout platform before launch; do not condition refunds on private support.
 
 ## FAQ
 
-**Is the gateway code free?**
-Yes. It is open source at github.com/ons96/LLM-API-Key-Proxy and always will be.
+**Does this include hosted API access?** No. It is a self-hosted setup bundle.
 
-**Then what am I paying for?**
-The curated 30-minute setup path, the sanitized config template, the one-click
-script, the tool-integration examples, and 30 days of email support. You are
-buying convenience and curation, not the code -- like a book that explains free
-software.
+**Can I expose port 8000 directly?** No. Keep it loopback-only; use SSH or a
+properly configured HTTPS reverse proxy.
 
-**Will it cost me anything ongoing?**
-No. All providers have free tiers. The gateway is free-first by default
-(`FREE_ONLY_MODE=true`), so even if you add a paid key later it will not use it
-unless you explicitly turn that off.
+**Will every configured provider work?** No guarantee. Credentials, models,
+quotas, and upstream availability are external and can change.
 
-**What if a provider rate-limits me?**
-The gateway automatically falls back to the next provider in the chain. You
-usually never see the failure. Adding more free keys spreads the load.
+**What do I test first?** Run the local `/health` and authenticated `/v1/models`
+checks, then point one client through an SSH tunnel before considering HTTPS.
 
-**Can I add paid providers later?**
-Yes. Drop an OpenAI or Anthropic key in `.env`, set `FREE_ONLY_MODE=false`, and
-they join the fallback chains. The free-first ordering keeps your bill at zero
-unless you change it.
+## Honest expectations
 
-**Does it work on a 1GB VPS?**
-Yes. The systemd unit is memory-capped at 400MB and the gateway is designed for
-low-RAM hardware. If you pick the 6GB ARM free shape, you can raise the cap.
-
-**Is my gateway exposed to the internet?**
-Only if you choose to open the port that wide. The guide shows you how to lock
-access to your IP or use Tailscale (free, private VPN) so only your devices can
-reach it.
-
-**What if I get stuck?**
-Email the address in your Gumroad receipt with what you expected, what happened,
-the error, and your `.env` with key values replaced by `XXXX`. Response within 2
-business days, 30 days from purchase.
-
-**Is there a refund?**
-If you cannot get the gateway running after contacting support, yes -- full
-refund within 30 days. We want this to actually work for you.
-
-## Sample (first page of the setup guide)
-
-```
-What you're building
---------------------
-You are about to set up your own free OpenAI-compatible LLM gateway on a
-tiny cloud server. Instead of juggling nine different provider accounts and
-hardcoding each one into your coding tools, you point your tools at one URL
-and the gateway does the rest:
-
-- It speaks the OpenAI API (/v1/chat/completions, /v1/models), so any tool
-  that accepts a custom OpenAI base URL works immediately.
-- It exposes a handful of virtual models -- coding-elite, coding-fast,
-  chat-smart, chat-fast -- each backed by a fallback chain of free
-  providers. If Groq is rate-limited, it silently tries Cerebras, then
-  Gemini, and so on. You never see the failure.
-- It runs on a 1 GB Oracle Cloud free-tier VM, costs $0/month, and stays
-  up 24/7 (no sleep, unlike Render's free tier).
-
-The gateway code itself is open source and always will be. What you paid for
-is this curated 30-minute path, the pre-filled config template, the
-one-click setup script, and support.
-```
-
-## Honest expectations (include on the listing page)
-
-- Free tiers have rate limits. The gateway spreads load across providers so you
-  rarely hit a wall, but it is not "unlimited free LLMs forever." Heavy agentic
-  sessions may occasionally wait for a cooldown.
-- Quality varies by provider. `coding-elite` prefers the best free coding models
-  available; some (GLM-5.2, Gemini 3 Pro, Qwen3) are genuinely strong, but it is
-  not a paid Claude/GPT-tier experience.
-- The VPS is yours to maintain. Oracle occasionally restarts instances; systemd
-  brings the gateway back automatically. Apply OS updates now and then.
-
-No false scarcity. No "only 50 left." No countdown timer. This is a digital
-product that will be here when you are ready.
+This bundle removes setup ambiguity; it does not remove third-party account
+requirements or operational responsibility. Start with one host and a small
+number of credentials, verify one client call, and expand only after that works.
