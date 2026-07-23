@@ -853,6 +853,16 @@ class RouterCore:
         self, candidate_cfg: Dict[str, Any], provider: str, model: str
     ) -> bool:
         """Check rate limits AND credit exhaustion for a candidate."""
+        provider_cfg = self.config.get("providers", {}).get(provider, {})
+        api_key = self._resolve_llm_api_key(candidate_cfg, provider)
+        if (
+            provider_cfg.get("env_var")
+            and not provider_cfg.get("no_api_key_required", False)
+            and not api_key
+        ):
+            logger.info("Skipping %s/%s: API key unavailable", provider, model)
+            return False
+
         limits = self._compute_rate_limits(provider, model, candidate_cfg)
 
         can_use = await self.rate_limiter.can_use_provider(provider, model, limits)
@@ -863,7 +873,6 @@ class RouterCore:
             return False
 
         # Credit / quota exhaustion check (task-board #290 Phase 2).
-        api_key = self._resolve_llm_api_key(candidate_cfg, provider)
         if not self._check_credit_exhaustion(candidate_cfg, provider, api_key):
             logger.info(
                 f"Skipping {provider}/{model}: credits exhausted (will retry after daily reset)"

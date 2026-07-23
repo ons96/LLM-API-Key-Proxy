@@ -174,6 +174,46 @@ class TestProviderCandidate:
         assert not candidate_no_structured.matches_requirements(req)
 
 
+class TestCandidateCredentials:
+    @pytest.fixture
+    def credential_router(self, tmp_path):
+        config = {
+            "free_only_mode": True,
+            "providers": {
+                "keyed": {"env_var": "KEYED_API_KEY", "free_tier": True},
+                "anonymous": {
+                    "env_var": "OPTIONAL_API_KEY",
+                    "no_api_key_required": True,
+                    "free_tier": True,
+                },
+            },
+        }
+        config_file = tmp_path / "router_config.yaml"
+        config_file.write_text(yaml.safe_dump(config))
+        return RouterCore(str(config_file))
+
+    @pytest.mark.asyncio
+    async def test_skips_configured_provider_without_key(
+        self, credential_router, monkeypatch
+    ):
+        monkeypatch.delenv("KEYED_API_KEY", raising=False)
+        assert not await credential_router._check_conditions({}, "keyed", "model")
+
+    @pytest.mark.asyncio
+    async def test_allows_configured_provider_with_key(
+        self, credential_router, monkeypatch
+    ):
+        monkeypatch.setenv("KEYED_API_KEY", "test-key")
+        assert await credential_router._check_conditions({}, "keyed", "model")
+
+    @pytest.mark.asyncio
+    async def test_allows_explicit_anonymous_provider(
+        self, credential_router, monkeypatch
+    ):
+        monkeypatch.delenv("OPTIONAL_API_KEY", raising=False)
+        assert await credential_router._check_conditions({}, "anonymous", "model")
+
+
 class TestErrorClassification:
     """Test error classification logic."""
 
