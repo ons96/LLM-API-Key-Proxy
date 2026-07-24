@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-07-23T05:33:25.025286+00:00",
+  "generated_at": "2026-07-24T05:29:18.152513+00:00",
   "virtual_models_generated": 17,
   "agent_profiles": 6,
   "top_scored_models": [
     {
       "provider": "github-models",
-      "model": "xai/grok-3-mini",
-      "model_id": "github-models/xai/grok-3-mini",
+      "model": "microsoft/phi-3.5-vision-instruct",
+      "model_id": "github-models/microsoft/phi-3.5-vision-instruct",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 128000,
@@ -16,8 +16,8 @@
     },
     {
       "provider": "github-models",
-      "model": "xai/grok-3",
-      "model_id": "github-models/xai/grok-3",
+      "model": "microsoft/phi-4-mini-instruct",
+      "model_id": "github-models/microsoft/phi-4-mini-instruct",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 128000,
@@ -27,19 +27,8 @@
     },
     {
       "provider": "github-models",
-      "model": "microsoft/phi-3-small-8k-instruct",
-      "model_id": "github-models/microsoft/phi-3-small-8k-instruct",
-      "composite_score": 0.547,
-      "capabilities": [],
-      "context_window": 8192,
-      "benchmark_score": 0.1,
-      "success_rate": 0.8,
-      "latency_score": 0.933
-    },
-    {
-      "provider": "github-models",
-      "model": "microsoft/phi-3-small-128k-instruct",
-      "model_id": "github-models/microsoft/phi-3-small-128k-instruct",
+      "model": "microsoft/phi-3.5-mini-instruct",
+      "model_id": "github-models/microsoft/phi-3.5-mini-instruct",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 128000,
@@ -49,11 +38,22 @@
     },
     {
       "provider": "github-models",
-      "model": "microsoft/mai-ds-r1",
-      "model_id": "github-models/microsoft/mai-ds-r1",
+      "model": "microsoft/phi-3-medium-4k-instruct",
+      "model_id": "github-models/microsoft/phi-3-medium-4k-instruct",
       "composite_score": 0.547,
       "capabilities": [],
-      "context_window": 65536,
+      "context_window": 4096,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "github-models",
+      "model": "microsoft/phi-4",
+      "model_id": "github-models/microsoft/phi-4",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 16000,
       "benchmark_score": 0.1,
       "success_rate": 0.8,
       "latency_score": 0.933

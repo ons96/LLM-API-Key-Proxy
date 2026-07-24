@@ -1,60 +1,16 @@
 {
-  "generated_at": "2026-07-23T05:33:25.024796+00:00",
+  "generated_at": "2026-07-24T05:29:18.152047+00:00",
   "new_providers": 41,
   "updated_providers": 4,
-  "total_free_models": 376,
+  "total_free_models": 377,
   "top_models": [
     {
       "provider": "github-models",
-      "model": "xai/grok-3-mini",
-      "model_id": "github-models/xai/grok-3-mini",
+      "model": "microsoft/phi-3.5-vision-instruct",
+      "model_id": "github-models/microsoft/phi-3.5-vision-instruct",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 128000,
-      "benchmark_score": 0.1,
-      "success_rate": 0.8,
-      "latency_score": 0.933
-    },
-    {
-      "provider": "github-models",
-      "model": "xai/grok-3",
-      "model_id": "github-models/xai/grok-3",
-      "composite_score": 0.547,
-      "capabilities": [],
-      "context_window": 128000,
-      "benchmark_score": 0.1,
-      "success_rate": 0.8,
-      "latency_score": 0.933
-    },
-    {
-      "provider": "github-models",
-      "model": "microsoft/phi-3-small-8k-instruct",
-      "model_id": "github-models/microsoft/phi-3-small-8k-instruct",
-      "composite_score": 0.547,
-      "capabilities": [],
-      "context_window": 8192,
-      "benchmark_score": 0.1,
-      "success_rate": 0.8,
-      "latency_score": 0.933
-    },
-    {
-      "provider": "github-models",
-      "model": "microsoft/phi-3-small-128k-instruct",
-      "model_id": "github-models/microsoft/phi-3-small-128k-instruct",
-      "composite_score": 0.547,
-      "capabilities": [],
-      "context_window": 128000,
-      "benchmark_score": 0.1,
-      "success_rate": 0.8,
-      "latency_score": 0.933
-    },
-    {
-      "provider": "github-models",
-      "model": "microsoft/mai-ds-r1",
-      "model_id": "github-models/microsoft/mai-ds-r1",
-      "composite_score": 0.547,
-      "capabilities": [],
-      "context_window": 65536,
       "benchmark_score": 0.1,
       "success_rate": 0.8,
       "latency_score": 0.933
@@ -72,8 +28,8 @@
     },
     {
       "provider": "github-models",
-      "model": "microsoft/phi-3.5-vision-instruct",
-      "model_id": "github-models/microsoft/phi-3.5-vision-instruct",
+      "model": "microsoft/phi-3.5-mini-instruct",
+      "model_id": "github-models/microsoft/phi-3.5-mini-instruct",
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 128000,
@@ -83,11 +39,11 @@
     },
     {
       "provider": "github-models",
-      "model": "microsoft/phi-3-medium-128k-instruct",
-      "model_id": "github-models/microsoft/phi-3-medium-128k-instruct",
+      "model": "microsoft/phi-3-medium-4k-instruct",
+      "model_id": "github-models/microsoft/phi-3-medium-4k-instruct",
       "composite_score": 0.547,
       "capabilities": [],
-      "context_window": 128000,
+      "context_window": 4096,
       "benchmark_score": 0.1,
       "success_rate": 0.8,
       "latency_score": 0.933
@@ -110,6 +66,50 @@
       "composite_score": 0.547,
       "capabilities": [],
       "context_window": 128000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "github-models",
+      "model": "microsoft/phi-3.5-moe-instruct",
+      "model_id": "github-models/microsoft/phi-3.5-moe-instruct",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 128000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "github-models",
+      "model": "microsoft/phi-3-mini-4k-instruct",
+      "model_id": "github-models/microsoft/phi-3-mini-4k-instruct",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 4096,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "github-models",
+      "model": "microsoft/phi-4-mini-reasoning",
+      "model_id": "github-models/microsoft/phi-4-mini-reasoning",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 128000,
+      "benchmark_score": 0.1,
+      "success_rate": 0.8,
+      "latency_score": 0.933
+    },
+    {
+      "provider": "github-models",
+      "model": "microsoft/mai-ds-r1",
+      "model_id": "github-models/microsoft/mai-ds-r1",
+      "composite_score": 0.547,
+      "capabilities": [],
+      "context_window": 65536,
       "benchmark_score": 0.1,
       "success_rate": 0.8,
       "latency_score": 0.933
