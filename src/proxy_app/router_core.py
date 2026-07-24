@@ -30,6 +30,24 @@ logger = logging.getLogger(__name__)
 from .litellm_fallback import build_litellm_fallback_kwargs  # noqa: E402
 
 
+def _strip_cache_control(obj: Any) -> Any:
+    """Recursively delete Anthropic `cache_control` keys from request payloads.
+
+    opencode's Anthropic adapter stamps `cache_control:{type:ephemeral}` onto
+    message blocks and tool_calls. OpenAI-compatible / Pydantic-strict downstreams
+    reject this unknown nested field. Call this before dispatch to any
+    non-Anthropic-native downstream (#346).
+    """
+    if isinstance(obj, dict):
+        obj.pop("cache_control", None)
+        for v in list(obj.values()):
+            _strip_cache_control(v)
+    elif isinstance(obj, list):
+        for item in obj:
+            _strip_cache_control(item)
+    return obj
+
+
 class ProviderStatus(Enum):
     """Provider health status."""
 
@@ -979,6 +997,7 @@ class RouterCore:
                 )
                 request_clean["max_tokens"] = 1024
             request_clean["model"] = f"{candidate.provider}/{candidate.model}"
+            _strip_cache_control(request_clean)
 
             logger.info(
                 f"[{request_id}] Executing via {candidate.provider}/{candidate.model}"
@@ -1919,6 +1938,7 @@ class RouterCore:
                     f"[{request_id}] Capping max_tokens {requested_max_tokens} -> 1024 for provider fallback"
                 )
                 request_clean["max_tokens"] = 1024
+            _strip_cache_control(request_clean)
 
             logger.info(
                 f"[{request_id}] Streaming {candidate.provider}/{candidate.model}"
