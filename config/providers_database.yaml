@@ -3552,22 +3552,37 @@ providers:
   capabilities:
   - chat
   - reasoning
-  notes: 429 limit_error during initial validation (transient); provider confirmed alive
+  notes: 429 limit_error during initial validation (transient); provider confirmed
+    alive
   free_models:
   - id: zxz/claude-opus-4-6
-    capabilities: [chat, reasoning]
+    capabilities:
+    - chat
+    - reasoning
   - id: zxz/claude-opus-4-7
-    capabilities: [chat, reasoning]
+    capabilities:
+    - chat
+    - reasoning
   - id: zxz/claude-opus-4-8
-    capabilities: [chat, reasoning]
+    capabilities:
+    - chat
+    - reasoning
   - id: fable-5
-    capabilities: [chat, reasoning]
+    capabilities:
+    - chat
+    - reasoning
   - id: zxz/gpt-5.5
-    capabilities: [chat, reasoning]
+    capabilities:
+    - chat
+    - reasoning
   - id: zxz/gpt-5.6-luna
-    capabilities: [chat, reasoning]
+    capabilities:
+    - chat
+    - reasoning
   - id: zxz/glm-5p2
-    capabilities: [chat, reasoning]
+    capabilities:
+    - chat
+    - reasoning
 - id: gcli
   name: GCLI (ggchan.dev)
   signup_url: https://gcli.ggchan.dev
@@ -3582,15 +3597,25 @@ providers:
     (假流式-*) skipped.
   free_models:
   - id: gemini-2.5-pro
-    capabilities: [chat, reasoning]
+    capabilities:
+    - chat
+    - reasoning
   - id: gemini-2.5-flash
-    capabilities: [chat, reasoning]
+    capabilities:
+    - chat
+    - reasoning
   - id: gemini-2.5-flash-lite
-    capabilities: [chat, reasoning]
+    capabilities:
+    - chat
+    - reasoning
   - id: gemini-3-flash-preview
-    capabilities: [chat, reasoning]
+    capabilities:
+    - chat
+    - reasoning
   - id: gemini-3.1-pro-preview
-    capabilities: [chat, reasoning]
+    capabilities:
+    - chat
+    - reasoning
 - id: agnes_ai
   name: Agnes-AI Hub
   signup_url: https://agnes-ai.com
@@ -3606,15 +3631,20 @@ providers:
     non-chat multimodal endpoints (not OpenAI chat compatible).
   free_models:
   - id: agnes-1.5-flash
-    capabilities: [chat]
+    capabilities:
+    - chat
   - id: agnes-2.0-flash
-    capabilities: [chat]
+    capabilities:
+    - chat
   - id: agnes-image-2.0-flash
-    capabilities: [image]
+    capabilities:
+    - image
   - id: agnes-image-2.1-flash
-    capabilities: [image]
+    capabilities:
+    - image
   - id: agnes-video-v2.0
-    capabilities: [video]
+    capabilities:
+    - video
 - id: yungnet
   name: YungNet (internal.model.yungnet.cn)
   signup_url: ''
@@ -3633,3 +3663,21 @@ providers:
   free_tier: true
   capabilities: []
   notes: ARCHIVED 2026-07-13 — 403 Cloudflare access-gated from this network.
+- id: aiand
+  name: ai&
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: qwen/qwen3.6-27b
+    context: 262144
+  notes: Discovered 2026-07-25
+- id: hetzner
+  name: Hetzner
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: Qwen/Qwen3.6-35B-A3B-FP8
+    context: 262144
+  notes: Discovered 2026-07-25
