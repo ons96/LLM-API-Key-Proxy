@@ -24,6 +24,28 @@ from rotator_library.telemetry import get_telemetry_manager
 from rotator_library.scoring_engine import get_scoring_engine
 from .rate_limiter import REASON_RATE_LIMIT, REASON_USAGE_CAP
 
+# Cached provider capability caps (context+rate-limit aware routing).
+# Loaded once on first access; survives across requests.
+_provider_caps: Optional[Dict[str, Any]] = None
+_provider_caps_path = Path(__file__).resolve().parent.parent.parent / "config" / "provider_caps.yaml"
+
+
+def _load_provider_caps() -> Dict[str, Any]:
+    """Load per-provider caps. Returns empty dict on missing file."""
+    global _provider_caps
+    if _provider_caps is not None:
+        return _provider_caps
+    try:
+        if _provider_caps_path.exists():
+            with open(_provider_caps_path) as f:
+                _provider_caps = yaml.safe_load(f) or {}
+        else:
+            _provider_caps = {}
+    except Exception as exc:
+        logger.warning(f"provider_caps.yaml load failed: {exc}")
+        _provider_caps = {}
+    return _provider_caps
+
 
 logger = logging.getLogger(__name__)
 
@@ -1485,6 +1507,19 @@ class RouterCore:
                 indicator in content for indicator in search_indicators
             )
 
+        # Estimate context size for routing decisions (char/4 heuristic + 20% headroom).
+        # ponytail: char/4 is a conservative estimator; sub-ms cost, sufficient
+        # for routing decisions. Replace with tiktoken if tokenizer available later.
+        all_content: list[str] = []
+        for msg in messages:
+            if isinstance(msg.get("content"), str):
+                all_content.append(msg["content"])
+            elif isinstance(msg.get("content"), list):
+                for item in msg["content"]:
+                    if isinstance(item, dict) and item.get("type") == "text":
+                        all_content.append(item.get("text", ""))
+        req.min_context_tokens = int(sum(len(c) for c in all_content) / 4 * 1.2)
+
         return req
 
     async def _get_candidates(
@@ -1543,6 +1578,8 @@ class RouterCore:
                 except Exception as exc:
                     logger.debug(f"penalty sort skipped for {model_id}: {exc}")
 
+            _oversized: list[tuple[str, str, int]] = []
+
             for candidate_cfg in chain:
                 # Check FREE_ONLY_MODE restrictions
                 if self.free_only_mode and not candidate_cfg.get(
@@ -1563,6 +1600,25 @@ class RouterCore:
                 ):
                     continue
 
+                # Context-size pre-filter. Skip providers that can't fit
+                # the request, falling back to the largest-cap one later.
+                # ponytail: char/4 heuristic, sub-ms, no resident tokenizer.
+                # Replace with tiktoken if tokenizer added later (ceiling:
+                # needs a model file loaded in memory).
+                _caps = _load_provider_caps()
+                _cap = _caps.get(candidate_cfg["provider"], {})
+                _max_ctx = _cap.get("max_context_tokens", 8192)
+                if requirements.min_context_tokens > _max_ctx:
+                    _oversized.append(
+                        (candidate_cfg["provider"], candidate_cfg["model"], _max_ctx)
+                    )
+                    logger.info(
+                        f"[{model_id}] context-size skip "
+                        f"{candidate_cfg["provider"]}/{candidate_cfg["model"]}: "
+                        f"req est {requirements.min_context_tokens} > cap {_max_ctx}"
+                    )
+                    continue
+
                 candidate = ProviderCandidate(
                     provider=candidate_cfg["provider"],
                     model=candidate_cfg["model"],
@@ -1575,6 +1631,28 @@ class RouterCore:
 
                 if candidate.matches_requirements(requirements):
                     candidates.append(candidate)
+
+            # Fallback when all chain steps were oversized.
+            # ponytail: char/4 heuristic caps provider picks; largest
+            # cap wins. Replace with proper weighted selection if
+            # tiebreaking by quality matters later.
+            if not candidates and _oversized:
+                _caps = _load_provider_caps()
+                _best = max(
+                    _oversized,
+                    key=lambda x: _caps.get(x[0], {}).get("max_context_tokens", 0),
+                )
+                _best_cap = _caps.get(_best[0], {}).get("max_context_tokens", 0)
+                candidates.append(
+                    ProviderCandidate(
+                        provider=_best[0], model=_best[1], priority=5
+                    )
+                )
+                logger.warning(
+                    f"[{model_id}] all {len(_oversized)} chain steps "
+                    f"exceeded context window ({requirements.min_context_tokens} tokens); "
+                    f"fell back to {_best[0]}/{_best[1]} (cap {_best_cap})"
+                )
         else:
             # Direct model reference - parse provider/model format
             if "/" in model_id:
