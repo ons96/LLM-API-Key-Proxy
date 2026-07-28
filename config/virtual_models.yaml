@@ -1,5 +1,5 @@
 metadata:
-  generated_at: '2026-07-27T05:59:14.395807+00:00'
+  generated_at: '2026-07-28T05:22:57.143938+00:00'
   sources:
   - models.dev
   - telemetry
@@ -737,65 +737,65 @@ virtual_models:
   agent-oracle:
     description: Optimized for oracle agent - ['accuracy', 'depth']
     fallback_chain:
-    - provider: github-models
-      model: microsoft/phi-3.5-vision-instruct
-      priority: 1
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-mini-instruct
-      priority: 2
-    - provider: github-models
-      model: microsoft/phi-3.5-mini-instruct
-      priority: 3
-    - provider: github-models
-      model: microsoft/phi-3-medium-4k-instruct
-      priority: 4
-    - provider: github-models
-      model: microsoft/phi-4
-      priority: 5
-    - provider: github-models
-      model: microsoft/phi-4-reasoning
-      priority: 6
-    - provider: github-models
-      model: microsoft/phi-3.5-moe-instruct
-      priority: 7
-    - provider: github-models
-      model: microsoft/phi-3-mini-4k-instruct
-      priority: 8
-    - provider: github-models
-      model: microsoft/phi-4-mini-reasoning
-      priority: 9
-    - provider: github-models
-      model: microsoft/mai-ds-r1
-      priority: 10
-    - provider: github-models
-      model: microsoft/phi-3-mini-128k-instruct
-      priority: 11
-    - provider: github-models
-      model: microsoft/phi-3-small-128k-instruct
-      priority: 12
-    - provider: github-models
-      model: microsoft/phi-3-small-8k-instruct
-      priority: 13
-    - provider: github-models
+      priority: 1
+    - provider: nvidia
       model: microsoft/phi-4-multimodal-instruct
+      priority: 2
+    - provider: nvidia
+      model: nvidia/nv-embedcode-7b-v1
+      priority: 3
+    - provider: nvidia
+      model: nvidia/studiovoice
+      priority: 4
+    - provider: nvidia
+      model: nvidia/cosmos-reason2-8b
+      priority: 5
+    - provider: nvidia
+      model: nvidia/nemotron-nano-12b-v2-vl
+      priority: 6
+    - provider: nvidia
+      model: nvidia/nemotron-3-nano-30b-a3b
+      priority: 7
+    - provider: nvidia
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      priority: 8
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
+      priority: 9
+    - provider: nvidia
+      model: nvidia/usdvalidate
+      priority: 10
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-safety-guard-8b-v3
+      priority: 11
+    - provider: nvidia
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      priority: 12
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-70b-instruct
+      priority: 13
+    - provider: nvidia
+      model: nvidia/nemotron-3-content-safety
       priority: 14
-    - provider: github-models
-      model: microsoft/phi-3-medium-128k-instruct
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-ultra-253b-v1
       priority: 15
-    - provider: github-models
-      model: cohere/cohere-command-r
+    - provider: nvidia
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 16
-    - provider: github-models
-      model: cohere/cohere-command-r-plus
+    - provider: nvidia
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 17
-    - provider: github-models
-      model: cohere/cohere-command-r-08-2024
+    - provider: nvidia
+      model: nvidia/gliner-pii
       priority: 18
-    - provider: github-models
-      model: cohere/cohere-command-r-plus-08-2024
+    - provider: nvidia
+      model: nvidia/rerank-qa-mistral-4b
       priority: 19
-    - provider: github-models
-      model: cohere/cohere-command-a
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-nano-vl-8b-v1
       priority: 20
     settings:
       timeout_ms: 180000
@@ -803,65 +803,65 @@ virtual_models:
   agent-explore:
     description: Optimized for explore agent - ['latency', 'throughput']
     fallback_chain:
-    - provider: github-models
-      model: microsoft/phi-3.5-vision-instruct
-      priority: 1
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-mini-instruct
-      priority: 2
-    - provider: github-models
-      model: microsoft/phi-3.5-mini-instruct
-      priority: 3
-    - provider: github-models
-      model: microsoft/phi-3-medium-4k-instruct
-      priority: 4
-    - provider: github-models
-      model: microsoft/phi-4
-      priority: 5
-    - provider: github-models
-      model: microsoft/phi-4-reasoning
-      priority: 6
-    - provider: github-models
-      model: microsoft/phi-3.5-moe-instruct
-      priority: 7
-    - provider: github-models
-      model: microsoft/phi-3-mini-4k-instruct
-      priority: 8
-    - provider: github-models
-      model: microsoft/phi-4-mini-reasoning
-      priority: 9
-    - provider: github-models
-      model: microsoft/mai-ds-r1
-      priority: 10
-    - provider: github-models
-      model: microsoft/phi-3-mini-128k-instruct
-      priority: 11
-    - provider: github-models
-      model: microsoft/phi-3-small-128k-instruct
-      priority: 12
-    - provider: github-models
-      model: microsoft/phi-3-small-8k-instruct
-      priority: 13
-    - provider: github-models
+      priority: 1
+    - provider: nvidia
       model: microsoft/phi-4-multimodal-instruct
+      priority: 2
+    - provider: nvidia
+      model: nvidia/nv-embedcode-7b-v1
+      priority: 3
+    - provider: nvidia
+      model: nvidia/studiovoice
+      priority: 4
+    - provider: nvidia
+      model: nvidia/cosmos-reason2-8b
+      priority: 5
+    - provider: nvidia
+      model: nvidia/nemotron-nano-12b-v2-vl
+      priority: 6
+    - provider: nvidia
+      model: nvidia/nemotron-3-nano-30b-a3b
+      priority: 7
+    - provider: nvidia
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      priority: 8
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
+      priority: 9
+    - provider: nvidia
+      model: nvidia/usdvalidate
+      priority: 10
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-safety-guard-8b-v3
+      priority: 11
+    - provider: nvidia
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      priority: 12
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-70b-instruct
+      priority: 13
+    - provider: nvidia
+      model: nvidia/nemotron-3-content-safety
       priority: 14
-    - provider: github-models
-      model: microsoft/phi-3-medium-128k-instruct
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-ultra-253b-v1
       priority: 15
-    - provider: github-models
-      model: cohere/cohere-command-r
+    - provider: nvidia
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 16
-    - provider: github-models
-      model: cohere/cohere-command-r-plus
+    - provider: nvidia
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 17
-    - provider: github-models
-      model: cohere/cohere-command-r-08-2024
+    - provider: nvidia
+      model: nvidia/gliner-pii
       priority: 18
-    - provider: github-models
-      model: cohere/cohere-command-r-plus-08-2024
+    - provider: nvidia
+      model: nvidia/rerank-qa-mistral-4b
       priority: 19
-    - provider: github-models
-      model: cohere/cohere-command-a
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-nano-vl-8b-v1
       priority: 20
     settings:
       timeout_ms: 120000
@@ -869,65 +869,65 @@ virtual_models:
   agent-librarian:
     description: Optimized for librarian agent - ['availability', 'reliability']
     fallback_chain:
-    - provider: github-models
-      model: microsoft/phi-3.5-vision-instruct
-      priority: 1
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-mini-instruct
-      priority: 2
-    - provider: github-models
-      model: microsoft/phi-3.5-mini-instruct
-      priority: 3
-    - provider: github-models
-      model: microsoft/phi-3-medium-4k-instruct
-      priority: 4
-    - provider: github-models
-      model: microsoft/phi-4
-      priority: 5
-    - provider: github-models
-      model: microsoft/phi-4-reasoning
-      priority: 6
-    - provider: github-models
-      model: microsoft/phi-3.5-moe-instruct
-      priority: 7
-    - provider: github-models
-      model: microsoft/phi-3-mini-4k-instruct
-      priority: 8
-    - provider: github-models
-      model: microsoft/phi-4-mini-reasoning
-      priority: 9
-    - provider: github-models
-      model: microsoft/mai-ds-r1
-      priority: 10
-    - provider: github-models
-      model: microsoft/phi-3-mini-128k-instruct
-      priority: 11
-    - provider: github-models
-      model: microsoft/phi-3-small-128k-instruct
-      priority: 12
-    - provider: github-models
-      model: microsoft/phi-3-small-8k-instruct
-      priority: 13
-    - provider: github-models
+      priority: 1
+    - provider: nvidia
       model: microsoft/phi-4-multimodal-instruct
+      priority: 2
+    - provider: nvidia
+      model: nvidia/nv-embedcode-7b-v1
+      priority: 3
+    - provider: nvidia
+      model: nvidia/studiovoice
+      priority: 4
+    - provider: nvidia
+      model: nvidia/cosmos-reason2-8b
+      priority: 5
+    - provider: nvidia
+      model: nvidia/nemotron-nano-12b-v2-vl
+      priority: 6
+    - provider: nvidia
+      model: nvidia/nemotron-3-nano-30b-a3b
+      priority: 7
+    - provider: nvidia
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      priority: 8
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
+      priority: 9
+    - provider: nvidia
+      model: nvidia/usdvalidate
+      priority: 10
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-safety-guard-8b-v3
+      priority: 11
+    - provider: nvidia
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      priority: 12
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-70b-instruct
+      priority: 13
+    - provider: nvidia
+      model: nvidia/nemotron-3-content-safety
       priority: 14
-    - provider: github-models
-      model: microsoft/phi-3-medium-128k-instruct
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-ultra-253b-v1
       priority: 15
-    - provider: github-models
-      model: cohere/cohere-command-r
+    - provider: nvidia
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 16
-    - provider: github-models
-      model: cohere/cohere-command-r-plus
+    - provider: nvidia
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 17
-    - provider: github-models
-      model: cohere/cohere-command-r-08-2024
+    - provider: nvidia
+      model: nvidia/gliner-pii
       priority: 18
-    - provider: github-models
-      model: cohere/cohere-command-r-plus-08-2024
+    - provider: nvidia
+      model: nvidia/rerank-qa-mistral-4b
       priority: 19
-    - provider: github-models
-      model: cohere/cohere-command-a
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-nano-vl-8b-v1
       priority: 20
     settings:
       timeout_ms: 120000
@@ -935,65 +935,65 @@ virtual_models:
   agent-build:
     description: Optimized for build agent - ['balanced']
     fallback_chain:
-    - provider: github-models
-      model: microsoft/phi-3.5-vision-instruct
-      priority: 1
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-mini-instruct
-      priority: 2
-    - provider: github-models
-      model: microsoft/phi-3.5-mini-instruct
-      priority: 3
-    - provider: github-models
-      model: microsoft/phi-3-medium-4k-instruct
-      priority: 4
-    - provider: github-models
-      model: microsoft/phi-4
-      priority: 5
-    - provider: github-models
-      model: microsoft/phi-4-reasoning
-      priority: 6
-    - provider: github-models
-      model: microsoft/phi-3.5-moe-instruct
-      priority: 7
-    - provider: github-models
-      model: microsoft/phi-3-mini-4k-instruct
-      priority: 8
-    - provider: github-models
-      model: microsoft/phi-4-mini-reasoning
-      priority: 9
-    - provider: github-models
-      model: microsoft/mai-ds-r1
-      priority: 10
-    - provider: github-models
-      model: microsoft/phi-3-mini-128k-instruct
-      priority: 11
-    - provider: github-models
-      model: microsoft/phi-3-small-128k-instruct
-      priority: 12
-    - provider: github-models
-      model: microsoft/phi-3-small-8k-instruct
-      priority: 13
-    - provider: github-models
+      priority: 1
+    - provider: nvidia
       model: microsoft/phi-4-multimodal-instruct
+      priority: 2
+    - provider: nvidia
+      model: nvidia/nv-embedcode-7b-v1
+      priority: 3
+    - provider: nvidia
+      model: nvidia/studiovoice
+      priority: 4
+    - provider: nvidia
+      model: nvidia/cosmos-reason2-8b
+      priority: 5
+    - provider: nvidia
+      model: nvidia/nemotron-nano-12b-v2-vl
+      priority: 6
+    - provider: nvidia
+      model: nvidia/nemotron-3-nano-30b-a3b
+      priority: 7
+    - provider: nvidia
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      priority: 8
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
+      priority: 9
+    - provider: nvidia
+      model: nvidia/usdvalidate
+      priority: 10
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-safety-guard-8b-v3
+      priority: 11
+    - provider: nvidia
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      priority: 12
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-70b-instruct
+      priority: 13
+    - provider: nvidia
+      model: nvidia/nemotron-3-content-safety
       priority: 14
-    - provider: github-models
-      model: microsoft/phi-3-medium-128k-instruct
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-ultra-253b-v1
       priority: 15
-    - provider: github-models
-      model: cohere/cohere-command-r
+    - provider: nvidia
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 16
-    - provider: github-models
-      model: cohere/cohere-command-r-plus
+    - provider: nvidia
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 17
-    - provider: github-models
-      model: cohere/cohere-command-r-08-2024
+    - provider: nvidia
+      model: nvidia/gliner-pii
       priority: 18
-    - provider: github-models
-      model: cohere/cohere-command-r-plus-08-2024
+    - provider: nvidia
+      model: nvidia/rerank-qa-mistral-4b
       priority: 19
-    - provider: github-models
-      model: cohere/cohere-command-a
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-nano-vl-8b-v1
       priority: 20
     settings:
       timeout_ms: 120000
@@ -1001,65 +1001,65 @@ virtual_models:
   agent-metis:
     description: Optimized for metis agent - ['accuracy']
     fallback_chain:
-    - provider: github-models
-      model: microsoft/phi-3.5-vision-instruct
-      priority: 1
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-mini-instruct
-      priority: 2
-    - provider: github-models
-      model: microsoft/phi-3.5-mini-instruct
-      priority: 3
-    - provider: github-models
-      model: microsoft/phi-3-medium-4k-instruct
-      priority: 4
-    - provider: github-models
-      model: microsoft/phi-4
-      priority: 5
-    - provider: github-models
-      model: microsoft/phi-4-reasoning
-      priority: 6
-    - provider: github-models
-      model: microsoft/phi-3.5-moe-instruct
-      priority: 7
-    - provider: github-models
-      model: microsoft/phi-3-mini-4k-instruct
-      priority: 8
-    - provider: github-models
-      model: microsoft/phi-4-mini-reasoning
-      priority: 9
-    - provider: github-models
-      model: microsoft/mai-ds-r1
-      priority: 10
-    - provider: github-models
-      model: microsoft/phi-3-mini-128k-instruct
-      priority: 11
-    - provider: github-models
-      model: microsoft/phi-3-small-128k-instruct
-      priority: 12
-    - provider: github-models
-      model: microsoft/phi-3-small-8k-instruct
-      priority: 13
-    - provider: github-models
+      priority: 1
+    - provider: nvidia
       model: microsoft/phi-4-multimodal-instruct
+      priority: 2
+    - provider: nvidia
+      model: nvidia/nv-embedcode-7b-v1
+      priority: 3
+    - provider: nvidia
+      model: nvidia/studiovoice
+      priority: 4
+    - provider: nvidia
+      model: nvidia/cosmos-reason2-8b
+      priority: 5
+    - provider: nvidia
+      model: nvidia/nemotron-nano-12b-v2-vl
+      priority: 6
+    - provider: nvidia
+      model: nvidia/nemotron-3-nano-30b-a3b
+      priority: 7
+    - provider: nvidia
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      priority: 8
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
+      priority: 9
+    - provider: nvidia
+      model: nvidia/usdvalidate
+      priority: 10
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-safety-guard-8b-v3
+      priority: 11
+    - provider: nvidia
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      priority: 12
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-70b-instruct
+      priority: 13
+    - provider: nvidia
+      model: nvidia/nemotron-3-content-safety
       priority: 14
-    - provider: github-models
-      model: microsoft/phi-3-medium-128k-instruct
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-ultra-253b-v1
       priority: 15
-    - provider: github-models
-      model: cohere/cohere-command-r
+    - provider: nvidia
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 16
-    - provider: github-models
-      model: cohere/cohere-command-r-plus
+    - provider: nvidia
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 17
-    - provider: github-models
-      model: cohere/cohere-command-r-08-2024
+    - provider: nvidia
+      model: nvidia/gliner-pii
       priority: 18
-    - provider: github-models
-      model: cohere/cohere-command-r-plus-08-2024
+    - provider: nvidia
+      model: nvidia/rerank-qa-mistral-4b
       priority: 19
-    - provider: github-models
-      model: cohere/cohere-command-a
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-nano-vl-8b-v1
       priority: 20
     settings:
       timeout_ms: 180000
@@ -1067,65 +1067,65 @@ virtual_models:
   agent-momus:
     description: Optimized for momus agent - ['quality']
     fallback_chain:
-    - provider: github-models
-      model: microsoft/phi-3.5-vision-instruct
-      priority: 1
-    - provider: github-models
+    - provider: nvidia
       model: microsoft/phi-4-mini-instruct
-      priority: 2
-    - provider: github-models
-      model: microsoft/phi-3.5-mini-instruct
-      priority: 3
-    - provider: github-models
-      model: microsoft/phi-3-medium-4k-instruct
-      priority: 4
-    - provider: github-models
-      model: microsoft/phi-4
-      priority: 5
-    - provider: github-models
-      model: microsoft/phi-4-reasoning
-      priority: 6
-    - provider: github-models
-      model: microsoft/phi-3.5-moe-instruct
-      priority: 7
-    - provider: github-models
-      model: microsoft/phi-3-mini-4k-instruct
-      priority: 8
-    - provider: github-models
-      model: microsoft/phi-4-mini-reasoning
-      priority: 9
-    - provider: github-models
-      model: microsoft/mai-ds-r1
-      priority: 10
-    - provider: github-models
-      model: microsoft/phi-3-mini-128k-instruct
-      priority: 11
-    - provider: github-models
-      model: microsoft/phi-3-small-128k-instruct
-      priority: 12
-    - provider: github-models
-      model: microsoft/phi-3-small-8k-instruct
-      priority: 13
-    - provider: github-models
+      priority: 1
+    - provider: nvidia
       model: microsoft/phi-4-multimodal-instruct
+      priority: 2
+    - provider: nvidia
+      model: nvidia/nv-embedcode-7b-v1
+      priority: 3
+    - provider: nvidia
+      model: nvidia/studiovoice
+      priority: 4
+    - provider: nvidia
+      model: nvidia/cosmos-reason2-8b
+      priority: 5
+    - provider: nvidia
+      model: nvidia/nemotron-nano-12b-v2-vl
+      priority: 6
+    - provider: nvidia
+      model: nvidia/nemotron-3-nano-30b-a3b
+      priority: 7
+    - provider: nvidia
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      priority: 8
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
+      priority: 9
+    - provider: nvidia
+      model: nvidia/usdvalidate
+      priority: 10
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-safety-guard-8b-v3
+      priority: 11
+    - provider: nvidia
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      priority: 12
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-70b-instruct
+      priority: 13
+    - provider: nvidia
+      model: nvidia/nemotron-3-content-safety
       priority: 14
-    - provider: github-models
-      model: microsoft/phi-3-medium-128k-instruct
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-ultra-253b-v1
       priority: 15
-    - provider: github-models
-      model: cohere/cohere-command-r
+    - provider: nvidia
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 16
-    - provider: github-models
-      model: cohere/cohere-command-r-plus
+    - provider: nvidia
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 17
-    - provider: github-models
-      model: cohere/cohere-command-r-08-2024
+    - provider: nvidia
+      model: nvidia/gliner-pii
       priority: 18
-    - provider: github-models
-      model: cohere/cohere-command-r-plus-08-2024
+    - provider: nvidia
+      model: nvidia/rerank-qa-mistral-4b
       priority: 19
-    - provider: github-models
-      model: cohere/cohere-command-a
+    - provider: nvidia
+      model: nvidia/llama-3.1-nemotron-nano-vl-8b-v1
       priority: 20
     settings:
       timeout_ms: 180000
