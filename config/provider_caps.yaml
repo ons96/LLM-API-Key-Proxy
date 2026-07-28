@@ -1,0 +1,68 @@
+aihubmix:
+  max_context_tokens: 8192
+  rpm_limit: 0
+  tpm_limit: 0
+blaze-free:
+  max_context_tokens: 8192
+  rpm_limit: 0
+  tpm_limit: 0
+cerebras:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+cliproxyapi:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+freetheai:
+  max_context_tokens: 8192
+  rpm_limit: 0
+  tpm_limit: 0
+futureppo:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+gemini:
+  max_context_tokens: 32768
+  rpm_limit: 0
+  tpm_limit: 0
+groq:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+iamhc:
+  max_context_tokens: 8192
+  rpm_limit: 0
+  tpm_limit: 0
+kilocode:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+koyeb-new:
+  max_context_tokens: 8192
+  rpm_limit: 0
+  tpm_limit: 0
+mistral:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+nvidia:
+  max_context_tokens: 8192
+  rpm_limit: 0
+  tpm_limit: 0
+pooled:
+  max_context_tokens: 32768
+  rpm_limit: 0
+  tpm_limit: 0
+supacoder:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+tokenrouter:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+zenllm-free:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
