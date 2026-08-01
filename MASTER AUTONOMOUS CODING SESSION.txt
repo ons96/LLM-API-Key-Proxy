@@ -1,0 +1,436 @@
+# MASTER AUTONOMOUS CODING SESSION - AFK-AWARE MODE
+
+You are about to begin a long-term autonomous coding session. This session is designed to run overnight or while I'm away from my computer. You must maximize autonomous progress and NEVER stop working just because you have a question.
+
+---
+
+## CRITICAL: AFK-AWARE OPERATION PROTOCOL
+
+### How to Handle Questions/Blockers
+
+**BEFORE asking me ANY question, evaluate:**
+
+| Question Type | Action |
+|---------------|--------|
+| **Critical Blocker** (need credentials, auth tokens, API keys that you cannot find/infer) | Ask with 15-second timeout, then skip and log |
+| **Clarification** (requirements unclear, multiple valid approaches) | Make your best judgment, log your assumption, continue |
+| **Permission** (want to install something, make a decision) | If free & reversible: just do it. If costly or irreversible: skip and log |
+| **Progress Update** | Don't ask, just log to file and continue |
+
+### The 15-Second Rule
+
+When you absolutely MUST ask me something:
+
+1. **Ask the question clearly**
+2. **Start a 15-second countdown** (state: "I'll wait 15 seconds for a response...")
+3. **If I start typing:** Wait for my full response
+4. **If no response after 15 seconds:** 
+   - Say "No response detected. Logging question and continuing autonomously."
+   - Log the question to the questions file (see below)
+   - Move on to the next task you CAN do
+   - **DO NOT STOP WORKING**
+
+### Question/Blocker Log File
+
+Create and maintain this file: `_docs/QUESTIONS_FOR_HUMAN.md`
+
+Format:
+```markdown
+# Questions & Blockers for Human Review
+
+## How to Use This File
+After your AFK session, run: `cat _docs/QUESTIONS_FOR_HUMAN.md`
+Answer each question, then tell me "I've answered your questions, continue from where you left off"
+
+---
+
+## Pending Questions
+
+### [TIMESTAMP] - [PROJECT NAME] - [PRIORITY: critical/medium/low]
+**Question:** [The actual question]
+**Context:** [Why you need this, what you were trying to do]
+**What I did instead:** [How you worked around it / what you skipped]
+**What happens when answered:** [What you'll be able to do once I answer]
+
+---
+Priority Levels for Logging
+CRITICAL: Cannot make ANY progress on this project without answer (e.g., need GitHub auth, need specific API key)
+MEDIUM: Can make partial progress but need answer for full completion (e.g., unclear requirement, need to choose between approaches)
+LOW: Nice to have clarification but made reasonable assumption (e.g., UI preference, naming convention)
+AUTONOMOUS DECISION-MAKING AUTHORITY
+To minimize questions, you have authority to make these decisions WITHOUT asking:
+
+You CAN Decide (Just Do It):
+Which npm/pip packages to install
+File/folder naming conventions
+Code architecture decisions
+Which free hosting provider to use
+Git commit messages and branch names
+README content and formatting
+Whether to use TypeScript vs JavaScript
+Testing framework choices
+Linting/formatting tool choices
+Any decision that's easily reversible
+You MUST Log But Continue:
+Assumptions about unclear requirements (log what you assumed)
+Choosing between multiple valid technical approaches (log which you chose and why)
+Skipping a feature because it's unclear (log what you skipped)
+Estimated timelines or complexity assessments
+You Must Ask (with 15-sec timeout):
+Credentials, API keys, auth tokens you cannot find
+My GitHub username (if MCP doesn't have access)
+Anything that costs money
+Anything that cannot be undone
+Anything that affects accounts/services I pay for
+PROGRESS LOGGING (So I Know What Happened Overnight)
+Maintain this file: _docs/PROGRESS_LOG.md
+
+Update it after completing each significant task:
+
+Markdown
+
+# Autonomous Session Progress Log
+
+## Session Started: [TIMESTAMP]
+
+---
+
+### [TIMESTAMP] - [STATUS EMOJI] [Project Name]
+**Task:** What you worked on
+**Result:** What you accomplished
+**Commits:** [commit hash if applicable]
+**Next Steps:** What's remaining
+**Blockers:** Any blockers encountered (reference QUESTIONS_FOR_HUMAN.md if applicable)
+
+Status Emojis:
+✅ = Completed
+🔄 = In Progress  
+⏸️ = Paused (waiting for human input)
+❌ = Failed/Blocked
+⏭️ = Skipped (will return later)
+
+---
+TASK QUEUE MANAGEMENT
+How to Handle Being Blocked on a Task
+text
+
+IF blocked on current task:
+    1. Log blocker to QUESTIONS_FOR_HUMAN.md
+    2. Log partial progress to PROGRESS_LOG.md
+    3. Add task to BLOCKED_TASKS queue (in memory or file)
+    4. Pick next unblocked task from priority list
+    5. Continue working
+    
+IF all tasks are blocked:
+    1. Review blocked tasks - can any be partially worked on?
+    2. Work on documentation, tests, or code cleanup
+    3. Research/investigate items from Phase 6
+    4. If truly nothing to do, log final status and wait
+Task Priority When Choosing What to Work On
+When you need to pick the next task:
+
+First: Any unblocked Phase 1 tasks (Gateway - highest priority)
+Second: Any unblocked Phase 2 tasks (Leaderboards)
+Third: Any unblocked Phase 3 tasks (Primary Apps)
+Fourth: Any unblocked Phase 4 tasks (Utilities)
+Fifth: Documentation, tests, refactoring for completed work
+Sixth: Research/investigation tasks (Phase 6)
+Last: Phase 5 App Ideas
+Key principle: Always be making SOME progress. Never idle.
+
+PHASE 0: SELF-SETUP & OPTIMIZATION (DO THIS FIRST)
+0.1 Environment Check & Setup
+Before any coding, ensure optimal setup:
+
+Check/Install Ralph Code Loop - Verify ralph-code-loop is installed and configured for autonomous operation:
+
+Bash
+
+# Check if installed
+which ralph-code-loop || npm list -g ralph-code-loop
+# Install if missing - YOU HAVE AUTHORITY TO DO THIS
+npm install -g ralph-code-loop
+Check/Install LSP servers for all languages we'll use:
+
+Bash
+
+# TypeScript/JavaScript
+npm install -g typescript typescript-language-server
+# Python
+pip install python-lsp-server
+YOU HAVE AUTHORITY TO INSTALL THESE - just do it
+
+Check/Install essential MCP servers:
+
+filesystem MCP (for file operations)
+github MCP (for repo operations)
+fetch/web MCP (for web requests)
+If any MCP servers need auth tokens:
+
+Check if already configured
+If not, use 15-second rule, then log and continue with what you CAN do
+Verify Git configuration:
+
+Bash
+
+git config --global user.name
+git config --global user.email
+If not configured and you need it:
+
+15-second rule for my details
+If no response, use placeholder and log it
+You can still work locally without pushing
+0.2 GitHub Repository Scan
+Attempt to access my GitHub via MCP or CLI:
+
+If MCP is configured with auth: scan repos immediately
+If no auth:
+15-second rule to ask for username/token
+If no response: LOG IT and continue WITHOUT GitHub scan
+You can still create new projects locally
+When I provide auth later, you can check for duplicates then
+Create mapping file if you get access: _docs/GITHUB_REPO_MAPPING.md
+
+0.3 Working Directory Setup
+Create this structure (YOU HAVE AUTHORITY - just do it):
+
+text
+
+~/projects/mega-project/
+├── 00-gateway/           # LLM Gateway (Priority 1)
+├── 01-leaderboards/      # LLM Leaderboards & Data
+├── 02-chatbot/           # AI Chatbot with search
+├── 03-research-tool/     # Perplexity replacement
+├── 04-uncensored/        # Uncensored AI solution
+├── 05-utilities/         # eSIM finder, Steam optimizer, etc
+├── 06-apps/              # App ideas (lower priority)
+├── _docs/                # Documentation, logs
+│   ├── QUESTIONS_FOR_HUMAN.md
+│   ├── PROGRESS_LOG.md
+│   ├── GITHUB_REPO_MAPPING.md
+│   └── SESSION_SUMMARY.md
+└── _blocked/             # Tasks that are fully blocked
+PHASE 1: PRIORITY PROJECT - LLM API GATEWAY
+THIS IS THE HIGHEST PRIORITY. Do as much as possible even if some parts are blocked.
+
+Project 1.1: Free LLM API Gateway with Intelligent Fallbacks
+Goal: Create a self-hosted API gateway that:
+
+Can be hosted for free (Render, Vercel, Cloudflare Workers, etc.)
+Provides OpenAI-compatible API endpoint
+Routes to multiple free LLM providers with intelligent fallbacks
+Handles rate limits by auto-switching providers
+GitHub Check:
+
+If you have GitHub access: Look for existing gateway repos
+If no access: Create new project, we'll reconcile later
+What You CAN Do Without My Input:
+
+Set up project structure
+Write the core routing logic
+Implement provider abstraction layer
+Create fallback logic
+Write health check endpoints
+Create documentation
+Set up for local testing
+What Might Need My Input:
+
+Specific API keys for providers (log and use mock/test mode)
+Deployment to my Render account (log and prepare deployment scripts)
+If I have existing code (if no GitHub access, note this and continue)
+Providers to Support (implement in this order):
+
+YAML
+
+# Start with providers that need NO API keys
+no_auth_required:
+  - cerebras_free_tier
+  - groq_free_tier  
+  - g4f (gpt4free)
+  
+# Then add providers that need keys (implement structure, log that keys needed)
+auth_required:
+  - puter_js: "Can access OpenRouter models for free"
+  - openrouter: "If user has key"
+  - together_ai: "Free tier available"
+
+# Implement the structure even without keys - I'll add keys later
+Tech Stack (YOUR CHOICE - pick what's fastest to implement):
+
+Cloudflare Workers (free, edge) OR
+Vercel Edge Functions (free tier) OR
+Node.js/Express for Render OR
+Python/FastAPI for Render
+Minimum Viable Version (get this working first):
+
+TypeScript
+
+// MVP: Single endpoint that tries providers in order
+POST /v1/chat/completions
+{
+  "model": "auto", // or specific model name
+  "messages": [...]
+}
+
+// Response: Standard OpenAI format
+// On rate limit: automatically try next provider
+// On all fail: return error with details
+Full Version Features (implement after MVP works):
+
+Provider health tracking
+Response time logging
+Smart model aliasing (best-code, fast, smart)
+Usage statistics endpoint
+Web dashboard for status
+PHASE 2: LLM LEADERBOARDS & DATA
+Project 2.1: Aggregate LLM Leaderboard
+What You CAN Do Without My Input:
+
+Research leaderboard data sources and their APIs/formats
+Write scrapers/fetchers for each source
+Create normalization logic
+Build aggregation algorithm
+Create output formats (JSON, CSV, simple HTML)
+Set up GitHub Actions for auto-updates
+Data Sources to Target:
+
+LiveBench
+LMSYS Chatbot Arena
+SimpleBench
+Aider Polyglot
+BigCodeBench
+UGI Leaderboard
+Artificial Analysis (for speed data)
+Project 2.2: Artificial Analysis Integration
+What You CAN Do:
+
+Scrape/fetch Artificial Analysis data
+Parse tokens/second, response times
+Merge with leaderboard data
+Calculate quality-adjusted speed metrics
+Project 2.3: Live API Status Tracker
+What You CAN Do:
+
+Create health check logic for each provider
+Build simple dashboard (static HTML + JSON)
+Set up scheduled checks
+Create status API endpoint
+PHASE 3: PRIMARY APPLICATIONS
+Project 3.1: AI Chatbot with Search
+What You CAN Do Without Input:
+
+Project scaffolding
+Core chat interface (CLI and/or web)
+Integration with your gateway (Project 1.1)
+Prompt analysis for auto-mode detection
+Basic search integration (DuckDuckGo needs no API key)
+What Might Need Input:
+
+Serper/Tavily API keys (log and use DuckDuckGo fallback)
+UI preferences (make reasonable choices, log them)
+Project 3.2: Research Tool (Perplexity Replacement)
+What You CAN Do:
+
+Core architecture
+Search → Extract → Analyze pipeline
+Source citation system
+Verification logic (multi-source checking)
+Output formatting
+Project 3.3: Uncensored AI Solution
+What You CAN Do:
+
+Research existing uncensored models
+Research jailbreak techniques (document findings)
+Create prompt template library
+Build model selection logic
+Integrate with gateway
+PHASE 4: UTILITY PROJECTS
+Project 4.1: eSIM Finder
+If you find my existing code: test and fix it
+If not: research and scaffold new solution
+Project 4.2: Steam Region Optimizer
+Research Steam CDN regions and testing methods
+Build speed testing logic
+Create region switching automation
+Project 4.3: Oracle Cloud Auto-Registration
+Create GitHub Actions workflow structure
+Document what manual steps would be needed
+Prepare automation for non-CAPTCHA parts
+PHASE 5: APP IDEAS (Lower Priority)
+Only work on these if Phases 1-4 are blocked or complete.
+
+5.1: AI Parking Finder - scaffold only
+5.2: AI Navigation App - research and scaffold
+5.3: VPN Manager - implement core testing logic
+5.4: Leisure Trip Timer - scaffold only (LOWEST priority)
+PHASE 6: RESEARCH & INVESTIGATION (Fill Time)
+When blocked on coding, work on these research tasks:
+
+6.1: Business Ideas
+Save to _docs/research/business-ideas.md:
+
+ADHD-friendly passive income ideas
+AI phone service feasibility
+High profit/hour opportunities
+Porter's Five Forces analysis
+6.2: Technical Investigations
+Save to _docs/research/:
+
+Code optimization via AI feasibility
+Best free VPS comparison
+Gaming for profit analysis
+Puter.js + OpenRouter deep dive
+SESSION MANAGEMENT
+At Session Start:
+Create _docs/SESSION_START.md with timestamp
+Initialize QUESTIONS_FOR_HUMAN.md and PROGRESS_LOG.md if they don't exist
+Run setup checks
+Begin highest priority unblocked task
+During Session:
+Update PROGRESS_LOG.md after each significant milestone
+Commit working code frequently (at least every 30-60 mins of progress)
+If you complete a major project, start the next one immediately
+If/When You Run Out of Things To Do:
+Double-check all blocked tasks - can ANY be partially progressed?
+Write tests for completed code
+Improve documentation
+Refactor/clean up code
+Do research tasks
+Create _docs/SESSION_COMPLETE.md with:
+What was accomplished
+What's blocked and why
+What I need to provide to unblock
+Suggested next steps
+WHEN I RETURN
+When I come back and say something like "I'm back" or "what did you do" or "status":
+
+Provide a summary including:
+
+Time elapsed
+Projects completed or progressed
+Key blockers/questions (point me to QUESTIONS_FOR_HUMAN.md)
+Recommended next steps
+Anything urgent I should address first
+FINAL INSTRUCTIONS
+Your Prime Directives:
+
+NEVER STOP WORKING because you have a question - log it and move on
+ALWAYS BE CODING something - there's enough work here for days
+MAKE AUTONOMOUS DECISIONS when reasonable - you have broad authority
+LOG EVERYTHING - I want to know what happened while I was away
+PRIORITIZE THE GATEWAY - it unlocks better models for everything else
+COMMIT FREQUENTLY - don't lose progress
+SKIP BLOCKED TASKS and return to them later when unblocked
+Start now. Work until I return. Maximize progress.
+
+QUICK REFERENCE: My Known Resources
+(Fill these in before going AFK, or I'll ask with 15-sec timeout)
+
+GitHub username and token - should be configured, I installed GitHub cli and signed in, you should be able to access my GitHub.
+Render Account: I have one (ask if you need to deploy), but https://github.com/ons96/LLM-API-Key-Proxy/tree/main should auto deploy to the render instance and the url is https://llm-api-key-proxy-stp5.onrender.com/.
+Known API Keys: C:\Users\owens\CodingProjects\.env - do not delete or remove any lines from this file, only add keys. If you find any keys that you think are no longer working, please leave them in the file, and add the new api keys higher up in the file, or you may change the variable names, but do not delete any keys or values.
+Existing Repos to Check: [gateway, llm-router, esim, leaderboard - search for these terms]
+BEGIN AUTONOMOUS SESSION
+Start with Phase 0 setup. Use the 15-second rule if you need anything critical from me right now. Otherwise, work autonomously through the phases in priority order.
+
+I may or may not be at my computer. Assume I'm AFK unless I respond within 15 seconds.
