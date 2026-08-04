@@ -1475,11 +1475,12 @@ class RouterCore:
             if cached and cached[0] == provider and cached[1] == model:
                 base += 2
 
-        # Free-provider bonus: cost ratio <0.5/Mtok.
+        # Free-provider bonus: cost ratio <0.5/Mtok. Provider-level free_tier
+        # OR model listed in free_tier_models (model-specific list must
+        # actually contain the routed model, not just be non-empty).
         provider_cfg = self.config.get("providers", {}).get(provider, {})
-        if provider_cfg.get("free_tier") or provider_cfg.get(
-            "free_tier_models"
-        ):
+        free_models = provider_cfg.get("free_tier_models") or []
+        if provider_cfg.get("free_tier") or model in free_models:
             base += 1
 
         # TTFT penalty: if avg TTFT for (p, m) is >15s and chain is multi,
