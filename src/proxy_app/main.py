@@ -1042,6 +1042,8 @@ async def responses_endpoint(
     # Filter None values
     chat_body = {k: v for k, v in chat_body.items() if v is not None}
 
+    # TODO(request-features): apply the same extractor here if responses
+    # requests are included in a future dynamic-chain integration.
     # 2. Call Router
     router = get_router()
     response = await router.handle_chat_completions(chat_body, request)

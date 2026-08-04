@@ -49,7 +49,7 @@ class PromptLength(str, Enum):
 class RequestFeatures:
     """Routing metadata extracted from one request body."""
 
-    capabilities: int
+    capabilities: Capability
     task_class: TaskClass
     input_tokens: int
     prompt_length: PromptLength
@@ -108,15 +108,50 @@ _FILE_MIME_TYPES = frozenset(
 
 def extract_request_features(body: Mapping[str, Any]) -> RequestFeatures:
     """Extract request capabilities and task metadata in one deterministic pass."""
-    capabilities = 0
+    capabilities = Capability(0)
     text_parts: list[str] = []
+
+    # Fast path: the overwhelmingly common plain short-text request needs no
+    # block, attachment, or tool inspection.
+    messages = body.get("messages")
+    if (
+        isinstance(messages, list)
+        and len(messages) == 1
+        and isinstance(messages[0], Mapping)
+        and isinstance(messages[0].get("content"), str)
+        and len(messages[0]["content"]) <= 1024
+        and not body.get("tools")
+        and not body.get("functions")
+        and body.get("tool_choice") in (None, "none")
+        and not body.get("modalities")
+    ):
+        text = messages[0]["content"]
+        input_tokens = len(text) // 4
+        return RequestFeatures(
+            capabilities=Capability.TEXT,
+            task_class=_classify_task(
+                text,
+                has_vision=False,
+                has_file=False,
+                has_tools=False,
+                input_tokens=input_tokens,
+            ),
+            input_tokens=input_tokens,
+            prompt_length=_prompt_length(input_tokens),
+            stream=bool(body.get("stream", False)),
+            has_max_tokens="max_tokens" in body,
+            reasoning_effort=(
+                body.get("reasoning_effort")
+                if isinstance(body.get("reasoning_effort"), str)
+                else None
+            ),
+        )
     has_vision = False
     has_file = False
     has_tools = False
     modalities: tuple[str, ...] = ()
     marks = {"vision": False, "file": False}
 
-    messages = body.get("messages")
     if isinstance(messages, list):
         message_iter: Iterator[Any] = iter(messages)
     else:
@@ -146,20 +181,20 @@ def extract_request_features(body: Mapping[str, Any]) -> RequestFeatures:
         has_tools = True
     if isinstance(functions, list) and functions:
         has_tools = True
-    if body.get("tool_choice") not in (None, "none"):
+    tool_choice = body.get("tool_choice")
+    if isinstance(tool_choice, Mapping) or tool_choice in {"required", "function"}:
         has_tools = True
 
     has_vision = marks["vision"]
     has_file = marks["file"]
 
     if isinstance(body.get("modalities"), list):
-        modalities = tuple(
-            item for item in body["modalities"] if isinstance(item, str)
-        )
+        modalities = tuple(item for item in body["modalities"] if isinstance(item, str))
         if any(item != "text" for item in modalities):
             has_vision = True
 
-    capabilities |= Capability.TEXT
+    if text_parts:
+        capabilities |= Capability.TEXT
     if has_vision:
         capabilities |= Capability.VISION
     if has_tools:
@@ -168,7 +203,7 @@ def extract_request_features(body: Mapping[str, Any]) -> RequestFeatures:
         capabilities |= Capability.FILE_PARSING
 
     text = "\n".join(text_parts)
-    input_tokens = max(0, (len(text) + 3) // 4)
+    input_tokens = len(text) // 4
     prompt_length = _prompt_length(input_tokens)
     task_class = _classify_task(
         text,
@@ -257,7 +292,10 @@ def _looks_like_file(value: Mapping[str, Any]) -> bool:
         mime = value.get(key)
         if isinstance(mime, str):
             normalized = mime.lower().split(";", 1)[0].strip()
-            if normalized.startswith(_FILE_MIME_PREFIXES) or normalized in _FILE_MIME_TYPES:
+            if (
+                normalized.startswith(_FILE_MIME_PREFIXES)
+                or normalized in _FILE_MIME_TYPES
+            ):
                 return True
     return False
 
@@ -299,12 +337,26 @@ def _classify_task(
         return TaskClass.REASONING
     if any(
         marker in lowered
-        for marker in ("fix this", "bug", "refactor", "edit", "patch", "change this code")
+        for marker in (
+            "fix this",
+            "bug",
+            "refactor",
+            "edit",
+            "patch",
+            "change this code",
+        )
     ):
         return TaskClass.CODE_EDIT
     if any(
         marker in lowered
-        for marker in ("write code", "implement", "function", "class", "script", "program")
+        for marker in (
+            "write code",
+            "implement",
+            "function",
+            "class",
+            "script",
+            "program",
+        )
     ):
         return TaskClass.CODE_GEN
     if input_tokens <= 32 and any(

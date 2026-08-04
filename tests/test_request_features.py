@@ -87,7 +87,10 @@ def test_pdf_docx_attachment_requires_file_parsing():
                 "content": [
                     {
                         "type": "file",
-                        "file": {"filename": "report.pdf", "mime_type": "application/pdf"},
+                        "file": {
+                            "filename": "report.pdf",
+                            "mime_type": "application/pdf",
+                        },
                     },
                     {
                         "type": "file",
@@ -118,8 +121,24 @@ def test_plain_text_is_text_only_and_uses_chars_over_four():
 
     assert features.capabilities == Capability.TEXT
     assert features.task_class is TaskClass.GREETING_TRIVIA
-    assert features.input_tokens == (len(prompt) + 3) // 4
+    assert features.input_tokens == len(prompt) // 4
     assert features.prompt_length is PromptLength.SHORT
+
+
+def test_request_metadata_fields_are_preserved():
+    body = {
+        "messages": [{"role": "user", "content": "Explain this briefly."}],
+        "stream": True,
+        "max_tokens": 120,
+        "reasoning_effort": "low",
+    }
+
+    features = extract_request_features(body)
+
+    assert features.stream is True
+    assert features.has_max_tokens is True
+    assert features.reasoning_effort == "low"
+    assert features.modalities == ()
 
 
 def test_empty_tools_array_does_not_require_tool_calling():
