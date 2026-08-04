@@ -1098,6 +1098,9 @@ async def chat_completions(
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON in request body.")
 
+    # TODO(request-features): wire extract_request_features here when a
+    # USE_DYNAMIC_CHAIN-style feature flag exists. This mirror has no dynamic-chain
+    # middleware or flag, so avoid changing routing behavior implicitly.
     # Use RouterWrapper to handle the request
     try:
         router = get_router()
