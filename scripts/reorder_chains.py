@@ -7,11 +7,12 @@ Reads telemetry SQLite (`llm_events` table) + PenaltyStore + existing
 score for each virtual model's fallback_chain, rewrites priority order
 (healthiest first). Backs up prior config to `virtual_models.yaml.bak-<ts>`.
 
-Composite score (configurable via `config/scoring_config.yaml` `reorder:` block):
-    success_rate * 0.40  (24h window, min_samples threshold, else skip reorder)
-    + tps_norm * 0.30    (avg tps / max_observed_tps, clipped [0,1])
-    + ttft_norm * 0.20   (1 - avg_ttft_ms / 30000, clipped [0,1])
-    + penalty_inv * 0.10 (1 / (1 + penalty_score))
+Composite score (env-overridable weights below; Phase 2.A adds cache affinity):
+    success_rate * 0.36  (24h window, min_samples threshold, else skip reorder)
+    + tps_norm * 0.27    (avg tps / max_observed_tps, clipped [0,1])
+    + ttft_norm * 0.18   (1 - avg_ttft_ms / 30000, clipped [0,1])
+    + penalty_inv * 0.09 (1 / (1 + penalty_score))
+    + cache_score * 0.10 (min(avg_cached_tokens / 1000, 1); prompt-cache affinity)
 
 Smoothing:
     - 24h telemetry window (REORDER_WINDOW_H env, default 24)
@@ -69,10 +70,11 @@ DEFAULT_MAX_TPS = float(os.environ.get("REORDER_MAX_TPS", "3000"))
 DEFAULT_MAX_TTFT_MS = float(os.environ.get("REORDER_MAX_TTFT_MS", "30000"))
 
 # Composite weights (sum to 1.0). Override via env if needed.
-W_SUCCESS = float(os.environ.get("REORDER_W_SUCCESS", "0.40"))
-W_TPS = float(os.environ.get("REORDER_W_TPS", "0.30"))
-W_TTFT = float(os.environ.get("REORDER_W_TTFT", "0.20"))
-W_PENALTY = float(os.environ.get("REORDER_W_PENALTY", "0.10"))
+W_SUCCESS = float(os.environ.get("REORDER_W_SUCCESS", "0.36"))
+W_TPS = float(os.environ.get("REORDER_W_TPS", "0.27"))
+W_TTFT = float(os.environ.get("REORDER_W_TTFT", "0.18"))
+W_PENALTY = float(os.environ.get("REORDER_W_PENALTY", "0.09"))
+W_CACHE = float(os.environ.get("REORDER_W_CACHE", "0.10"))
 
 # U-formula paths (lazy import from rank_models sibling module).
 _RANK_MODELS = None
@@ -104,6 +106,7 @@ class TelemetryStat:
     success_rate: float  # [0, 1]
     avg_tps: float
     avg_ttft_ms: float
+    avg_cached_tokens: float = 0.0  # Phase 2.A prompt-cache affinity signal
 
 
 @dataclass
@@ -157,16 +160,24 @@ def load_telemetry(
         # (recorded post #195 reorder follow-up); fall back to (provider, model)
         # alias-level for older rows. sqlite NULL-aware COALESCE via CASE.
         has_concrete = {"concrete_provider", "concrete_model"}.issubset(cols)
+        # Phase 2.A: cache cols may be absent on pre-upgrade DBs — degrade to 0.
+        has_cache = "cached_tokens" in cols
+        cache_avg_expr = (
+            "AVG(COALESCE(cached_tokens, 0)) AS avg_cached_tokens"
+            if has_cache
+            else "0.0 AS avg_cached_tokens"
+        )
         if has_concrete:
             cur = conn.execute(
-                """
+                f"""
                 SELECT
                     COALESCE(NULLIF(concrete_provider, ''), provider) AS provider,
                     COALESCE(NULLIF(concrete_model, ''), model) AS model,
                     COUNT(*) AS samples,
                     SUM(CASE WHEN status='success' THEN 1.0 ELSE 0.0 END) AS successes,
                     AVG(tps) AS avg_tps,
-                    AVG(ttft_ms) AS avg_ttft_ms
+                    AVG(ttft_ms) AS avg_ttft_ms,
+                    {cache_avg_expr}
                 FROM llm_events
                 WHERE ts_start >= ?
                   AND provider IS NOT NULL
@@ -181,12 +192,13 @@ def load_telemetry(
                 "llm_events lacks concrete_provider/concrete_model; using alias columns"
             )
             cur = conn.execute(
-                """
+                f"""
                 SELECT provider, model,
                        COUNT(*) AS samples,
                        SUM(CASE WHEN status='success' THEN 1.0 ELSE 0.0 END) AS successes,
                        AVG(tps) AS avg_tps,
-                       AVG(ttft_ms) AS avg_ttft_ms
+                       AVG(ttft_ms) AS avg_ttft_ms,
+                       {cache_avg_expr}
                 FROM llm_events
                 WHERE ts_start >= ?
                   AND provider IS NOT NULL
@@ -206,6 +218,7 @@ def load_telemetry(
                 success_rate=(successes / samples) if samples > 0 else 0.0,
                 avg_tps=float(row["avg_tps"] or 0.0),
                 avg_ttft_ms=float(row["avg_ttft_ms"] or 0.0),
+                avg_cached_tokens=float(row["avg_cached_tokens"] or 0.0),
             )
             stats[(stat.provider, stat.model)] = stat
         logger.info(
@@ -271,19 +284,25 @@ def compute_composite(
         max(0.0, 1.0 - (stat.avg_ttft_ms / max_ttft_ms)) if max_ttft_ms > 0 else 0.0
     )
     penalty_inv = 1.0 / (1.0 + max(0.0, penalty))
+    # ponytail: fixed 1000-token normalization; per-provider cap table if
+    # cache-heavy chains need sharper differentiation.
+    cache_score = min(stat.avg_cached_tokens / 1000.0, 1.0)
 
     score = (
         W_SUCCESS * success
         + W_TPS * tps_norm
         + W_TTFT * ttft_norm
         + W_PENALTY * penalty_inv
+        + W_CACHE * cache_score
     )
     reason = (
         f"s={success:.2f}*{W_SUCCESS:.2f} + "
         f"tps={tps_norm:.2f}*{W_TPS:.2f} + "
         f"ttft={ttft_norm:.2f}*{W_TTFT:.2f} + "
-        f"pen={penalty_inv:.2f}*{W_PENALTY:.2f} "
-        f"(samples={stat.samples}, tps={stat.avg_tps:.1f}, ttft={stat.avg_ttft_ms:.0f}ms, pen={penalty:.2f})"
+        f"pen={penalty_inv:.2f}*{W_PENALTY:.2f} + "
+        f"cache={cache_score:.2f}*{W_CACHE:.2f} "
+        f"(samples={stat.samples}, tps={stat.avg_tps:.1f}, ttft={stat.avg_ttft_ms:.0f}ms, "
+        f"pen={penalty:.2f}, cache_tok={stat.avg_cached_tokens:.0f})"
     )
     return score, reason
 

@@ -1,60 +1,129 @@
-aihubmix:
-  max_context_tokens: 8192
+# Per-provider capability caps used by the context-size pre-filter in
+# router_core.py (_load_provider_caps). Provider-keyed (not model-keyed):
+# max_context_tokens = LARGEST context window the provider family can host.
+#
+# Phase 2.A (2026-08-04): expanded 18 -> 38 providers (all from
+# router_config.yaml), corrected values that were falsely low (nvidia was
+# 8192 but NIM hosts 131072+; gemini was 32768 but 2.5 Pro is 2M; several
+# NewAPI relays were 8192 but host 128K+).
+#
+# rpm_limit / tpm_limit = 0 means "unknown, no enforcement" (YAGNI until we
+# have real per-provider numbers from telemetry).
+
+# --- Direct first-party APIs ------------------------------------------------
+gemini:
+  max_context_tokens: 2000000
   rpm_limit: 0
   tpm_limit: 0
-blaze-free:
-  max_context_tokens: 8192
+gcli:
+  max_context_tokens: 1000000
+  rpm_limit: 0
+  tpm_limit: 0
+antigravity:
+  max_context_tokens: 1000000
+  rpm_limit: 0
+  tpm_limit: 0
+openai:
+  max_context_tokens: 400000
+  rpm_limit: 0
+  tpm_limit: 0
+openrouter:
+  max_context_tokens: 1000000
   rpm_limit: 0
   tpm_limit: 0
 cerebras:
   max_context_tokens: 131072
   rpm_limit: 0
   tpm_limit: 0
-cliproxyapi:
-  max_context_tokens: 131072
-  rpm_limit: 0
-  tpm_limit: 0
-freetheai:
-  max_context_tokens: 8192
-  rpm_limit: 0
-  tpm_limit: 0
-futureppo:
-  max_context_tokens: 131072
-  rpm_limit: 0
-  tpm_limit: 0
-gemini:
-  max_context_tokens: 32768
-  rpm_limit: 0
-  tpm_limit: 0
 groq:
   max_context_tokens: 131072
   rpm_limit: 0
   tpm_limit: 0
-iamhc:
-  max_context_tokens: 8192
-  rpm_limit: 0
-  tpm_limit: 0
-kilocode:
+nvidia:
   max_context_tokens: 131072
-  rpm_limit: 0
-  tpm_limit: 0
-koyeb-new:
-  max_context_tokens: 8192
   rpm_limit: 0
   tpm_limit: 0
 mistral:
   max_context_tokens: 131072
   rpm_limit: 0
   tpm_limit: 0
-nvidia:
-  max_context_tokens: 8192
+sambanova:
+  max_context_tokens: 131072
   rpm_limit: 0
   tpm_limit: 0
-pooled:
-  max_context_tokens: 32768
+together:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+cloudflare:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+github-models:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+bluesminds:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+kilo:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+kilocode:
+  max_context_tokens: 131072
   rpm_limit: 0
   tpm_limit: 0
 supacoder:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+xinjianya:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+zyf:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+yungnet:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+redwakeai:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+wiwi:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+iflow:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+aihubmix:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+euromodels:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+agnes_ai:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+freemodel:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+freemodel-anthropic:
+  max_context_tokens: 200000
+  rpm_limit: 0
+  tpm_limit: 0
+futureppo:
   max_context_tokens: 131072
   rpm_limit: 0
   tpm_limit: 0
@@ -62,7 +131,79 @@ tokenrouter:
   max_context_tokens: 131072
   rpm_limit: 0
   tpm_limit: 0
+blaze-free:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+cliproxyapi:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+koyeb-new:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+pooled:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
 zenllm-free:
   max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+iamhc:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+freetheai:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+
+# --- g4f backend family ------------------------------------------------------
+g4f:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+g4f_gemini:
+  max_context_tokens: 1000000
+  rpm_limit: 0
+  tpm_limit: 0
+g4f_groq:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+g4f_nvidia:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+g4f_ollama:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+g4f_pollinations:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
+
+# --- Search / retrieval tools (small prompts, tiny windows) -----------------
+brave_search:
+  max_context_tokens: 8192
+  rpm_limit: 0
+  tpm_limit: 0
+duckduckgo:
+  max_context_tokens: 8192
+  rpm_limit: 0
+  tpm_limit: 0
+exa:
+  max_context_tokens: 8192
+  rpm_limit: 0
+  tpm_limit: 0
+jina:
+  max_context_tokens: 8192
+  rpm_limit: 0
+  tpm_limit: 0
+tavily:
+  max_context_tokens: 8192
   rpm_limit: 0
   tpm_limit: 0

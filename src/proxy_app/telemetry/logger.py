@@ -73,15 +73,37 @@ CREATE INDEX IF NOT EXISTS idx_model ON llm_events(model);
 CREATE INDEX IF NOT EXISTS idx_provider ON llm_events(provider);
 -- idx_concrete is created AFTER the ALTER TABLE loop in init_db() so it
 -- works on pre-#195 DBs that didn't have concrete_provider/concrete_model.
+
+-- Phase 2.A: prompt-cache affinity state. Rendezvous hash of stable prefix
+-- (system prompt + tool schemas) → last-seen (provider, model) that served
+-- a cache hit. TTL 300s floor (Anthropic default; conservative). Looked up
+-- by router_core._prompt_cache_lookup BEFORE the per-candidate fallback
+-- loop so the cache-warm candidate gets bumped to index 0 of the sort.
+CREATE TABLE IF NOT EXISTS prefix_cache_state (
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    prefix_hash TEXT NOT NULL,
+    last_seen_ts INTEGER NOT NULL,
+    last_cached_tokens INTEGER DEFAULT 0,
+    PRIMARY KEY (provider, model, prefix_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_prefix_cache_hash ON prefix_cache_state(prefix_hash);
 """
 
 # Columns added post-launch (June 2026, #195 reorder follow-up). Existing
 # telemetry DBs get these via ALTER TABLE below; new DBs get them from _SCHEMA.
+# Phase 2.A adds cache_creation_tokens + cached_tokens to track prompt-cache
+# usage on Anthropic / OpenAI GPT-5.6+ / DeepSeek / Gemini / Groq / Qwen.
 _POST_LAUNCH_COLUMNS = [
     ("concrete_provider", "TEXT"),
     ("concrete_model", "TEXT"),
     ("waited_for_429", "INTEGER DEFAULT 0"),
     ("wait_duration_s", "REAL"),
+    # Phase 2.A: prompt-cache telemetry. cached_tokens = cache READ count
+    # (0.1x-0.5x cost), cache_creation_tokens = cache WRITE count
+    # (Anthropic 1.25x-2x base, DeepSeek 1.0x, others free).
+    ("cache_creation_tokens", "INTEGER DEFAULT 0"),
+    ("cached_tokens", "INTEGER DEFAULT 0"),
 ]
 
 
@@ -221,6 +243,28 @@ class TelemetryLogger(CustomLogger):
         prompt_tokens = getattr(usage, "prompt_tokens", None) or (usage.get("prompt_tokens", 0) if isinstance(usage, dict) else 0)
         completion_tokens = getattr(usage, "completion_tokens", None) or (usage.get("completion_tokens", 0) if isinstance(usage, dict) else 0)
 
+        # Phase 2.A: prompt-cache telemetry. OpenAI-compat exposes
+        # usage.prompt_tokens_details.cached_tokens (cache READ); Anthropic
+        # also exposes usage.cache_creation_input_tokens (cache WRITE).
+        # Both as either attrs or dict keys. Default 0 (no cache used).
+        cached_tokens = 0
+        cache_creation_tokens = 0
+        try:
+            ptd = getattr(usage, "prompt_tokens_details", None)
+            if ptd is None and isinstance(usage, dict):
+                ptd = usage.get("prompt_tokens_details") or {}
+            if isinstance(ptd, dict):
+                cached_tokens = int(ptd.get("cached_tokens", 0) or 0)
+            elif ptd is not None:
+                cached_tokens = int(getattr(ptd, "cached_tokens", 0) or 0)
+            ccv = getattr(usage, "cache_creation_input_tokens", None)
+            if ccv is None and isinstance(usage, dict):
+                ccv = usage.get("cache_creation_input_tokens", 0) or 0
+            if ccv:
+                cache_creation_tokens = int(ccv)
+        except Exception:
+            pass  # cache token parsing must never break telemetry write
+
         if stream and completion_tokens and (total_ms - ttft_ms) > 0:
             tps = completion_tokens / ((total_ms - ttft_ms) / 1000.0)
         elif completion_tokens and total_ms > 0:
@@ -258,6 +302,10 @@ class TelemetryLogger(CustomLogger):
         agent_session = metadata.get("agent_session", "") if isinstance(metadata, dict) else ""
         waited_for_429 = int(metadata.get("waited_for_429", 0)) if isinstance(metadata, dict) else 0
         wait_duration_s = float(metadata.get("wait_duration_s", 0.0)) if isinstance(metadata, dict) else 0.0
+        # Phase 2.A: router_core stashes the stable-prefix sha1 here so we
+        # can upsert prefix_cache_state when the upstream returns cached
+        # tokens. Absent on pre-Phase-2.A codepaths → no upsert performed.
+        prefix_hash = metadata.get("prefix_hash") if isinstance(metadata, dict) else None
         cost = getattr(response_obj, "_hidden_params", {}).get("response_cost", 0.0) if hasattr(response_obj, "_hidden_params") else 0.0
 
         event = (
@@ -269,6 +317,8 @@ class TelemetryLogger(CustomLogger):
             float(cost or 0.0), caller, agent_session, status, error,
             concrete_provider, concrete_model,
             waited_for_429, wait_duration_s,
+            int(cache_creation_tokens or 0), int(cached_tokens or 0),
+            prefix_hash or "",
         )
 
         try:
@@ -315,16 +365,45 @@ class TelemetryLogger(CustomLogger):
         conn = sqlite3.connect(self.db_path, timeout=5)
         try:
             conn.execute("PRAGMA busy_timeout=5000")
+            # Phase 2.A: split the prefix_hash (event[-1]) off the event
+            # tuple before llm_events INSERT (column count unchanged),
+            # then upsert prefix_cache_state when the upstream returned
+            # cached tokens for that prefix. POSTGRES-style UPSERT via
+            # INSERT OR REPLACE (sqlite native).
+            llm_rows = [ev[:-1] for ev in batch]
+            cache_rows = []
+            now_ts = int(time.time())
+            for ev in batch:
+                cache_creation_tokens = ev[-3]
+                cached_tokens = ev[-2]
+                prefix_hash = ev[-1]
+                if prefix_hash and (cached_tokens or cache_creation_tokens):
+                    # ev layout (post-add): …, concrete_provider, concrete_model,
+                    # waited_for_429, wait_duration_s, cache_creation_tokens,
+                    # cached_tokens, prefix_hash. Use concrete pair when present
+                    # else fall back to (provider, model) legacy columns.
+                    cp = ev[17] or ev[5]
+                    cm = ev[18] or ev[4]
+                    if cp and cm:
+                        cache_rows.append((cp, cm, prefix_hash, now_ts, int(cached_tokens or 0)))
             conn.executemany(
                 """INSERT INTO llm_events
                    (request_id, ts_start, ts_end, ts_first_token, model, provider, stream,
                     prompt_tokens, completion_tokens, ttft_ms, total_ms, tps, cost_usd,
                     caller, agent_session, status, error,
                     concrete_provider, concrete_model,
-                    waited_for_429, wait_duration_s)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                batch,
+                    waited_for_429, wait_duration_s,
+                    cache_creation_tokens, cached_tokens)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                llm_rows,
             )
+            if cache_rows:
+                conn.executemany(
+                    """INSERT OR REPLACE INTO prefix_cache_state
+                       (provider, model, prefix_hash, last_seen_ts, last_cached_tokens)
+                       VALUES (?, ?, ?, ?, ?)""",
+                    cache_rows,
+                )
             conn.commit()
         except Exception:
             log.error("bulk insert failed: %s", traceback.format_exc())

@@ -79,6 +79,14 @@ class ProviderStatus(Enum):
     UNAVAILABLE = "unavailable"
 
 
+# ponytail: same-upstream reactive retry (#435). Fallback chain is the
+# cross-upstream retry layer (_stream_with_fallback advances candidates on
+# failure). This loop wraps ONLY the pre-stream adapter/litellm acquisition
+# call. Phase 2.A replaces hardcoded value with max_retries_for() per-request.
+MAX_UPSTREAM_RETRIES = int(os.environ.get("MAX_UPSTREAM_RETRIES", "2"))  # 2 = 1 retry
+UPSTREAM_RETRY_BASE_MS = int(os.environ.get("UPSTREAM_RETRY_BASE_MS", "400"))
+
+
 class ErrorCategory(Enum):
     """Error classification for routing decisions."""
 
@@ -1021,6 +1029,13 @@ class RouterCore:
             request_clean["model"] = f"{candidate.provider}/{candidate.model}"
             _strip_cache_control(request_clean)
 
+            # ponytail: stash prefix_hash so telemetry logger can upsert
+            # prefix_cache_state. _prefix_hash reads stable blocks (system
+            # prompt + tool schemas) — see helper cluster L1364.
+            ph = self._prefix_hash(request)
+            if ph:
+                request_clean.setdefault("metadata", {})["prefix_hash"] = ph
+
             logger.info(
                 f"[{request_id}] Executing via {candidate.provider}/{candidate.model}"
             )
@@ -1034,25 +1049,62 @@ class RouterCore:
             api_base = provider_cfg.get("base_url")
             model_list = provider_cfg.get("free_tier_models", [])
 
-            try:
-                adapter = ProviderAdapterFactory.create_adapter(
-                    candidate.provider,
-                    api_key,
-                    api_base,
-                    model_list,
-                )
-                response = await adapter.chat_completions(request_clean)
-            except ValueError:
-                # Fallback to LiteLLM direct usage for providers without an adapter.
-                # See `build_litellm_fallback_kwargs` docstring for rationale.
-                fallback_kwargs = build_litellm_fallback_kwargs(
-                    request_clean,
-                    candidate.provider,
-                    candidate.model,
-                    api_key,
-                    api_base,
-                )
-                response = await litellm.acompletion(**fallback_kwargs, stream=False)
+            # ponytail: reactive same-upstream retry, non-stream path. Mirrors
+            # _stream_with_fallback. Only transient+rate_limit retryable; AUTH
+            # / INVALID_REQUEST / PROVIDER_ERROR re-raise to outer per-candidate
+            # loop (which advances to next candidate). Retry-After header wins.
+            max_tries = max_retries_for(
+                self, candidate.provider, candidate.model, request, request_id
+            )
+            for attempt in range(max_tries + 1):
+                try:
+                    try:
+                        adapter = ProviderAdapterFactory.create_adapter(
+                            candidate.provider,
+                            api_key,
+                            api_base,
+                            model_list,
+                        )
+                        response = await adapter.chat_completions(request_clean)
+                    except ValueError:
+                        # Fallback to LiteLLM direct usage for providers without an adapter.
+                        # See `build_litellm_fallback_kwargs` docstring for rationale.
+                        fallback_kwargs = build_litellm_fallback_kwargs(
+                            request_clean,
+                            candidate.provider,
+                            candidate.model,
+                            api_key,
+                            api_base,
+                        )
+                        response = await litellm.acompletion(
+                            **fallback_kwargs, stream=False
+                        )
+                    break  # Success — exit retry loop.
+                except ValueError:
+                    # Adapter resolution itself failed (no provider adapter
+                    # registered). Not retryable — re-raise to outer handler.
+                    raise
+                except Exception as exc:
+                    category, retry_after_s = await self._classify_error(exc)
+                    retryable = category in (
+                        ErrorCategory.TRANSIENT,
+                        ErrorCategory.RATE_LIMIT,
+                    )
+                    if not retryable or attempt >= max_tries:
+                        raise
+                    if retry_after_s is not None:
+                        wait_ms = int(retry_after_s * 1000)
+                    else:
+                        wait_ms = min(UPSTREAM_RETRY_BASE_MS * (2 ** attempt), 3200)
+                    logger.info(
+                        f"[{request_id}] retry upstream (non-stream) "
+                        f"attempt={attempt + 1}/{max_tries + 1} "
+                        f"provider={candidate.provider} model={candidate.model} "
+                        f"category={category.value} wait_ms={wait_ms} "
+                        f"err={exc!r}"
+                    )
+                    await asyncio.sleep(wait_ms / 1000.0)
+                    continue
 
             # Record success
             elapsed_ms = (time.time() - start_time) * 1000
@@ -1315,6 +1367,150 @@ class RouterCore:
     def get_virtual_model_names(self) -> List[str]:
         """Get list of virtual model names."""
         return list(self.virtual_models.keys())
+
+    # ----- Phase 2.A: cache-aware retry + prefix-cache affinity -----
+
+    def _estimate_input_tokens(self, request: Dict[str, Any]) -> int:
+        """Cheap token estimate. ponytail: char/4*1.2 heuristic, sub-ms,
+        no resident tokenizer (954MB VPS can't afford tiktoken model load).
+        Replace with tiktoken if a tokenizer is added in the future."""
+        try:
+            return int(len(json.dumps(request.get("messages", []))) * 0.3)
+        except (TypeError, ValueError):
+            return 0
+
+    def _prefix_hash(self, request: Dict[str, Any]) -> Optional[str]:
+        """Stable hash over the cacheable prefix of a request. We hash the
+        first 8K chars of concatenated system-role message contents plus the
+        JSON-serialized tools array. Stable blocks (system prompt, tool
+        schemas) are what Anthropic/OpenAI prompt-cache hangs off, so the
+        prefix hash is the unit of cache affinity. Returns None when there
+        is no stable prefix (no system msg, no tools)."""
+        import hashlib
+
+        parts: List[str] = []
+        for m in request.get("messages", []):
+            if m.get("role") == "system":
+                c = m.get("content")
+                if isinstance(c, str):
+                    parts.append(c[:8192])
+                elif isinstance(c, list):
+                    # Concatenate text blocks only.
+                    for blk in c:
+                        if isinstance(blk, dict) and blk.get("type") == "text":
+                            parts.append(str(blk.get("text", ""))[:8192])
+        tools = request.get("tools")
+        if tools:
+            try:
+                parts.append(json.dumps(tools, sort_keys=True)[:8192])
+            except (TypeError, ValueError):
+                pass
+        if not parts:
+            return None
+        return hashlib.sha1("|".join(parts).encode("utf-8")).hexdigest()[:16]
+
+    def _prompt_cache_lookup(
+        self, prefix_hash: str
+    ) -> Optional[Tuple[str, str]]:
+        """Look up the (provider, model) that last returned a cache hit for
+        this prefix hash, within the cache TTL window. Returns None when cold
+        or expired. ponytail: read-only sqlite query; add an LRU in-memory
+        cache if this lookup becomes a hot path under concurrency."""
+        import sqlite3
+        import time
+
+        db_path = os.environ.get(
+            "TELEMETRY_DB_PATH", "/dev/shm/telemetry.db"
+        )
+        if not os.path.exists(db_path):
+            return None
+        try:
+            conn = sqlite3.connect(db_path, timeout=0.2)
+            cur = conn.cursor()
+            # Anthropic 5min default, Gemini 3-5min, OpenAI 1hr. 300s is the
+            # conservative floor.
+            cur.execute(
+                "SELECT provider, model, last_seen_ts FROM prefix_cache_state "
+                "WHERE prefix_hash = ? AND last_seen_ts > ?",
+                (prefix_hash, time.time() - 300),
+            )
+            row = cur.fetchone()
+            conn.close()
+            if row:
+                return (row[0], row[1])
+        except sqlite3.Error:
+            pass
+        return None
+
+    def max_retries_for(
+        self,
+        provider: str,
+        model: str,
+        request: Dict[str, Any],
+        request_id: str,
+    ) -> int:
+        """Per-candidate dynamic retry budget. Replaces hardcoded
+        MAX_UPSTREAM_RETRIES for the inner retry loop.
+
+        Goal: cache warm -> retry harder (cache_read is 0.1x-0.5x base input,
+        so a warm retry is nearly free). Cache cold + paid + slow TTFT ->
+        fallback to next candidate fast. Clamp [1, 4].
+
+        ponytail:=[
+          base = 2                                  # current default
+          cache warm (cached_tokens>0 last req) -> +2
+          free provider (cost ratio <0.5/Mtok)   -> +1
+          TTFT >15s AND has alt in fallback chain -> -1
+          penalty_score >5                        -> -1
+          >120K input tokens estimated            -> -1  # latency compounds
+          clamp [1, 4]
+        ]
+        """
+        base = MAX_UPSTREAM_RETRIES
+
+        # Cache-warm bonus: look up prefix hash for this request.
+        ph = self._prefix_hash(request)
+        if ph is not None:
+            cached = self._prompt_cache_lookup(ph)
+            if cached and cached[0] == provider and cached[1] == model:
+                base += 2
+
+        # Free-provider bonus: cost ratio <0.5/Mtok.
+        provider_cfg = self.config.get("providers", {}).get(provider, {})
+        if provider_cfg.get("free_tier") or provider_cfg.get(
+            "free_tier_models"
+        ):
+            base += 1
+
+        # TTFT penalty: if avg TTFT for (p, m) is >15s and chain is multi,
+        # drop a retry to fallback faster.
+        try:
+            metrics = self._get_metrics(provider, model)
+            # ewma_latency_ms is the metric we have; approximate TTFT proxy
+            # when dedicated TTFT metric is absent.
+            if (
+                metrics.ewma_latency_ms > 0
+                and metrics.ewma_latency_ms > 15000
+            ):
+                base -= 1
+        except Exception:
+            pass
+
+        # Penalty score: heavy recent penalty -> fallback faster.
+        try:
+            penalty = self.penalty_store.get_penalty(provider, model)
+            if penalty > 5.0:
+                base -= 1
+        except Exception:
+            pass
+
+        # Long context: latency compounds >120K.
+        if self._estimate_input_tokens(request) > 120_000:
+            base -= 1
+
+        return max(1, min(4, base))
+
+    # ----- end Phase 2.A helpers -----
 
     def _get_metrics(self, provider: str, model: str) -> ProviderMetrics:
         """Get or create metrics for provider/model pair."""
@@ -2018,6 +2214,11 @@ class RouterCore:
                 request_clean["max_tokens"] = 1024
             _strip_cache_control(request_clean)
 
+            # ponytail: stash prefix_hash for telemetry upsert (mirror non-stream)
+            ph = self._prefix_hash(request)
+            if ph:
+                request_clean.setdefault("metadata", {})["prefix_hash"] = ph
+
             logger.info(
                 f"[{request_id}] Streaming {candidate.provider}/{candidate.model}"
             )
@@ -2031,27 +2232,66 @@ class RouterCore:
             api_base = provider_cfg.get("base_url")
             model_list = provider_cfg.get("free_tier_models", [])
 
-            try:
-                adapter = ProviderAdapterFactory.create_adapter(
-                    candidate.provider,
-                    api_key,
-                    api_base,
-                    model_list,
-                )
-                response = await adapter.chat_completions(
-                    request_clean, stream=True
-                )
-            except ValueError:
-                # Fallback to LiteLLM direct usage for providers without an adapter.
-                # See `build_litellm_fallback_kwargs` docstring for rationale.
-                fallback_kwargs = build_litellm_fallback_kwargs(
-                    request_clean,
-                    candidate.provider,
-                    candidate.model,
-                    api_key,
-                    api_base,
-                )
-                response = await litellm.acompletion(**fallback_kwargs, stream=True)
+            # ponytail: same-upstream reactive retry (#435 + Phase 2.A). Wraps
+            # ONLY pre-stream adapter+litellm acquisition. Mid-stream errors
+            # (after response starts yielding) propagate to
+            # _stream_with_fallback's per-candidate catch — SSE chunks already
+            # emitted, in-place retry UNSUPPORTED.
+            max_tries = max_retries_for(
+                self, candidate.provider, candidate.model, request, request_id
+            )
+            for attempt in range(max_tries + 1):
+                try:
+                    try:
+                        adapter = ProviderAdapterFactory.create_adapter(
+                            candidate.provider,
+                            api_key,
+                            api_base,
+                            model_list,
+                        )
+                        response = await adapter.chat_completions(
+                            request_clean, stream=True
+                        )
+                    except ValueError:
+                        # Fallback to LiteLLM direct usage for providers without an adapter.
+                        # See `build_litellm_fallback_kwargs` docstring for rationale.
+                        fallback_kwargs = build_litellm_fallback_kwargs(
+                            request_clean,
+                            candidate.provider,
+                            candidate.model,
+                            api_key,
+                            api_base,
+                        )
+                        response = await litellm.acompletion(
+                            **fallback_kwargs, stream=True
+                        )
+                    break  # Acquisition succeeded — proceed to stream.
+                except ValueError:
+                    # Adapter resolution itself failed (no provider adapter
+                    # registered). Not retryable — re-raise to outer handler.
+                    raise
+                except Exception as exc:
+                    category, retry_after_s = await self._classify_error(exc)
+                    retryable = category in (
+                        ErrorCategory.TRANSIENT,
+                        ErrorCategory.RATE_LIMIT,
+                    )
+                    if not retryable or attempt >= max_tries:
+                        raise
+                    # Retry-After header (s) overrides backoff when present.
+                    if retry_after_s is not None:
+                        wait_ms = int(retry_after_s * 1000)
+                    else:
+                        wait_ms = min(UPSTREAM_RETRY_BASE_MS * (2 ** attempt), 3200)
+                    logger.info(
+                        f"[{request_id}] retry upstream "
+                        f"attempt={attempt + 1}/{max_tries + 1} "
+                        f"provider={candidate.provider} model={candidate.model} "
+                        f"category={category.value} wait_ms={wait_ms} "
+                        f"err={exc!r}"
+                    )
+                    await asyncio.sleep(wait_ms / 1000.0)
+                    continue
 
             chunk_count = 0
             async for chunk in response:
@@ -2367,6 +2607,32 @@ class RouterCore:
                 else float("inf"),
             )
         )
+
+        # ponytail: Phase 2.A cache-warm sort bump. If this request's stable
+        # prefix (system prompt + tool schemas) was served by a candidate in
+        # the last 300s with cached_tokens > 0, that candidate has a warm
+        # prompt cache on the upstream (Anthropic 5min / OpenAI 1hr). Move it
+        # to index 0 so we re-use the cache (0.1x-0.5x input cost + lower
+        # TTFT). Falls through silently when no warm candidate found.
+        try:
+            prefix_hash = self._prefix_hash(request)
+            if prefix_hash:
+                warm = self._prompt_cache_lookup(prefix_hash)
+                if warm:
+                    warm_provider, warm_model = warm
+                    for idx, c in enumerate(available_candidates):
+                        if c.provider == warm_provider and c.model == warm_model and idx > 0:
+                            available_candidates.insert(0, available_candidates.pop(idx))
+                            logger.info(
+                                f"[{request_id}] cache-warm sort bump: "
+                                f"promoted {warm_provider}/{warm_model} idx {idx} -> 0"
+                            )
+                            break
+        except Exception as _bump_exc:
+            logger.debug(
+                f"[{request_id}] cache-warm sort bump skipped: "
+                f"{type(_bump_exc).__name__}: {_bump_exc!r}"
+            )
 
         if requirements.streaming:
             return self._stream_with_fallback(available_candidates, request, request_id)
