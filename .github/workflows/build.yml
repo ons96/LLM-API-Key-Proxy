@@ -444,13 +444,26 @@ jobs:
         fi
         
         # Create the release using the notes file
-        gh release create ${{ steps.version.outputs.release_tag }} \
+        echo "Asset paths: ${{ steps.archive.outputs.ASSET_PATHS }}"
+        for asset in ${{ steps.archive.outputs.ASSET_PATHS }}; do
+          if [ -f "$asset" ]; then
+            echo "Asset OK: $asset ($(stat -c %s "$asset") bytes)"
+          else
+            echo "Asset MISSING: $asset (pwd=$(pwd))"
+          fi
+        done
+        RELEASE_OUTPUT=$(gh release create ${{ steps.version.outputs.release_tag }} \
           --target ${{ github.sha }} \
           --title "${{ steps.version.outputs.release_title }}" \
           --notes-file releasenotes.md \
           $LATEST_FLAG \
           $PRERELEASE_FLAG \
-          ${{ steps.archive.outputs.ASSET_PATHS }}
+          ${{ steps.archive.outputs.ASSET_PATHS }} 2>&1)
+        RELEASE_EXIT=$?
+        echo "gh release create exit code: $RELEASE_EXIT"
+        echo "gh release create output:"
+        echo "$RELEASE_OUTPUT"
+        exit $RELEASE_EXIT
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
