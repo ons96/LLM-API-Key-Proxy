@@ -1042,6 +1042,8 @@ async def responses_endpoint(
     # Filter None values
     chat_body = {k: v for k, v in chat_body.items() if v is not None}
 
+    # TODO(request-features): apply the same extractor here if responses
+    # requests are included in a future dynamic-chain integration.
     # 2. Call Router
     router = get_router()
     response = await router.handle_chat_completions(chat_body, request)
@@ -1098,6 +1100,9 @@ async def chat_completions(
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON in request body.")
 
+    # TODO(request-features): wire extract_request_features here when a
+    # USE_DYNAMIC_CHAIN-style feature flag exists. This mirror has no dynamic-chain
+    # middleware or flag, so avoid changing routing behavior implicitly.
     # Use RouterWrapper to handle the request
     try:
         router = get_router()

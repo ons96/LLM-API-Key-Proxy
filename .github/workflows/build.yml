@@ -154,7 +154,9 @@ jobs:
         # Define all naming components
         echo "release_title=Build ($BRANCH_NAME): $VERSION" >> $GITHUB_OUTPUT
         echo "release_tag=$BRANCH_NAME/build-$VERSION" >> $GITHUB_OUTPUT
-        echo "archive_version_part=$BRANCH_NAME-$VERSION" >> $GITHUB_OUTPUT
+        # Branch names can contain '/', which is valid for refs but invalid in archive paths.
+        SANITIZED_BRANCH_NAME="${BRANCH_NAME//\//-}"
+        echo "archive_version_part=$SANITIZED_BRANCH_NAME-$VERSION" >> $GITHUB_OUTPUT
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "timestamp=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
 
@@ -442,13 +444,26 @@ jobs:
         fi
         
         # Create the release using the notes file
-        gh release create ${{ steps.version.outputs.release_tag }} \
+        echo "Asset paths: ${{ steps.archive.outputs.ASSET_PATHS }}"
+        for asset in ${{ steps.archive.outputs.ASSET_PATHS }}; do
+          if [ -f "$asset" ]; then
+            echo "Asset OK: $asset ($(stat -c %s "$asset") bytes)"
+          else
+            echo "Asset MISSING: $asset (pwd=$(pwd))"
+          fi
+        done
+        RELEASE_OUTPUT=$(gh release create ${{ steps.version.outputs.release_tag }} \
           --target ${{ github.sha }} \
           --title "${{ steps.version.outputs.release_title }}" \
           --notes-file releasenotes.md \
           $LATEST_FLAG \
           $PRERELEASE_FLAG \
-          ${{ steps.archive.outputs.ASSET_PATHS }}
+          ${{ steps.archive.outputs.ASSET_PATHS }} 2>&1)
+        RELEASE_EXIT=$?
+        echo "gh release create exit code: $RELEASE_EXIT"
+        echo "gh release create output:"
+        echo "$RELEASE_OUTPUT"
+        exit $RELEASE_EXIT
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
