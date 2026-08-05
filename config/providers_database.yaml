@@ -3681,3 +3681,12 @@ providers:
   - id: Qwen/Qwen3.6-35B-A3B-FP8
     context: 262144
   notes: Discovered 2026-07-25
+- id: infomaniak
+  name: Infomaniak
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: mini_lm_l12_v2
+    context: 128
+  notes: Discovered 2026-08-05
