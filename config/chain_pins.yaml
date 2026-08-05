@@ -1,0 +1,16 @@
+# Static chain-head pins for reorder_chains.py (#472).
+#
+# Entries listed here are forced to the head of the named virtual model's
+# fallback_chain, in the order given. The remainder of the chain is still
+# reordered by telemetry/quality as usual. Pins referencing a (provider,
+# model) absent from a chain are ignored with a warning.
+#
+# Delete this file (or empty it) to restore pure telemetry reordering.
+
+coding-elite:
+- provider: freetheai
+  model: glm/glm-5.2
+
+coding-smart:
+- provider: cliproxyapi
+  model: gemini-3.1-pro-preview

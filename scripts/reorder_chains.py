@@ -7,12 +7,20 @@ Reads telemetry SQLite (`llm_events` table) + PenaltyStore + existing
 score for each virtual model's fallback_chain, rewrites priority order
 (healthiest first). Backs up prior config to `virtual_models.yaml.bak-<ts>`.
 
-Composite score (env-overridable weights below; Phase 2.A adds cache affinity):
-    success_rate * 0.36  (24h window, min_samples threshold, else skip reorder)
-    + tps_norm * 0.27    (avg tps / max_observed_tps, clipped [0,1])
-    + ttft_norm * 0.18   (1 - avg_ttft_ms / 30000, clipped [0,1])
-    + penalty_inv * 0.09 (1 / (1 + penalty_score))
-    + cache_score * 0.10 (min(avg_cached_tokens / 1000, 1); prompt-cache affinity)
+Composite score (env-overridable weights below; Phase 2.A cache affinity;
+#472 quality + pins):
+    success_rate * 0.288 (24h window, min_samples threshold, else skip reorder)
+    + tps_norm * 0.216   (avg tps / max_observed_tps, clipped [0,1])
+    + ttft_norm * 0.144  (1 - avg_ttft_ms / 30000, clipped [0,1])
+    + penalty_inv * 0.072 (1 / (1 + penalty_score))
+    + cache_score * 0.080 (min(avg_cached_tokens / 1000, 1); prompt-cache affinity)
+    + quality_score * 0.20 (model_rankings.yaml composite_score, normalized;
+                            REORDER_W_QUALITY=0 restores pure telemetry)
+
+Chain pins (#472): optional static chain-heads per virtual model in
+`config/chain_pins.yaml` ({virtual_model: [{provider, model}, ...]}).
+Pinned entries are forced to the chain head in pin order; the remainder is
+reordered by composite. No pins file = current behavior.
 
 Smoothing:
     - 24h telemetry window (REORDER_WINDOW_H env, default 24)
@@ -70,11 +78,15 @@ DEFAULT_MAX_TPS = float(os.environ.get("REORDER_MAX_TPS", "3000"))
 DEFAULT_MAX_TTFT_MS = float(os.environ.get("REORDER_MAX_TTFT_MS", "30000"))
 
 # Composite weights (sum to 1.0). Override via env if needed.
-W_SUCCESS = float(os.environ.get("REORDER_W_SUCCESS", "0.36"))
-W_TPS = float(os.environ.get("REORDER_W_TPS", "0.27"))
-W_TTFT = float(os.environ.get("REORDER_W_TTFT", "0.18"))
-W_PENALTY = float(os.environ.get("REORDER_W_PENALTY", "0.09"))
-W_CACHE = float(os.environ.get("REORDER_W_CACHE", "0.10"))
+# ponytail: 6-factor post-#472. Telemetry terms rescaled proportionally
+# from Phase-2.A 0.36/0.27/0.18/0.09/0.10 to make room for W_QUALITY=0.20.
+# Set REORDER_W_QUALITY=0 to restore pure-telemetry behavior (Phase-2.A).
+W_SUCCESS = float(os.environ.get("REORDER_W_SUCCESS", "0.288"))
+W_TPS = float(os.environ.get("REORDER_W_TPS", "0.216"))
+W_TTFT = float(os.environ.get("REORDER_W_TTFT", "0.144"))
+W_PENALTY = float(os.environ.get("REORDER_W_PENALTY", "0.072"))
+W_CACHE = float(os.environ.get("REORDER_W_CACHE", "0.080"))
+W_QUALITY = float(os.environ.get("REORDER_W_QUALITY", "0.20"))
 
 # U-formula paths (lazy import from rank_models sibling module).
 _RANK_MODELS = None
@@ -257,6 +269,72 @@ def load_penalty_scores(now: Optional[float] = None) -> Dict[Tuple[str, str], fl
 
 
 # ---------------------------------------------------------------------------
+# Quality scores + chain pins (#472)
+# ---------------------------------------------------------------------------
+
+DEFAULT_RANKINGS_PATH = _REPO_ROOT / "config" / "model_rankings.yaml"
+DEFAULT_PINS_PATH = _REPO_ROOT / "config" / "chain_pins.yaml"
+
+
+def load_quality_scores(rankings_path: Optional[Path] = None) -> Dict[str, float]:
+    """Read model_rankings.yaml -> {model_id: composite_score_norm}.
+
+    model_id is the rankings `id` field ("provider/model"), value is
+    composite_score normalized to [0, 1] (rankings use a 0-100 scale).
+    Missing/unreadable file -> {} (quality term contributes 0).
+    """
+    path = rankings_path or DEFAULT_RANKINGS_PATH
+    if not path.exists():
+        logger.warning("model_rankings not found at %s; quality term = 0", path)
+        return {}
+    try:
+        with path.open("r") as f:
+            data = yaml.safe_load(f)
+    except Exception as exc:
+        logger.warning("failed to load %s: %r", path, exc)
+        return {}
+    scores: Dict[str, float] = {}
+    for m in (data or {}).get("models", []) or []:
+        mid = m.get("id")
+        comp = ((m.get("scores") or {}).get("composite_score")) if m else None
+        if mid and isinstance(comp, (int, float)) and comp > 0:
+            scores[mid] = max(0.0, min(1.0, float(comp) / 100.0))
+    logger.info("loaded %d quality scores from %s", len(scores), path)
+    return scores
+
+
+def load_chain_pins(pins_path: Optional[Path] = None) -> Dict[str, List[Dict]]:
+    """Read chain_pins.yaml -> {virtual_model_id: [entry, ...]}.
+
+    Entry shape mirrors a fallback_chain row: {provider, model, priority}.
+    Missing file -> {} (no pins = current behavior). Entries referencing a
+    (provider, model) absent from a chain are ignored with a warning.
+    """
+    path = pins_path or DEFAULT_PINS_PATH
+    if not path.exists():
+        return {}
+    try:
+        with path.open("r") as f:
+            data = yaml.safe_load(f) or {}
+    except Exception as exc:
+        logger.warning("failed to load %s: %r", path, exc)
+        return {}
+    pins: Dict[str, List[Dict]] = {}
+    for model_id, entries in data.items():
+        if not isinstance(entries, list):
+            continue
+        clean = [
+            {"provider": e.get("provider", ""), "model": e.get("model", "")}
+            for e in entries
+            if isinstance(e, dict) and e.get("provider") and e.get("model")
+        ]
+        if clean:
+            pins[model_id] = clean
+    logger.info("loaded chain pins for %d virtual models from %s", len(pins), path)
+    return pins
+
+
+# ---------------------------------------------------------------------------
 # Composite scoring
 # ---------------------------------------------------------------------------
 
@@ -267,6 +345,7 @@ def compute_composite(
     min_samples: int,
     max_tps: float,
     max_ttft_ms: float,
+    quality: float = 0.0,
 ) -> Tuple[float, str]:
     """Return (score, reason). Score in [0, 1.1] (1.1 = perfect + no penalty).
 
@@ -287,6 +366,7 @@ def compute_composite(
     # ponytail: fixed 1000-token normalization; per-provider cap table if
     # cache-heavy chains need sharper differentiation.
     cache_score = min(stat.avg_cached_tokens / 1000.0, 1.0)
+    quality_score = max(0.0, min(1.0, quality))
 
     score = (
         W_SUCCESS * success
@@ -294,13 +374,15 @@ def compute_composite(
         + W_TTFT * ttft_norm
         + W_PENALTY * penalty_inv
         + W_CACHE * cache_score
+        + W_QUALITY * quality_score
     )
     reason = (
         f"s={success:.2f}*{W_SUCCESS:.2f} + "
         f"tps={tps_norm:.2f}*{W_TPS:.2f} + "
         f"ttft={ttft_norm:.2f}*{W_TTFT:.2f} + "
         f"pen={penalty_inv:.2f}*{W_PENALTY:.2f} + "
-        f"cache={cache_score:.2f}*{W_CACHE:.2f} "
+        f"cache={cache_score:.2f}*{W_CACHE:.2f} + "
+        f"qual={quality_score:.2f}*{W_QUALITY:.2f} "
         f"(samples={stat.samples}, tps={stat.avg_tps:.1f}, ttft={stat.avg_ttft_ms:.0f}ms, "
         f"pen={penalty:.2f}, cache_tok={stat.avg_cached_tokens:.0f})"
     )
@@ -319,21 +401,36 @@ def reorder_chain(
     min_samples: int,
     max_tps: float,
     max_ttft_ms: float,
+    quality_scores: Optional[Dict[str, float]] = None,
+    pins: Optional[List[Dict]] = None,
 ) -> Tuple[List[Dict], List[str]]:
     """Reorder one fallback_chain. Returns (new_chain, reasons).
 
     Entries with insufficient samples keep their original relative order
     (stable sort), but are placed AFTER all entries with valid telemetry.
+
+    Pinned entries (#472) — when `pins` is non-empty, entries whose
+    (provider, model) matches a pin are forced to the chain head in pin
+    order; the remaining entries are reordered by composite as usual.
+    Pins referencing entries absent from the chain are ignored (warned).
     """
     entries: List[Tuple[ChainEntry, float, str]] = []
+    pinned: List[Dict] = []
+    pin_keys = {(p.get("provider"), p.get("model")) for p in (pins or [])}
     for idx, c in enumerate(chain):
         provider = c.get("provider", "")
         model = c.get("model", "")
         priority = int(c.get("priority", idx))
+        if (provider, model) in pin_keys:
+            pinned.append(c)
+            continue
         entry = ChainEntry(provider, model, priority, idx)
         stat = stats.get((provider, model))
         pen = penalties.get((provider, model), 0.0)
-        score, reason = compute_composite(stat, pen, min_samples, max_tps, max_ttft_ms)
+        quality = (quality_scores or {}).get(f"{provider}/{model}", 0.0)
+        score, reason = compute_composite(
+            stat, pen, min_samples, max_tps, max_ttft_ms, quality
+        )
         entries.append((entry, score, reason))
 
     # ponytail: stable sort — entries with score=-1 (insufficient samples)
@@ -346,12 +443,21 @@ def reorder_chain(
 
     new_chain: List[Dict] = []
     reasons: List[str] = []
-    for new_idx, (entry, score, reason) in enumerate(entries):
-        new_entry = dict(chain[entry.original_index])  # preserve extra keys
+    for new_idx, entry in enumerate(pinned):
+        new_entry = dict(entry)  # preserve extra keys
         new_entry["priority"] = new_idx + 1
         new_chain.append(new_entry)
         reasons.append(
-            f"  #{new_idx + 1} {entry.provider}/{entry.model}: score={score:.3f} — {reason}"
+            f"  #{new_idx + 1} {entry.get('provider')}/{entry.get('model')}: "
+            "PINNED (chain head)"
+        )
+    for new_idx, (entry, score, reason) in enumerate(entries):
+        new_entry = dict(chain[entry.original_index])  # preserve extra keys
+        new_entry["priority"] = len(pinned) + new_idx + 1
+        new_chain.append(new_entry)
+        reasons.append(
+            f"  #{len(pinned) + new_idx + 1} {entry.provider}/{entry.model}: "
+            f"score={score:.3f} — {reason}"
         )
     return new_chain, reasons
 
@@ -471,6 +577,8 @@ def reorder_config(
 
     stats = load_telemetry(telemetry_db, window_h, min_samples)
     penalties = load_penalty_scores()
+    quality_scores = load_quality_scores()
+    chain_pins = load_chain_pins()
 
     # U-formula loads (only when enabled — ponytail: pay only what you use).
     tier_cfg: Dict[str, "object"] = {}
@@ -526,7 +634,14 @@ def reorder_config(
             ]
         else:
             new_chain, reasons = reorder_chain(
-                chain, stats, penalties, min_samples, max_tps, max_ttft_ms
+                chain,
+                stats,
+                penalties,
+                min_samples,
+                max_tps,
+                max_ttft_ms,
+                quality_scores,
+                chain_pins.get(model_id),
             )
             # Build score lookup by recomputing composite per entry.
             score_lookup = {}
@@ -535,7 +650,10 @@ def reorder_config(
                 mdl = c.get("model", "")
                 stat = stats.get((prov, mdl))
                 pen = penalties.get((prov, mdl), 0.0)
-                s, _ = compute_composite(stat, pen, min_samples, max_tps, max_ttft_ms)
+                quality = quality_scores.get(f"{prov}/{mdl}", 0.0)
+                s, _ = compute_composite(
+                    stat, pen, min_samples, max_tps, max_ttft_ms, quality
+                )
                 score_lookup[(prov, mdl)] = s
 
         # #343: free-model baseline — demote non-free entries scoring below
