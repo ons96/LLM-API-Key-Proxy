@@ -11,6 +11,19 @@ from .request_features import (
     TaskClass,
     extract_request_features,
 )
+from .output_estimator import (
+    DEFAULT_OUTPUT_TOKENS,
+    OutputEstimator,
+)
+from .tier_classifier import (
+    TIER_FLOORS,
+    TASK_TIER,
+    Tier,
+    classify_request,
+    load_model_scores,
+    model_meets_floor,
+    parse_tier_header,
+)
 
 __all__ = [
     "Capabilities",
@@ -18,4 +31,13 @@ __all__ = [
     "RequestFeatures",
     "TaskClass",
     "extract_request_features",
+    "DEFAULT_OUTPUT_TOKENS",
+    "OutputEstimator",
+    "TIER_FLOORS",
+    "TASK_TIER",
+    "Tier",
+    "classify_request",
+    "load_model_scores",
+    "model_meets_floor",
+    "parse_tier_header",
 ]
