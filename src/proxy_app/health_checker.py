@@ -1,10 +1,15 @@
 import asyncio
 import logging
+import os
 import time
 from typing import Dict, Any, List
 import litellm
 
 logger = logging.getLogger(__name__)
+
+# Dead g4f backends return 'Model not found' 500s on chat pings and
+# destabilize the process at startup. Env-overridable comma list.
+SKIP_DEFAULT = "g4f,g4f_ollama,g4f_nvidia,g4f_groq,g4f_pollinations"
 
 
 class HealthChecker:
@@ -43,6 +48,13 @@ class HealthChecker:
         """Ping all configured providers in parallel."""
         # Get active adapters/providers from integration
         adapters = self.router_integration.adapters
+        skip = {
+            s.strip()
+            for s in os.environ.get("HEALTH_CHECK_SKIP", SKIP_DEFAULT).split(",")
+            if s.strip()
+        }
+        if skip:
+            logger.info(f"Health checks skipping {len(skip)} providers: {sorted(skip)}")
 
         async def check_single_provider(
             provider_name: str, adapter
@@ -83,7 +95,9 @@ class HealthChecker:
 
         # Run all health checks in parallel
         tasks = [
-            check_single_provider(name, adapter) for name, adapter in adapters.items()
+            check_single_provider(name, adapter)
+            for name, adapter in adapters.items()
+            if name not in skip
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
