@@ -43,6 +43,14 @@ QUEUE_MAX = 10000
 BATCH_SIZE = 50
 FLUSH_INTERVAL_S = 2.0
 
+# Streamed chunks carrying any of these finish_reason values mark the FINAL
+# chunk of a stream (task-board #484). When we see one, we snapshot the true
+# completion time so e2e latency (total_ms) is not collapsed to first-token
+# (ttft_ms) for streaming responses.
+_STREAM_END_REASONS = frozenset(
+    {"stop", "length", "tool_calls", "function_call", "content_filter"}
+)
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS llm_events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,6 +147,40 @@ def _now_ms() -> float:
     return time.time() * 1000.0
 
 
+def _stream_finish_reason(response_obj):
+    """Return the finish_reason from a streamed LiteLLM chunk (dict or object).
+
+    LiteLLM delivers streamed chunks as either ModelResponse objects or dicts.
+    The FINAL chunk carries a non-None finish_reason (e.g. \"stop\"); earlier
+    deltas carry None. Some providers nest it as {\"reason\": ...}. Returns None
+    when the chunk does not signal the end of the stream (or it is unparseable),
+    so detection is best-effort and never raises on the hot path.
+    """
+    try:
+        if isinstance(response_obj, dict):
+            choices = response_obj.get("choices") or []
+            if not choices:
+                return None
+            first = choices[0]
+            if isinstance(first, dict):
+                return first.get("finish_reason")
+            return getattr(first, "finish_reason", None)
+        if response_obj is None:
+            return None
+        choices = getattr(response_obj, "choices", None) or []
+        if not choices:
+            return None
+        first = choices[0]
+        if isinstance(first, dict):
+            return first.get("finish_reason")
+        fin = getattr(first, "finish_reason", None)
+        if isinstance(fin, dict):  # some providers wrap: {"reason": "stop"}
+            return fin.get("reason")
+        return fin
+    except Exception:
+        return None
+
+
 def _to_ms(t) -> float:
     """Convert datetime | float | int | None to epoch milliseconds."""
     if t is None:
@@ -159,6 +201,10 @@ class TelemetryLogger(CustomLogger):
         self._writer_task: Optional[asyncio.Task] = None
         self._start_times: dict[str, float] = {}
         self._first_token_times: dict[str, float] = {}
+        # #484: true stream-end times (epoch ms) keyed by request id. Set on the
+        # final streamed chunk (finish_reason fires); used instead of the
+        # success-event end_time so e2e latency is recorded, not just TTFT.
+        self._stream_end_times: dict[str, float] = {}
         init_db(db_path)
         log.info("TelemetryLogger initialized (db=%s queue_max=%d)", db_path, QUEUE_MAX)
 
@@ -199,6 +245,11 @@ class TelemetryLogger(CustomLogger):
             rid = kwargs.get("litellm_call_id") or str(id(kwargs))
             if rid in self._first_token_times and self._first_token_times[rid] == 0.0:
                 self._first_token_times[rid] = _now_ms()
+            # #484: snapshot true stream completion once the final chunk
+            # (finish_reason) arrives, so total_ms reflects end-to-end latency
+            # instead of collapsing to ttft_ms.
+            if _stream_finish_reason(response_obj) in _STREAM_END_REASONS:
+                self._stream_end_times[rid] = _now_ms()
         except Exception:
             pass
 
@@ -234,10 +285,17 @@ class TelemetryLogger(CustomLogger):
     async def _enqueue(self, kwargs, response_obj, start_time, end_time, status, error):
         rid = kwargs.get("litellm_call_id") or str(id(kwargs))
         start_ms = self._start_times.pop(rid, _to_ms(start_time))
-        end_ms = _to_ms(end_time)
+        stream = 1 if kwargs.get("stream") else 0
+        if stream:
+            # #484: for streams prefer the true stream-end snapshot captured on
+            # the final chunk so total_ms reflects end-to-end latency instead of
+            # collapsing to ttft_ms. Fall back to the success event's end_time
+            # when no final chunk was observed (defensive).
+            end_ms = self._stream_end_times.pop(rid, _to_ms(end_time))
+        else:
+            end_ms = _to_ms(end_time)
         total_ms = end_ms - start_ms
         ttft_ms = self._first_token_times.pop(rid, total_ms)
-        stream = 1 if kwargs.get("stream") else 0
 
         usage = getattr(response_obj, "usage", None) or {}
         prompt_tokens = getattr(usage, "prompt_tokens", None) or (usage.get("prompt_tokens", 0) if isinstance(usage, dict) else 0)

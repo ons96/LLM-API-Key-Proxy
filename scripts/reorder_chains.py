@@ -77,6 +77,41 @@ DEFAULT_MIN_SAMPLES = int(os.environ.get("REORDER_MIN_SAMPLES", "5"))
 DEFAULT_MAX_TPS = float(os.environ.get("REORDER_MAX_TPS", "3000"))
 DEFAULT_MAX_TTFT_MS = float(os.environ.get("REORDER_MAX_TTFT_MS", "30000"))
 
+# ---------------------------------------------------------------------------
+# Health-probe classification (task-board #484).
+#
+# Post-launch health probes emit tiny responses (a handful of tokens) measured
+# almost entirely over connection overhead, and therefore land at artificially
+# low throughput (tps ~0.3–10). Mixed into per-(provider, model) AVG(tps) they
+# dragged real throughput down 10–100x, skewing reorder_chains scoring. These
+# rows are NOT real usage, so we exclude them from telemetry aggregations.
+# Real small completions (<= 46 tokens) still stream at much higher tps, so the
+# combined predicate isolates probes without dropping legitimate calls.
+PROBE_COMPLETION_TOKENS_MAX = 46
+PROBE_TPS_MIN = 0.3
+PROBE_TPS_MAX = 10.0
+
+# SQL fragment appended to every llm_events aggregation WHERE clause.
+PROBE_EXCLUDE_SQL = (
+    "AND NOT (COALESCE(completion_tokens, 0) <= {max_tok}"
+    " AND tps >= {tps_min} AND tps <= {tps_max})"
+).format(
+    max_tok=PROBE_COMPLETION_TOKENS_MAX,
+    tps_min=PROBE_TPS_MIN,
+    tps_max=PROBE_TPS_MAX,
+)
+
+
+def is_probe_row(completion_tokens, tps) -> bool:
+    """True when a telemetry row looks like a health probe (not real usage)."""
+    if tps is None:
+        return False
+    return (
+        (completion_tokens or 0) <= PROBE_COMPLETION_TOKENS_MAX
+        and PROBE_TPS_MIN <= tps <= PROBE_TPS_MAX
+    )
+
+
 # Composite weights (sum to 1.0). Override via env if needed.
 # ponytail: 6-factor post-#472. Telemetry terms rescaled proportionally
 # from Phase-2.A 0.36/0.27/0.18/0.09/0.10 to make room for W_QUALITY=0.20.
@@ -194,6 +229,7 @@ def load_telemetry(
                 WHERE ts_start >= ?
                   AND provider IS NOT NULL
                   AND model IS NOT NULL
+                  {PROBE_EXCLUDE_SQL}
                 GROUP BY COALESCE(NULLIF(concrete_provider, ''), provider),
                          COALESCE(NULLIF(concrete_model, ''), model)
                 """,
@@ -215,6 +251,7 @@ def load_telemetry(
                 WHERE ts_start >= ?
                   AND provider IS NOT NULL
                   AND model IS NOT NULL
+                  {PROBE_EXCLUDE_SQL}
                 GROUP BY provider, model
                 """,
                 (cutoff,),

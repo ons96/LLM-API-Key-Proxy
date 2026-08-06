@@ -44,6 +44,7 @@ from reorder_chains import (  # type: ignore
     ChainEntry,
     TelemetryStat,
     compute_composite,
+    is_probe_row,
     load_telemetry,
     reorder_chain,
     reorder_config,
@@ -497,6 +498,51 @@ class TestLoadTelemetry(unittest.TestCase):
         # The alias-only row keys on (groq, alias-name) with 1 sample
         self.assertIn(("groq", "alias-name"), stats)
         self.assertEqual(stats[("groq", "alias-name")].samples, 1)
+
+
+    def test_avg_tps_excludes_probe_rows(self):
+        """AC (#484 bug 2): AVG(tps) must exclude probe-classified rows —
+        tiny completions at tps 0.3–10 measured over connection overhead —
+        so real throughput is not dragged down 10–100x."""
+        _make_telemetry_db(
+            self.db_path,
+            [
+                # Real usage for (groq, llama-3.3-70b)
+                {
+                    "provider": "groq", "model": "llama-3.3-70b",
+                    "concrete_provider": "groq", "concrete_model": "llama-3.3-70b",
+                    "status": "success", "tps": 100.0, "completion_tokens": 200,
+                },
+                {
+                    "provider": "groq", "model": "llama-3.3-70b",
+                    "concrete_provider": "groq", "concrete_model": "llama-3.3-70b",
+                    "status": "success", "tps": 80.0, "completion_tokens": 180,
+                },
+                # Health probe: tiny completion at low measured tps
+                {
+                    "provider": "groq", "model": "llama-3.3-70b",
+                    "concrete_provider": "groq", "concrete_model": "llama-3.3-70b",
+                    "status": "success", "tps": 5.0, "completion_tokens": 20,
+                },
+            ],
+        )
+        stats = load_telemetry(str(self.db_path), window_h=24, min_samples=1)
+        key = ("groq", "llama-3.3-70b")
+        self.assertIn(key, stats)
+        # Probe excluded: only 2 real samples, avg = (100 + 80) / 2 = 90
+        self.assertEqual(stats[key].samples, 2)
+        self.assertAlmostEqual(stats[key].avg_tps, 90.0, places=6)
+
+    def test_probe_classifier_matches_sql_predicate(self):
+        """is_probe_row reflects the SQL predicate used in aggregations."""
+        self.assertTrue(is_probe_row(20, 5.0))
+        self.assertTrue(is_probe_row(46, 0.3))
+        self.assertTrue(is_probe_row(46, 10.0))
+        # Real usage must never be classified as a probe
+        self.assertFalse(is_probe_row(20, 500.0))   # fast, real tiny completion
+        self.assertFalse(is_probe_row(200, 5.0))    # big completion at low tps
+        self.assertFalse(is_probe_row(20, None))    # no tps data
+        self.assertFalse(is_probe_row(47, 5.0))     # just above token threshold
 
 
 if __name__ == "__main__":
