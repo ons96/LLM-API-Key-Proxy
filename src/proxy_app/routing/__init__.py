@@ -28,6 +28,15 @@ from .latency_predictor import (
     LatencyPredictor,
     Prediction,
 )
+from .chain_selector import (
+    ChainCandidate,
+    ChainSelector,
+    SelectResult,
+    load_capabilities,
+    load_virtual_chain,
+    on_error,
+    to_debug_header,
+)
 
 __all__ = [
     "Capabilities",
@@ -46,4 +55,11 @@ __all__ = [
     "parse_tier_header",
     "LatencyPredictor",
     "Prediction",
+    "ChainCandidate",
+    "ChainSelector",
+    "SelectResult",
+    "load_capabilities",
+    "load_virtual_chain",
+    "on_error",
+    "to_debug_header",
 ]
