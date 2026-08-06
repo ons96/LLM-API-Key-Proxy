@@ -1134,8 +1134,7 @@ class RouterCore:
             # _stream_with_fallback. Only transient+rate_limit retryable; AUTH
             # / INVALID_REQUEST / PROVIDER_ERROR re-raise to outer per-candidate
             # loop (which advances to next candidate). Retry-After header wins.
-            max_tries = self.max_retries_for(
-                self, candidate.provider, candidate.model, request, request_id
+            max_tries = self.max_retries_for(candidate.provider, candidate.model, request, request_id
             )
             for attempt in range(max_tries + 1):
                 try:
@@ -2319,8 +2318,7 @@ class RouterCore:
             # (after response starts yielding) propagate to
             # _stream_with_fallback's per-candidate catch — SSE chunks already
             # emitted, in-place retry UNSUPPORTED.
-            max_tries = self.max_retries_for(
-                self, candidate.provider, candidate.model, request, request_id
+            max_tries = self.max_retries_for(candidate.provider, candidate.model, request, request_id
             )
             for attempt in range(max_tries + 1):
                 try:
