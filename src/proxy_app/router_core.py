@@ -706,6 +706,87 @@ class RouterCore:
 
         self._initialize_components()
 
+        # ponytail: #481 smart-routing stack (request_features -> tier ->
+        # chain selector -> latency/emitter). Inert unless ROUTER_ENABLED=1 or
+        # ROUTER_DRY_RUN=1; both off => zero imports, zero RSS cost.
+        self._smart_fx: Optional[tuple] = None
+        self._smart_selectors: Dict[str, Any] = {}
+        self._smart_default: Any = None
+        self._smart_output_est: Any = None
+        self._router_enabled = os.environ.get("ROUTER_ENABLED", "0").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        self._router_dry_run = os.environ.get("ROUTER_DRY_RUN", "1").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        if self._router_enabled or self._router_dry_run:
+            try:
+                from proxy_app.routing.request_features import extract_request_features
+                from proxy_app.routing.tier_classifier import (
+                    classify_request,
+                    load_model_scores,
+                )
+                from proxy_app.routing.chain_selector import (
+                    ChainSelector,
+                    load_capabilities,
+                    to_debug_header,
+                )
+                from proxy_app.routing.latency_predictor import LatencyPredictor
+                from proxy_app.routing.output_estimator import OutputEstimator
+
+                _base_dir = os.path.dirname(self.config_path)
+                _model_scores = load_model_scores(
+                    os.path.join(_base_dir, "model_rankings.yaml")
+                )
+                _capabilities = load_capabilities(
+                    os.path.join(_base_dir, "providers_database.yaml"),
+                    os.path.join(_base_dir, "model_capabilities.yaml"),
+                )
+                _predictor = LatencyPredictor()
+                _pins: Dict[str, Any] = {}
+                try:
+                    import yaml
+
+                    with open(
+                        os.path.join(_base_dir, "chain_pins.yaml"),
+                        "r",
+                        encoding="utf-8",
+                    ) as _pf:
+                        _pins = yaml.safe_load(_pf) or {}
+                except Exception:
+                    _pins = {}
+                for _vid, _pin_list in _pins.items():
+                    if isinstance(_pin_list, list):
+                        self._smart_selectors[_vid] = ChainSelector(
+                            _model_scores, _capabilities, _predictor, _pin_list
+                        )
+                self._smart_default = ChainSelector(
+                    _model_scores, _capabilities, _predictor, None
+                )
+                self._smart_output_est = OutputEstimator()
+                self._smart_fx = (
+                    extract_request_features,
+                    classify_request,
+                    to_debug_header,
+                )
+                logger.info(
+                    "smart router enabled (ROUTER_ENABLED=%s, ROUTER_DRY_RUN=%s): "
+                    "%d pinned selectors, %d ranked models",
+                    self._router_enabled,
+                    self._router_dry_run,
+                    len(self._smart_selectors),
+                    len(_model_scores),
+                )
+            except Exception as _smart_exc:
+                self._smart_fx = None
+                logger.warning(
+                    "smart router init failed, routing disabled: %r", _smart_exc
+                )
+
     # ... existing code ...
 
     async def _update_metrics(
@@ -2634,6 +2715,64 @@ class RouterCore:
                 f"[{request_id}] cache-warm sort bump skipped: "
                 f"{type(_bump_exc).__name__}: {_bump_exc!r}"
             )
+
+        # ponytail: #481 smart-routing hook. Classify request -> pick chain via
+        # ChainSelector (capability mask + tier floor + predicted E[time]).
+        # ROUTER_ENABLED=1 reorders candidates; dry-run only logs X-Route-Chain.
+        if self._smart_fx is not None:
+            try:
+                _extract, _classify, _fmt = self._smart_fx
+                _features = _extract(request)
+                _tier = _classify(
+                    _features, header_override=request.get("x-route-tier")
+                )
+                _selector = self._smart_selectors.get(
+                    request.get("model", ""), self._smart_default
+                )
+                _out_tokens = (
+                    self._smart_output_est.estimate(_features.task_class)
+                    if self._smart_output_est is not None
+                    else 200
+                )
+                _result = _selector.select(
+                    _features,
+                    _tier,
+                    [
+                        {
+                            "provider": c.provider,
+                            "model": c.model,
+                            "priority": c.priority,
+                        }
+                        for c in available_candidates
+                    ],
+                    session_key=request.get("session_id"),
+                    output_tokens=_out_tokens,
+                )
+                _header = _fmt(_result, request.get("model", ""))
+                logger.info("[%s] X-Route-Chain: %s", request_id, _header)
+                if self._router_enabled and not _result.static_fallback:
+                    _order = {
+                        f"{c.provider}|{c.model}": i
+                        for i, c in enumerate(_result.chain)
+                    }
+                    _esc = {f"{c.provider}|{c.model}" for c in _result.escalation}
+                    available_candidates.sort(
+                        key=lambda c: (
+                            _order.get(
+                                f"{c.provider}|{c.model}",
+                                len(_result.chain)
+                                + (0 if f"{c.provider}|{c.model}" in _esc else 1),
+                            ),
+                            c.priority,
+                        )
+                    )
+            except Exception as _smart_exc:
+                logger.debug(
+                    "[%s] smart routing skipped: %s: %s",
+                    request_id,
+                    type(_smart_exc).__name__,
+                    _smart_exc,
+                )
 
         if requirements.streaming:
             return self._stream_with_fallback(available_candidates, request, request_id)
