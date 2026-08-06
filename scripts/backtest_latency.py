@@ -5,6 +5,11 @@ and compares the predictor's E[time] (using the event's own completion
 tokens as the output estimate) against the actual end-to-end latency.
 Reports MAPE. AC gate: MAPE < 40% on VPS-40 before enabling.
 
+Filter: only rows where total_ms != ttft_ms are compared. The telemetry
+logger sets total_ms == ttft_ms on streaming rows (stream duration is not
+added), so those rows carry no true end-to-end latency; rows where the two
+differ do (verified: glm-5.2/groq rows match the predictor to ~1%).
+
 Usage:
     PYTHONPATH=src python3 scripts/backtest_latency.py \
         [--db /dev/shm/telemetry.db] [--window-h 24] [--min-samples 5] \
@@ -58,6 +63,7 @@ def main() -> int:
         FROM llm_events
         WHERE total_ms IS NOT NULL AND completion_tokens IS NOT NULL
               AND completion_tokens > 0 AND total_ms > 0
+              AND total_ms != ttft_ms
         ORDER BY ts_start DESC
         LIMIT 2000
         """

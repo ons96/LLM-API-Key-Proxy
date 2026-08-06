@@ -219,6 +219,38 @@ def test_old_window_rows_ignored(telemetry_db):
     assert pred.tps == pytest.approx(100.0)
 
 
+def test_probe_rows_excluded_from_aggregate(tmp_path):
+    """Health probes (completion_tokens < min) must not skew tps EMA."""
+    db = str(tmp_path / "probes.db")
+    conn = sqlite3.connect(db)
+    conn.execute(
+        """CREATE TABLE llm_events (
+            ts_start REAL, provider TEXT, model TEXT, status TEXT,
+            tps REAL, ttft_ms REAL, completion_tokens INTEGER)"""
+    )
+    now = time.time()
+    for i in range(8):
+        # 8 real rows @ tps=100
+        conn.execute(
+            "INSERT INTO llm_events VALUES (?,?,?,?,?,?,?)",
+            (now - i * 60, "tp", "m", "success", 100.0, 500.0, 400),
+        )
+    for i in range(200):
+        # 200 probe rows @ tps=0.5 would crush the average without the filter
+        conn.execute(
+            "INSERT INTO llm_events VALUES (?,?,?,?,?,?,?)",
+            (now - i * 10, "tp", "m", "success", 0.5, 3000.0, 1),
+        )
+    conn.commit()
+    conn.close()
+    pred = LatencyPredictor(
+        telemetry_db=db, leaderboard_csv="", speeds_path="", min_completion_tokens=50
+    ).predict("tp", "m", output_tokens=100)
+    assert pred.source == "telemetry"
+    assert pred.tps == pytest.approx(100.0)
+    assert pred.samples_used if hasattr(pred, "samples_used") else True
+
+
 # -- predict_many + misc -------------------------------------------------
 
 

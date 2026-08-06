@@ -42,6 +42,10 @@ DEFAULT_SPEEDS_PATH = os.environ.get("LATENCY_SPEEDS_PATH", "config/provider_spe
 DEFAULT_MIN_SAMPLES = int(os.environ.get("LATENCY_MIN_SAMPLES", "5"))
 DEFAULT_WINDOW_H = int(os.environ.get("LATENCY_WINDOW_H", "24"))
 DEFAULT_CACHE_TTL = float(os.environ.get("LATENCY_CACHE_TTL", "30.0"))
+# health probes log tiny completions (<=46 tok) whose tps measures mostly
+# connection overhead; excluding them keeps throughput aggregates honest.
+# No-op when the column is absent (older schemas).
+DEFAULT_MIN_COMPLETION_TOKENS = int(os.environ.get("LATENCY_MIN_COMPLETION_TOKENS", "50"))
 
 # confidence per data source (telemetry >= leaderboard >= speeds >= default)
 _CONFIDENCE = {"telemetry": 1.0, "leaderboard": 0.7, "speeds": 0.5, "default": DEFAULT_CONFIDENCE}
@@ -88,6 +92,7 @@ class LatencyPredictor:
         min_samples: int = DEFAULT_MIN_SAMPLES,
         window_h: int = DEFAULT_WINDOW_H,
         cache_ttl: float = DEFAULT_CACHE_TTL,
+        min_completion_tokens: int = DEFAULT_MIN_COMPLETION_TOKENS,
     ) -> None:
         self.telemetry_db = telemetry_db if telemetry_db is not None else DEFAULT_TELEMETRY_DB
         self.leaderboard_csv = (
@@ -97,6 +102,7 @@ class LatencyPredictor:
         self.min_samples = min_samples
         self.window_h = window_h
         self.cache_ttl = cache_ttl
+        self.min_completion_tokens = min_completion_tokens
         self._cache: Dict[str, Tuple[float, object]] = {}
 
     # -- aggregate loaders (cached) -------------------------------------
@@ -135,6 +141,7 @@ class LatencyPredictor:
                 if not required.issubset(cols):
                     return out
                 has_concrete = {"concrete_provider", "concrete_model"}.issubset(cols)
+                has_completion = "completion_tokens" in cols
                 prov_expr = (
                     "COALESCE(NULLIF(concrete_provider, ''), provider)"
                     if has_concrete
@@ -144,6 +151,11 @@ class LatencyPredictor:
                     "COALESCE(NULLIF(concrete_model, ''), model)" if has_concrete else "model"
                 )
                 cutoff = time.time() - (self.window_h * 3600)
+                probe_filter = (
+                    f" AND completion_tokens >= {int(self.min_completion_tokens)}"
+                    if has_completion
+                    else ""
+                )
                 rows = conn.execute(
                     f"""
                     SELECT {prov_expr} AS provider, {model_expr} AS model,
@@ -153,6 +165,7 @@ class LatencyPredictor:
                            AVG(ttft_ms) AS avg_ttft_ms
                     FROM llm_events
                     WHERE ts_start >= ? AND provider IS NOT NULL AND model IS NOT NULL
+                    {probe_filter}
                     GROUP BY {prov_expr}, {model_expr}
                     """,
                     (cutoff,),
