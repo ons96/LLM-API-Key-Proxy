@@ -144,9 +144,10 @@ class TestComputeComposite(unittest.TestCase):
             success_rate=1.0,
             avg_tps=3000.0,  # = max_tps → tps_norm=1.0
             avg_ttft_ms=0.0,  # → ttft_norm=1.0
+            avg_cached_tokens=1000.0,  # → cache_score=1.0
         )
-        score, reason = compute_composite(stat, 0.0, 5, 3000.0, 30000.0)
-        # success=0.4 + tps=0.3 + ttft=0.2 + penalty_inv=0.1 = 1.0
+        score, reason = compute_composite(stat, 0.0, 5, 3000.0, 30000.0, quality=1.0)
+        # success=0.288 + tps=0.216 + ttft=0.144 + penalty_inv=0.072 + cache=0.080 + quality=0.20 = 1.0
         self.assertAlmostEqual(score, 1.0, places=2)
         self.assertIn("samples=100", reason)
 
