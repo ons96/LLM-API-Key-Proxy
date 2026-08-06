@@ -24,6 +24,10 @@ from .tier_classifier import (
     model_meets_floor,
     parse_tier_header,
 )
+from .latency_predictor import (
+    LatencyPredictor,
+    Prediction,
+)
 
 __all__ = [
     "Capabilities",
@@ -40,4 +44,6 @@ __all__ = [
     "load_model_scores",
     "model_meets_floor",
     "parse_tier_header",
+    "LatencyPredictor",
+    "Prediction",
 ]
