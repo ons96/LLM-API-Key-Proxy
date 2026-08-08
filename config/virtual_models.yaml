@@ -1,5 +1,5 @@
 metadata:
-  generated_at: '2026-08-07T04:31:56.853303+00:00'
+  generated_at: '2026-08-08T03:41:09.142373+00:00'
   sources:
   - models.dev
   - telemetry
@@ -738,64 +738,64 @@ virtual_models:
     description: Optimized for oracle agent - ['accuracy', 'depth']
     fallback_chain:
     - provider: nvidia
-      model: thinkingmachines/inkling
+      model: microsoft/phi-4-mini-instruct
       priority: 1
     - provider: nvidia
-      model: baai/bge-m3
+      model: microsoft/phi-4-multimodal-instruct
       priority: 2
     - provider: nvidia
-      model: google/gemma-3-4b-it
+      model: nvidia/nv-embedcode-7b-v1
       priority: 3
     - provider: nvidia
-      model: google/gemma-2-2b-it
+      model: nvidia/studiovoice
       priority: 4
     - provider: nvidia
-      model: google/google-paligemma
+      model: nvidia/cosmos-reason2-8b
       priority: 5
     - provider: nvidia
-      model: google/gemma-3n-e2b-it
+      model: nvidia/nemotron-nano-12b-v2-vl
       priority: 6
     - provider: nvidia
-      model: google/gemma-3n-e4b-it
+      model: nvidia/nemotron-3-nano-30b-a3b
       priority: 7
     - provider: nvidia
-      model: google/gemma-4-31b-it
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 8
     - provider: nvidia
-      model: google/gemma-3-12b-it
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
       priority: 9
     - provider: nvidia
-      model: abacusai/dracarys-llama-3.1-70b-instruct
+      model: nvidia/usdvalidate
       priority: 10
     - provider: nvidia
-      model: poolside/laguna-xs-2.1
+      model: nvidia/llama-3.1-nemotron-safety-guard-8b-v3
       priority: 11
     - provider: nvidia
-      model: bytedance/seed-oss-36b-instruct
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: nvidia/llama-3.1-nemotron-70b-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-4-multimodal-instruct
+      model: nvidia/nemotron-3-content-safety
       priority: 14
     - provider: nvidia
-      model: openai/gpt-oss-120b
+      model: nvidia/llama-3.1-nemotron-ultra-253b-v1
       priority: 15
     - provider: nvidia
-      model: openai/gpt-oss-20b
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 16
     - provider: nvidia
-      model: minimaxai/minimax-m3
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 17
     - provider: nvidia
-      model: minimaxai/minimax-m2.7
+      model: nvidia/gliner-pii
       priority: 18
     - provider: nvidia
-      model: meta/llama-3.2-1b-instruct
+      model: nvidia/rerank-qa-mistral-4b
       priority: 19
     - provider: nvidia
-      model: meta/llama-3.1-8b-instruct
+      model: nvidia/llama-3.1-nemotron-nano-vl-8b-v1
       priority: 20
     settings:
       timeout_ms: 180000
@@ -804,64 +804,64 @@ virtual_models:
     description: Optimized for explore agent - ['latency', 'throughput']
     fallback_chain:
     - provider: nvidia
-      model: thinkingmachines/inkling
+      model: microsoft/phi-4-mini-instruct
       priority: 1
     - provider: nvidia
-      model: baai/bge-m3
+      model: microsoft/phi-4-multimodal-instruct
       priority: 2
     - provider: nvidia
-      model: google/gemma-3-4b-it
+      model: nvidia/nv-embedcode-7b-v1
       priority: 3
     - provider: nvidia
-      model: google/gemma-2-2b-it
+      model: nvidia/studiovoice
       priority: 4
     - provider: nvidia
-      model: google/google-paligemma
+      model: nvidia/cosmos-reason2-8b
       priority: 5
     - provider: nvidia
-      model: google/gemma-3n-e2b-it
+      model: nvidia/nemotron-nano-12b-v2-vl
       priority: 6
     - provider: nvidia
-      model: google/gemma-3n-e4b-it
+      model: nvidia/nemotron-3-nano-30b-a3b
       priority: 7
     - provider: nvidia
-      model: google/gemma-4-31b-it
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 8
     - provider: nvidia
-      model: google/gemma-3-12b-it
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
       priority: 9
     - provider: nvidia
-      model: abacusai/dracarys-llama-3.1-70b-instruct
+      model: nvidia/usdvalidate
       priority: 10
     - provider: nvidia
-      model: poolside/laguna-xs-2.1
+      model: nvidia/llama-3.1-nemotron-safety-guard-8b-v3
       priority: 11
     - provider: nvidia
-      model: bytedance/seed-oss-36b-instruct
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: nvidia/llama-3.1-nemotron-70b-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-4-multimodal-instruct
+      model: nvidia/nemotron-3-content-safety
       priority: 14
     - provider: nvidia
-      model: openai/gpt-oss-120b
+      model: nvidia/llama-3.1-nemotron-ultra-253b-v1
       priority: 15
     - provider: nvidia
-      model: openai/gpt-oss-20b
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 16
     - provider: nvidia
-      model: minimaxai/minimax-m3
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 17
     - provider: nvidia
-      model: minimaxai/minimax-m2.7
+      model: nvidia/gliner-pii
       priority: 18
     - provider: nvidia
-      model: meta/llama-3.2-1b-instruct
+      model: nvidia/rerank-qa-mistral-4b
       priority: 19
     - provider: nvidia
-      model: meta/llama-3.1-8b-instruct
+      model: nvidia/llama-3.1-nemotron-nano-vl-8b-v1
       priority: 20
     settings:
       timeout_ms: 120000
@@ -870,64 +870,64 @@ virtual_models:
     description: Optimized for librarian agent - ['availability', 'reliability']
     fallback_chain:
     - provider: nvidia
-      model: thinkingmachines/inkling
+      model: microsoft/phi-4-mini-instruct
       priority: 1
     - provider: nvidia
-      model: baai/bge-m3
+      model: microsoft/phi-4-multimodal-instruct
       priority: 2
     - provider: nvidia
-      model: google/gemma-3-4b-it
+      model: nvidia/nv-embedcode-7b-v1
       priority: 3
     - provider: nvidia
-      model: google/gemma-2-2b-it
+      model: nvidia/studiovoice
       priority: 4
     - provider: nvidia
-      model: google/google-paligemma
+      model: nvidia/cosmos-reason2-8b
       priority: 5
     - provider: nvidia
-      model: google/gemma-3n-e2b-it
+      model: nvidia/nemotron-nano-12b-v2-vl
       priority: 6
     - provider: nvidia
-      model: google/gemma-3n-e4b-it
+      model: nvidia/nemotron-3-nano-30b-a3b
       priority: 7
     - provider: nvidia
-      model: google/gemma-4-31b-it
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 8
     - provider: nvidia
-      model: google/gemma-3-12b-it
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
       priority: 9
     - provider: nvidia
-      model: abacusai/dracarys-llama-3.1-70b-instruct
+      model: nvidia/usdvalidate
       priority: 10
     - provider: nvidia
-      model: poolside/laguna-xs-2.1
+      model: nvidia/llama-3.1-nemotron-safety-guard-8b-v3
       priority: 11
     - provider: nvidia
-      model: bytedance/seed-oss-36b-instruct
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: nvidia/llama-3.1-nemotron-70b-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-4-multimodal-instruct
+      model: nvidia/nemotron-3-content-safety
       priority: 14
     - provider: nvidia
-      model: openai/gpt-oss-120b
+      model: nvidia/llama-3.1-nemotron-ultra-253b-v1
       priority: 15
     - provider: nvidia
-      model: openai/gpt-oss-20b
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 16
     - provider: nvidia
-      model: minimaxai/minimax-m3
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 17
     - provider: nvidia
-      model: minimaxai/minimax-m2.7
+      model: nvidia/gliner-pii
       priority: 18
     - provider: nvidia
-      model: meta/llama-3.2-1b-instruct
+      model: nvidia/rerank-qa-mistral-4b
       priority: 19
     - provider: nvidia
-      model: meta/llama-3.1-8b-instruct
+      model: nvidia/llama-3.1-nemotron-nano-vl-8b-v1
       priority: 20
     settings:
       timeout_ms: 120000
@@ -936,64 +936,64 @@ virtual_models:
     description: Optimized for build agent - ['balanced']
     fallback_chain:
     - provider: nvidia
-      model: thinkingmachines/inkling
+      model: microsoft/phi-4-mini-instruct
       priority: 1
     - provider: nvidia
-      model: baai/bge-m3
+      model: microsoft/phi-4-multimodal-instruct
       priority: 2
     - provider: nvidia
-      model: google/gemma-3-4b-it
+      model: nvidia/nv-embedcode-7b-v1
       priority: 3
     - provider: nvidia
-      model: google/gemma-2-2b-it
+      model: nvidia/studiovoice
       priority: 4
     - provider: nvidia
-      model: google/google-paligemma
+      model: nvidia/cosmos-reason2-8b
       priority: 5
     - provider: nvidia
-      model: google/gemma-3n-e2b-it
+      model: nvidia/nemotron-nano-12b-v2-vl
       priority: 6
     - provider: nvidia
-      model: google/gemma-3n-e4b-it
+      model: nvidia/nemotron-3-nano-30b-a3b
       priority: 7
     - provider: nvidia
-      model: google/gemma-4-31b-it
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 8
     - provider: nvidia
-      model: google/gemma-3-12b-it
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
       priority: 9
     - provider: nvidia
-      model: abacusai/dracarys-llama-3.1-70b-instruct
+      model: nvidia/usdvalidate
       priority: 10
     - provider: nvidia
-      model: poolside/laguna-xs-2.1
+      model: nvidia/llama-3.1-nemotron-safety-guard-8b-v3
       priority: 11
     - provider: nvidia
-      model: bytedance/seed-oss-36b-instruct
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: nvidia/llama-3.1-nemotron-70b-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-4-multimodal-instruct
+      model: nvidia/nemotron-3-content-safety
       priority: 14
     - provider: nvidia
-      model: openai/gpt-oss-120b
+      model: nvidia/llama-3.1-nemotron-ultra-253b-v1
       priority: 15
     - provider: nvidia
-      model: openai/gpt-oss-20b
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 16
     - provider: nvidia
-      model: minimaxai/minimax-m3
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 17
     - provider: nvidia
-      model: minimaxai/minimax-m2.7
+      model: nvidia/gliner-pii
       priority: 18
     - provider: nvidia
-      model: meta/llama-3.2-1b-instruct
+      model: nvidia/rerank-qa-mistral-4b
       priority: 19
     - provider: nvidia
-      model: meta/llama-3.1-8b-instruct
+      model: nvidia/llama-3.1-nemotron-nano-vl-8b-v1
       priority: 20
     settings:
       timeout_ms: 120000
@@ -1002,64 +1002,64 @@ virtual_models:
     description: Optimized for metis agent - ['accuracy']
     fallback_chain:
     - provider: nvidia
-      model: thinkingmachines/inkling
+      model: microsoft/phi-4-mini-instruct
       priority: 1
     - provider: nvidia
-      model: baai/bge-m3
+      model: microsoft/phi-4-multimodal-instruct
       priority: 2
     - provider: nvidia
-      model: google/gemma-3-4b-it
+      model: nvidia/nv-embedcode-7b-v1
       priority: 3
     - provider: nvidia
-      model: google/gemma-2-2b-it
+      model: nvidia/studiovoice
       priority: 4
     - provider: nvidia
-      model: google/google-paligemma
+      model: nvidia/cosmos-reason2-8b
       priority: 5
     - provider: nvidia
-      model: google/gemma-3n-e2b-it
+      model: nvidia/nemotron-nano-12b-v2-vl
       priority: 6
     - provider: nvidia
-      model: google/gemma-3n-e4b-it
+      model: nvidia/nemotron-3-nano-30b-a3b
       priority: 7
     - provider: nvidia
-      model: google/gemma-4-31b-it
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 8
     - provider: nvidia
-      model: google/gemma-3-12b-it
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
       priority: 9
     - provider: nvidia
-      model: abacusai/dracarys-llama-3.1-70b-instruct
+      model: nvidia/usdvalidate
       priority: 10
     - provider: nvidia
-      model: poolside/laguna-xs-2.1
+      model: nvidia/llama-3.1-nemotron-safety-guard-8b-v3
       priority: 11
     - provider: nvidia
-      model: bytedance/seed-oss-36b-instruct
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: nvidia/llama-3.1-nemotron-70b-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-4-multimodal-instruct
+      model: nvidia/nemotron-3-content-safety
       priority: 14
     - provider: nvidia
-      model: openai/gpt-oss-120b
+      model: nvidia/llama-3.1-nemotron-ultra-253b-v1
       priority: 15
     - provider: nvidia
-      model: openai/gpt-oss-20b
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 16
     - provider: nvidia
-      model: minimaxai/minimax-m3
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 17
     - provider: nvidia
-      model: minimaxai/minimax-m2.7
+      model: nvidia/gliner-pii
       priority: 18
     - provider: nvidia
-      model: meta/llama-3.2-1b-instruct
+      model: nvidia/rerank-qa-mistral-4b
       priority: 19
     - provider: nvidia
-      model: meta/llama-3.1-8b-instruct
+      model: nvidia/llama-3.1-nemotron-nano-vl-8b-v1
       priority: 20
     settings:
       timeout_ms: 180000
@@ -1068,64 +1068,64 @@ virtual_models:
     description: Optimized for momus agent - ['quality']
     fallback_chain:
     - provider: nvidia
-      model: thinkingmachines/inkling
+      model: microsoft/phi-4-mini-instruct
       priority: 1
     - provider: nvidia
-      model: baai/bge-m3
+      model: microsoft/phi-4-multimodal-instruct
       priority: 2
     - provider: nvidia
-      model: google/gemma-3-4b-it
+      model: nvidia/nv-embedcode-7b-v1
       priority: 3
     - provider: nvidia
-      model: google/gemma-2-2b-it
+      model: nvidia/studiovoice
       priority: 4
     - provider: nvidia
-      model: google/google-paligemma
+      model: nvidia/cosmos-reason2-8b
       priority: 5
     - provider: nvidia
-      model: google/gemma-3n-e2b-it
+      model: nvidia/nemotron-nano-12b-v2-vl
       priority: 6
     - provider: nvidia
-      model: google/gemma-3n-e4b-it
+      model: nvidia/nemotron-3-nano-30b-a3b
       priority: 7
     - provider: nvidia
-      model: google/gemma-4-31b-it
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 8
     - provider: nvidia
-      model: google/gemma-3-12b-it
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
       priority: 9
     - provider: nvidia
-      model: abacusai/dracarys-llama-3.1-70b-instruct
+      model: nvidia/usdvalidate
       priority: 10
     - provider: nvidia
-      model: poolside/laguna-xs-2.1
+      model: nvidia/llama-3.1-nemotron-safety-guard-8b-v3
       priority: 11
     - provider: nvidia
-      model: bytedance/seed-oss-36b-instruct
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
       priority: 12
     - provider: nvidia
-      model: microsoft/phi-4-mini-instruct
+      model: nvidia/llama-3.1-nemotron-70b-instruct
       priority: 13
     - provider: nvidia
-      model: microsoft/phi-4-multimodal-instruct
+      model: nvidia/nemotron-3-content-safety
       priority: 14
     - provider: nvidia
-      model: openai/gpt-oss-120b
+      model: nvidia/llama-3.1-nemotron-ultra-253b-v1
       priority: 15
     - provider: nvidia
-      model: openai/gpt-oss-20b
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 16
     - provider: nvidia
-      model: minimaxai/minimax-m3
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 17
     - provider: nvidia
-      model: minimaxai/minimax-m2.7
+      model: nvidia/gliner-pii
       priority: 18
     - provider: nvidia
-      model: meta/llama-3.2-1b-instruct
+      model: nvidia/rerank-qa-mistral-4b
       priority: 19
     - provider: nvidia
-      model: meta/llama-3.1-8b-instruct
+      model: nvidia/llama-3.1-nemotron-nano-vl-8b-v1
       priority: 20
     settings:
       timeout_ms: 180000

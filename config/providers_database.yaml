@@ -3690,3 +3690,14 @@ providers:
   - id: mini_lm_l12_v2
     context: 128
   notes: Discovered 2026-08-05
+- id: regolo-ai
+  name: Regolo AI
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: brick-v1-beta
+    context: 100000
+  - id: deepseek-ocr-2
+    context: 4000
+  notes: Discovered 2026-08-08
