@@ -224,14 +224,14 @@ def test_escalation_pool_contains_stronger_models():
         "groq/llama-3.1-8b-instant": 0.10,  # below T2 floor -> dropped from chain
         "cerebras/gpt-oss-120b": 0.30,  # below T2 floor -> dropped
         "openai/gpt-4o-mini": 0.45,  # meets T2 floor -> chain
-        "anthropic/claude-haiku-4-5": 0.80,  # meets T2 floor -> chain
+        "anthropic/claude-haiku-4-5": 0.80,  # meets T2 and T3 floors
     }
     sel = ChainSelector(model_scores=scores, capabilities={}, predictor=None)
     res = sel.select(_features(), Tier.T2, CANDIDATES)
     assert [c.model for c in res.chain] == ["gpt-4o-mini", "claude-haiku-4-5"]
-    # T3 floor is 0.55: only claude-haiku qualifies as escalation-capable
-    # but it's already in the chain; weak models are dropped entirely.
-    assert all(c.model in ("gpt-4o-mini", "claude-haiku-4-5") for c in res.escalation)
+    # T3 is the next tier: the stronger candidate must be available for
+    # capability failures or other escalation-triggering errors.
+    assert [c.model for c in res.escalation] == ["claude-haiku-4-5"]
 
 
 def test_on_error_capability_escalates():

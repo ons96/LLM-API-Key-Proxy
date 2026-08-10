@@ -395,12 +395,13 @@ class ChainSelector:
         return self._meets_floor(cand.provider, cand.model, tier)
 
     def _floor_above(self, cand: ChainCandidate, tier: Tier) -> bool:
-        """Candidate meets the next tier's floor but not the current one."""
+        """Candidate meets the next tier's floor."""
         if tier >= Tier.T4:
             return False
-        return self._meets_floor(cand.provider, cand.model, Tier(tier + 1)) and not self._floor_ok(
-            cand, tier
-        )
+        # Tier floors are monotonic, so meeting the next floor already implies
+        # meeting the current floor. The escalation pool is a stronger subset
+        # of the eligible chain, not a set excluded by the current floor.
+        return self._meets_floor(cand.provider, cand.model, Tier(tier + 1))
 
 
 # ---------------------------------------------------------------------------
