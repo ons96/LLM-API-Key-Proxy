@@ -18,7 +18,7 @@ aliases:
     - provider: antigravity
       model: gemini-3-pro
     - provider: cerebras
-      model: glm-5
+      model: gpt-oss-120b
   smart:
     description: Balanced coding with speed (tool-capable, no g4f)
     strategy: chain_fallback
