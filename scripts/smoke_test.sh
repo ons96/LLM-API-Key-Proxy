@@ -50,9 +50,9 @@ test_endpoint() {
     local endpoint="$3"
     local data="$4"
     local expected_status="${5:-200}"
-    
+
     log_test "$name"
-    
+
     if [ "$method" = "GET" ]; then
         if [ -n "$AUTH_HEADER" ]; then
             response=$(curl -s -w "\n%{http_code}" -H "$AUTH_HEADER" "$BASE_URL$endpoint")
@@ -66,10 +66,10 @@ test_endpoint() {
             response=$(curl -s -w "\n%{http_code}" -X POST -H "Content-Type: application/json" -d "$data" "$BASE_URL$endpoint")
         fi
     fi
-    
+
     http_code=$(echo "$response" | tail -n1)
     body=$(echo "$response" | head -n-1)
-    
+
     if [ "$http_code" -eq "$expected_status" ]; then
         log_pass "$name (Status: $http_code)"
         echo "$body" | jq . 2>/dev/null || echo "$body"
