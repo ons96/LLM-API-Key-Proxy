@@ -190,66 +190,6 @@ class TestMultiModelFallback:
 
 class TestProviderPerformanceOrder:
     """
-    Test: test_fallback_provider_order_by_performance
-    Verify providers are tried in performance order.
-    
-    Expected order based on config: [provider_a, provider_b, provider_c] (fastest to slowest).
-    """
-    
-    @pytest.mark.asyncio
-    async def test_fallback_provider_order_by_performance(self, router):
-        """
-        Request 'coding-smart' -> 'gpt-4o'.
-        Verify providers are tried in performance order.
-        """
-        # Get candidates for gpt-4o model
-        candidates = await router._get_candidates("coding-smart", router._extract_requirements(create_request()))
-        
-        if not candidates:
-            pytest.fail("No candidates returned for coding-smart")
-        
-        # Find gpt-4o providers only (we should have 3)
-        gpt4o_providers = [c for c in candidates if c.model == "gpt-4o"]
-        
-        if not gpt4o_providers or len(gpt4o_providers) != 3:
-            pytest.fail(f"Expected 3 gpt-4o providers, got {len(gpt4o_providers)}")
-        
-        # Sort by TPS (tokens per second) - fastest first
-        sorted_by_tps = sorted(gpt4o_providers, key=lambda c: float(c.stats.tps) if c.stats else 0, reverse=True)
-        
-        # Verify order matches expected [provider_a, provider_b, provider_c]
-        expected_order = ["provider_a", "provider_b", "provider_c"]
-        actual_order = [c.provider for c in sorted_by_tps]
-        
-        assert actual_order == expected_order, f"Performance order mismatch: got {actual_order}, expected {expected_order}"
-        """
-        Verify 'coding-smart' uses models in benchmark-ranked order (best to worst).
-        Expected order from leaderboard: [gpt-4o, claude-3.5-sonnet, o1-mini, ...].
-        """
-        # Get candidates for coding-smart
-        candidates = await router._get_candidates("coding-smart", router._extract_requirements(create_request()))
-        
-        print(f"\nCandidates for coding-smart: {[(c.provider, c.model, c.priority) for c in candidates]}")
-        
-        # Extract unique models in order
-        models_in_order = []
-        for c in candidates:
-            if c.model not in models_in_order:
-                models_in_order.append(c.model)
-        
-        print(f"Model order: {models_in_order}")
-        
-        # Verify order matches expected ranking
-        # Based on config: gpt-4o, claude-3.5-sonnet, o1-mini
-        assert len(models_in_order) >= 2, "Should have at least 2 models"
-        
-        # First model should be gpt-4o (or highest ranked)
-        assert models_in_order[0] in ["gpt-4o", "claude-3.5-sonnet"], \
-            f"First model should be a top-tier model, got {models_in_order[0]}"
-
-
-class TestProviderPerformanceOrder:
-    """
     Test: test_fallback_provider_order_by_performance()
     
     Verify providers are tried in performance order.
@@ -268,8 +208,13 @@ class TestProviderPerformanceOrder:
         This test verifies the configured order is respected.
         """
         # Get candidates for gpt-4o model
-    candidates = [c for c in await router._get_candidates("coding-smart", router._extract_requirements(create_request()))
-                  if c.model == "gpt-4o"]
+        candidates = [
+            c
+            for c in await router._get_candidates(
+                "coding-smart", router._extract_requirements(create_request())
+            )
+            if c.model == "gpt-4o"
+        ]
         
         print(f"\nProviders for gpt-4o: {[(c.provider, c.priority) for c in candidates]}")
         
