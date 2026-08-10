@@ -269,7 +269,7 @@ virtual_models:
       model: gpt-oss-120b-medium
       priority: 25
     - provider: cerebras
-      model: glm-5
+      model: gpt-oss-120b
       priority: 26
     - provider: aihubmix
       model: coding-glm-5-free
@@ -371,57 +371,60 @@ virtual_models:
     - provider: cliproxyapi
       model: gemini-3.1-pro-preview
       priority: 1
+    - provider: groq
+      model: meta-llama/llama-4-maverick-17b-128e-instruct
+      priority: 2
     - provider: cliproxyapi
       model: gemini-3-flash
-      priority: 2
+      priority: 3
     - provider: supacoder
       model: gpt-5-codex
-      priority: 3
+      priority: 4
     - provider: cliproxyapi
       model: gemini-2.5-flash
-      priority: 4
+      priority: 5
     - provider: gemini
       model: gemini-3-flash
-      priority: 5
+      priority: 6
     - provider: supacoder
       model: gpt-5.1-codex-mini
-      priority: 6
+      priority: 7
     - provider: antigravity
       model: gemini-3-flash
-      priority: 7
+      priority: 8
     - provider: supacoder
       model: gpt-5.2
-      priority: 8
+      priority: 9
     - provider: kilo
       model: minimax/minimax-m2.5:free
-      priority: 9
+      priority: 10
     - provider: nvidia
       model: GLM5
-      priority: 10
+      priority: 11
     - provider: supacoder
       model: gpt-5.4-mini
-      priority: 11
-    - provider: cerebras
-      model: glm-5
       priority: 12
+    - provider: cerebras
+      model: gpt-oss-120b
+      priority: 13
     - provider: aihubmix
       model: coding-glm-5-free
-      priority: 13
+      priority: 14
     - provider: gemini
       model: gemini-2.5-flash
-      priority: 14
+      priority: 15
     - provider: cliproxyapi
       model: coder-model
-      priority: 15
+      priority: 16
     - provider: cerebras
       model: llama-3.3-70b
-      priority: 16
+      priority: 17
     - provider: groq
       model: llama-3.3-70b-versatile
-      priority: 17
+      priority: 18
     - provider: kilo
       model: qwen/qwen3-coder:free
-      priority: 18
+      priority: 19
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
@@ -510,23 +513,26 @@ virtual_models:
       model: llama-3.1-8b-instant
       priority: 27
     - provider: groq
-      model: meta-llama/llama-4-scout-17b-16e-instruct
+      model: meta-llama/llama-4-maverick-17b-128e-instruct
       priority: 28
+    - provider: groq
+      model: meta-llama/llama-4-scout-17b-16e-instruct
+      priority: 29
     - provider: cliproxyapi
       model: gemini-3-flash
-      priority: 29
+      priority: 30
     - provider: groq
       model: llama-3.3-70b-versatile
-      priority: 30
+      priority: 31
     - provider: gemini
       model: gemini-3-flash
-      priority: 31
-    - provider: cerebras
-      model: glm-5
       priority: 32
+    - provider: cerebras
+      model: gpt-oss-120b
+      priority: 33
     - provider: aihubmix
       model: glm-4-flash
-      priority: 33
+      priority: 34
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
