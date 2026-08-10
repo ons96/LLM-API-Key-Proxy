@@ -1971,9 +1971,21 @@ class RouterCore:
                             )
                         )
 
+        # Remove repeated upstream pairs before the fallback loop. Virtual-model
+        # aliases and registry fallback paths can contribute the same pair more
+        # than once; first-seen metadata and priority remain authoritative.
+        unique_candidates = []
+        seen_pairs = set()
+        for candidate in candidates:
+            pair = (candidate.provider, candidate.model)
+            if pair in seen_pairs:
+                continue
+            seen_pairs.add(pair)
+            unique_candidates.append(candidate)
+
         # Sort by priority
-        candidates.sort(key=lambda c: c.priority)
-        return candidates
+        unique_candidates.sort(key=lambda c: c.priority)
+        return unique_candidates
 
     def _should_perform_search(self, requirements: CapabilityRequirements) -> bool:
         """Determine if search should be performed."""

@@ -342,6 +342,23 @@ class TestModelResolution:
         assert candidates[0].provider == "groq"  # Higher priority first
         assert candidates[1].provider == "gemini"
 
+    @pytest.mark.asyncio
+    async def test_duplicate_virtual_candidates_are_removed(self, simple_router):
+        """The fallback loop must not retry one provider/model pair twice."""
+        simple_router.virtual_models["router/test"]["candidates"].append(
+            {"provider": "groq", "model": "test-model-1", "priority": 99}
+        )
+
+        candidates = await simple_router._get_candidates(
+            "router/test", CapabilityRequirements()
+        )
+
+        assert [(c.provider, c.model) for c in candidates] == [
+            ("groq", "test-model-1"),
+            ("gemini", "test-model-2"),
+        ]
+        assert candidates[0].priority == 1
+
     def test_direct_model_resolution(self, simple_router):
         """Test resolving direct model reference."""
         req = CapabilityRequirements()
