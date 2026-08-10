@@ -319,6 +319,28 @@ def test_load_capabilities_missing_files():
     assert load_capabilities(None, None) == {}
 
 
+def test_capability_overrides_win_over_provider_database(tmp_path):
+    providers = tmp_path / "providers.yaml"
+    providers.write_text(
+        "providers:\n"
+        "  - id: demo\n"
+        "    capabilities: [vision]\n"
+        "    free_models:\n"
+        "      - id: model\n"
+        "        capabilities: [vision]\n",
+        encoding="utf-8",
+    )
+    overrides = tmp_path / "overrides.yaml"
+    overrides.write_text(
+        "demo/model: [tools]\n",
+        encoding="utf-8",
+    )
+
+    caps = load_capabilities(str(providers), str(overrides))
+    assert caps["demo/model"] == Capabilities.TEXT | Capabilities.TOOL_CALLING
+    assert not caps["demo/model"] & Capabilities.VISION
+
+
 def test_media_only_model_excluded():
     caps = {}
     sel = ChainSelector(model_scores={}, capabilities=caps, predictor=None)

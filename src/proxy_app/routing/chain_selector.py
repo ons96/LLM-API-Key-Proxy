@@ -134,16 +134,6 @@ def load_capabilities(
     except ImportError:
         return result
 
-    if overrides_path:
-        try:
-            with open(overrides_path, "r", encoding="utf-8") as fh:
-                overrides = yaml.safe_load(fh) or {}
-            for key, value in overrides.items():
-                if isinstance(value, list):
-                    result[str(key)] = _caps_from_keywords(value)
-        except (OSError, ValueError, AttributeError):
-            pass
-
     if providers_db_path:
         try:
             with open(providers_db_path, "r", encoding="utf-8") as fh:
@@ -161,6 +151,18 @@ def load_capabilities(
                     mid = f"{pid}/{fm['id']}"
                     caps = _caps_from_keywords(fm.get("capabilities", [])) | prov_caps
                     result[mid] = caps
+        except (OSError, ValueError, AttributeError):
+            pass
+
+    # Apply explicit model overrides last so they replace database metadata,
+    # including provider-level capability defaults.
+    if overrides_path:
+        try:
+            with open(overrides_path, "r", encoding="utf-8") as fh:
+                overrides = yaml.safe_load(fh) or {}
+            for key, value in overrides.items():
+                if isinstance(value, list):
+                    result[str(key)] = _caps_from_keywords(value)
         except (OSError, ValueError, AttributeError):
             pass
 
