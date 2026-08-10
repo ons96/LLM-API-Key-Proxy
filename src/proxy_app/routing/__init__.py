@@ -38,6 +38,15 @@ from .chain_selector import (
     to_debug_header,
 )
 
+from .token_budget import (
+    CLASS_DEFAULTS,
+    FALLBACK_CONTEXT_LIMIT,
+    FLOOR_TOKEN_BUDGET,
+    apply_token_budget,
+    compute_max_tokens,
+    load_budget_config,
+)
+
 __all__ = [
     "Capabilities",
     "PromptBucket",
@@ -62,4 +71,10 @@ __all__ = [
     "load_virtual_chain",
     "on_error",
     "to_debug_header",
+    "CLASS_DEFAULTS",
+    "FALLBACK_CONTEXT_LIMIT",
+    "FLOOR_TOKEN_BUDGET",
+    "apply_token_budget",
+    "compute_max_tokens",
+    "load_budget_config",
 ]
