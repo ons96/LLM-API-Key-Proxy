@@ -341,6 +341,42 @@ def test_capability_overrides_win_over_provider_database(tmp_path):
     assert not caps["demo/model"] & Capabilities.VISION
 
 
+def test_duplicate_candidates_are_stably_deduplicated():
+    sel = ChainSelector(model_scores={"p/a": 0.45, "p/b": 0.80}, capabilities={})
+    candidates = [
+        {"provider": "p", "model": "a", "priority": 1},
+        {"provider": "p", "model": "a", "priority": 2},
+        {"provider": "p", "model": "b", "priority": 3},
+        {"provider": "p", "model": "b", "priority": 4},
+    ]
+
+    result = sel.select(_features(), Tier.T2, candidates)
+
+    assert [(c.provider, c.model) for c in result.chain] == [("p", "a"), ("p", "b")]
+    assert [c.priority for c in result.chain] == [1, 3]
+    assert [c.model for c in result.escalation] == ["b"]
+
+
+def test_duplicate_pins_produce_one_pinned_candidate():
+    sel = ChainSelector(
+        model_scores={},
+        capabilities={},
+        pins=[{"provider": "p", "model": "a"}, {"provider": "p", "model": "a"}],
+    )
+    result = sel.select(
+        _features(),
+        Tier.T1,
+        [
+            {"provider": "p", "model": "a", "priority": 2},
+            {"provider": "p", "model": "a", "priority": 3},
+        ],
+    )
+
+    assert [(c.provider, c.model) for c in result.chain] == [("p", "a")]
+    assert result.chain[0].reason == "PINNED"
+    assert result.chain[0].priority == 1
+
+
 def test_media_only_model_excluded():
     caps = {}
     sel = ChainSelector(model_scores={}, capabilities=caps, predictor=None)

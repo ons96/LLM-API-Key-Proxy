@@ -250,7 +250,12 @@ class ChainSelector:
 
         # 1. Expand input entries into candidates.
         entries: List[Dict] = []
+        seen_keys = set()
         for idx, entry in enumerate(candidates):
+            key = (entry["provider"], entry["model"])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
             entries.append(
                 {
                     "provider": entry["provider"],
