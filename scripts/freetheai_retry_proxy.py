@@ -22,6 +22,7 @@ import time
 from typing import Optional
 
 import aiohttp
+import aiohttp.web
 
 logging.basicConfig(
     level=logging.INFO,
