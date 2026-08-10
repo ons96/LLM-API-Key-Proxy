@@ -2724,6 +2724,39 @@ class RouterCore:
                 _tier = _classify(
                     _features, header_override=request.get("x-route-tier")
                 )
+                # #479: per-task-class max_tokens budget ("speed guarantee").
+                # Computed whenever the smart-router stack is active; the
+                # outgoing request is mutated only in ROUTER_ENABLED mode
+                # (dry-run just logs X-Route-Max-Tokens). Never overrides an
+                # explicit client-supplied max_tokens.
+                try:
+                    from proxy_app.routing.token_budget import (
+                        apply_token_budget,
+                        FALLBACK_CONTEXT_LIMIT,
+                    )
+
+                    _caps = _load_provider_caps()
+                    _ctxs = [
+                        ((_caps.get(c.provider, {}) or {}).get("max_context_tokens", 0))
+                        for c in available_candidates
+                    ]
+                    _ctx_limit = max([x for x in _ctxs if x] or [FALLBACK_CONTEXT_LIMIT])
+                    _budget_hdr = apply_token_budget(
+                        request,
+                        _features,
+                        _ctx_limit,
+                        tier=int(_tier),
+                        budget_config=os.path.join(
+                            os.path.dirname(self.config_path), "token_budget.yaml"
+                        ),
+                        enabled=self._router_enabled,
+                    )
+                    if _budget_hdr:
+                        logger.info("[%s] X-Route-Max-Tokens: %s", request_id, _budget_hdr)
+                except Exception as _budget_exc:
+                    logger.debug(
+                        "[%s] token budget skipped: %s", request_id, _budget_exc
+                    )
                 _selector = self._smart_selectors.get(
                     request.get("model", ""), self._smart_default
                 )
