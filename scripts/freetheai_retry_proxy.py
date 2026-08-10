@@ -14,6 +14,7 @@ Then in opencode.json, set freetheai baseURL to:
 
 import argparse
 import asyncio
+import json
 import logging
 import os
 import sys
@@ -143,6 +144,8 @@ async def health_check(request) -> aiohttp.web.Response:
 
 
 async def main():
+    global MAX_RETRIES
+
     parser = argparse.ArgumentParser(description="freetheai retry proxy")
     parser.add_argument(
         "--port",
@@ -165,7 +168,6 @@ async def main():
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    global MAX_RETRIES
     MAX_RETRIES = args.max_retries
 
     if not API_KEY:
@@ -199,6 +201,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    import json
-
     asyncio.run(main())
