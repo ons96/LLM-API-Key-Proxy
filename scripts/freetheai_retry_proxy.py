@@ -54,6 +54,14 @@ if not API_KEY:
         pass
 
 
+def _positive_int(value: str) -> int:
+    """Parse a retry count and reject values that would skip all attempts."""
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return parsed
+
+
 def _should_retry(status: int, body: bytes) -> bool:
     if status >= 500:
         return True
@@ -158,9 +166,9 @@ async def main():
     )
     parser.add_argument(
         "--max-retries",
-        type=int,
+        type=_positive_int,
         default=MAX_RETRIES,
-        help=f"Max retries (default: {MAX_RETRIES})",
+        help=f"Max retries/attempts (default: {MAX_RETRIES}; must be >= 1)",
     )
     parser.add_argument("--verbose", action="store_true", help="Verbose logging")
     args = parser.parse_args()
