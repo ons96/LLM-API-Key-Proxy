@@ -3701,3 +3701,12 @@ providers:
   - id: deepseek-ocr-2
     context: 4000
   notes: Discovered 2026-08-08
+- id: merge-gateway
+  name: Merge Gateway
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: nvidia/nemotron-3.5-lightning-30b-a3b
+    context: 1000000
+  notes: Discovered 2026-08-13
