@@ -1,0 +1,44 @@
+# Static (policy-fixed) virtual models for the VPS-40 gateway.
+#
+# These chains are NOT rebuilt from telemetry by reorder_chains.py — they are
+# injected verbatim on every run (issue #405). Edit this file to change them;
+# never hand-edit the generated virtual_models.yaml expecting persistence.
+#
+# safe-coding: routes ALL traffic through the local PrivAiTe PII-scrubbing
+# proxy (localhost:8400) to untrusted aggregator upstreams only (nianhua,
+# paxsenix, logfare, 17nas, dext). Scrubbing always applies. See the
+# `privaite` provider in router_config.yaml + issue #405 Constraints for the
+# required reverse-SSH-tunnel reachability (laptop:8400 -> VPS-40:8400).
+
+virtual_models:
+  safe-coding:
+    description: >-
+      PII-scrubbed coding chain. Every request is forwarded through the local
+      PrivAiTe proxy (localhost:8400) to untrusted aggregator upstreams only,
+      so secrets/PII are redacted before reaching 3rd-party LLM aggregators.
+      Complements coding-elite/coding-fast (which use direct trusted providers
+      and skip scrubbing).
+    fallback_chain:
+      - provider: privaite
+        model: claude-opus-4-8
+        priority: 1
+      - provider: privaite
+        model: claude-fable-5
+        priority: 2
+      - provider: privaite
+        model: gpt-5.5
+        priority: 3
+      - provider: privaite
+        model: glm-5.2
+        priority: 4
+      - provider: privaite
+        model: glm-5.1
+        priority: 5
+      - provider: privaite
+        model: kimi-k3
+        priority: 6
+      - provider: privaite
+        model: kimi-k2.6
+        priority: 7
+    settings:
+      timeout_ms: 120000
