@@ -76,6 +76,7 @@ DEFAULT_WINDOW_H = int(os.environ.get("REORDER_WINDOW_H", "24"))
 DEFAULT_MIN_SAMPLES = int(os.environ.get("REORDER_MIN_SAMPLES", "5"))
 DEFAULT_MAX_TPS = float(os.environ.get("REORDER_MAX_TPS", "3000"))
 DEFAULT_MAX_TTFT_MS = float(os.environ.get("REORDER_MAX_TTFT_MS", "30000"))
+STATIC_VIRTUAL_MODELS_PATH = _REPO_ROOT / "config" / "static_virtual_models.yaml"
 
 # ---------------------------------------------------------------------------
 # Health-probe classification (task-board #484).
@@ -100,6 +101,24 @@ PROBE_EXCLUDE_SQL = (
     tps_min=PROBE_TPS_MIN,
     tps_max=PROBE_TPS_MAX,
 )
+
+
+def load_static_virtual_models(path: Path) -> Dict[str, object]:
+    """#405: load policy-fixed virtual models from a separate YAML.
+
+    These chains (e.g. safe-coding via PrivAiTe) must survive the telemetry
+    rebuild that reorder_config performs. Returns the inner `virtual_models`
+    mapping; empty dict if the file is absent or invalid.
+    """
+    if not path.exists():
+        return {}
+    try:
+        with path.open("r") as f:
+            cfg = yaml.safe_load(f) or {}
+    except Exception as exc:
+        logger.warning("could not parse %s: %r", path, exc)
+        return {}
+    return cfg.get("virtual_models", {}) or {}
 
 
 def is_probe_row(completion_tokens, tps) -> bool:
@@ -712,6 +731,29 @@ def reorder_config(
             log_lines.append(f"[{model_id}] unchanged ({len(chain)} entries):")
         log_lines.extend(reasons)
         model_cfg["fallback_chain"] = new_chain
+
+    # #405: inject policy-fixed virtual models (e.g. safe-coding via PrivAiTe)
+    # from a separate static file so the telemetry rebuild never clobbers them.
+    # ponytail: separate file = explicit, visible injection, not string-concat.
+    static_vms = load_static_virtual_models(STATIC_VIRTUAL_MODELS_PATH)
+    if static_vms:
+        injected = 0
+        for sid, scfg in static_vms.items():
+            if sid in virtual_models:
+                logger.warning(
+                    "static virtual model %s already present in config, skipping", sid
+                )
+                continue
+            virtual_models[sid] = scfg
+            injected += 1
+            log_lines.append(
+                f"[{sid}] STATIC injected from {STATIC_VIRTUAL_MODELS_PATH.name}"
+            )
+        if injected:
+            log_lines.append(
+                f"injected {injected} static virtual model(s) from "
+                f"{STATIC_VIRTUAL_MODELS_PATH.name}"
+            )
 
     # Update metadata.generated_at (if present) for audit trail.
     metadata = config.get("metadata", {})
