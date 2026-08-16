@@ -153,3 +153,49 @@ def test_empty_tools_array_does_not_require_tool_calling():
     assert features.capabilities == Capability.TEXT
     assert not features.has_capability(Capability.TOOL_CALLING)
     assert features.task_class is TaskClass.GREETING_TRIVIA
+
+
+def test_missing_messages_key_is_handled_deterministically():
+    features = extract_request_features({})
+
+    assert features.capabilities == Capability(0)
+    assert features.input_tokens == 0
+    assert features.prompt_length is PromptLength.SHORT
+    assert features.task_class is TaskClass.SHORT_QA
+    assert features.stream is False
+    assert features.has_max_tokens is False
+    assert features.modalities == ()
+    assert features.reasoning_effort is None
+
+
+def test_malformed_message_entries_are_skipped_without_error():
+    body = {
+        "messages": [
+            None,
+            42,
+            "bare string entry",
+            {"role": "user", "content": 12345},
+            {"role": "user", "content": "Hello there"},
+        ]
+    }
+
+    features = extract_request_features(body)
+
+    assert features.capabilities == Capability.TEXT
+    assert features.input_tokens == len("Hello there") // 4
+    assert features.task_class is TaskClass.GREETING_TRIVIA
+
+
+def test_non_string_modalities_and_reasoning_effort_are_ignored():
+    body = {
+        "messages": [{"role": "user", "content": "Describe this."}],
+        "modalities": [42, "image"],
+        "reasoning_effort": 7,
+    }
+
+    features = extract_request_features(body)
+
+    assert features.modalities == ("image",)
+    assert features.has_capability(Capability.VISION)
+    assert features.task_class is TaskClass.VISION_CAPTION
+    assert features.reasoning_effort is None
