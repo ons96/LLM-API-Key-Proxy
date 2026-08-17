@@ -321,7 +321,7 @@ virtual_models:
       priority: 15
       reasoning_effort: high
     - provider: cerebras
-      model: glm-5
+      model: gpt-oss-120b
       priority: 16
       reasoning_effort: high
     - provider: g4f
