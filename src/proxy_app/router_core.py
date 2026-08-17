@@ -1144,6 +1144,7 @@ class RouterCore:
                             api_key,
                             api_base,
                             model_list,
+                            provider_cfg.get("extra_headers"),
                         )
                         response = await adapter.chat_completions(request_clean)
                     except ValueError:
@@ -1155,6 +1156,7 @@ class RouterCore:
                             candidate.model,
                             api_key,
                             api_base,
+                            provider_cfg.get("extra_headers"),
                         )
                         response = await litellm.acompletion(
                             **fallback_kwargs, stream=False
@@ -2328,6 +2330,7 @@ class RouterCore:
                             api_key,
                             api_base,
                             model_list,
+                            provider_cfg.get("extra_headers"),
                         )
                         response = await adapter.chat_completions(
                             request_clean, stream=True
@@ -2341,6 +2344,7 @@ class RouterCore:
                             candidate.model,
                             api_key,
                             api_base,
+                            provider_cfg.get("extra_headers"),
                         )
                         response = await litellm.acompletion(
                             **fallback_kwargs, stream=True

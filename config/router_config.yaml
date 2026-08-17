@@ -575,11 +575,24 @@ providers:
     - gemma-4-26b-a4b-it
     - step-3.7-flash
   septorlabs:
-    enabled: false
+    enabled: true
     env_var: SEPTORLABS_API_KEY
     base_url: https://api.septorlabs.com/v1
     free_tier: true
-    _auto_disabled_reason: Cloudflare WAF blocks litellm default UA; curl with browser UA works. Needs UA-spoof proxy or gateway extra_headers.
+    extra_headers:
+      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+    free_tier_models:
+    - qwen3-coder-free
+    - qwen3-next-80b-a3b-instruct-free
+    - glm-4.5-air-free
+    - minimax-m2.5-free
+    - step-3.5-flash-free
+    - llama-3.3-70b-instruct-free
+    - gemma-4-31b-it-free
+    - hermes-3-llama-3.1-405b-free
+    - nemotron-3-nano-30b-a3b-free
+    - dolphin-mistral-24b-venice-edition-free
+    - ling-2.6-flash-free
 
 search:
   default_enabled: true

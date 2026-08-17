@@ -55,7 +55,12 @@ class OpenAICompatibleProvider(ProviderInterface):
         try:
             models_url = f"{self.api_base.rstrip('/')}/models"
             response = await client.get(
-                models_url, headers={"Authorization": f"Bearer {api_key}"}
+                models_url,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    # ponytail: browser UA defeats Cloudflare WAF blocks
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+                },
             )
             response.raise_for_status()
 

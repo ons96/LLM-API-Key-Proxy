@@ -128,9 +128,11 @@ class OpenAICompatibleAdapter(BaseProviderAdapter):
         api_key: Optional[str],
         api_base: Optional[str],
         models: Optional[List[str]] = None,
+        extra_headers: Optional[Dict[str, str]] = None,
     ):
         self.api_base = api_base
         self.model_list = models or []
+        self.extra_headers = extra_headers or {}
         super().__init__(provider_name, api_key)
 
     def _initialize_models(self):
@@ -172,6 +174,8 @@ class OpenAICompatibleAdapter(BaseProviderAdapter):
         request_with_key["api_key"] = self.api_key
         request_with_key["api_base"] = self.api_base
         request_with_key["custom_llm_provider"] = "openai"
+        if self.extra_headers:
+            request_with_key["extra_headers"] = self.extra_headers
 
         if stream:
             return self._stream_completion(request_with_key)
@@ -1191,6 +1195,7 @@ class ProviderAdapterFactory:
         api_key: Optional[str] = None,
         api_base: Optional[str] = None,
         model_list: Optional[List[str]] = None,
+        extra_headers: Optional[Dict[str, str]] = None,
     ) -> BaseProviderAdapter:
         """Create provider adapter instance."""
         provider_key = provider_name.lower()
@@ -1210,7 +1215,7 @@ class ProviderAdapterFactory:
         if provider_key in openai_compatible:
             if provider_key == "bluesminds" and not api_base:
                 api_base = "https://api.bluesminds.com/v1"
-            return OpenAICompatibleAdapter(provider_name, api_key, api_base, model_list)
+            return OpenAICompatibleAdapter(provider_name, api_key, api_base, model_list, extra_headers)
 
         adapters = {
             "groq": GroqAdapter,
@@ -1235,7 +1240,7 @@ class ProviderAdapterFactory:
         # - Setting the API key in .env
         # No code changes needed.
         if api_base:
-            return OpenAICompatibleAdapter(provider_name, api_key, api_base, model_list)
+            return OpenAICompatibleAdapter(provider_name, api_key, api_base, model_list, extra_headers)
 
         raise ValueError(f"Unknown provider: {provider_name}. Add it to router_config.yaml with a base_url to enable automatic OpenAI-compatible routing.")
 

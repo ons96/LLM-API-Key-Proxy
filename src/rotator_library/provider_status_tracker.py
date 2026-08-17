@@ -359,6 +359,12 @@ class ProviderStatusTracker:
             api_key = os.getenv(api_key_env, "")
 
             headers = {"Content-Type": "application/json"}
+            # ponytail: browser UA defeats Cloudflare WAF blocks (septorlabs,
+            # atessa, crowllm, blazeai). aiohttp default UA gets 403'd.
+            headers["User-Agent"] = os.getenv(
+                f"{provider_name.upper()}_USER_AGENT",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+            )
             if api_key:
                 headers["Authorization"] = f"Bearer {api_key}"
 

@@ -12,6 +12,7 @@ def build_litellm_fallback_kwargs(
     model: str,
     api_key: Optional[str],
     api_base: Optional[str],
+    extra_headers: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Any]:
     """Build kwargs for `litellm.acompletion` when the adapter factory fails.
 
@@ -41,4 +42,6 @@ def build_litellm_fallback_kwargs(
     }
     if api_base:
         kwargs["api_base"] = api_base
+    if extra_headers:
+        kwargs["extra_headers"] = extra_headers
     return kwargs
