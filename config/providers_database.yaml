@@ -3719,3 +3719,26 @@ providers:
   - id: google/lyria-3-clip-preview
     context: 1048576
   notes: Discovered 2026-08-15
+- id: larprouter
+  name: LarpRouter
+  enabled: true
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: qwen3.7-max
+    context: 8192
+  - id: qwen3.7-plus
+    context: 8192
+  - id: qwen3.8-max
+    context: 8192
+  - id: deepseek-v4-flash
+    context: 8192
+  - id: deepseek-v4-pro-0813
+    context: 8192
+  - id: gemma-4-26b-a4b-it
+    context: 8192
+  - id: minimax-m3
+    context: 8192
+  - id: step-3.7-flash
+    context: 8192
+  notes: Added 2026-08-17, free pool ($0), verified live

@@ -2,6 +2,24 @@ free_only_mode: false
 proxy_api_keys:
 - ${PROXY_API_KEY}
 providers:
+  privaite:
+    # #405: PII-scrubbing proxy. base_url is the laptop PrivAiTe instance
+    # (localhost:8400), reachable from VPS-40 ONLY via a reverse SSH tunnel
+    # (ssh -R 8400:localhost:8400 ubuntu@40.233.101.233). Do NOT point at a
+    # public URL — scrubbing must always apply. PRIVAITE_API_KEY = the 32-byte
+    # client key from ~/.config/privaite/.client-key on the laptop.
+    enabled: true
+    env_var: PRIVAITE_API_KEY
+    base_url: http://localhost:8400/v1
+    free_tier: true
+    free_tier_models:
+    - claude-opus-4-8
+    - claude-fable-5
+    - gpt-5.5
+    - glm-5.2
+    - glm-5.1
+    - kimi-k3
+    - kimi-k2.6
   kilo:
     enabled: false
     env_var: KILO_API_KEY
@@ -543,6 +561,20 @@ providers:
     base_url: https://euromodels.xyz/v1
     free_tier: true
     _auto_disabled_reason: 403 Cloudflare access-gated from this network
+  larprouter:
+    enabled: true
+    env_var: LARPROUTER_API_KEY
+    base_url: https://larprouter.com/v1
+    free_tier: true
+    free_tier_models:
+    - qwen3.7-max
+    - qwen3.7-plus
+    - qwen3.8-max
+    - deepseek-v4-flash
+    - deepseek-v4-pro-0813
+    - gemma-4-26b-a4b-it
+    - minimax-m3
+    - step-3.7-flash
 
 search:
   default_enabled: true
