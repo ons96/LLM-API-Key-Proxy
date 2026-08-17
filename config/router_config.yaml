@@ -561,6 +561,20 @@ providers:
     base_url: https://euromodels.xyz/v1
     free_tier: true
     _auto_disabled_reason: 403 Cloudflare access-gated from this network
+  larprouter:
+    enabled: true
+    env_var: LARPROUTER_API_KEY
+    base_url: https://larprouter.com/v1
+    free_tier: true
+    free_tier_models:
+    - qwen3.7-max
+    - qwen3.7-plus
+    - qwen3.8-max
+    - deepseek-v4-flash
+    - deepseek-v4-pro-0813
+    - gemma-4-26b-a4b-it
+    - minimax-m3
+    - step-3.7-flash
 
 search:
   default_enabled: true
