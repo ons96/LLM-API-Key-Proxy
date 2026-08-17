@@ -3753,3 +3753,32 @@ providers:
   - id: MiMo-V2.5-Pro
     context: 1048576
   notes: Discovered 2026-08-17
+- id: septorlabs
+  name: SeptorLabs
+  enabled: true
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: qwen3-coder-free
+    context: 131072
+  - id: qwen3-next-80b-a3b-instruct-free
+    context: 131072
+  - id: glm-4.5-air-free
+    context: 131072
+  - id: minimax-m2.5-free
+    context: 131072
+  - id: step-3.5-flash-free
+    context: 131072
+  - id: llama-3.3-70b-instruct-free
+    context: 131072
+  - id: gemma-4-31b-it-free
+    context: 131072
+  - id: hermes-3-llama-3.1-405b-free
+    context: 131072
+  - id: nemotron-3-nano-30b-a3b-free
+    context: 131072
+  - id: dolphin-mistral-24b-venice-edition-free
+    context: 131072
+  - id: ling-2.6-flash-free
+    context: 131072
+  notes: Discovered 2026-08-17, 17 free models (11 useful added), 50 rpd + 200K tok/day cap
