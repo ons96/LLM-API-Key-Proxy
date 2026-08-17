@@ -3740,3 +3740,16 @@ providers:
   - id: step-3.7-flash
     context: 8192
   notes: Added 2026-08-17, free pool ($0), verified live
+- id: scnet-token-plan
+  name: SCNet Token Plan
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: MiniMax-M3
+    context: 512000
+  - id: Kimi-K2.7-Code
+    context: 262144
+  - id: MiMo-V2.5-Pro
+    context: 1048576
+  notes: Discovered 2026-08-17
