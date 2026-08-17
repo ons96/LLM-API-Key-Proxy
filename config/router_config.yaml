@@ -573,7 +573,6 @@ providers:
     - deepseek-v4-flash
     - deepseek-v4-pro-0813
     - gemma-4-26b-a4b-it
-    - minimax-m3
     - step-3.7-flash
 
 search:

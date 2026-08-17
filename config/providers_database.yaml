@@ -3737,8 +3737,6 @@ providers:
     context: 8192
   - id: gemma-4-26b-a4b-it
     context: 8192
-  - id: minimax-m3
-    context: 8192
   - id: step-3.7-flash
     context: 8192
   notes: Added 2026-08-17, free pool ($0), verified live
