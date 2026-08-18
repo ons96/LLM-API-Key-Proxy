@@ -13,6 +13,9 @@ useDefault = true
 
 [allowlist]
 paths = [
+  # - .venv-selftest/: local selftest virtualenv (untracked, regenerable);
+  #   pip-installed library example strings (litellm/regex/hf-hub), not secrets.
+  '''\.venv-selftest/.*''',
   '''config/virtual_models\.ya?ml''',
   '''config/virtual_models\.yaml\.(bak|backup|backup2|old)''',
   '''render\.yaml''',
