@@ -270,6 +270,60 @@ class TestRankChain:
         assert new_chain == []
         assert reasons == []
 
+    def test_pins_forced_to_head_in_pin_order(self):
+        # #756: pins must be honored in u-formula mode (regression — the
+        # u-formula branch of reorder_chains used to drop them).
+        bench = _make_bench()
+        cats = _make_cats()
+        tier = rank_models.TierConfig(w=3, I_floor=0.55, n_out_tokens=4000, purpose="coding")
+        telemetry = {
+            ("nvidia", "gemini-3-flash"): _FakeStat(tps=50.0, ttft=400.0),
+            ("groq", "llama-small"): _FakeStat(tps=250.0, ttft=200.0),
+        }
+        chain = [
+            {"provider": "groq", "model": "llama-small", "priority": 1},
+            {"provider": "nvidia", "model": "gemini-3-flash", "priority": 2},
+        ]
+        # Pin groq/llama-small (the weaker candidate) to the head.
+        pins = [{"provider": "groq", "model": "llama-small"}]
+        new_chain, reasons = rank_models.rank_chain(
+            chain, telemetry, {}, bench, cats, tier, pins=pins
+        )
+        assert new_chain[0]["provider"] == "groq"
+        assert new_chain[0]["priority"] == 1
+        assert "PINNED" in reasons[0].reason
+        # Remaining entries ranked by U after the pin.
+        assert new_chain[1]["provider"] == "nvidia"
+        assert new_chain[1]["priority"] == 2
+
+    def test_pins_ignored_when_absent_from_chain(self):
+        bench = _make_bench()
+        cats = _make_cats()
+        tier = rank_models.TierConfig(w=3, I_floor=0.55, n_out_tokens=4000, purpose="coding")
+        telemetry = {
+            ("nvidia", "gemini-3-flash"): _FakeStat(tps=50.0, ttft=400.0),
+        }
+        chain = [{"provider": "nvidia", "model": "gemini-3-flash", "priority": 1}]
+        pins = [{"provider": "ghost", "model": "nope"}]
+        new_chain, _ = rank_models.rank_chain(
+            chain, telemetry, {}, bench, cats, tier, pins=pins
+        )
+        assert len(new_chain) == 1
+        assert new_chain[0]["provider"] == "nvidia"
+
+    def test_pins_preserve_extra_keys(self):
+        bench = _make_bench()
+        cats = _make_cats()
+        tier = rank_models.TierConfig(w=3, I_floor=0.55, n_out_tokens=4000, purpose="coding")
+        chain = [
+            {"provider": "groq", "model": "llama-small", "priority": 1, "extra": "keep-me"},
+        ]
+        new_chain, _ = rank_models.rank_chain(
+            chain, {}, {}, bench, cats, tier,
+            pins=[{"provider": "groq", "model": "llama-small"}],
+        )
+        assert new_chain[0].get("extra") == "keep-me"
+
 
 # ---------------------------------------------------------------------------
 # TestTierConfigLoad

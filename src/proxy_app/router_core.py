@@ -1627,6 +1627,42 @@ class RouterCore:
         """Classify error and determine retry behavior."""
         error_str = str(error).lower()
 
+        # #756: HTTP status codes take precedence over message keywords.
+        # A 404 was previously misclassified as RATE_LIMIT when the message
+        # contained a keyword like "limit"/"capacity", causing ~30s of
+        # pointless retries for a model that is simply gone. Status-code
+        # checks are unambiguous; keywords remain the fallback for errors
+        # without a real HTTP response (wrapped exceptions, etc.).
+        status_code = getattr(error, "status_code", None)
+        if status_code is not None:
+            try:
+                status_code = int(status_code)
+            except (TypeError, ValueError):
+                status_code = None
+        if status_code is not None:
+            if status_code == 404:
+                # Model/provider gone — skip immediately, never retry.
+                return ErrorCategory.PROVIDER_ERROR, None
+            if status_code == 429:
+                retry_after = None
+                response = getattr(error, "response", None)
+                if response is not None:
+                    retry_after = response.headers.get("retry-after")
+                    if retry_after:
+                        try:
+                            retry_after = int(retry_after)
+                        except ValueError:
+                            retry_after = 10  # Fast fallback
+                return ErrorCategory.RATE_LIMIT, retry_after or 10
+            if status_code in (500, 501, 502, 503, 504):
+                return ErrorCategory.TRANSIENT, None
+            if status_code in (401, 403):
+                return ErrorCategory.AUTH_ERROR, None
+            if status_code == 400:
+                return ErrorCategory.INVALID_REQUEST, None
+            if status_code == 422:
+                return ErrorCategory.INVALID_REQUEST, None
+
         # Rate limit and usage/quota errors (includes GLM-specific patterns)
         if any(
             keyword in error_str

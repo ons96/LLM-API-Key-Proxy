@@ -677,8 +677,11 @@ def reorder_config(
         if use_u_formula:
             rm = _get_rank_models()
             tier = rm.get_tier(tier_cfg, model_id)
+            # #756: pass chain pins through in u-formula mode too (was
+            # silently ignored — only the composite branch honored them).
             new_chain, reasons_raw = rm.rank_chain(
-                chain, stats, penalties, bench, cats, tier
+                chain, stats, penalties, bench, cats, tier,
+                pins=chain_pins.get(model_id),
             )
             # Build score lookup from RankReason objects for #343 baseline.
             score_lookup: Dict[Tuple[str, str], float] = {

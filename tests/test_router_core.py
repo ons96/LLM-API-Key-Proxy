@@ -257,6 +257,54 @@ class TestErrorClassification:
         assert retry_after is None
 
     @pytest.mark.asyncio
+    async def test_404_not_misclassified_as_rate_limit(self):
+        """#756: a 404 whose message contains a rate-limit keyword (e.g.
+        "limit"/"capacity") must classify as PROVIDER_ERROR (model gone,
+        skip immediately), NOT RATE_LIMIT (which retries ~30s).
+        """
+        router = RouterCore()
+
+        mock_error = Exception(
+            "404 Client Error: model capacity limit not found for gemini-3-flash"
+        )
+        mock_error.status_code = 404
+        mock_error.response = Mock()
+        mock_error.response.headers = {"retry-after": "10"}
+
+        category, retry_after = await router._classify_error(mock_error)
+
+        assert category == ErrorCategory.PROVIDER_ERROR
+        assert retry_after is None
+
+    @pytest.mark.asyncio
+    async def test_429_status_code_wins_over_keywords(self):
+        """A real 429 must classify as RATE_LIMIT regardless of message."""
+        router = RouterCore()
+
+        mock_error = Exception("not found")
+        mock_error.status_code = 429
+        mock_error.response = Mock()
+        mock_error.response.headers = {"retry-after": "5"}
+
+        category, retry_after = await router._classify_error(mock_error)
+
+        assert category == ErrorCategory.RATE_LIMIT
+        assert retry_after == 5
+
+    @pytest.mark.asyncio
+    async def test_500_status_code_classifies_transient(self):
+        """5xx status codes should be TRANSIENT (retryable)."""
+        router = RouterCore()
+
+        mock_error = Exception("internal error")
+        mock_error.status_code = 503
+
+        category, retry_after = await router._classify_error(mock_error)
+
+        assert category == ErrorCategory.TRANSIENT
+        assert retry_after is None
+
+    @pytest.mark.asyncio
     async def test_apply_rate_limit_cooldown(self):
         """Rate-limit errors should register a cooldown in the rate limiter."""
         router = RouterCore()

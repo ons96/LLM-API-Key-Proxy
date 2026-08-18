@@ -358,16 +358,36 @@ def rank_chain(
     categories: Dict[str, ProviderCategory],
     tier: TierConfig,
     penalty_floor: float = 0.5,
+    pins: Optional[List[Dict]] = None,
 ) -> Tuple[List[Dict], List[RankReason]]:
     """Rank one fallback chain via U formula. Returns (ranked_chain, reasons).
 
     Stable sort: scored entries first (DESC by U), unscored entries after
     (preserve original order). Penalty multiplier reduces U (sinks failing
     providers without removing them).
+
+    Pinned entries (#472) — when `pins` is non-empty, entries whose
+    (provider, model) matches a pin are forced to the chain head in pin
+    order (mirroring reorder_chains.reorder_chain); the remainder is
+    ranked by U. Pins referencing entries absent from the chain are
+    ignored.
     """
+    pin_keys = {(p.get("provider"), p.get("model")) for p in (pins or [])}
+    pinned: List[Tuple[int, Dict]] = []
+    unpinned_chain: List[Dict] = []
+    idx_of: Dict[Tuple[str, str], int] = {}
+    for idx, entry in enumerate(chain):
+        provider = entry.get("provider", "")
+        model = entry.get("model", "")
+        idx_of[(provider, model)] = idx
+        if (provider, model) in pin_keys:
+            pinned.append((idx, entry))
+        else:
+            unpinned_chain.append(entry)
+
     scored: List[Tuple[int, float, RankReason]] = []
     unscored: List[Tuple[int, Dict]] = []
-    for idx, entry in enumerate(chain):
+    for idx, entry in enumerate(unpinned_chain):
         provider = entry.get("provider", "")
         model = entry.get("model", "")
         stat = telemetry_stats.get((provider, model))
@@ -403,14 +423,28 @@ def rank_chain(
     scored.sort(key=lambda t: t[1], reverse=True)
     new_chain: List[Dict] = []
     reasons: List[RankReason] = []
+    # Pinned entries first, in pin order (#472 parity with composite mode).
+    for pin_idx, (_idx, entry) in enumerate(pinned):
+        new_entry = dict(entry)
+        new_entry["priority"] = pin_idx + 1
+        new_chain.append(new_entry)
+        reasons.append(
+            RankReason(
+                provider=entry.get("provider", ""),
+                model=entry.get("model", ""),
+                score=1.0,
+                reason="PINNED (chain head)",
+            )
+        )
+    offset = len(pinned)
     for new_idx, (idx, _u, reason) in enumerate(scored):
-        new_entry = dict(chain[idx])
-        new_entry["priority"] = new_idx + 1
+        new_entry = dict(unpinned_chain[idx])
+        new_entry["priority"] = offset + new_idx + 1
         new_chain.append(new_entry)
         reasons.append(reason)
-    offset = len(scored)
+    offset += len(scored)
     for new_idx, (idx, entry) in enumerate(unscored):
-        new_entry = dict(chain[idx])
+        new_entry = dict(unpinned_chain[idx])
         new_entry["priority"] = offset + new_idx + 1
         new_chain.append(new_entry)
         provider = entry.get("provider", "")
