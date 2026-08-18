@@ -21,7 +21,11 @@ from tests.fixtures.provider_mocks import (
     TimeoutError,
     MockProviderResponse
 )
-from tests.fixtures.scenarios import create_request, create_batch_requests
+from tests.fixtures.scenarios import (
+    create_request,
+    create_batch_requests,
+    ensure_providers_enabled,
+)
 
 
 @pytest.fixture
@@ -53,6 +57,7 @@ def mock_router_config(tmp_path):
         }
     }
     
+    config = ensure_providers_enabled(config)
     config_file = tmp_path / "router_config.yaml"
     with open(config_file, 'w') as f:
         yaml.dump(config, f)

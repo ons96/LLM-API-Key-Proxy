@@ -16,7 +16,7 @@ async def test_g4f_waf_detection_non_streaming():
     provider = G4FProvider()
     
     async with httpx.AsyncClient() as client:
-        with respx.mock(base_url="https://g4f.dev/v1") as mock:
+        with respx.mock(base_url="https://g4f.space/v1") as mock:
             # Mock a 200 OK response but with HTML body (Cloudflare style)
             html_body = "<html><head><title>Just a moment...</title></head><body>Blocked</body></html>"
             mock.post("/chat/completions").return_value = httpx.Response(200, text=html_body)
@@ -36,7 +36,7 @@ async def test_g4f_waf_detection_streaming():
     provider = G4FProvider()
     
     async with httpx.AsyncClient() as client:
-        with respx.mock(base_url="https://g4f.dev/v1") as mock:
+        with respx.mock(base_url="https://g4f.space/v1") as mock:
             # Mock a 200 OK response that is actually HTML
             html_body = "<html><body>Cloudflare security check</body></html>"
             mock.post("/chat/completions").return_value = httpx.Response(200, text=html_body)

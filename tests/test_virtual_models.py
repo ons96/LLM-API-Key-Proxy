@@ -11,7 +11,7 @@ from typing import Dict, Any
 
 from src.proxy_app.router_core import RouterCore, CapabilityRequirements
 from tests.fixtures.provider_mocks import MockProviderResponse
-from tests.fixtures.scenarios import create_request
+from tests.fixtures.scenarios import create_request, ensure_providers_enabled
 from tests.fixtures.benchmark_data import SAMPLE_VIRTUAL_MODELS
 
 
@@ -111,6 +111,7 @@ def mock_router_config(tmp_path):
         "routing": {"default_cooldown_seconds": 60},
     }
 
+    config = ensure_providers_enabled(config)
     config_file = tmp_path / "router_config.yaml"
     with open(config_file, "w") as f:
         yaml.dump(config, f)

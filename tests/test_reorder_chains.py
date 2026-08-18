@@ -251,6 +251,10 @@ class TestReorderConfig(unittest.TestCase):
         self.tmpdir = tempfile.mkdtemp(prefix="reorder_test_")
         self.config_path = Path(self.tmpdir) / "virtual_models.yaml"
         self.db_path = Path(self.tmpdir) / "telemetry.db"
+        # Isolate from the repo's real static_virtual_models.yaml (safe-coding
+        # chain): reorder_config injects those entries, which would inflate the
+        # model count these tests assert on. A missing path yields no injection.
+        reorder_chains.STATIC_VIRTUAL_MODELS_PATH = Path(self.tmpdir) / "static_missing.yaml"
 
     def tearDown(self):
         shutil.rmtree(self.tmpdir, ignore_errors=True)

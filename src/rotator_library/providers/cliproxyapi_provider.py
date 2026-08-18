@@ -36,6 +36,7 @@ from enum import Enum
 
 import httpx
 import litellm
+from litellm.types.utils import Delta
 
 from .provider_interface import (
     ProviderInterface,
@@ -385,7 +386,7 @@ class CLIProxyAPIProvider(ProviderInterface):
                                 choices=[
                                     litellm.Choices(
                                         index=choice.get("index", 0),
-                                        delta=litellm.Delta(
+                                        delta=Delta(
                                             content=delta.get("content"),
                                             role=delta.get("role"),
                                             tool_calls=delta.get("tool_calls"),

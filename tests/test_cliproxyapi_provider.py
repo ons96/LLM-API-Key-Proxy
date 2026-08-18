@@ -11,7 +11,7 @@ Tests cover:
 
 import pytest
 import json
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch, MagicMock, Mock
 import httpx
 
 from src.rotator_library.providers.cliproxyapi_provider import (
@@ -158,10 +158,11 @@ class TestChatCompletion:
     @pytest.mark.asyncio
     async def test_stream_completion(self, provider):
         """Test streaming chat completion."""
+        # httpx aiter_lines yields str lines; the provider parses with str ops.
         sse_lines = [
-            b'data: {"id": "test-123", "choices": [{"index": 0, "delta": {"content": "Hel"}}]}',
-            b'data: {"id": "test-123", "choices": [{"index": 0, "delta": {"content": "lo!"}}]}',
-            b"data: [DONE]",
+            'data: {"id": "test-123", "choices": [{"index": 0, "delta": {"content": "Hel"}}]}',
+            'data: {"id": "test-123", "choices": [{"index": 0, "delta": {"content": "lo!"}}]}',
+            "data: [DONE]",
         ]
 
         async def mock_aiter_lines():
@@ -175,10 +176,19 @@ class TestChatCompletion:
         with patch.object(provider, "_get_client") as mock_get_client:
             mock_client = AsyncMock()
 
-            async def mock_stream(*args, **kwargs):
-                return mock_response
+            # client.stream() is used via `async with` — return a minimal
+            # async context manager yielding the mock response.
+            class _FakeStreamCM:
+                def __init__(self, response):
+                    self._response = response
 
-            mock_client.stream = mock_stream
+                async def __aenter__(self):
+                    return self._response
+
+                async def __aexit__(self, exc_type, exc, tb):
+                    return False
+
+            mock_client.stream = Mock(return_value=_FakeStreamCM(mock_response))
             mock_get_client.return_value = mock_client
 
             messages = [{"role": "user", "content": "Hi"}]
@@ -188,7 +198,8 @@ class TestChatCompletion:
                 "stream": True,
             }
 
-            gen = provider.acompletion(client=AsyncMock(), **kwargs)
+            # acompletion is a regular async fn: await it to get the generator.
+            gen = await provider.acompletion(client=AsyncMock(), **kwargs)
             chunks = []
             async for chunk in gen:
                 chunks.append(chunk)

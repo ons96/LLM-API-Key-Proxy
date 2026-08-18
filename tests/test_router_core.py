@@ -261,19 +261,23 @@ class TestErrorClassification:
         """Rate-limit errors should register a cooldown in the rate limiter."""
         router = RouterCore()
 
+        # NOTE: use "too many requests" (not "rate limit exceeded") — the
+        # cooldown classifier maps the substring "exceeded" to USAGE_CAP.
         await router._apply_error_cooldown(
             "groq",
             "llama-3.1-8b-instant",
             ErrorCategory.RATE_LIMIT,
             30,
-            "rate limit exceeded",
+            "too many requests",
         )
 
         stats = await router.rate_limiter.get_usage_stats()
+        # get_usage_stats returns {"usage": {...}, "active_days": {...}}
+        usage = stats["usage"]
         key = "groq/llama-3.1-8b-instant"
-        assert key in stats
-        assert stats[key]["limited"] is True
-        assert stats[key]["block_reason"] == "RATE_LIMIT"
+        assert key in usage
+        assert usage[key]["limited"] is True
+        assert usage[key]["block_reason"] == "RATE_LIMIT"
 
 
 class TestTruncatedContinuation:
@@ -333,19 +337,19 @@ class TestModelResolution:
         }
         return router
 
-    def test_virtual_model_resolution(self, simple_router):
+    async def test_virtual_model_resolution(self, simple_router):
         """Test resolving virtual model to candidates."""
         req = CapabilityRequirements()
-        candidates = simple_router._get_candidates("router/test", req)
+        candidates = await simple_router._get_candidates("router/test", req)
 
         assert len(candidates) == 2
         assert candidates[0].provider == "groq"  # Higher priority first
         assert candidates[1].provider == "gemini"
 
-    def test_direct_model_resolution(self, simple_router):
+    async def test_direct_model_resolution(self, simple_router):
         """Test resolving direct model reference."""
         req = CapabilityRequirements()
-        candidates = simple_router._get_candidates("groq/test-model", req)
+        candidates = await simple_router._get_candidates("groq/test-model", req)
 
         assert len(candidates) == 1
         assert candidates[0].provider == "groq"
@@ -373,7 +377,7 @@ class TestFreeOnlyModeEnforcement:
         }
         return router
 
-    def test_free_tier_enforcement(self, strict_router):
+    async def test_free_tier_enforcement(self, strict_router):
         """Test that only free tier models are allowed in FREE_ONLY_MODE."""
         req = CapabilityRequirements()
 
@@ -393,7 +397,7 @@ class TestFreeOnlyModeEnforcement:
                 ProviderCandidate("openai", "any-model", 3),
             ],
         ):
-            candidates = strict_router._get_candidates("test", req)
+            candidates = await strict_router._get_candidates("test", req)
             available = []
 
             for candidate in candidates:
@@ -464,10 +468,10 @@ class TestMoEMode:
         req = moe_router._extract_requirements(request)
         assert req.moe_mode is True
 
-    def test_expert_candidate_selection(self, moe_router):
+    async def test_expert_candidate_selection(self, moe_router):
         """Test expert candidate selection for MoE."""
         req = CapabilityRequirements(moe_mode=True)
-        candidates = moe_router._get_candidates("router/best-coding-moe", req)
+        candidates = await moe_router._get_candidates("router/best-coding-moe", req)
 
         # Should get expert candidates
         experts = [c for c in candidates if c.role and "expert" in c.role]

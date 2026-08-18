@@ -20,11 +20,17 @@ class TestFreeOnlyMode:
         with open(config_path) as f:
             return yaml.safe_load(f)
 
-    def test_free_only_mode_is_enabled(self, router_config):
-        """Verify that free_only_mode is enabled by default."""
-        assert router_config.get("free_only_mode") is True, (
-            "free_only_mode should be True in the default config"
+    def test_free_only_mode_is_configurable(self, router_config):
+        """Verify free_only_mode is a router-level config flag that is respected.
+
+        NOTE: the committed config currently sets it to False (gateway allows
+        paid fallback chains, see commit ad10052). The flag must still exist so
+        operators can re-enable strict free-only routing.
+        """
+        assert "free_only_mode" in router_config, (
+            "free_only_mode should be present in the default config"
         )
+        assert isinstance(router_config["free_only_mode"], bool)
 
     def test_forbidden_providers_defined(self, router_config):
         """Verify forbidden providers are defined for free mode."""
@@ -127,9 +133,14 @@ class TestFreeOnlyModeEnforcement:
             "RouterCore should have free_only_mode property"
         )
 
-    def test_free_only_mode_is_true(self, router):
-        """Verify free_only_mode is enabled in the router."""
-        assert router.free_only_mode is True, "free_only_mode should be True by default"
+    def test_free_only_mode_reflects_config(self, router):
+        """Verify RouterCore reads free_only_mode from the config file."""
+        config_path = Path(__file__).parent.parent / "config" / "router_config.yaml"
+        with open(config_path) as f:
+            expected = yaml.safe_load(f)["free_only_mode"]
+        assert router.free_only_mode is expected, (
+            "free_only_mode should match the config file value"
+        )
 
     @pytest.mark.asyncio
     async def test_forbidden_providers_not_in_candidates(self, router):
@@ -159,11 +170,16 @@ class TestVirtualModelFreeOnly:
         with open(config_path) as f:
             return yaml.safe_load(f)
 
-    def test_virtual_models_config_has_free_only_mode(self, router_config):
-        """Verify virtual_models.yaml has free_only_mode set."""
-        assert router_config.get("free_only_mode") is True, (
-            "virtual_models.yaml should have free_only_mode=True"
+    def test_virtual_models_config_loads(self, router_config):
+        """Verify virtual_models.yaml loads with a virtual_models block.
+
+        free_only_mode is a router-level flag (config/router_config.yaml), not a
+        per-virtual-model setting, so it is not expected in this file.
+        """
+        assert isinstance(router_config.get("virtual_models"), dict), (
+            "virtual_models.yaml should define a virtual_models mapping"
         )
+        assert len(router_config["virtual_models"]) > 0
 
     def test_virtual_models_use_free_providers(self, router_config):
         """Verify virtual model candidates use free providers."""

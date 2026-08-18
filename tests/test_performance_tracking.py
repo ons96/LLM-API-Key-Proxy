@@ -14,8 +14,12 @@ from unittest.mock import Mock, patch, AsyncMock
 from typing import Dict, Any
 
 from src.proxy_app.router_core import RouterCore, ProviderMetrics
-from tests.fixtures.provider_mocks import MockProviderResponse, create_mock_provider
-from tests.fixtures.scenarios import create_request
+from tests.fixtures.provider_mocks import (
+    MockProviderResponse,
+    create_mock_provider,
+    mock_adapter_for,
+)
+from tests.fixtures.scenarios import create_request, ensure_providers_enabled
 
 
 @pytest.fixture
@@ -38,6 +42,7 @@ def mock_router_config(tmp_path):
         }
     }
     
+    config = ensure_providers_enabled(config)
     config_file = tmp_path / "router_config.yaml"
     with open(config_file, 'w') as f:
         yaml.dump(config, f)
@@ -67,17 +72,17 @@ class TestStatsPerRequest:
         """
         start_time = time.time()
         
-        async def mock_with_stats(candidate, request, request_id):
+        async def mock_with_stats(request):
             # Simulate processing time
             await asyncio.sleep(0.1)
             
             return MockProviderResponse(
-                model=f"{candidate.provider}/{candidate.model}",
+                model=request["model"],
                 tokens=100,
                 delay=0
             )
         
-        with patch.object(router, '_execute_single_candidate', side_effect=mock_with_stats):
+        with mock_adapter_for(side_effect=mock_with_stats):
             result = await router.route_request(create_request(model="coding-smart"), request_id="stats-test")
         
         end_time = time.time()
@@ -108,11 +113,11 @@ class TestStatsPerRequest:
         - Success rate between 0 and 1
         - Timestamps are recent
         """
-        async def mock_realistic(candidate, request, request_id):
+        async def mock_realistic(request):
             await asyncio.sleep(0.05)  # 50ms
             return MockProviderResponse(tokens=150, delay=0)
         
-        with patch.object(router, '_execute_single_candidate', side_effect=mock_realistic):
+        with mock_adapter_for(side_effect=mock_realistic):
             await router.route_request(create_request(model="coding-smart"), request_id="realistic-test")
         
         metrics = router._get_metrics("test_provider", "test_model")
@@ -148,25 +153,22 @@ class TestStatsConcurrency:
         # Track individual request completions
         request_completions = []
         
-        async def mock_concurrent_stats(candidate, request, request_id):
+        async def mock_concurrent_stats(request):
             await asyncio.sleep(0.1)  # Simulate processing
             
             response = MockProviderResponse(
-                model=f"{candidate.provider}/{candidate.model}",
+                model=request["model"],
                 tokens=tokens_per_request,
                 delay=0
             )
             
             request_completions.append({
-                "request_id": request_id,
                 "tokens": tokens_per_request,
-                "provider": candidate.provider,
-                "model": candidate.model
             })
             
             return response
         
-        with patch.object(router, '_execute_single_candidate', side_effect=mock_concurrent_stats):
+        with mock_adapter_for(side_effect=mock_concurrent_stats):
             requests = [
                 router.route_request(create_request(model="coding-smart"), request_id=f"concurrent-{i}")
                 for i in range(num_requests)
@@ -227,14 +229,17 @@ class TestErrorTracking:
         
         error_index = {"count": 0}
         
-        async def mock_errors(candidate, request, request_id):
+        async def mock_errors(request):
             if error_index["count"] < len(error_sequence):
                 error = error_sequence[error_index["count"]]
                 error_index["count"] += 1
                 raise error
-            return MockProviderResponse(model=candidate.model)
+            return MockProviderResponse(model=request["model"])
         
-        with patch.object(router, '_execute_single_candidate', side_effect=mock_errors):
+        # max_retries_for=0: retryable errors would otherwise sleep between
+        # upstream retries (RATE_LIMIT backs off up to 10s per attempt).
+        with mock_adapter_for(side_effect=mock_errors), \
+                patch.object(router, "max_retries_for", return_value=0):
             # Try multiple requests to trigger different errors
             for i in range(len(error_sequence)):
                 try:
@@ -271,11 +276,11 @@ class TestTimestampAccuracy:
         """
         client_timestamp = time.time()
         
-        async def mock_timed(candidate, request, request_id):
+        async def mock_timed(request):
             await asyncio.sleep(0.01)
-            return MockProviderResponse(model=candidate.model)
+            return MockProviderResponse(model=request["model"])
         
-        with patch.object(router, '_execute_single_candidate', side_effect=mock_timed):
+        with mock_adapter_for(side_effect=mock_timed):
             await router.route_request(create_request(model="coding-smart"), request_id="timestamp-test")
         
         metrics = router._get_metrics("test_provider", "test_model")
@@ -298,9 +303,9 @@ class TestTimestampAccuracy:
         """
         timestamps = []
         
-        async def capture_timestamps(candidate, request, request_id):
+        async def capture_timestamps(request):
             await asyncio.sleep(0.01)
-            response = MockProviderResponse(model=candidate.model)
+            response = MockProviderResponse(model=request["model"])
             
             # Capture current timestamp
             ts = time.time()
@@ -308,7 +313,7 @@ class TestTimestampAccuracy:
             
             return response
         
-        with patch.object(router, '_execute_single_candidate', side_effect=capture_timestamps):
+        with mock_adapter_for(side_effect=capture_timestamps):
             for i in range(5):
                 await router.route_request(create_request(model="coding-smart"), request_id=f"seq-{i}")
                 await asyncio.sleep(0.02)  # Small delay between requests

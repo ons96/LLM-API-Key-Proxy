@@ -16,7 +16,7 @@ from tests.fixtures.provider_mocks import (
     AuthError,
     MockProviderResponse
 )
-from tests.fixtures.scenarios import create_request
+from tests.fixtures.scenarios import create_request, ensure_providers_enabled
 
 
 @pytest.fixture
@@ -49,6 +49,7 @@ def mock_router_config(tmp_path):
         }
     }
     
+    config = ensure_providers_enabled(config)
     config_file = tmp_path / "router_config.yaml"
     with open(config_file, 'w') as f:
         yaml.dump(config, f)
@@ -268,8 +269,8 @@ class TestProviderPerformanceOrder:
         This test verifies the configured order is respected.
         """
         # Get candidates for gpt-4o model
-    candidates = [c for c in await router._get_candidates("coding-smart", router._extract_requirements(create_request()))
-                  if c.model == "gpt-4o"]
+        candidates = [c for c in await router._get_candidates("coding-smart", router._extract_requirements(create_request()))
+                      if c.model == "gpt-4o"]
         
         print(f"\nProviders for gpt-4o: {[(c.provider, c.priority) for c in candidates]}")
         

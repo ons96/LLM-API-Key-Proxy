@@ -10,6 +10,25 @@ from .provider_mocks import (
 )
 
 
+def ensure_providers_enabled(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Inject providers:{name:{enabled:true}} for every candidate provider
+    referenced by router_models.
+
+    RouterCore's free_only_mode gate skips any candidate whose provider is not
+    declared ``enabled`` in the config's ``providers`` block. Mock configs that
+    enable free_only_mode without declaring providers therefore drop every
+    candidate (503 "No healthy providers"). This helper keeps the mock configs
+    in sync with the current health/eligibility gating.
+    """
+    providers = config.setdefault("providers", {})
+    for vm in (config.get("router_models") or {}).values():
+        for cand in (vm.get("candidates") or []):
+            p = cand.get("provider")
+            if p and p not in providers:
+                providers[p] = {"enabled": True}
+    return config
+
+
 # Scenario 1: Multi-provider fallback with mixed failures
 SCENARIO_MIXED_FAILURES = {
     "description": "Provider A rate limited, Provider B timeout, Provider C succeeds",

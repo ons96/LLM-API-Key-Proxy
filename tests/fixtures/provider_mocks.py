@@ -2,8 +2,38 @@
 
 import asyncio
 import time
-from typing import Dict, Any, Optional
-from unittest.mock import AsyncMock
+from typing import Dict, Any, Optional, Callable
+from unittest.mock import AsyncMock, Mock, patch
+
+
+def mock_adapter_for(
+    return_value: Any = None,
+    side_effect: Optional[Callable] = None,
+):
+    """Patch ProviderAdapterFactory.create_adapter to return a mock adapter.
+
+    RouterCore records per-candidate ProviderMetrics INSIDE
+    ``_execute_single_candidate``, so patching that method (as older tests did)
+    silently skips metrics recording. Patching the adapter factory instead lets
+    the real execution path (and its metrics/telemetry/cooldown handling) run
+    while only the upstream HTTP call is mocked. The adapter receives the
+    cleaned request dict, whose ``model`` is ``"provider/model"`` — parse it
+    with ``split_provider_model``.
+    """
+    adapter = Mock()
+    adapter.chat_completions = AsyncMock(
+        return_value=return_value, side_effect=side_effect
+    )
+    return patch(
+        "src.proxy_app.router_core.ProviderAdapterFactory.create_adapter",
+        return_value=adapter,
+    )
+
+
+def split_provider_model(request: Dict[str, Any]):
+    """Parse (provider, model) from the cleaned request dict's model field."""
+    provider, _, model = (request.get("model") or "/").partition("/")
+    return provider, model
 
 
 class MockProviderResponse:

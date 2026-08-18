@@ -798,7 +798,20 @@ class RouterCore:
         error_category: Optional["ErrorCategory"] = None,
         response: Optional[Any] = None,
     ):
-        """Update metrics and rate limit tracking."""
+        """Update metrics and rate limit tracking.
+
+        ``response_time`` is milliseconds (all callers pass ms).
+        """
+        # Restore per-candidate ProviderMetrics recording (regression from the
+        # adapter refactor: success/error/latency tracking drives the health
+        # gate sorting at route_request and the stats the tests assert on).
+        metrics = self._get_metrics(provider, model)
+        metrics.update_latency(response_time)
+        if success:
+            metrics.record_success()
+        else:
+            metrics.record_error()
+
         input_tokens: int = 0
         output_tokens: int = 0
         usage = None
@@ -1218,7 +1231,7 @@ class RouterCore:
             await self._update_metrics(
                 candidate.provider,
                 candidate.model,
-                time.time() - start_time,
+                (time.time() - start_time) * 1000,
                 False,
                 error_type,
             )
@@ -1274,6 +1287,12 @@ class RouterCore:
 
     def _load_new_virtual_models(self):
         """Load virtual models from config/virtual_models.yaml."""
+        # Test isolation: unit tests build their own mock router_models configs
+        # and must not have the repo's real virtual_models.yaml merged over
+        # them (it would inject real provider chains and break hermetic tests).
+        if os.getenv("SKIP_REAL_VIRTUAL_MODELS", "false").lower() == "true":
+            logger.info("SKIP_REAL_VIRTUAL_MODELS=true — not loading config/virtual_models.yaml")
+            return
         root_dir = Path(__file__).resolve().parent.parent.parent
         vm_path = root_dir / "config" / "virtual_models.yaml"
 
@@ -2405,7 +2424,9 @@ class RouterCore:
                 raise Exception("Stream ended with no chunks")
 
             latency_ms = (time.time() - start_time) * 1000
-            await self._update_metrics(candidate.provider, candidate.model, latency_ms, True)
+            await self._update_metrics(
+                candidate.provider, candidate.model, latency_ms, True
+            )
 
             try:
                 from rotator_library.telemetry import get_telemetry_manager

@@ -18,9 +18,15 @@ from tests.fixtures.provider_mocks import (
     create_failing_mock_provider,
     MockProviderResponse,
     RateLimitError,
-    TimeoutError
+    TimeoutError,
+    mock_adapter_for,
+    split_provider_model,
 )
-from tests.fixtures.scenarios import create_request, create_batch_requests
+from tests.fixtures.scenarios import (
+    create_request,
+    create_batch_requests,
+    ensure_providers_enabled,
+)
 
 
 @pytest.fixture
@@ -58,6 +64,7 @@ def mock_router_config(tmp_path):
         }
     }
     
+    config = ensure_providers_enabled(config)
     config_file = tmp_path / "router_config.yaml"
     with open(config_file, 'w') as f:
         yaml.dump(config, f)
@@ -89,19 +96,20 @@ class TestEndToEndCodingSmart:
         """
         execution_log = []
         
-        async def simulated_execution(candidate, request, request_id):
+        async def simulated_execution(request):
+            provider, model = split_provider_model(request)
             execution_log.append({
-                "provider": candidate.provider,
-                "model": candidate.model,
+                "provider": provider,
+                "model": model,
                 "timestamp": time.time()
             })
             
             # Provider A fails
-            if candidate.provider == "provider_a":
+            if provider == "provider_a":
                 raise RateLimitError(60)
             
             # Provider B succeeds
-            elif candidate.provider == "provider_b":
+            elif provider == "provider_b":
                 return MockProviderResponse(
                     model="gpt-4o",
                     content="def fibonacci(n):\n    if n <= 1: return n\n    return fibonacci(n-1) + fibonacci(n-2)",
@@ -116,7 +124,10 @@ class TestEndToEndCodingSmart:
                     tokens=40
                 )
         
-        with patch.object(router, '_execute_single_candidate', side_effect=simulated_execution):
+        # max_retries_for=0: RateLimitError would otherwise sleep through the
+        # upstream retry loop before the router falls back to provider_b.
+        with mock_adapter_for(side_effect=simulated_execution), \
+                patch.object(router, "max_retries_for", return_value=0):
             result = await router.route_request(
                 create_request(model="coding-smart"),
                 request_id="e2e-test"
@@ -466,14 +477,14 @@ class TestMetricsCollection:
         """
         Verify metrics are collected and accurate across multiple requests.
         """
-        async def metered_provider(candidate, request, request_id):
+        async def metered_provider(request):
             await asyncio.sleep(0.05)
             return MockProviderResponse(
-                model=f"{candidate.provider}/{candidate.model}",
+                model=request["model"],
                 tokens=100
             )
         
-        with patch.object(router, '_execute_single_candidate', side_effect=metered_provider):
+        with mock_adapter_for(side_effect=metered_provider):
             # Make 10 requests
             for i in range(10):
                 await router.route_request(
