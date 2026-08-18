@@ -1296,17 +1296,14 @@ async def health_check(request: Request):
         sc = getattr(client, "shared_cooldown", None)
         cg = getattr(client, "concurrency_gate", None)
         if sc is not None and cg is not None:
+            # #782: cg.active_per_pair was renamed to a snapshot() API;
+            # the stale attribute reference broke /health observability.
+            snap = cg.snapshot()
             health["distributed_gate"] = {
                 "shared_cooldown_db": getattr(sc, "db_path", None),
                 "machine_id": getattr(sc, "machine_id", None),
-                "active_cooldowns": sum(
-                    1
-                    for v in cg.active_per_pair.values()
-                    if v
-                ),
-                "active_concurrent_requests": sum(
-                    cg.active_per_pair.values()
-                ),
+                "active_cooldowns": len(snap["active_pairs"]),
+                "active_concurrent_requests": snap["total_in_flight"],
                 "source_machines": list(
                     {row["source_machine"] for row in sc.recent_cooldowns()[:50]}
                 ),
