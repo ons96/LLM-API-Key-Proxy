@@ -65,6 +65,12 @@ providers:
     - allam-2-7b
     - canopylabs/orpheus-arabic-saudi
     - canopylabs/orpheus-v1-english
+  cliproxyapi:
+    enabled: true
+    env_var: CLIPROXYAPI_API_KEY
+    base_url: http://127.0.0.1:8317/v1
+    free_tier: true
+    no_api_key_required: true
   g4f:
     enabled: true
     env_var: G4F_API_KEY
@@ -484,6 +490,70 @@ providers:
     - minimaxai/minimax-m2.5
     _dead: true
     _dead_reason: DNS fail — Name or service not known (audit 2026-07-03). Domain dead.
+  blaze-free:
+    enabled: true
+    env_var: BLAZE_FREE_API_KEY
+    base_url: https://api.blazeapi.org/free/v1
+    free_tier: true
+    free_tier_models: []
+  futureppo:
+    enabled: true
+    env_var: FUTUREPPO_API_KEY
+    base_url: https://api.futureppo.top/v1
+    free_tier: true
+    free_tier_models: []
+  iamhc:
+    enabled: true
+    env_var: IAMHC_API_KEY
+    base_url: https://api.iamhc.cn/v1
+    free_tier: true
+    free_tier_models: []
+  kilocode:
+    enabled: true
+    env_var: KILOCLOUD_API_KEY
+    free_tier: true
+    free_tier_models: []
+  koyeb-new:
+    enabled: true
+    env_var: KOYEB_API_KEY
+    base_url: https://new-api.koyeb.app/v1
+    free_tier: true
+    free_tier_models: []
+  pooled:
+    enabled: true
+    env_var: POOLED_API_KEY
+    base_url: https://ai.pooled.dev/v1
+    free_tier: true
+    free_tier_models: []
+  tokenrouter:
+    enabled: true
+    env_var: TOKENROUTER_API_KEY
+    base_url: https://api.tokenrouter.com/v1
+    free_tier: true
+    free_tier_models: []
+  zenllm-free:
+    enabled: true
+    env_var: ZENLLM_RESPONSES_API_KEY
+    free_tier: true
+    free_tier_models: []
+  freetheai:
+    enabled: true
+    env_var: FREETHEAI_API_KEY
+    base_url: https://api.freetheai.xyz/v1
+    free_tier: true
+    free_tier_models:
+    - bbl/gemini-3.0-flash
+    - bbl/gemini-3.1-flash-lite
+    - bbl/gemini-3.5-flash
+    - bbl/gpt-5.5-mini
+    - glm/glm-5
+    - glm/glm-5-turbo
+    - glm/glm-5.1
+    - glm/glm-5.2
+    - min/minimax-m3
+    - olm/deepseek-v4-pro
+    - olm/kimi-k2.7-code
+    - opc/deepseek-v4-flash-free
   freemodel:
     enabled: true
     env_var: FREEMODEL_API_KEY
