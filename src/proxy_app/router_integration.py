@@ -109,7 +109,13 @@ class RouterIntegration:
         for provider_name, env_var in provider_configs.items():
             if env_var is None:  # No API key needed
                 try:
-                    adapter = self.adapter_factory.create_adapter(provider_name, None)
+                    provider_cfg = self.router.config.get("providers", {}).get(
+                        provider_name, {}
+                    )
+                    api_base = provider_cfg.get("base_url")
+                    adapter = self.adapter_factory.create_adapter(
+                        provider_name, None, api_base
+                    )
                     self.adapters[provider_name] = adapter
                     logger.info(
                         f"Initialized {provider_name} adapter (no API key required)"
