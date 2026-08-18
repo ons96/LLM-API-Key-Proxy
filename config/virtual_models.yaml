@@ -11,10 +11,10 @@ metadata:
   - build
   - metis
   - momus
-  last_reorder_at: '2026-08-18T06:30:03Z'
+  last_reorder_at: '2026-08-18T07:00:04Z'
   last_reorder_stats:
     total_models: 18
-    reordered: 0
+    reordered: 2
     window_h: 24
     min_samples: 5
     mode: u_formula
@@ -200,26 +200,26 @@ virtual_models:
     description: Best to worst agentic coding performance (free models first, paid
       as backup). Updated 2026-06-23 from live probe.
     fallback_chain:
-    - provider: gemini
-      model: gemini-3-flash
-      priority: 1
-    - provider: gemini
-      model: gemini-3-pro
-      priority: 2
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 3
-    - provider: freetheai
-      model: glm/glm-5.1
-      priority: 4
-    - provider: freetheai
-      model: bbl/gpt-5.5-mini
-      priority: 5
-    - provider: freetheai
-      model: bbl/gemini-3.5-flash
-      priority: 6
     - provider: freetheai
       model: glm/glm-5.2
+      priority: 1
+    - provider: gemini
+      model: gemini-3-flash
+      priority: 2
+    - provider: gemini
+      model: gemini-3-pro
+      priority: 3
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 4
+    - provider: freetheai
+      model: glm/glm-5.1
+      priority: 5
+    - provider: freetheai
+      model: bbl/gpt-5.5-mini
+      priority: 6
+    - provider: freetheai
+      model: bbl/gemini-3.5-flash
       priority: 7
     - provider: blaze-free
       model: qwen3.7-plus-official
@@ -375,17 +375,17 @@ virtual_models:
   coding-smart:
     description: Agentic coding balanced with speed (tool-capable, no g4f)
     fallback_chain:
-    - provider: gemini
-      model: gemini-3-flash
-      priority: 1
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 2
-    - provider: gemini
-      model: gemini-2.5-flash
-      priority: 3
     - provider: cliproxyapi
       model: gemini-3.1-pro-preview
+      priority: 1
+    - provider: gemini
+      model: gemini-3-flash
+      priority: 2
+    - provider: groq
+      model: llama-3.3-70b-versatile
+      priority: 3
+    - provider: gemini
+      model: gemini-2.5-flash
       priority: 4
     - provider: cliproxyapi
       model: gemini-3-flash
