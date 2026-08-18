@@ -3144,6 +3144,17 @@ class RotatingClient:
         random.shuffle(shuffled_credentials)
 
         provider_instance = self._get_provider_instance(provider)
+        if provider_instance is None:
+            # #760: a missing {PROVIDER}_API_BASE env var silently yields 0
+            # models (no OpenAICompatibleProvider instance). Call it out so
+            # this class of misconfiguration is visible instead of looking
+            # like "tried all credentials and failed".
+            lib_logger.error(
+                f"No provider instance for '{provider}': missing or empty "
+                f"{provider.upper()}_API_BASE env var (or no plugin/credentials). "
+                f"Set {provider.upper()}_API_BASE to enable model enumeration."
+            )
+            return []
         if provider_instance:
             # For providers with hardcoded models (like gemini_cli), we only need to call once.
             # For others, we might need to try multiple keys if one is invalid.
