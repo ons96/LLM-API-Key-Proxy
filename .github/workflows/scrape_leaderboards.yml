@@ -57,12 +57,28 @@ jobs:
           cp /tmp/virtual_models_generated.yaml config/virtual_models_generated.yaml
           echo "Updated config/virtual_models_generated.yaml"
 
+      - name: Fetch quota-aware auto virtual models (routing brain)
+        if: env.skip != 'true'
+        run: |
+          # Pull the routing brain's task-class chains (auto/agentic-hard,
+          # auto/agentic-medium, auto/chat, auto/quick-edit). Optional:
+          # skipped without failing the job when the brain hasn't published yet.
+          AUTO_URL="https://raw.githubusercontent.com/ons96/llm-leaderboard-aggregate/main/leaderboards/virtual_models_auto.yaml"
+          HTTP_CODE=$(curl -s -o /tmp/virtual_models_auto.yaml -w "%{http_code}" "$AUTO_URL")
+          if [ "$HTTP_CODE" = "200" ] && grep -q "virtual_models:" /tmp/virtual_models_auto.yaml; then
+            mkdir -p config/auto
+            cp /tmp/virtual_models_auto.yaml config/auto/virtual_models_auto.yaml
+            echo "Updated config/auto/virtual_models_auto.yaml"
+          else
+            echo "NOTE: virtual_models_auto.yaml not available yet (HTTP $HTTP_CODE). Skipping."
+          fi
+
       - name: Fetch per-virtual-model fallback CSVs
         if: env.skip != 'true'
         run: |
           mkdir -p config/fallbacks
           BASE_URL="https://raw.githubusercontent.com/ons96/llm-leaderboard-aggregate/main/leaderboards"
-          for vm in coding_elite coding_smart coding_fast chat_elite chat_smart chat_fast; do
+          for vm in coding_elite coding_smart coding_fast chat_elite chat_fast; do
             curl -s -o "config/fallbacks/fallback_${vm}.csv" "${BASE_URL}/fallback_${vm}.csv" || true
           done
           echo "Downloaded per-virtual-model fallback CSVs"
@@ -94,7 +110,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add config/virtual_models_generated.yaml config/fallbacks/ config/model_rankings.yaml 2>/dev/null || true
+          git add config/virtual_models_generated.yaml config/auto/ config/fallbacks/ config/model_rankings.yaml 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
