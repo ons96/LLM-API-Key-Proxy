@@ -10,6 +10,7 @@ import time
 import json
 import logging
 import hashlib
+import inspect
 from typing import Dict, List, Optional, Any, AsyncGenerator, Union, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
@@ -2624,6 +2625,66 @@ class RouterCore:
                 await asyncio.sleep(backoff)
         raise last_err  # unreachable, but satisfies type checker
 
+    async def _alias_stream_with_fallback(
+        self,
+        request: Dict[str, Any],
+        request_id: str,
+        alias_model: str,
+        candidates: List[Dict[str, str]],
+        initial_stream: AsyncGenerator[Dict[str, Any], None],
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Stream an alias request with per-candidate failover.
+
+        For streaming requests, route_request returns an async generator that
+        has not started yet; provider errors surface during iteration, after
+        the alias loop has already returned. This wrapper restores chain
+        failover by moving to the next alias candidate when the current
+        stream errors, mirroring _stream_with_fallback's semantics.
+        """
+        last_error = None
+        stream = initial_stream
+
+        for idx, candidate_cfg in enumerate(candidates):
+            if idx > 0:
+                candidate_request = request.copy()
+                candidate_request["model"] = (
+                    f"{candidate_cfg['provider']}/{candidate_cfg['model']}"
+                )
+                try:
+                    logger.info(
+                        f"[{request_id}] Alias '{alias_model}' -> Trying "
+                        f"{candidate_cfg['provider']}/{candidate_cfg['model']}"
+                    )
+                    stream = await self.route_request(candidate_request, request_id)
+                except Exception as e:
+                    last_error = e
+                    logger.warning(
+                        f"[{request_id}] Alias chain: {candidate_cfg['provider']}/"
+                        f"{candidate_cfg['model']} failed: {e}"
+                    )
+                    continue
+
+            try:
+                async for chunk in stream:
+                    yield chunk
+                return
+            except Exception as e:
+                last_error = e
+                logger.warning(
+                    f"[{request_id}] Alias chain stream: {candidate_cfg['provider']}/"
+                    f"{candidate_cfg['model']} failed: {e}"
+                )
+                continue
+
+        logger.error(
+            f"[{request_id}] All candidates for alias '{alias_model}' failed."
+        )
+        if last_error:
+            raise last_error
+        raise HTTPException(
+            status_code=503, detail=f"All providers for alias '{alias_model}' failed"
+        )
+
     async def _route_request_inner(
         self, request: Dict[str, Any], request_id: str
     ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
@@ -2655,7 +2716,16 @@ class RouterCore:
                     # Recursively call route_request (but now with a resolved explicit model)
                     # We avoid infinite recursion because the new model id (e.g. "openai/gpt-4")
                     # won't match an alias key in the next pass.
-                    return await self.route_request(candidate_request, request_id)
+                    result = await self.route_request(candidate_request, request_id)
+
+                    if inspect.isasyncgen(result):
+                        # Streaming: the generator has not started, so provider
+                        # errors would surface after this loop returns. Hand the
+                        # chain to the wrapper so failover still happens.
+                        return self._alias_stream_with_fallback(
+                            request, request_id, model_id, alias_candidates, result
+                        )
+                    return result
 
                 except Exception as e:
                     last_error = e
