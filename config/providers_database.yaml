@@ -3810,3 +3810,12 @@ providers:
   - id: ling-3.0-tiny
     context: 262144
   notes: Discovered 2026-08-19
+- id: opencode-go
+  name: OpenCode Go
+  enabled: false
+  free_tier: true
+  no_api_key_required: false
+  free_models:
+  - id: ox-alpha-free
+    context: 1000000
+  notes: Discovered 2026-08-22
