@@ -291,6 +291,8 @@ def extract_request_features(body: Dict[str, Any]) -> RequestFeatures:
     tool_count = 0
 
     messages = body.get("messages") or []
+    if not isinstance(messages, (list, tuple)):
+        messages = []
     for msg in messages:
         if not isinstance(msg, dict):
             continue

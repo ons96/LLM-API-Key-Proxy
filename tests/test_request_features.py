@@ -298,6 +298,29 @@ def test_mixed_multimodal_content():
     assert f.image_count == 1 and f.file_count == 1
 
 
+def test_non_iterable_messages_degrade_not_raise():
+    # Regression (#765): messages as a scalar must honor the never-raise contract.
+    f = extract_request_features({"messages": 42})
+    assert f.capabilities == Capabilities.TEXT
+    assert f.task_class == TaskClass.SHORT_QA
+    f = extract_request_features({"messages": {"role": "user", "content": "hi"}})
+    assert f.capabilities == Capabilities.TEXT
+
+
+def test_non_string_reasoning_effort_ignored():
+    f = extract_request_features(_req([_text_msg("hi")], reasoning_effort=42))
+    assert f.reasoning_effort is None
+    f = extract_request_features(_req([_text_msg("hi")], reasoning_effort={"level": "high"}))
+    assert f.reasoning_effort is None
+
+
+def test_non_list_modalities_ignored():
+    # Sneaky case: a bare string "image" would satisfy naive substring checks.
+    f = extract_request_features(_req([_text_msg("hi")], modalities="image"))
+    assert f.capabilities == Capabilities.TEXT
+    assert f.image_count == 0
+
+
 # ---------------------------------------------------------------------------
 # Performance sanity (soft; AC: <5ms p50, <10ms p95 on VPS-40)
 # ---------------------------------------------------------------------------
