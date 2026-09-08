@@ -120,7 +120,9 @@ def load_capabilities(
 
     def _caps_from_keywords(keywords: Sequence[str]) -> Capabilities:
         caps = Capabilities.TEXT
-        lowered = " ".join(k.lower() for k in keywords)
+        # providers_database.yaml has 63 providers with `capabilities:` null;
+        # dict.get default doesn't fire when key exists with None value.
+        lowered = " ".join(k.lower() for k in (keywords or []))
         if any(k in lowered for k in _TOOL_KEYWORDS):
             caps |= Capabilities.TOOL_CALLING
         if any(k in lowered for k in _VISION_KEYWORDS):
