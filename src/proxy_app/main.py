@@ -745,11 +745,21 @@ with _console.status("[dim]Mounting provider status API routes...", spinner="dot
     from proxy_app.status_api import router as status_router
     from proxy_app.cliproxyapi_api import router as cliproxyapi_router
     from proxy_app.model_api import router as model_router
+    from proxy_app.outcomes_api import router as outcomes_router
 
 # Mount status API routes
 app.include_router(status_router)
 app.include_router(cliproxyapi_router)
 app.include_router(model_router)
+app.include_router(outcomes_router)
+
+# Initialize task telemetry tables (best-effort; buffer DB for the routing brain)
+try:
+    from proxy_app import task_telemetry
+
+    task_telemetry.init_db()
+except Exception:
+    logging.exception("task telemetry init failed; continuing without it")
 
 
 def get_rotating_client(request: Request) -> RotatingClient:
@@ -1100,11 +1110,39 @@ async def chat_completions(
 
     # Use RouterWrapper to handle the request
     try:
+        # Task-class telemetry (routing brain Phase 3): opt-in via headers.
+        task_class = (request.headers.get("x-task-class") or "").strip() or None
+        task_id = (request.headers.get("x-task-id") or "").strip() or None
+        virtual_model = str(request_data.get("model") or "")
+
+        def _record_task_request(status: str, error: str | None = None, result_obj=None) -> None:
+            if not (task_class or task_id):
+                return
+            concrete_model = None
+            concrete_provider = None
+            if isinstance(result_obj, dict):
+                concrete_model = result_obj.get("model")
+                concrete_provider = result_obj.get("provider")
+            from proxy_app import task_telemetry
+
+            task_telemetry.record_gateway_request(
+                request_id=None,
+                virtual_model=virtual_model,
+                task_class=task_class,
+                task_id=task_id,
+                concrete_provider=concrete_provider if isinstance(concrete_provider, str) else None,
+                concrete_model=concrete_model if isinstance(concrete_model, str) else None,
+                stream=bool(request_data.get("stream", False)),
+                status=status,
+                error=error,
+            )
+
         router = get_router()
         result = await router.handle_chat_completions(request_data, request)
         # If streaming, wrap in StreamingResponse with proper SSE format
         if request_data.get("stream", False):
             request_id = f"req_{uuid.uuid4().hex[:16]}"
+            _record_task_request("stream_started")
             async def _sse_wrap(gen):
                 try:
                     async for chunk in gen:
@@ -1113,7 +1151,9 @@ async def chat_completions(
                         else:
                             yield f"data: {chunk}\n\n"
                     yield "data: [DONE]\n\n"
+                    _record_task_request("success")
                 except Exception as e:
+                    _record_task_request("error", str(e))
                     # str(e) can contain quotes/newlines from LiteLLM/provider errors.
                     # Streaming headers are already sent here, so emit an
                     # OpenAI-compatible chunk instead of a bare {"error": ...}
@@ -1150,6 +1190,7 @@ async def chat_completions(
                     yield f"data: {json.dumps(final_chunk)}\n\n"
                     yield "data: [DONE]\n\n"
             return StreamingResponse(_sse_wrap(result), media_type="text/event-stream")
+        _record_task_request("success", result_obj=result if isinstance(result, dict) else None)
         # ponytail: serialize litellm ModelResponse to dict before FastAPI return.
         # OpenAI SDK Message/Choices expect 10 fields but litellm returns 5 populated;
         # Pydantic UserWarning on serialize -> malformed JSON -> opencode UnknownError.
@@ -1173,6 +1214,10 @@ async def chat_completions(
         return result
     except Exception as e:
         logging.error(f"Router delegation failed: {e}.")
+        try:
+            _record_task_request("error", str(e))
+        except Exception:
+            pass
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=f"Router Error: {str(e)}")
