@@ -1,0 +1,33 @@
+# Per-task-class max_tokens budget (#479) - "speed guarantee" lever.
+#
+# Small tasks must not burn the full 4096-token default. This map sets a sane
+# per-class ceiling that is applied to outgoing upstream requests ONLY when the
+# client did not provide its own max_tokens (user intent always wins).
+#
+# The effective cap is:  min(class_default * tier_multiplier,
+#                            context_limit - estimated_input_tokens - safety_margin)
+#
+# Class defaults (tokens) - tune here or via TOKEN_BUDGET_OVERRIDES env JSON.
+class_defaults:
+  greeting: 128
+  short-qa: 512
+  code-edit: 1024
+  code-gen: 2048
+  reasoning: 4096
+  agentic-multi-step: 8192
+  summarization: 1500
+  vision-caption: 512
+  file-analysis: 2048
+
+# Tier multipliers: T0-T1 get the class default; higher tiers may raise the cap
+# within the context-limit clamp. Keyed by tier index (int) matching
+# tier_classifier tiers.
+tier_multiplier:
+  "0": 1.0
+  "1": 1.0
+  "2": 1.2
+  "3": 1.5
+  "4": 2.0
+
+# Reserve headroom so input + output stays within the provider context window.
+safety_margin: 256
