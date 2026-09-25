@@ -44,6 +44,13 @@ parser.add_argument(
 )
 parser.add_argument("--port", type=int, default=8000, help="Port to run the server on.")
 parser.add_argument(
+    "--fd",
+    type=int,
+    default=None,
+    help="Bind to an inherited listening socket fd (systemd socket activation)"
+    " instead of host/port. Requires LISTEN_FDS from the llm-gateway.socket unit (#901).",
+)
+parser.add_argument(
     "--enable-request-logging", action="store_true", help="Enable request logging."
 )
 parser.add_argument(
@@ -1708,5 +1715,19 @@ if __name__ == "__main__":
                     probe.close()
                 time.sleep(0.5)
             return False
-        _wait_port_free(args.host, args.port)
-        uvicorn.run(app, host=args.host, port=args.port)
+        if args.fd is not None:
+            # #901 socket handoff: llm-gateway.socket (systemd) owns the listening
+            # socket, so restarts are zero-downtime -- the kernel queues connections
+            # in the backlog while this process boots. Refuse to bind a garbage fd
+            # when systemd did not actually pass sockets (LISTEN_FDS unset).
+            if not os.environ.get("LISTEN_FDS"):
+                logging.error(
+                    "--fd %d given but LISTEN_FDS is unset; refusing to bind a "
+                    "non-socket fd. Start via llm-gateway.socket (systemd).",
+                    args.fd,
+                )
+                sys.exit(1)
+            uvicorn.run(app, fd=args.fd)
+        else:
+            _wait_port_free(args.host, args.port)
+            uvicorn.run(app, host=args.host, port=args.port)

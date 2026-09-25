@@ -1,17 +1,24 @@
 [Unit]
-Description=LLM API Gateway Proxy
-After=network.target
+Description=LLM API Key Proxy Gateway
+After=network-online.target tailscaled.service
+Wants=network-online.target tailscaled.service
 
 [Service]
 Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/LLM-API-Key-Proxy
-EnvironmentFile=/home/ubuntu/LLM-API-Key-Proxy/.env
-ExecStart=/home/ubuntu/LLM-API-Key-Proxy/venv/bin/python src/proxy_app/main.py --host 0.0.0.0 --port 8000
-Restart=on-failure
-RestartSec=10
-StandardOutput=append:/home/ubuntu/llm_proxy.log
-StandardError=append:/home/ubuntu/llm_proxy.log
+Environment=PYTHONUNBUFFERED=1
+Environment=TERM=dumb
+# #901: bind the systemd-passed listening socket (fd 3) held by
+# llm-gateway.socket instead of host/port -> zero-downtime restarts.
+# Do NOT enable at boot: the socket unit spawns this service on first
+# connection (systemctl disable llm-gateway.service; systemctl enable llm-gateway.socket).
+ExecStart=/home/ubuntu/LLM-API-Key-Proxy/venv/bin/python src/proxy_app/main.py --fd 3
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=30
+MemoryMax=400M
 
 [Install]
 WantedBy=multi-user.target

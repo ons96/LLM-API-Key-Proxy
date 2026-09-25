@@ -1,0 +1,13 @@
+[Unit]
+Description=LLM API Key Proxy Gateway listening socket (zero-downtime restarts, #901)
+
+[Socket]
+# systemd owns :8000 and hands the listening socket to llm-gateway.service
+# on every (re)start (fd 3, LISTEN_FDS). Connections queue in the kernel
+# backlog while the gateway reboots -- nothing is refused.
+# Implicit Service=llm-gateway.service by name match.
+ListenStream=8000
+Accept=no
+
+[Install]
+WantedBy=sockets.target

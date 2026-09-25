@@ -9,7 +9,7 @@ Type=oneshot
 # Tell systemd this is success, not failure.
 SuccessExitStatus=2
 # Env overrides — copy to /etc/systemd/system/ and edit as needed.
-Environment=TELEMETRY_DB_PATH=/dev/shm/telemetry.db
+Environment=TELEMETRY_DB_PATH=/home/ubuntu/gateway-data/telemetry.db
 Environment=REORDER_WINDOW_H=24
 Environment=REORDER_MIN_SAMPLES=5
 Environment=REORDER_MAX_TPS=3000
@@ -29,8 +29,8 @@ ExecStart=/usr/bin/python3 ${REPO_PATH}/scripts/reorder_chains.py \
   --window-h ${REORDER_WINDOW_H} \
   --min-samples ${REORDER_MIN_SAMPLES}
 
-# Restart gateway to pick up new config (optional; remove if hot-reload is wired).
-# Post-restart leaves a 5s window where the gateway is unavailable.
+# Restart gateway to pick up new config. Zero-downtime since #901:
+# llm-gateway.socket holds :8000; connections queue while the gateway reboots.
 ExecStartPost=/bin/sh -c 'systemctl restart llm-gateway.service || true'
 
 # Security hardening
