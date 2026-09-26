@@ -29,7 +29,7 @@ Smoothing:
 
 Usage:
     python scripts/reorder_chains.py [--config config/virtual_models.yaml]
-                                      [--telemetry-db /dev/shm/telemetry.db]
+                                      [--telemetry-db data/telemetry.db]
                                       [--dry-run] [--verbose]
 
 Exit codes:
@@ -71,7 +71,13 @@ logger = logging.getLogger("reorder_chains")
 
 DEFAULT_CONFIG_PATH = _REPO_ROOT / "config" / "virtual_models.yaml"
 DEFAULT_TIER_CONFIG = _REPO_ROOT / "config" / "tier_config.yaml"
-DEFAULT_TELEMETRY_DB = os.environ.get("TELEMETRY_DB_PATH", "/dev/shm/telemetry.db")
+# ponytail #928: durable on-disk default. /dev/shm is wiped on reboot, which
+# silently zeroed the telemetry window and made reorder a no-op. The gateway
+# writer still defaults to /dev/shm until operators point TELEMETRY_DB_PATH
+# at this same durable path (#758 follow-up); env override still wins.
+DEFAULT_TELEMETRY_DB = os.environ.get(
+    "TELEMETRY_DB_PATH", str(_REPO_ROOT / "data" / "telemetry.db")
+)
 DEFAULT_WINDOW_H = int(os.environ.get("REORDER_WINDOW_H", "24"))
 DEFAULT_MIN_SAMPLES = int(os.environ.get("REORDER_MIN_SAMPLES", "5"))
 DEFAULT_MAX_TPS = float(os.environ.get("REORDER_MAX_TPS", "3000"))
