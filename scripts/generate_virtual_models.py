@@ -180,8 +180,13 @@ def calculate_score(model: Dict, weights: Dict) -> float:
     return total
 
 
-def load_coding_models() -> List[Dict]:
-    rankings = load_yaml("model_rankings.yaml")
+def load_coding_models(path: Optional[Path] = None) -> List[Dict]:
+    # #928: optional explicit path so the chain-regeneration runner (and
+    # tests) can point at fixture rankings without touching CONFIG_DIR.
+    if path is not None:
+        rankings = yaml.safe_load(Path(path).read_text()) or {}
+    else:
+        rankings = load_yaml("model_rankings.yaml")
     models = []
     for m in rankings.get("models", []):
         scores = m.get("scores", {})
@@ -206,8 +211,12 @@ def load_coding_models() -> List[Dict]:
     return models
 
 
-def load_chat_models() -> List[Dict]:
-    rankings = load_yaml("chat_model_rankings.yaml")
+def load_chat_models(path: Optional[Path] = None) -> List[Dict]:
+    # #928: optional explicit path (see load_coding_models).
+    if path is not None:
+        rankings = yaml.safe_load(Path(path).read_text()) or {}
+    else:
+        rankings = load_yaml("chat_model_rankings.yaml")
     models = []
     for m in rankings.get("models", []):
         models.append(
