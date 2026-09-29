@@ -21,9 +21,9 @@ providers:
     - kimi-k3
     - kimi-k2.6
   kilo:
-    enabled: false
+    enabled: true
     env_var: KILO_API_KEY
-    base_url: https://api.kilo.ai/v1
+    base_url: https://api.kilo.ai/api/gateway
     free_tier: true
     free_tier_models:
     - x-ai/grok-code-fast-1:optimized:free
@@ -42,7 +42,18 @@ providers:
     - openrouter/healer-alpha
     - openrouter/hunter-alpha
     - openrouter/bodybuilder
-    _auto_disabled_reason: HTTP 404
+    # Space Bunny Alpha verified working via VPS-40 direct probe (coding + tool-call, cost 0)
+    - stealth/space-bunny-alpha
+    # Laguna S 2.1: verified working via VPS-40 direct probe (coding + tool-call, cost 0)
+    - poolside/laguna-s-2.1:free
+    # Nemotron 3 Ultra: verified working via VPS-40 direct probe (coding + tool-call, cost 0)
+    - nvidia/nemotron-3-ultra-550b-a55b:free
+    # Ling 3.0 Flash Sante: verified working via VPS-40 direct probe (coding + tool-call, cost 0)
+    - inclusionai/ling-3.0-flash-sante:free
+    # Dots 3 Note Preview: verified working via VPS-40 direct probe (coding + tool-call, cost 0)
+    - dots-studio/dots-3-note-preview:free
+    # Step 3.7 Flash: verified working via VPS-40 direct probe (coding + tool-call)
+    - stepfun/step-3.7-flash:free
   groq:
     enabled: true
     env_var: GROQ_API_KEY
@@ -508,6 +519,15 @@ providers:
     base_url: https://api.iamhc.cn/v1
     free_tier: true
     free_tier_models: []
+  crowllm:
+    enabled: true
+    env_var: CROWLLM_API_KEY
+    base_url: https://crowllm.com/v1
+    free_tier: true
+    free_tier_models:
+    - glm-5.3-flashx:free
+    - space-bunny-alpha:free
+    - mimo-v2.6-pro:free
   kilocode:
     base_url: https://api.kilocloud.ai/v1
     enabled: true

@@ -155,6 +155,10 @@ iamhc:
   max_context_tokens: 131072
   rpm_limit: 0
   tpm_limit: 0
+crowllm:
+  max_context_tokens: 131072
+  rpm_limit: 0
+  tpm_limit: 0
 freetheai:
   max_context_tokens: 131072
   rpm_limit: 0
