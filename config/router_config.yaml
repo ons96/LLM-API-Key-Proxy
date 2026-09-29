@@ -525,6 +525,7 @@ providers:
     base_url: https://crowllm.com/v1
     free_tier: true
     free_tier_models:
+    - command-a:free
     - glm-5.3-flashx:free
     - space-bunny-alpha:free
     - mimo-v2.6-pro:free
