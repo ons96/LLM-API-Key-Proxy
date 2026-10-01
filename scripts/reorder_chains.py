@@ -25,7 +25,13 @@ reordered by composite. No pins file = current behavior.
 Smoothing:
     - 24h telemetry window (REORDER_WINDOW_H env, default 24)
     - min 5 samples per (provider, model) (REORDER_MIN_SAMPLES env, default 5)
-    - if below threshold, keep original priority (no thrash on outliers)
+    - sparse-data prior (spec fallback-chain-sparse-telemetry-prior):
+      zero-telemetry entries score their benchmark prior
+      (model_rankings.yaml composite, [0,1]); partial-data entries blend
+      telemetry toward the prior by n/(n+K) with K=min_samples, so
+      high-benchmark models outrank telemetry-rich low-benchmark ones.
+      Partial-only chains keep original order (no thrash on noise);
+      all-zero-telemetry chains sort by prior.
 
 Usage:
     python scripts/reorder_chains.py [--config config/virtual_models.yaml]
@@ -395,24 +401,14 @@ def load_chain_pins(pins_path: Optional[Path] = None) -> Dict[str, List[Dict]]:
 # ---------------------------------------------------------------------------
 
 
-def compute_composite(
-    stat: Optional[TelemetryStat],
+def _full_telemetry_score(
+    stat: TelemetryStat,
     penalty: float,
-    min_samples: int,
     max_tps: float,
     max_ttft_ms: float,
-    quality: float = 0.0,
+    quality: float,
 ) -> Tuple[float, str]:
-    """Return (score, reason). Score in [0, 1.1] (1.1 = perfect + no penalty).
-
-    If stat is None or below min_samples, returns (-1.0, "insufficient_samples")
-    so the caller knows to keep original priority.
-    """
-    if stat is None:
-        return -1.0, "no_telemetry"
-    if stat.samples < min_samples:
-        return -1.0, f"insufficient_samples({stat.samples}<{min_samples})"
-
+    """Full 6-factor composite for sufficient-sample entries. Score in [0, 1]."""
     success = max(0.0, min(1.0, stat.success_rate))
     tps_norm = max(0.0, min(1.0, stat.avg_tps / max_tps)) if max_tps > 0 else 0.0
     ttft_norm = (
@@ -445,6 +441,46 @@ def compute_composite(
     return score, reason
 
 
+def compute_composite(
+    stat: Optional[TelemetryStat],
+    penalty: float,
+    min_samples: int,
+    max_tps: float,
+    max_ttft_ms: float,
+    quality: float = 0.0,
+    shrink_k: Optional[int] = None,
+) -> Tuple[float, str]:
+    """Return (score, reason). Score in [0, 1].
+
+    Sparse-data prior (spec fallback-chain-sparse-telemetry-prior):
+    zero-telemetry entries score their benchmark prior (quality, [0,1])
+    so capable models compete without TPS data. Partial-data entries
+    (0 < samples < min_samples) blend the full telemetry composite
+    toward the prior by n/(n+K) with K=min_samples (Bayesian shrinkage).
+    Sufficient-sample entries use the full composite unchanged.
+    """
+    quality_prior = max(0.0, min(1.0, quality))
+    k_val = shrink_k if shrink_k is not None else min_samples
+    if not k_val or k_val <= 0:
+        k_val = min_samples if min_samples > 0 else 5
+    if stat is None:
+        return quality_prior, f"no_telemetry:prior_qual={quality_prior:.2f}"
+    if stat.samples < min_samples:
+        telem_score, telem_reason = _full_telemetry_score(
+            stat, penalty, max_tps, max_ttft_ms, quality
+        )
+        n = max(0, stat.samples)
+        w = n / (n + k_val)
+        blended = w * telem_score + (1.0 - w) * quality_prior
+        reason = (
+            f"sparse(n={n}<{min_samples}):telem={telem_score:.2f}*{w:.2f}"
+            f"+prior={quality_prior:.2f}*{1.0 - w:.2f} [{telem_reason}]"
+        )
+        return blended, reason
+
+    return _full_telemetry_score(stat, penalty, max_tps, max_ttft_ms, quality)
+
+
 # ---------------------------------------------------------------------------
 # Config rewrite
 # ---------------------------------------------------------------------------
@@ -462,8 +498,11 @@ def reorder_chain(
 ) -> Tuple[List[Dict], List[str]]:
     """Reorder one fallback_chain. Returns (new_chain, reasons).
 
-    Entries with insufficient samples keep their original relative order
-    (stable sort), but are placed AFTER all entries with valid telemetry.
+    Sparse-telemetry prior (spec fallback-chain-sparse-telemetry-prior):
+    zero-telemetry entries score their benchmark prior and compete on
+    equal footing; partial-data entries blend telemetry toward the prior.
+    Partial-only chains (some telemetry, none sufficient) keep original
+    order to avoid noise thrash; all-zero chains sort by prior.
 
     Pinned entries (#472) — when `pins` is non-empty, entries whose
     (provider, model) matches a pin are forced to the chain head in pin
@@ -489,13 +528,27 @@ def reorder_chain(
         )
         entries.append((entry, score, reason))
 
-    # ponytail: stable sort — entries with score=-1 (insufficient samples)
-    # keep their original relative order, but come after scored entries.
-    # Sort key: (has_score, score). has_score=True (1) sorts before False (0).
-    entries.sort(
-        key=lambda t: (1 if t[1] >= 0 else 0, t[1] if t[1] >= 0 else 0.0),
-        reverse=True,
+    # ponytail: sparse prior gives every entry a valid score; stable sort
+    # by score only, ties keep original relative order. Partial-only
+    # chains (some telemetry, none sufficient) skip sorting to avoid
+    # noise thrash; all-zero chains sort by prior (benchmark order).
+    def _samples_for(provider: str, model: str) -> Optional[int]:
+        stat = stats.get((provider, model))
+        return stat.samples if stat is not None else None
+
+    has_full = any(
+        (_samples_for(c.get("provider", ""), c.get("model", "")) or 0) >= min_samples
+        for c in chain
     )
+    has_any = any(
+        (_samples_for(c.get("provider", ""), c.get("model", "")) or 0) > 0
+        for c in chain
+    )
+    if not has_full and has_any:
+        # No-thrash: noisy partial data only — keep original order.
+        pass
+    else:
+        entries.sort(key=lambda t: t[1], reverse=True)
 
     new_chain: List[Dict] = []
     reasons: List[str] = []

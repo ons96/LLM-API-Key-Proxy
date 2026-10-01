@@ -3,7 +3,9 @@
 Verifies:
 - Telemetry stats aggregate correctly from llm_events table
 - Composite scoring weights success_rate > tps > ttft > penalty
-- Insufficient-sample entries keep original order, moved to tail
+- Zero-telemetry entries score their benchmark prior and compete evenly
+- Partial-sample entries blend telemetry toward the prior (n/(n+K))
+- Partial-only chains keep original order (no thrash); all-zero sort by prior
 - Healthy provider rises; failing provider drops
 - Backup file created with timestamp
 - Dry-run does not write
@@ -154,14 +156,21 @@ class TestComputeComposite(unittest.TestCase):
 
     def test_no_telemetry(self):
         score, reason = compute_composite(None, 0.0, 5, 3000.0, 30000.0)
-        self.assertEqual(score, -1.0)
-        self.assertEqual(reason, "no_telemetry")
+        self.assertEqual(score, 0.0)
+        self.assertIn("no_telemetry", reason)
+
+    def test_no_telemetry_uses_quality_prior(self):
+        score, reason = compute_composite(
+            None, 0.0, 5, 3000.0, 30000.0, quality=0.85
+        )
+        self.assertAlmostEqual(score, 0.85, places=2)
+        self.assertIn("prior", reason)
 
     def test_insufficient_samples(self):
         stat = TelemetryStat("groq", "llama", 2, 1.0, 50.0, 500.0)
         score, reason = compute_composite(stat, 0.0, 5, 3000.0, 30000.0)
-        self.assertEqual(score, -1.0)
-        self.assertIn("insufficient", reason)
+        self.assertGreaterEqual(score, 0.0)
+        self.assertIn("sparse", reason)
 
     def test_penalty_lowers_score(self):
         stat = TelemetryStat("groq", "llama", 100, 1.0, 0.0, 0.0)
@@ -201,12 +210,42 @@ class TestReorderChain(unittest.TestCase):
         ]
         stats = {
             ("good", "m-good"): TelemetryStat("good", "m-good", 100, 0.99, 200.0, 100.0),
-            # novel has no stats
+            # novel has no stats -> prior 0.0 by default
         }
         new_chain, _ = reorder_chain(chain, stats, {}, 5, 3000.0, 30000.0)
-        # good (scored) first, novel (unscored) second
+        # good (scored) first, novel (zero prior) second
         self.assertEqual(new_chain[0]["provider"], "good")
         self.assertEqual(new_chain[1]["provider"], "novel")
+
+    def test_high_prior_zero_telemetry_outranks_low_quality_telemetry_rich(self):
+        # AC1: top-quartile prior with no telemetry beats bottom-quartile
+        # composite that is telemetry-rich but slow/failing.
+        chain = [
+            {"provider": "old", "model": "m-old", "priority": 1},
+            {"provider": "new", "model": "m-new", "priority": 2},
+        ]
+        stats = {
+            ("old", "m-old"): TelemetryStat("old", "m-old", 100, 0.50, 5.0, 20000.0),
+        }
+        quality = {"old/m-old": 0.15, "new/m-new": 0.85}
+        new_chain, _ = reorder_chain(
+            chain, stats, {}, 5, 3000.0, 30000.0, quality
+        )
+        self.assertEqual(new_chain[0]["provider"], "new")
+        self.assertEqual(new_chain[1]["provider"], "old")
+
+    def test_all_zero_telemetry_sorts_by_prior(self):
+        # AC3: empty telemetry DB preserves benchmark-prior order.
+        chain = [
+            {"provider": "b", "model": "low", "priority": 1},
+            {"provider": "a", "model": "high", "priority": 2},
+        ]
+        quality = {"b/low": 0.20, "a/high": 0.90}
+        new_chain, _ = reorder_chain(
+            chain, {}, {}, 5, 3000.0, 30000.0, quality
+        )
+        self.assertEqual(new_chain[0]["provider"], "a")
+        self.assertEqual(new_chain[1]["provider"], "b")
 
     def test_empty_chain(self):
         new_chain, reasons = reorder_chain([], {}, {}, 5, 3000.0, 30000.0)
