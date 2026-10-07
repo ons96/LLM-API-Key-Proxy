@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 import time
 from typing import Dict, Any, List
 import litellm
@@ -10,6 +11,14 @@ logger = logging.getLogger(__name__)
 # Dead g4f backends return 'Model not found' 500s on chat pings and
 # destabilize the process at startup. Env-overridable comma list.
 SKIP_DEFAULT = "g4f,g4f_ollama,g4f_nvidia,g4f_groq,g4f_pollinations"
+_SECRET_IN_ERROR = re.compile(
+    r"(?i)(api[_ -]?key|token|bearer)[=: ]+[A-Za-z0-9_./+=:-]+"
+)
+
+
+def _safe_error(error: object) -> str:
+    """Prevent provider credentials from being copied into gateway logs."""
+    return _SECRET_IN_ERROR.sub(r"\1=[REDACTED]", str(error))
 
 
 class HealthChecker:
@@ -40,7 +49,7 @@ class HealthChecker:
             try:
                 await self._check_all_providers()
             except Exception as e:
-                logger.error(f"Error in health check loop: {e}")
+                logger.error(f"Error in health check loop: {_safe_error(e)}")
 
             await asyncio.sleep(self.interval_seconds)
 
@@ -86,10 +95,12 @@ class HealthChecker:
                 return provider_name, status
 
             except Exception as e:
-                logger.warning(f"Health check error for {provider_name}: {e}")
+                logger.warning(
+                    f"Health check error for {provider_name}: {_safe_error(e)}"
+                )
                 return provider_name, {
                     "status": "error",
-                    "error": str(e),
+                    "error": _safe_error(e),
                     "last_check": time.time(),
                 }
 
@@ -104,7 +115,7 @@ class HealthChecker:
         # Update status for all providers
         for result in results:
             if isinstance(result, BaseException):
-                logger.error(f"Health check task failed: {result}")
+                logger.error(f"Health check task failed: {_safe_error(result)}")
                 continue
 
             if not isinstance(result, tuple):
