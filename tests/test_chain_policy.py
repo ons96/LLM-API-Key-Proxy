@@ -27,7 +27,7 @@ class TestChainPolicy(unittest.TestCase):
     def test_required_blocks_and_allowed_neighbors(self) -> None:
         cases = (
             ("kilo", "model", True),
-            ("kilocode", "model", False),
+            ("kilocode", "model", True),
             ("antigravity", "model", True),
             ("g4f_nvidia", "model", True),
             ("g4f", "model", False),
@@ -54,7 +54,7 @@ class TestChainPolicy(unittest.TestCase):
             )
         )
         self.assertIsNone(
-            chain_policy.blocked_reason("KILOCODE", "model", self.policy)
+            chain_policy.blocked_reason("NVIDIA", "model", self.policy)
         )
 
     def test_sanitize_filters_dedupes_and_preserves_metadata(self) -> None:
@@ -72,9 +72,9 @@ class TestChainPolicy(unittest.TestCase):
         self.assertEqual(chain[0]["notes"], "keep")
         self.assertEqual(
             [(entry["provider"], entry["priority"]) for entry in chain],
-            [("nvidia", 1), ("groq", 2)],
+            [("nvidia", 1), ("crowllm", 2)],
         )
-        self.assertEqual(chain[1]["model"], "llama-3.3-70b-versatile")
+        self.assertEqual(chain[1]["model"], "mimo-v2.6-pro:free")
 
     def test_sanitize_empty_chain_injects_direct_fallback(self) -> None:
         chain = chain_policy.sanitize_chain([], self.policy)
@@ -82,8 +82,8 @@ class TestChainPolicy(unittest.TestCase):
             chain,
             [
                 {
-                    "provider": "groq",
-                    "model": "llama-3.3-70b-versatile",
+                    "provider": "crowllm",
+                    "model": "mimo-v2.6-pro:free",
                     "priority": 1,
                 }
             ],
@@ -91,14 +91,14 @@ class TestChainPolicy(unittest.TestCase):
 
     def test_direct_fallback_requires_full_model_identity(self) -> None:
         chain = chain_policy.sanitize_chain(
-            [{"provider": "groq", "model": "vendor-a/llama-3.3-70b-versatile"}],
+            [{"provider": "crowllm", "model": "vendor-a/mimo-v2.6-pro:free"}],
             self.policy,
         )
         self.assertEqual(
             [(entry["provider"], entry["model"]) for entry in chain],
             [
-                ("groq", "vendor-a/llama-3.3-70b-versatile"),
-                ("groq", "llama-3.3-70b-versatile"),
+                ("crowllm", "vendor-a/mimo-v2.6-pro:free"),
+                ("crowllm", "mimo-v2.6-pro:free"),
             ],
         )
 
@@ -118,7 +118,7 @@ class TestChainPolicy(unittest.TestCase):
         )
         self.assertEqual(
             [(entry["provider"], entry["model"]) for entry in chain],
-            [("groq", "llama-3.3-70b-versatile")],
+            [("crowllm", "mimo-v2.6-pro:free")],
         )
 
     def test_generated_merge_preserves_live_only_configuration(self) -> None:
@@ -210,8 +210,8 @@ class TestRebuildChains(unittest.TestCase):
             {
                 "coding-fast": [
                     ("supacoder", "gpt-5.4"),
-                    ("kilocode", "allowed"),
-                    ("groq", "llama-3.3-70b-versatile"),
+                    ("nvidia", "allowed"),
+                    ("crowllm", "mimo-v2.6-pro:free"),
                 ]
             },
             self.policy,
@@ -221,8 +221,8 @@ class TestRebuildChains(unittest.TestCase):
         self.assertEqual(
             [(entry["provider"], entry["model"]) for entry in chain],
             [
-                ("kilocode", "allowed"),
-                ("groq", "llama-3.3-70b-versatile"),
+                ("nvidia", "allowed"),
+                ("crowllm", "mimo-v2.6-pro:free"),
                 ("nvidia", "kept"),
             ],
         )
