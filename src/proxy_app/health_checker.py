@@ -147,7 +147,7 @@ class HealthChecker:
             request = {
                 "model": f"{provider}/{model}",
                 "messages": [{"role": "user", "content": "hi"}],
-                "max_tokens": 1,
+                "max_tokens": 50,
             }
 
             # Use adapter

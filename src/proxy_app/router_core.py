@@ -47,6 +47,85 @@ def _load_provider_caps() -> Dict[str, Any]:
     return _provider_caps
 
 
+
+# --- #813 fast-skip: cached dead_providers filter ---
+_dead_providers_cache = None
+_dead_providers_path = Path(__file__).resolve().parent.parent.parent / "config" / "dead_providers.yaml"
+
+def _load_dead_providers():
+    """Load blocked providers/models from the validated mapping policy."""
+    global _dead_providers_cache
+    if _dead_providers_cache is not None:
+        return _dead_providers_cache
+    try:
+        if _dead_providers_path.exists():
+            with open(_dead_providers_path) as f:
+                cfg = yaml.safe_load(f) or {}
+            blocked = {
+                str(entry.get("provider", "")).strip().lower()
+                for entry in cfg.get("blocked_providers", [])
+                if isinstance(entry, dict) and entry.get("provider")
+            }
+            prefixes = [
+                str(entry.get("prefix", "")).strip().lower()
+                for entry in cfg.get("blocked_provider_prefixes", [])
+                if isinstance(entry, dict) and entry.get("prefix")
+            ]
+            blocked_models = {
+                (
+                    str(entry.get("provider", "")).strip().lower(),
+                    str(entry.get("model", "")).strip().lower(),
+                )
+                for entry in cfg.get("blocked_models", [])
+                if isinstance(entry, dict)
+                and entry.get("provider")
+                and entry.get("model")
+            }
+            blocked_model_prefixes = [
+                (
+                    str(entry.get("provider", "")).strip().lower(),
+                    str(entry.get("model_prefix", "")).strip().lower(),
+                    {
+                        str(model).strip().lower()
+                        for model in entry.get("allow_models", [])
+                    },
+                )
+                for entry in cfg.get("blocked_models", [])
+                if isinstance(entry, dict)
+                and entry.get("provider")
+                and entry.get("model_prefix")
+            ]
+            _dead_providers_cache = (
+                blocked,
+                prefixes,
+                blocked_models,
+                blocked_model_prefixes,
+            )
+        else:
+            _dead_providers_cache = (set(), [], set(), [])
+    except Exception as exc:
+        logger.warning(f"dead_providers.yaml load failed: {exc}")
+        _dead_providers_cache = (set(), [], set(), [])
+    return _dead_providers_cache
+
+def _is_dead_candidate(provider: str, model: str) -> bool:
+    """Check if provider/model is in dead_providers blocklist."""
+    blocked, prefixes, blocked_models, blocked_model_prefixes = _load_dead_providers()
+    provider = str(provider).strip().lower()
+    model = str(model).strip().lower().rsplit("/", 1)[-1]
+    if provider in blocked:
+        return True
+    for prefix in prefixes:
+        if provider.startswith(prefix):
+            return True
+    if (provider, model) in blocked_models:
+        return True
+    for rule_provider, model_prefix, allow_models in blocked_model_prefixes:
+        if provider == rule_provider and model.startswith(model_prefix):
+            if model not in {allowed.rsplit("/", 1)[-1] for allowed in allow_models}:
+                return True
+    return False
+
 logger = logging.getLogger(__name__)
 
 from .litellm_fallback import build_litellm_fallback_kwargs  # noqa: E402
@@ -1913,6 +1992,10 @@ class RouterCore:
                     logger.debug(f"penalty sort skipped for {model_id}: {exc}")
 
             _oversized: list[tuple[str, str, int]] = []
+
+            # ponytail: #813 fast-skip — remove dead providers before iterating.
+            # Uses cached dead_providers.yaml; O(n) over chain (~10 entries).
+            chain = [c for c in chain if not _is_dead_candidate(c.get("provider",""), c.get("model",""))]
 
             for candidate_cfg in chain:
                 # Check FREE_ONLY_MODE restrictions

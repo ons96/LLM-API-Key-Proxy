@@ -1,52 +1,281 @@
 version: 1
-
-# This filters fallback-chain membership only. Provider/model catalogs and
-# benchmark history remain intact so a provider can be restored after a recheck.
 blocked_providers:
-  - provider: kilo
-    reason: Kilo API endpoint returned a Vercel 404 page
-    last_confirmed_dead: "2026-07-16"
-  - provider: antigravity
-    reason: OAuth route is unavailable
-    last_confirmed_dead: "2026-07-16"
-
+- provider: kilo
+  reason: Kilo API endpoint returned a Vercel 404 page
+  last_confirmed_dead: '2026-07-16'
+- provider: antigravity
+  reason: OAuth route is unavailable
+  last_confirmed_dead: '2026-07-16'
+- provider: freetheai
+  reason: All models return 403 possible abuse detected
+  last_confirmed_dead: '2026-08-18'
+- provider: futureppo
+  reason: Invalid API token (401) on all models
+  last_confirmed_dead: '2026-08-18'
+- provider: tokenrouter
+  reason: 403 credit limit insufficient
+  last_confirmed_dead: '2026-08-18'
+- provider: pooled
+  reason: 502/503/timeouts on all entries
+  last_confirmed_dead: '2026-08-18'
+- provider: koyeb-new
+  reason: Request timeout on all entries
+  last_confirmed_dead: '2026-08-18'
+- provider: zenllm-free
+  reason: 530 HTML gateway page on all entries
+  last_confirmed_dead: '2026-08-18'
+- provider: kilocode
+  reason: DNS resolution failure for api.kilocloud.ai
+  last_confirmed_dead: '2026-08-18'
+- provider: aihubmix
+  reason: No API key in .env (AIHUBMIX_API_KEY)
+  last_confirmed_dead: '2026-08-18'
+- provider: zanity
+  reason: All models 500 FST_REPLY_FROM_INTERNAL_SERVER_ERROR (upstream dead)
+  last_confirmed_dead: '2026-08-25'
+- provider: picpi
+  reason: 'Catalog-only: all chat completions 404/424 no configured backing account'
+  last_confirmed_dead: '2026-08-25'
+- provider: naxios
+  reason: DNS dead - domain does not resolve
+  last_confirmed_dead: '2026-08-25'
+- provider: dcapi-gbox
+  reason: TCP/TLS connection hangs, no reply
+  last_confirmed_dead: '2026-08-25'
+- provider: aibz
+  reason: 403 free-group access denied on all models (token group mismatch)
+  last_confirmed_dead: '2026-08-25'
+- provider: mydamoxing
+  reason: 403 free-group access denied on all models (token group mismatch)
+  last_confirmed_dead: '2026-08-25'
+- provider: sh00t
+  reason: Cloudflare WAF blocks VPS-40 datacenter IP (200 OK from laptop 2026-09-09);
+    laptop-direct-only
+  last_confirmed_dead: '2026-09-09'
+- provider: supacoder
+  reason: Cloudflare WAF blocks VPS-40 datacenter IP (2026-09-09); laptop-direct-only
+  last_confirmed_dead: '2026-09-09'
+- provider: zyf
+  reason: Cloudflare WAF blocks VPS-40 datacenter IP (2026-09-09); laptop-direct-only
+  last_confirmed_dead: '2026-09-09'
+- provider: bayunzi
+  reason: Cloudflare WAF blocks VPS-40 datacenter IP (2026-09-09); laptop-direct-only
+  last_confirmed_dead: '2026-09-09'
+- provider: privaite
+  reason: BadGateway 502 - provider unreachable from VPS-40 (not the laptop :8400
+    daemon)
+  last_confirmed_dead: '2026-09-10'
+- provider: gemini
+  reason: Daily free quota 20 exhausted (429 RESOURCE_EXHAUSTED) - confirmed 2026-09-10
+  last_confirmed_dead: '2026-09-10'
 blocked_provider_prefixes:
-  - prefix: g4f_
-    reason: g4f provider variants are unreliable fallbacks
-    last_confirmed_dead: "2026-07-16"
-
+- prefix: g4f_
+  reason: g4f provider variants are unreliable fallbacks
+  last_confirmed_dead: '2026-07-16'
 blocked_models:
-  - provider: cliproxyapi
-    model_prefix: gemini-3
-    allow_models:
-      - gemini-3-flash
-    reason: Gemini 3 variants are unsupported by CLIProxyAPI
-    last_confirmed_dead: "2026-07-16"
-  - provider: cerebras
-    model: qwen-3-235b-a22b-instruct-2507
-    reason: Model returned NotFound
-    last_confirmed_dead: "2026-07-16"
-  - provider: supacoder
-    model: gpt-5.4
-    reason: Provider blocks requests for this model
-    last_confirmed_dead: "2026-07-16"
-  - provider: gemini
-    model: gemini-3-pro
-    reason: Model is unavailable
-    last_confirmed_dead: "2026-07-16"
-  - provider: gemini
-    model: gemini-3.1-pro
-    reason: Model is unavailable
-    last_confirmed_dead: "2026-07-16"
-
-# At least one of these direct providers must remain in every generated or
-# rebuilt chain so free aggregator failures cannot exhaust the chain.
+- provider: cliproxyapi
+  model_prefix: gemini-3
+  allow_models:
+  - gemini-3-flash
+  reason: Gemini 3 variants are unsupported by CLIProxyAPI
+  last_confirmed_dead: '2026-07-16'
+- provider: cerebras
+  model: qwen-3-235b-a22b-instruct-2507
+  reason: Model returned NotFound
+  last_confirmed_dead: '2026-07-16'
+- provider: cerebras
+  model: glm-5
+  reason: Model returned NotFound
+  last_confirmed_dead: '2026-08-18'
+- provider: cerebras
+  model: llama-3.3-70b
+  reason: Model returned NotFound
+  last_confirmed_dead: '2026-08-18'
+- provider: cerebras
+  model: llama3.1-8b
+  reason: Model returned NotFound
+  last_confirmed_dead: '2026-08-18'
+- provider: groq
+  model: llama-3.3-70b-versatile
+  reason: Model returned NotFound
+  last_confirmed_dead: '2026-08-18'
+- provider: groq
+  model: llama-3.1-8b-instant
+  reason: Model returned NotFound
+  last_confirmed_dead: '2026-08-18'
+- provider: groq
+  model: meta-llama/llama-4-scout-17b-16e-instruct
+  reason: Model returned NotFound
+  last_confirmed_dead: '2026-08-18'
+- provider: supacoder
+  model: gpt-5.4
+  reason: Provider blocks requests for this model
+  last_confirmed_dead: '2026-07-16'
+- provider: supacoder
+  model: gpt-5-codex
+  reason: Model returned 503 model_not_found
+  last_confirmed_dead: '2026-08-18'
+- provider: supacoder
+  model: gpt-5.1-codex-mini
+  reason: Model returned 503 model_not_found
+  last_confirmed_dead: '2026-08-18'
+- provider: supacoder
+  model: gpt-5.3-codex
+  reason: Model returned 503 model_not_found
+  last_confirmed_dead: '2026-08-18'
+- provider: supacoder
+  model: gpt-5.2
+  reason: Model returned 503 model_not_found
+  last_confirmed_dead: '2026-08-18'
+- provider: supacoder
+  model: gpt-5.2-codex
+  reason: Model returned 503 model_not_found
+  last_confirmed_dead: '2026-08-18'
+- provider: supacoder
+  model: gpt-5.1-codex-max
+  reason: Model returned 503 model_not_found
+  last_confirmed_dead: '2026-08-18'
+- provider: nvidia
+  model: GLM5
+  reason: Wrong alias, use z-ai/glm-5.2
+  last_confirmed_dead: '2026-08-18'
+- provider: blaze-free
+  model: qwen3.7-plus-official
+  reason: 502 dried_up
+  last_confirmed_dead: '2026-08-18'
+- provider: blaze-free
+  model: qwen3.6-plus
+  reason: 502 dried_up
+  last_confirmed_dead: '2026-08-18'
+- provider: blaze-free
+  model: glm-5.2-china
+  reason: 502 dried_up
+  last_confirmed_dead: '2026-08-18'
+- provider: blaze-free
+  model: glm-5.1-slow
+  reason: 502 dried_up
+  last_confirmed_dead: '2026-08-18'
+- provider: blaze-free
+  model: gemini-2.5-flash-lite
+  reason: 502 dried_up
+  last_confirmed_dead: '2026-08-18'
+- provider: blaze-free
+  model: gemini-2.5-flash-lite-rp
+  reason: 502 dried_up
+  last_confirmed_dead: '2026-08-18'
+- provider: blaze-free
+  model: glm-4.7-china
+  reason: 502 dried_up
+  last_confirmed_dead: '2026-08-18'
+- provider: blaze-free
+  model: glm-5.1-china
+  reason: 502 dried_up
+  last_confirmed_dead: '2026-08-18'
+- provider: gemini
+  model: gemini-3-pro
+  reason: Model is unavailable
+  last_confirmed_dead: '2026-07-16'
+- provider: gemini
+  model: gemini-3.1-pro
+  reason: Model is unavailable
+  last_confirmed_dead: '2026-07-16'
+- provider: nous-inference
+  model: stealth/ox-alpha
+  reason: Model removed upstream (confirmed 2026-09-09)
+  last_confirmed_dead: '2026-09-09'
+- provider: nvidia
+  model: nvidia/nemotron-mini-4b-instruct
+  reason: EOL 2026-08-26 (410 Gone)
+  last_confirmed_dead: '2026-09-09'
+- provider: nvidia
+  model: meta/llama-3.1-8b-instruct
+  reason: EOL 410 2026-08-26 (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
+- provider: nvidia
+  model: google/gemma-3n-e4b-it
+  reason: EOL 410 2026-07-27 (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
+- provider: nvidia
+  model: google/gemma-3n-e2b-it
+  reason: EOL sibling of e4b (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
+- provider: nvidia
+  model: z-ai/glm-5.2
+  reason: EOL 410 2026-08-21 (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
+- provider: nvidia
+  model: z-ai/glm-5.1
+  reason: EOL 410 2026-07-02 (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
+- provider: nvidia
+  model: moonshotai/kimi-k2.6
+  reason: 404 not found for account (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
+- provider: groq
+  model: qwen/qwen3-32b
+  reason: model_not_found (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
+- provider: groq
+  model: moonshotai/kimi-k2-instruct
+  reason: model_not_found (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
+- provider: cerebras
+  model: zai-glm-4.7
+  reason: archived (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
+- provider: cerebras
+  model: qwen-3-32b
+  reason: no access (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
+- provider: mistral
+  model: mistral-large-latest
+  reason: not in subscription tier (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
+- provider: nous-inference
+  model: tencent/hy3:free
+  reason: free period ended (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
+- provider: gemini
+  model: gemini-2.0-flash
+  reason: 404 use gemini-3.6-flash (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
+- provider: iamhc
+  model: Kimi-K2.6
+  reason: no available channel (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
+- provider: supacoder
+  model: gpt-5.1-codex
+  reason: no channel under group free (probe 2026-09-10)
+  last_confirmed_dead: '2026-09-10'
 direct_free_fallbacks:
-  - provider: groq
-    model: llama-3.3-70b-versatile
-  - provider: cerebras
-    model: llama-3.3-70b
-  - provider: gemini
-    model: gemini-2.5-flash
-  - provider: cliproxyapi
-    model: gemini-2.5-flash
+- provider: crowllm
+  model: mimo-v2.6-pro:free
+- provider: septorlabs
+  model: minimax-m2.5-free
+- provider: crowllm
+  model: glm-5.3-flash
+  reason: trap-verified free sweep 2026-10-05 (preferred fallback)
+  last_confirmed_dead: '2026-10-05'
+- provider: septorlabs
+  model: qwen3-coder-free
+  reason: trap-verified free sweep 2026-10-05 (preferred fallback)
+  last_confirmed_dead: '2026-10-05'
+
+- provider: groq
+  model: qwen/qwen3.8-27b
+- provider: groq
+  model: muse-spark-1.3-contributor
+  reason: slug absent on groq (sweep 2026-10-05)
+  last_confirmed_dead: '2026-10-05'
+- provider: mistral
+  model: muse-spark-1.3-contributor
+  reason: slug absent on mistral (sweep 2026-10-05)
+  last_confirmed_dead: '2026-10-05'
+- provider: mistral
+  model: grok-4.7-free
+  reason: mistral does not serve slug (sweep 2026-10-05)
+  last_confirmed_dead: '2026-10-05'
+- provider: together
+  model: muse-spark-1.3-contributor
+  reason: slug absent on together (sweep 2026-10-05)
+  last_confirmed_dead: '2026-10-05'

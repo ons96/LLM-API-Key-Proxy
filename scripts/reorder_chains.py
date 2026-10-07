@@ -56,6 +56,7 @@ from typing import Dict, List, Optional, Tuple
 # Allow running as script (no package import) or as module.
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "src"))
+from chain_policy import blocked_reason, load_policy
 
 try:
     import yaml
@@ -633,6 +634,7 @@ def reorder_config(
         config = yaml.safe_load(f)
 
     virtual_models = config.get("virtual_models", {})
+    policy = load_policy()
     if not virtual_models:
         logger.warning("no virtual_models: block in %s", config_path)
         return 0, 0, ["no virtual_models found"]
@@ -677,6 +679,11 @@ def reorder_config(
 
     for model_id, model_cfg in virtual_models.items():
         chain = model_cfg.get("fallback_chain", [])
+        if chain:
+            chain = [
+                c for c in chain
+                if not blocked_reason(c.get("provider", ""), c.get("model", ""), policy)
+            ]
         if not chain:
             continue
         original_order = [(c.get("provider"), c.get("model")) for c in chain]
