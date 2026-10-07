@@ -28,11 +28,18 @@ DEFAULT_BENCHMARK_DB = Path(
         str(Path.home() / "CodingProjects/llm-leaderboard-aggregate/db/models.db"),
     )
 )
-DEFAULT_PROVIDER_DB = Path(
-    os.environ.get(
-        "LLM_PROVIDERS_DB",
-        str(Path.home() / "CodingProjects/llm-provider-manager/llm_providers.db"),
-    )
+_provider_db_override = os.environ.get("LLM_PROVIDERS_DB")
+_provider_db_candidates = (
+    [Path(_provider_db_override)]
+    if _provider_db_override
+    else [
+        Path.home() / "llm-provider-manager/llm_providers.db",
+        Path.home() / "CodingProjects/llm-provider-manager/llm_providers.db",
+    ]
+)
+DEFAULT_PROVIDER_DB = next(
+    (path for path in _provider_db_candidates if path.exists()),
+    _provider_db_candidates[0],
 )
 
 # Intelligence floor if model has no benchmark score (small models, untested).
