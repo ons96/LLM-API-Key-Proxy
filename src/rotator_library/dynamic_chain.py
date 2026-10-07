@@ -80,6 +80,7 @@ class DynamicChainRanker:
         self,
         candidates: Sequence[str],
         *,
+        model: Optional[str] = None,
         now: Optional[float] = None,
         force: bool = False,
     ) -> List[str]:
@@ -98,7 +99,7 @@ class DynamicChainRanker:
         if now - self._started_at < COLD_START_S:
             return list(candidates)
 
-        key = tuple(candidates)
+        key = tuple(candidates) + (("__model__:" + model.lower(),) if model else ())
         # Throttle: reuse cache unless forced (e.g. on a 429/5xx event) or stale.
         if (
             not force
@@ -108,7 +109,7 @@ class DynamicChainRanker:
         ):
             return list(self._cached_order)
 
-        stats = self._load_stats(candidates, now)
+        stats = self._load_stats(candidates, now, model=model)
         if not any(s.seen for s in stats.values()):
             # No telemetry at all -> keep static order, but don't thrash the DB.
             self._last_compute = now
@@ -125,7 +126,9 @@ class DynamicChainRanker:
         return ordered
 
     # -- internals ---------------------------------------------------------
-    def _load_stats(self, candidates: Sequence[str], now: float) -> Dict[str, ProviderStats]:
+    def _load_stats(
+        self, candidates: Sequence[str], now: float, model: Optional[str] = None
+    ) -> Dict[str, ProviderStats]:
         stats = {c: ProviderStats(provider=c) for c in candidates}
         db_path = self.db_path
         if not os.path.exists(db_path):
@@ -145,18 +148,33 @@ class DynamicChainRanker:
             return stats
         try:
             conn.row_factory = sqlite3.Row
+            columns = {
+                row[1] for row in conn.execute("PRAGMA table_info(llm_events)")
+            }
+            has_concrete = {"concrete_provider", "concrete_model"}.issubset(columns)
+            provider_expr = (
+                "COALESCE(NULLIF(concrete_provider, ''), provider)"
+                if has_concrete
+                else "provider"
+            )
+            model_filter = ""
+            params = [since, *candidates]
+            if model and has_concrete:
+                model_filter = " AND lower(COALESCE(concrete_model, model)) = lower(?)"
+                params.append(model.rsplit("/", 1)[-1])
             # Pull only window rows for the candidate providers. Aggregation
             # (EMA, last-failure) is done in Python because SQLite has no EMA.
             qmarks = ",".join("?" * len(candidates))
             rows = conn.execute(
                 f"""
-                SELECT provider, ts_start, status
+                SELECT {provider_expr} AS provider, ts_start, status
                 FROM llm_events
                 WHERE ts_start >= ?
-                  AND lower(provider) IN ({qmarks})
+                  AND lower({provider_expr}) IN ({qmarks})
+                  {model_filter}
                 ORDER BY ts_start ASC
                 """,
-                (since, *candidates),
+                params,
             ).fetchall()
         except sqlite3.Error:
             return stats

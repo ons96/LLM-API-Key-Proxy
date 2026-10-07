@@ -1139,7 +1139,9 @@ class RotatingClient:
             chain = [original_provider]
         # #251: telemetry-driven rerank if optional DynamicChainRanker is armed.
         if self._dynamic_ranker is not None:
-            chain = self._dynamic_ranker.rank(chain)
+            chain = self._dynamic_ranker.rank(
+                chain, model=model.split("/", 1)[-1] if model else None
+            )
 
         last_exception = None
 
@@ -1621,7 +1623,11 @@ class RotatingClient:
                                     provider, model, cooldown_duration
                                 )
                                 if self._dynamic_ranker is not None:
-                                    chain = self._dynamic_ranker.rank(chain, force=True)
+                                    chain = self._dynamic_ranker.rank(
+                                        chain,
+                                        model=model.split("/", 1)[-1] if model else None,
+                                        force=True,
+                                    )
 
                             await self.usage_manager.record_failure(
                                 current_cred, model, classified_error
@@ -1733,7 +1739,11 @@ class RotatingClient:
                                     provider, model, cooldown_duration
                                 )
                                 if self._dynamic_ranker is not None:
-                                    chain = self._dynamic_ranker.rank(chain, force=True)
+                                    chain = self._dynamic_ranker.rank(
+                                        chain,
+                                        model=model.split("/", 1)[-1] if model else None,
+                                        force=True,
+                                    )
 
                             await self.usage_manager.record_failure(
                                 current_cred, model, classified_error
@@ -2141,7 +2151,9 @@ class RotatingClient:
             chain = [original_provider]
         # #251: telemetry-driven rerank if optional DynamicChainRanker is armed.
         if self._dynamic_ranker is not None:
-            chain = self._dynamic_ranker.rank(chain)
+            chain = self._dynamic_ranker.rank(
+                chain, model=model.split("/", 1)[-1] if model else None
+            )
 
         last_exception = None
 
