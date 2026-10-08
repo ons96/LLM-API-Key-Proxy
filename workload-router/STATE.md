@@ -465,16 +465,17 @@ cutting over traffic; keep the old gateway as fallback.
   compilation. A 50-request/8-worker concurrency smoke passed 50/50, the
   provider metadata smoke loaded 11 `chat-fast` deployments, and the Python
   secret-pattern scan found no matches.
-- This batch remains local only: no commit, push, VPS deployment, gateway
-  change, task-board duplicate, or credential access was performed.
+- The standalone batch is committed locally as `60c3822`; it was synchronized
+  into the vendored PR branch as `747cca4` and pushed to `feat/workload-router-p0`.
+  No VPS deployment, gateway change, task-board duplicate, or credential access
+  was performed.
 
 ## Next action for a new implementation session
 
-Review the final local diff and decide whether to commit these chain-routing
-changes to the standalone router branch or update the existing gateway PR
-worktree. Before enabling provider-manager metadata on VPS 40, run actual
-provider-specific quota/429/timeout/5xx tests and a real OpenCode client
-session; keep the current gateway and loopback canary as fallback.
+Review PR #315 and its merge policy. Before enabling provider-manager metadata
+on VPS 40, run actual provider-specific quota/429/timeout/5xx tests and a real
+OpenCode client session; keep the current gateway and loopback canary as
+fallback.
 
 ## Checkpoint protocol
 

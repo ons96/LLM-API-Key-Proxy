@@ -48,13 +48,13 @@ credentials, host access, or an explicit repository decision.
 
 ## Local chain-routing batch
 
-- The local router now supports ordered provider-manager groups, free-only
-  metadata import, per-deployment cache hints, bounded warm-cache waits, and
-  same-group operational failover. These changes have not been deployed or
-  pushed in this batch.
+- The router now supports ordered provider-manager groups, free-only metadata
+  import, per-deployment cache hints, bounded warm-cache waits, and same-group
+  operational failover. The standalone work is committed as `60c3822` and the
+  vendored PR branch contains the synchronized commit `747cca4`; neither has
+  been deployed to VPS 40.
 - Before enabling metadata-driven provider traffic on VPS 40, run controlled
   provider-specific 429, Retry-After, quota-reset, timeout, 5xx, malformed
   response, and native-stream fault tests using the existing gateway fallback.
-- Confirm whether these changes should update the standalone router source
-  first or be copied into the reviewed `LLM-API-Key-Proxy` PR worktree after
-  its repository CI configuration blocker is resolved.
+- Confirm PR #315 review/merge before enabling the gated gateway integration;
+  its current review check is skipped, while local validation remains green.
