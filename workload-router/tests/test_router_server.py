@@ -93,6 +93,24 @@ def test_models_endpoint_lists_stable_aliases():
         thread.join(timeout=2)
 
 
+def test_groups_endpoint_exposes_ordered_chain_metadata():
+    server = ThreadingHTTPServer(("127.0.0.1", 0), RouterHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        status, result = get(server, "/v1/router/groups")
+        assert status == 200
+        assert result["object"] == "list"
+        groups = {item["id"]: item for item in result["data"]}
+        assert "fast_general" in groups
+        assert groups["fast_general"]["chain"][0]["priority"] == 1
+        assert "provider" in groups["fast_general"]["chain"][0]
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
 def test_http_rejects_empty_messages():
     server = ThreadingHTTPServer(("127.0.0.1", 0), RouterHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -369,6 +387,61 @@ def test_chat_completions_passes_through_native_provider_stream():
         assert body.endswith("data: [DONE]\n\n")
     finally:
         RouterHandler.adapters = previous
+        RouterHandler.health = previous_health
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_native_stream_honors_continuation_preference_and_group():
+    previous = RouterHandler.adapters
+    previous_deployments = RouterHandler.deployments
+    previous_health = RouterHandler.health
+    seen = []
+
+    class OrderedStreamAdapter:
+        def complete(self, deployment, provider_request):
+            return "unused"
+
+        def stream(self, deployment, provider_request):
+            seen.append(deployment.deployment_id)
+            yield json.dumps({"choices": [{"delta": {"content": "stable"}}]})
+            yield "[DONE]"
+
+    RouterHandler.deployments = [
+        previous_deployments[0].__class__(
+            "chat-top", previous_deployments[0].capability, 4096, group="chat-fast", chain_priority=1
+        ),
+        previous_deployments[0].__class__(
+            "chat-sticky", previous_deployments[0].capability, 4096, group="chat-fast", chain_priority=2
+        ),
+    ]
+    adapter = OrderedStreamAdapter()
+    RouterHandler.adapters = {item.deployment_id: adapter for item in RouterHandler.deployments}
+    RouterHandler.health = HealthRegistry()
+    RouterHandler.state.set_preferred("stream-stick", "default", "chat-sticky")
+    server = ThreadingHTTPServer(("127.0.0.1", 0), RouterHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection(*server.server_address)
+        connection.request(
+            "POST",
+            "/v1/chat/completions",
+            json.dumps({"model": "auto", "model_group": "chat-fast", "messages": [{"content": "hello"}], "stream": True}),
+            {"Content-Type": "application/json", "X-Session-Id": "stream-stick", "X-Router-Continuation": "true"},
+        )
+        response = connection.getresponse()
+        body = response.read().decode()
+        deployment = response.getheader("X-Router-Deployment")
+        connection.close()
+        assert response.status == 200
+        assert deployment == "chat-sticky"
+        assert seen == ["chat-sticky"]
+        assert "stable" in body
+    finally:
+        RouterHandler.adapters = previous
+        RouterHandler.deployments = previous_deployments
         RouterHandler.health = previous_health
         server.shutdown()
         server.server_close()

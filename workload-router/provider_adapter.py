@@ -2,13 +2,15 @@
 
 from dataclasses import dataclass
 from copy import deepcopy
+from email.utils import parsedate_to_datetime
 from itertools import chain
 import json
+import time
 import os
 from urllib import error, request
 from typing import Callable, Protocol
 
-from router_core import Deployment, HealthRegistry, RequestFeatures, eligible, select
+from router_core import CacheHint, Deployment, HealthRegistry, RequestFeatures, route_plan, warm_cache_wait_seconds
 
 
 class ProviderError(Exception):
@@ -34,11 +36,15 @@ class ProviderError(Exception):
         error_class: str = "provider_error",
         status_code: int | None = None,
         deployment_id: str | None = None,
+        retry_after_seconds: float | None = None,
+        quota_reset_at: float | None = None,
     ) -> None:
         super().__init__(message)
         self.error_class = error_class if error_class in self._ERROR_CLASSES else "provider_error"
         self.status_code = status_code
         self.deployment_id = deployment_id
+        self.retry_after_seconds = max(0.0, retry_after_seconds) if retry_after_seconds is not None else None
+        self.quota_reset_at = quota_reset_at
 
 
 ROUTER_ONLY_FIELDS = {
@@ -117,9 +123,15 @@ class OpenAICompatibleAdapter:
     the deployment provider, keeping secrets out of deployment profiles.
     """
 
-    def __init__(self, provider: str, timeout: float = 30.0) -> None:
-        prefix = provider.upper().replace("-", "_")
-        self.base_url = os.environ.get(f"{prefix}_BASE_URL", "").rstrip("/")
+    def __init__(
+        self,
+        provider: str,
+        timeout: float = 30.0,
+        env_prefix: str | None = None,
+        base_url: str | None = None,
+    ) -> None:
+        prefix = (env_prefix or provider).upper().replace("-", "_")
+        self.base_url = (base_url or os.environ.get(f"{prefix}_BASE_URL", "")).rstrip("/")
         self.api_key = os.environ.get(f"{prefix}_API_KEY", "")
         self.timeout = timeout
 
@@ -135,10 +147,13 @@ class OpenAICompatibleAdapter:
             with request.urlopen(req, timeout=self.timeout) as response:
                 body = json.loads(response.read())
         except error.HTTPError as exc:
+            retry_after, quota_reset = _retry_hints(exc.headers)
             raise ProviderError(
                 "OpenAI-compatible request failed",
                 error_class=_http_error_class(exc.code),
                 status_code=exc.code,
+                retry_after_seconds=retry_after,
+                quota_reset_at=quota_reset,
             ) from exc
         except TimeoutError as exc:
             raise ProviderError("OpenAI-compatible request timed out", error_class="timeout") from exc
@@ -173,10 +188,13 @@ class OpenAICompatibleAdapter:
         try:
             response = request.urlopen(req, timeout=self.timeout)
         except error.HTTPError as exc:
+            retry_after, quota_reset = _retry_hints(exc.headers)
             raise ProviderError(
                 "OpenAI-compatible stream failed",
                 error_class=_http_error_class(exc.code),
                 status_code=exc.code,
+                retry_after_seconds=retry_after,
+                quota_reset_at=quota_reset,
             ) from exc
         except TimeoutError as exc:
             raise ProviderError("OpenAI-compatible stream timed out", error_class="timeout") from exc
@@ -197,7 +215,11 @@ def adapters_from_environment(deployments: list[Deployment]) -> dict[str, Provid
     for deployment in deployments:
         if deployment.provider == "unconfigured":
             continue
-        adapter = OpenAICompatibleAdapter(deployment.provider)
+        adapter = OpenAICompatibleAdapter(
+            deployment.provider,
+            env_prefix=deployment.env_prefix or None,
+            base_url=deployment.base_url or None,
+        )
         if adapter.base_url:
             adapters[deployment.deployment_id] = adapter
     return adapters
@@ -227,6 +249,31 @@ def _http_error_class(status_code: int) -> str:
     return "http_error"
 
 
+def _retry_hints(headers) -> tuple[float | None, float | None]:
+    """Parse bounded provider retry/quota hints without retaining response text."""
+    if headers is None:
+        return None, None
+    retry_after: float | None = None
+    raw_retry = headers.get("Retry-After")
+    if raw_retry:
+        try:
+            retry_after = max(0.0, float(raw_retry))
+        except (TypeError, ValueError):
+            try:
+                retry_after = max(0.0, parsedate_to_datetime(raw_retry).timestamp() - time.time())
+            except (TypeError, ValueError, OverflowError):
+                retry_after = None
+    quota_reset: float | None = None
+    raw_reset = headers.get("X-RateLimit-Reset") or headers.get("RateLimit-Reset")
+    if raw_reset:
+        try:
+            parsed = float(raw_reset)
+            quota_reset = time.time() + parsed if parsed < time.time() else parsed
+        except (TypeError, ValueError, OverflowError):
+            quota_reset = None
+    return retry_after, quota_reset
+
+
 def _as_execution_result(
     deployment: Deployment,
     result: ProviderCompletion | str,
@@ -254,15 +301,16 @@ def execute(
     prompt: str,
     provider_request: ProviderRequest | None = None,
     on_failure: Callable[[str, str], None] | None = None,
+    cache_hints: dict[str, CacheHint] | None = None,
+    preferred_id: str | None = None,
 ) -> ExecutionResult:
-    """Try eligible same-capability deployments once each, then fail."""
-    preferred = select(features, deployments, health)
-    group = preferred.capability
-    candidates = [item for item in eligible(features, deployments, health) if item.capability == group]
-    candidates.sort(key=lambda item: item.latency_ms / max(item.success_rate, 0.01))
-    ordered = [preferred] + [item for item in candidates if item.deployment_id != preferred.deployment_id]
+    """Try the ordered same-group chain once each, then fail immediately."""
+    plan = route_plan(features, deployments, preferred_id=preferred_id, health=health, cache_hints=cache_hints)
+    ordered = plan.candidates
+    group = ordered[0].chain_group
     attempts = 0
     failures: list[tuple[str, str]] = []
+    last_error: ProviderError | None = None
     for deployment in ordered:
         adapter = adapters.get(deployment.deployment_id)
         if adapter is None:
@@ -272,15 +320,59 @@ def execute(
             request_data = provider_request or ProviderRequest(
                 messages=[{"role": "user", "content": prompt}], options={}
             )
-            return _as_execution_result(deployment, adapter.complete(deployment, request_data), attempts, tuple(failures))
+            result = _as_execution_result(deployment, adapter.complete(deployment, request_data), attempts, tuple(failures))
+            health.mark_success(deployment.deployment_id)
+            return result
         except ProviderError as error:
-            health.mark_failure(deployment.deployment_id)
+            last_error = error
+            health.mark_failure(
+                deployment.deployment_id,
+                error_class=error.error_class,
+                retry_after_seconds=error.retry_after_seconds,
+                quota_reset_at=error.quota_reset_at,
+            )
             error_class = error.error_class
             failures.append((deployment.deployment_id, error_class))
             if on_failure is not None:
                 on_failure(deployment.deployment_id, error_class)
+            wait_seconds = warm_cache_wait_seconds(
+                error_class,
+                error.retry_after_seconds,
+                (cache_hints or {}).get(deployment.deployment_id),
+            )
+            if wait_seconds:
+                time.sleep(wait_seconds)
+                attempts += 1
+                try:
+                    request_data = provider_request or ProviderRequest(
+                        messages=[{"role": "user", "content": prompt}], options={}
+                    )
+                    result = _as_execution_result(
+                        deployment,
+                        adapter.complete(deployment, request_data),
+                        attempts,
+                        tuple(failures),
+                    )
+                    health.mark_success(deployment.deployment_id)
+                    return result
+                except ProviderError as retry_error:
+                    last_error = retry_error
+                    health.mark_failure(
+                        deployment.deployment_id,
+                        error_class=retry_error.error_class,
+                        retry_after_seconds=retry_error.retry_after_seconds,
+                        quota_reset_at=retry_error.quota_reset_at,
+                    )
+                    failures.append((deployment.deployment_id, retry_error.error_class))
+                    if on_failure is not None:
+                        on_failure(deployment.deployment_id, retry_error.error_class)
     final_class = failures[-1][1] if failures else "no_adapter"
-    raise ProviderError(f"all eligible deployments failed for {group.value}", error_class=final_class)
+    raise ProviderError(
+        f"all eligible deployments failed for {group}",
+        error_class=final_class,
+        retry_after_seconds=last_error.retry_after_seconds if last_error else None,
+        quota_reset_at=last_error.quota_reset_at if last_error else None,
+    )
 
 
 def stream_execute(
@@ -291,13 +383,14 @@ def stream_execute(
     prompt: str,
     provider_request: ProviderRequest | None = None,
     on_failure: Callable[[str, str], None] | None = None,
+    cache_hints: dict[str, CacheHint] | None = None,
+    preferred_id: str | None = None,
 ):
     """Return the first eligible provider stream; fail over before yielding."""
-    preferred = select(features, deployments, health)
-    group = preferred.capability
-    candidates = [item for item in eligible(features, deployments, health) if item.capability == group]
-    candidates.sort(key=lambda item: item.latency_ms / max(item.success_rate, 0.01))
-    ordered = [preferred] + [item for item in candidates if item.deployment_id != preferred.deployment_id]
+    plan = route_plan(features, deployments, preferred_id=preferred_id, health=health, cache_hints=cache_hints)
+    ordered = plan.candidates
+    group = ordered[0].chain_group
+    last_error: ProviderError | None = None
     for deployment in ordered:
         adapter = adapters.get(deployment.deployment_id)
         stream = getattr(adapter, "stream", None) if adapter else None
@@ -309,13 +402,56 @@ def stream_execute(
             )
             payloads = iter(stream(deployment, request_data))
             first = next(payloads)
+            health.mark_success(deployment.deployment_id)
             return deployment, chain((first,), payloads)
         except StopIteration:
-            health.mark_failure(deployment.deployment_id)
+            last_error = ProviderError("provider returned an empty stream", error_class="empty_stream")
+            health.mark_failure(deployment.deployment_id, error_class="empty_stream")
             if on_failure is not None:
                 on_failure(deployment.deployment_id, "empty_stream")
         except ProviderError as error:
-            health.mark_failure(deployment.deployment_id)
+            last_error = error
+            health.mark_failure(
+                deployment.deployment_id,
+                error_class=error.error_class,
+                retry_after_seconds=error.retry_after_seconds,
+                quota_reset_at=error.quota_reset_at,
+            )
             if on_failure is not None:
                 on_failure(deployment.deployment_id, error.error_class)
-    raise ProviderError(f"no streaming adapter available for {group.value}")
+            wait_seconds = warm_cache_wait_seconds(
+                error.error_class,
+                error.retry_after_seconds,
+                (cache_hints or {}).get(deployment.deployment_id),
+            )
+            if wait_seconds:
+                time.sleep(wait_seconds)
+                try:
+                    request_data = provider_request or ProviderRequest(
+                        messages=[{"role": "user", "content": prompt}], options={}
+                    )
+                    payloads = iter(stream(deployment, request_data))
+                    first = next(payloads)
+                    health.mark_success(deployment.deployment_id)
+                    return deployment, chain((first,), payloads)
+                except StopIteration:
+                    last_error = ProviderError("provider returned an empty stream", error_class="empty_stream")
+                    health.mark_failure(deployment.deployment_id, error_class="empty_stream")
+                    if on_failure is not None:
+                        on_failure(deployment.deployment_id, "empty_stream")
+                except ProviderError as retry_error:
+                    last_error = retry_error
+                    health.mark_failure(
+                        deployment.deployment_id,
+                        error_class=retry_error.error_class,
+                        retry_after_seconds=retry_error.retry_after_seconds,
+                        quota_reset_at=retry_error.quota_reset_at,
+                    )
+                    if on_failure is not None:
+                        on_failure(deployment.deployment_id, retry_error.error_class)
+    raise ProviderError(
+        f"no streaming adapter available for {group}",
+        error_class=last_error.error_class if last_error else "no_adapter",
+        retry_after_seconds=last_error.retry_after_seconds if last_error else None,
+        quota_reset_at=last_error.quota_reset_at if last_error else None,
+    )

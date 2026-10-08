@@ -438,6 +438,44 @@ over traffic; keep the old gateway as fallback.
 Next: exercise provider-specific error injection and quota behavior without
 cutting over traffic; keep the old gateway as fallback.
 
+## Model-group chain and cache-routing checkpoint
+
+- Added explicit deployment groups and chain priorities. Fresh requests begin
+  at the lowest configured priority, while explicit continuation requests may
+  stay on an eligible preferred deployment. Explicit model groups remain hard
+  boundaries; automatic classification can use metadata groups such as
+  `chat-fast` when no capability-named group exists.
+- Added per-deployment cache hints with TTLs, cache-savings break-even logic,
+  and a bounded warm-cache wait for short rate-limit responses. Timeout,
+  upstream, network, and long-quota failures fail over without waiting.
+- Added error-aware cooldowns, Retry-After and rate-reset parsing, cooldown
+  recovery after a successful retry, bounded retry response headers, and
+  provider-failure telemetry without upstream error text.
+- Added read-only `provider_metadata.py` loading from the
+  `llm-provider-manager` SQLite database. It imports ordered free/no-key
+  provider/model metadata, endpoint labels, capability hints, and environment
+  prefixes without reading credentials. `ROUTER_DEPLOYMENTS` remains the
+  explicit-config precedence; `GET /v1/router/groups` exposes safe chain
+  diagnostics.
+- Added regression coverage for chain priority, strict groups, automatic
+  metadata groups, cache TTL/hints, warm-cache retries, Retry-After parsing,
+  cooldown recovery, and continuation-aware native streaming.
+- Local verification: `python3 tools/verify_release.py` passed 68 tests,
+  session validation, resource smoke health/route 200 at 26040 KB RSS, and
+  compilation. A 50-request/8-worker concurrency smoke passed 50/50, the
+  provider metadata smoke loaded 11 `chat-fast` deployments, and the Python
+  secret-pattern scan found no matches.
+- This batch remains local only: no commit, push, VPS deployment, gateway
+  change, task-board duplicate, or credential access was performed.
+
+## Next action for a new implementation session
+
+Review the final local diff and decide whether to commit these chain-routing
+changes to the standalone router branch or update the existing gateway PR
+worktree. Before enabling provider-manager metadata on VPS 40, run actual
+provider-specific quota/429/timeout/5xx tests and a real OpenCode client
+session; keep the current gateway and loopback canary as fallback.
+
 ## Checkpoint protocol
 
 After every milestone, record changed files, exact commands and results,

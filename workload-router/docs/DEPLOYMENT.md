@@ -16,6 +16,8 @@ repository automatically.
   as the implementation grows.
 - Provider credentials supplied only through VPS environment/service
   configuration; never through the deployment catalog or source files.
+- Optional provider-manager SQLite metadata may supply ordered model groups and
+  endpoint URLs; API-key values are never read from that database.
 
 ## Safe deployment sequence
 
@@ -28,6 +30,15 @@ repository automatically.
 
 Development tests and shadow replay must remain provider-free and must not
 require access to VPS 40.
+
+## Provider metadata mode
+
+Set `ROUTER_PROVIDER_DB` to the read-only `llm-provider-manager` SQLite path to
+load its ordered virtual-model fallback rows. `ROUTER_PROVIDER_GROUPS` can
+restrict the import, and `ROUTER_FREE_ONLY=1` filters to free/no-key metadata.
+Use an explicit `ROUTER_DEPLOYMENTS` file when a reviewed catalog is preferred;
+it takes precedence over database loading. Check the resulting order with
+`GET /v1/router/groups` before enabling provider-backed chat or tool traffic.
 
 ## VPS 40 canary record
 

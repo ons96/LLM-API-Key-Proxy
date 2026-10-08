@@ -1,10 +1,3 @@
-> [!IMPORTANT]
-> Vendored from the OmniRush `ai-workload-router` P0 core (provenance: OmniRush
-> architecture + implementation). This is a PARALLEL, GATED component. It is NOT
-> wired into the production gateway path and does not alter virtual_models.yaml
-> fallback behavior. Enable only behind a feature flag after dry-run validation.
-> See docs/workload-router-architecture.md and task-board #1070.
-
 # AI Workload Router
 
 This repository records the resource-light router work for the Oracle VPS at
@@ -91,7 +84,14 @@ provider URLs are intentionally absent from this catalog.
 
 Each deployment also carries a non-secret provider label and configuration
 fingerprint. These identify model/provider/configuration in telemetry without
-storing endpoint URLs or credentials.
+storing credentials. For a host that already runs `llm-provider-manager`, set
+`ROUTER_PROVIDER_DB` to its SQLite metadata path to load ordered virtual-model
+fallback groups at startup. Optional `ROUTER_PROVIDER_GROUPS` limits the groups
+and `ROUTER_FREE_ONLY=1` keeps the generated catalog to free/no-key metadata.
+The loader reads provider/model identity, endpoint metadata, capabilities,
+context limits, and chain priority only; it never reads API-key values. An
+explicit `ROUTER_DEPLOYMENTS` catalog takes precedence. Use
+`GET /v1/router/groups` to inspect the resulting groups and chain order.
 
 Quota class and remaining quota are soft scoring inputs. An exhausted quota is
 penalized, but quota metadata never removes every candidate by itself.
@@ -121,6 +121,14 @@ server supports `ROUTER_HOST` and `ROUTER_PORT`.
 Set `ROUTER_STATE_DB` to a writable SQLite path for durable decisions, session
 preferences, outcomes, and cache observations. The default `:memory:` mode is
 intended for tests and ephemeral local inspection.
+
+New requests begin at the configured chain priority and walk candidates in
+priority order. Explicit continuations can remain on an eligible preferred
+deployment. Recent provider cache observations can move a lower-priority
+candidate first only when estimated cache savings exceed the chain-position
+penalty. A short rate-limit retry is waited out only when a fresh warm cache
+makes that wait cheaper than the cold fallback; timeout and upstream failures
+fail over immediately.
 
 `provider_adapter.py` defines the transport boundary for real providers. It
 forwards the complete OpenAI-compatible message/tool/structured-output request
@@ -159,5 +167,7 @@ failures, and cache hits.
 JSON request endpoints reject non-object bodies with a bounded 400 response.
 
 Successful route responses include `X-Router-Deployment` and
-`X-Router-Capability` headers. JSON responses are marked `no-store` and include
-content-type hardening headers.
+`X-Router-Capability` headers. They also include group and route-reason metadata
+when available. JSON responses are marked `no-store` and include content-type
+hardening headers. Provider-unavailable responses expose only a bounded error
+class and optional retry-after value.

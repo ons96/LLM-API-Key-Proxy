@@ -44,6 +44,13 @@ completed.
 Clients can discover only the stable router aliases through `GET /v1/models`;
 the endpoint does not expose upstream model or credential metadata.
 
+`GET /v1/router/groups` exposes configured group IDs and ordered
+deployment/provider/model labels for operator inspection. If
+`ROUTER_PROVIDER_DB` is set, these groups are loaded from the provider-manager
+SQLite metadata database; API keys remain environment-only. Set
+`ROUTER_PROVIDER_GROUPS` to a comma-separated allowlist and leave
+`ROUTER_FREE_ONLY=1` enabled when using free-tier metadata.
+
 `POST /v1/router/route` records a routing decision only; it does not count as a
 successful model completion. Completion success is recorded by the chat path or
 by the explicit `/v1/router/outcome` endpoint after the caller verifies the
@@ -53,3 +60,10 @@ Provider HTTP failures are classified into bounded operational categories and
 recorded without upstream response text. A native stream that becomes malformed
 after headers are sent is closed and recorded as an operational failure; it is
 not converted into a false successful completion.
+
+Fresh requests restart at the top chain priority. Use the continuation signal
+(`X-Router-Continuation: true` or `continuation: true`) only for raw API/tool
+continuations that should retain the preferred deployment. A short rate-limit
+wait is permitted only when fresh cache evidence makes it cheaper than a cold
+fallback; all other timeout, quota, and upstream failures use bounded
+same-group failover.

@@ -14,7 +14,7 @@ def main() -> int:
     run([sys.executable, "tools/validate_session.py"])
     run([sys.executable, "tools/resource_smoke.py"])
     run([sys.executable, "-m", "py_compile", "router_core.py", "router_config.py",
-         "router_state.py", "provider_adapter.py", "router_server.py"])
+         "router_state.py", "provider_adapter.py", "provider_metadata.py", "router_server.py"])
     return 0
 
 

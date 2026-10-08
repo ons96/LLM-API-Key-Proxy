@@ -45,3 +45,16 @@ credentials, host access, or an explicit repository decision.
   success-rate calibration.
 - Decide whether semantic outcomes are supplied by tests/tools, the client, or
   an operator review workflow.
+
+## Local chain-routing batch
+
+- The local router now supports ordered provider-manager groups, free-only
+  metadata import, per-deployment cache hints, bounded warm-cache waits, and
+  same-group operational failover. These changes have not been deployed or
+  pushed in this batch.
+- Before enabling metadata-driven provider traffic on VPS 40, run controlled
+  provider-specific 429, Retry-After, quota-reset, timeout, 5xx, malformed
+  response, and native-stream fault tests using the existing gateway fallback.
+- Confirm whether these changes should update the standalone router source
+  first or be copied into the reviewed `LLM-API-Key-Proxy` PR worktree after
+  its repository CI configuration blocker is resolved.

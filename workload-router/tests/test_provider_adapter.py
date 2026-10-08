@@ -1,7 +1,9 @@
+import time
+
 import pytest
 
 from provider_adapter import ProviderError, execute
-from router_core import Capability, Deployment, HealthRegistry, RequestFeatures
+from router_core import CacheHint, Capability, Deployment, HealthRegistry, RequestFeatures
 
 
 class Adapter:
@@ -64,3 +66,31 @@ def test_execution_reports_failed_attempts_without_leaking_error_text():
     assert result.failures == (("first", "rate_limit"),)
     assert failures == [("first", "rate_limit")]
     assert "secret" not in str(result)
+
+
+def test_execution_retries_short_rate_limit_when_cache_is_warm():
+    deployment = Deployment("warm", Capability.FAST_GENERAL, 4096, group="chat-fast", chain_priority=1)
+
+    class FlakyAdapter:
+        def __init__(self):
+            self.calls = 0
+
+        def complete(self, deployment, provider_request):
+            self.calls += 1
+            if self.calls == 1:
+                raise ProviderError("temporarily limited", error_class="rate_limit", retry_after_seconds=0.01)
+            return "ok"
+
+    adapter = FlakyAdapter()
+    result = execute(
+        RequestFeatures("answer", model_group="chat-fast"),
+        [deployment],
+        {"warm": adapter},
+        HealthRegistry(),
+        "answer",
+        cache_hints={"warm": CacheHint("warm", 5000, observed_at=time.time())},
+    )
+    assert adapter.calls == 2
+    assert result.deployment_id == "warm"
+    assert result.attempts == 2
+    assert result.failures == (("warm", "rate_limit"),)

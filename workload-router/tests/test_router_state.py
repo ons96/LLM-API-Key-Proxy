@@ -16,6 +16,9 @@ def test_state_persists_hashes_and_route_metadata(tmp_path):
     assert reopened.outcome_count("success") == 1
     assert reopened.cache_count("general") == 1
     assert reopened.total_cache_hits() == 1
+    hints = reopened.cache_hints("session-1", "private prompt")
+    assert hints["general"].cached_tokens == 10
+    assert hints["general"].ttl_seconds == 600
     columns = reopened.connection.execute("PRAGMA table_info(decisions)").fetchall()
     assert {column[1] for column in columns} == {
         "id", "session_hash", "prompt_hash", "capability", "deployment", "provider", "config_fingerprint", "created_at"
@@ -53,6 +56,18 @@ def test_state_rejects_negative_cache_counts():
         pass
     else:
         raise AssertionError("negative cache count should be rejected")
+    finally:
+        state.close()
+
+
+def test_state_rejects_negative_cache_ttl():
+    state = RouterState()
+    try:
+        state.record_cache("session", "general", "prefix", ttl_seconds=-1)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("negative cache TTL should be rejected")
     finally:
         state.close()
 

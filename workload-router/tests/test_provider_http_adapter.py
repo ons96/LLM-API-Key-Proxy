@@ -73,6 +73,19 @@ def test_openai_compatible_adapter_converts_http_errors():
             assert raised.value.status_code == 429
 
 
+def test_openai_compatible_adapter_reads_retry_and_quota_headers():
+    headers = {"Retry-After": "3", "X-RateLimit-Reset": "9"}
+    with patch.dict("os.environ", {"DEMO_BASE_URL": "https://provider.invalid"}, clear=True):
+        adapter = OpenAICompatibleAdapter("demo")
+        with patch("provider_adapter.request.urlopen", side_effect=HTTPError(
+            "https://provider.invalid", 429, "rate limited", headers, None
+        )):
+            with pytest.raises(ProviderError) as raised:
+                adapter.complete(DEPLOYMENT, ProviderRequest([{"role": "user", "content": "hello"}], {}))
+    assert raised.value.retry_after_seconds == 3
+    assert raised.value.quota_reset_at is not None
+
+
 @pytest.mark.parametrize(
     ("exception", "error_class"),
     [(TimeoutError(), "timeout"), (OSError("connection reset"), "network_error")],
@@ -145,3 +158,18 @@ def test_http_adapter_serializes_full_request_to_upstream():
     assert captured["payload"]["response_format"] == {"type": "json_object"}
     assert captured["payload"]["max_tokens"] == 12
     assert captured["payload"]["stream"] is False
+
+
+def test_deployment_base_url_can_supply_endpoint_without_url_environment():
+    deployment = Deployment(
+        "demo",
+        Capability.FAST_GENERAL,
+        1000,
+        provider="demo",
+        model="demo-model",
+        base_url="https://metadata.invalid/v1",
+    )
+    with patch.dict("os.environ", {}, clear=True):
+        adapter = OpenAICompatibleAdapter("demo", base_url=deployment.base_url)
+    with patch("provider_adapter.request.urlopen", return_value=FakeResponse({"choices": [{"message": {"content": "ok"}}]})):
+        assert adapter.complete(deployment, ProviderRequest([{"role": "user", "content": "hello"}], {})).content == "ok"
