@@ -4,6 +4,7 @@ ROUTER_VERSION = "0.1.0"
 
 from dataclasses import dataclass, replace
 from enum import Enum
+import math
 import time
 
 
@@ -102,6 +103,17 @@ DEFAULT_CACHE_MIN_TOKENS = 128
 DEFAULT_MAX_WARM_CACHE_WAIT_SECONDS = 2.0
 
 
+def finite_nonnegative(value: object, default: float | None = 0.0) -> float | None:
+    """Return a finite non-negative float, or the safe caller-provided default."""
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return default
+    if not math.isfinite(parsed):
+        return default
+    return max(0.0, parsed)
+
+
 class HealthRegistry:
     """In-memory operational cooldowns; capability policy remains separate."""
 
@@ -131,14 +143,20 @@ class HealthRegistry:
         quota_reset_at: float | None = None,
     ) -> None:
         current = time.monotonic() if now is None else now
-        base = self.cooldown_seconds if cooldown_seconds is None else cooldown_seconds
+        base = finite_nonnegative(self.cooldown_seconds, 0.0)
+        if cooldown_seconds is not None:
+            base = finite_nonnegative(cooldown_seconds, base)
         if error_class is not None:
             base = self.DEFAULT_COOLDOWNS.get(error_class, base)
             self._error_class[deployment_id] = error_class
-        if retry_after_seconds is not None:
-            base = max(base, retry_after_seconds)
-        if quota_reset_at is not None:
-            base = max(base, quota_reset_at - time.time())
+        retry_after = finite_nonnegative(retry_after_seconds, None)
+        if retry_after is not None:
+            base = max(base, retry_after)
+        quota_reset = finite_nonnegative(quota_reset_at, None)
+        if quota_reset is not None:
+            reset_delay = quota_reset - time.time()
+            if math.isfinite(reset_delay):
+                base = max(base, reset_delay)
         self._until[deployment_id] = current + max(0.0, base)
 
     def mark_success(self, deployment_id: str) -> None:

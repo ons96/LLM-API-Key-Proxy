@@ -63,6 +63,20 @@ def test_success_clears_operational_cooldown():
     assert health.error_class("general") is None
 
 
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_nonfinite_failure_hints_do_not_poison_cooldown(value):
+    health = HealthRegistry(cooldown_seconds=10)
+    health.mark_failure(
+        "general",
+        now=100,
+        cooldown_seconds=value,
+        retry_after_seconds=value,
+        quota_reset_at=value,
+    )
+    assert health.retry_after("general", now=100) == 10
+    assert health.is_healthy("general", now=110)
+
+
 def test_stickiness_keeps_preferred_eligible_deployment():
     options = [
         Deployment("first", Capability.FAST_GENERAL, 4096, latency_ms=100),

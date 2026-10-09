@@ -77,6 +77,33 @@ def test_http_route_and_cooldown_behavior():
         thread.join(timeout=2)
 
 
+def test_outcome_ignores_nonfinite_cooldown_hints():
+    previous_health = RouterHandler.health
+    RouterHandler.health = HealthRegistry(cooldown_seconds=10)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), RouterHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        status, result, _ = request(
+            server,
+            "/v1/router/outcome",
+            {
+                "deployment": "general",
+                "outcome": "operational_failure",
+                "retry_after_seconds": float("nan"),
+                "quota_reset_at": float("inf"),
+            },
+        )
+        assert status == 200
+        assert result["recorded"] == "operational_failure"
+        assert 9 <= RouterHandler.health.retry_after("general") <= 10
+    finally:
+        RouterHandler.health = previous_health
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
 def test_models_endpoint_lists_stable_aliases():
     server = ThreadingHTTPServer(("127.0.0.1", 0), RouterHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)

@@ -5,7 +5,7 @@ import os
 import sqlite3
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from router_core import ROUTER_VERSION, HealthRegistry, RequestFeatures, estimate_context_tokens, normalize_phase, route_plan
+from router_core import ROUTER_VERSION, HealthRegistry, RequestFeatures, estimate_context_tokens, finite_nonnegative, normalize_phase, route_plan
 from router_config import default_deployments, load_deployments
 from provider_adapter import ProviderAdapter, ProviderError, ProviderRequest, adapters_from_environment, close_stream, execute, stream_execute, validate_stream_payload
 from provider_metadata import load_provider_group_deployments
@@ -42,11 +42,7 @@ def _nonnegative_int(value: object, default: int = 0) -> int:
 
 
 def _nonnegative_float(value: object, default: float = 0.0) -> float:
-    try:
-        parsed = float(value)
-    except (TypeError, ValueError):
-        return default
-    return max(0.0, parsed)
+    return finite_nonnegative(value, default) or 0.0
 
 
 def _continuation_header(handler: BaseHTTPRequestHandler) -> bool:
@@ -404,10 +400,11 @@ class RouterHandler(BaseHTTPRequestHandler):
             if outcome == "operational_failure":
                 retry_after = _nonnegative_float(payload.get("retry_after_seconds"), 0.0)
                 quota_reset_at = payload.get("quota_reset_at")
-                try:
-                    quota_reset_at = None if quota_reset_at is None else float(quota_reset_at)
-                except (TypeError, ValueError):
-                    quota_reset_at = None
+                quota_reset_at = (
+                    None
+                    if quota_reset_at is None
+                    else finite_nonnegative(quota_reset_at, None)
+                )
                 self.health.mark_failure(
                     deployment,
                     error_class=error_class if isinstance(error_class, str) else None,
