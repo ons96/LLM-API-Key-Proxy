@@ -1,0 +1,3 @@
+{"deployment":"general","outcome":"success"}
+{"deployment":"tool","outcome":"success"}
+{"deployment":"tool","outcome":"operational_failure"}
