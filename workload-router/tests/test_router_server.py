@@ -366,6 +366,47 @@ def test_chat_completions_returns_sse_stream():
         thread.join(timeout=2)
 
 
+def test_completion_only_stream_preserves_tool_calls_without_text():
+    class ToolCallAdapter:
+        def complete(self, deployment, provider_request):
+            return ProviderCompletion(
+                message={
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [{"id": "call-1", "type": "function", "function": {"name": "lookup", "arguments": "{}"}}],
+                },
+                finish_reason="tool_calls",
+                usage={"prompt_tokens": 4, "completion_tokens": 1},
+            )
+
+    previous = RouterHandler.adapters
+    previous_health = RouterHandler.health
+    RouterHandler.adapters = {deployment.deployment_id: ToolCallAdapter() for deployment in RouterHandler.deployments}
+    RouterHandler.health = HealthRegistry()
+    server = ThreadingHTTPServer(("127.0.0.1", 0), RouterHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection(*server.server_address)
+        connection.request("POST", "/v1/chat/completions", json.dumps({
+            "messages": [{"content": "call lookup"}], "stream": True,
+        }), {"Content-Type": "application/json"})
+        response = connection.getresponse()
+        body = response.read().decode()
+        connection.close()
+        assert response.status == 200
+        assert '"tool_calls"' in body
+        assert '"finish_reason": "tool_calls"' in body
+        assert '"usage"' in body
+        assert body.endswith("data: [DONE]\n\n")
+    finally:
+        RouterHandler.adapters = previous
+        RouterHandler.health = previous_health
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
 def test_chat_completions_passes_through_native_provider_stream():
     previous = RouterHandler.adapters
     previous_health = RouterHandler.health

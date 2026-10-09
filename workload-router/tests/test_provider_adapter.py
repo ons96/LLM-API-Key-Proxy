@@ -191,3 +191,39 @@ def test_pre_header_stream_failure_closes_acquired_iterator():
     assert selected.deployment_id == "second"
     assert list(events) == ['{"choices": []}', "[DONE]"]
     assert closed == ["first"]
+
+
+def test_stream_cleanup_error_does_not_mask_pre_header_failure():
+    deployments = [
+        Deployment("first", Capability.FAST_GENERAL, 4096, latency_ms=1, success_rate=1),
+        Deployment("second", Capability.FAST_GENERAL, 4096, latency_ms=2, success_rate=1),
+    ]
+
+    class Broken:
+        def stream(self, deployment, provider_request):
+            class Events:
+                def __iter__(self):
+                    return self
+
+                def __next__(self):
+                    raise OSError("connection reset")
+
+                def close(self):
+                    raise RuntimeError("cleanup failed")
+
+            return Events()
+
+    class Working:
+        def stream(self, deployment, provider_request):
+            yield '{"choices": []}'
+            yield "[DONE]"
+
+    selected, events = stream_execute(
+        RequestFeatures("answer"),
+        deployments,
+        {"first": Broken(), "second": Working()},
+        HealthRegistry(),
+        "answer",
+    )
+    assert selected.deployment_id == "second"
+    assert list(events) == ['{"choices": []}', "[DONE]"]

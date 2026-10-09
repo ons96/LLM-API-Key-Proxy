@@ -49,6 +49,18 @@ def test_openai_compatible_adapter_streams_sse_data_lines():
             assert list(adapter.stream(DEPLOYMENT, provider_request)) == ['{"choices": []}', "[DONE]"]
 
 
+def test_openai_compatible_stream_close_failure_does_not_mask_success():
+    class CloseFailingResponse(FakeResponse):
+        def close(self):
+            raise RuntimeError("close failed")
+
+    with patch.dict("os.environ", {"DEMO_BASE_URL": "https://provider.invalid"}):
+        adapter = OpenAICompatibleAdapter("demo")
+        with patch("provider_adapter.request.urlopen", return_value=CloseFailingResponse({})):
+            provider_request = ProviderRequest([{"role": "user", "content": "hello"}], {})
+            assert list(adapter.stream(DEPLOYMENT, provider_request)) == ['{"choices": []}', "[DONE]"]
+
+
 def test_openai_compatible_adapter_requires_endpoint():
     with patch.dict("os.environ", {}, clear=True):
         adapter = OpenAICompatibleAdapter("missing")

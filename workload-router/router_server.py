@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from router_core import ROUTER_VERSION, HealthRegistry, RequestFeatures, estimate_context_tokens, normalize_phase, route_plan
 from router_config import default_deployments, load_deployments
-from provider_adapter import ProviderAdapter, ProviderError, ProviderRequest, adapters_from_environment, execute, stream_execute, validate_stream_payload
+from provider_adapter import ProviderAdapter, ProviderError, ProviderRequest, adapters_from_environment, close_stream, execute, stream_execute, validate_stream_payload
 from provider_metadata import load_provider_group_deployments
 from router_state import RouterState
 from stall_detector import StallState
@@ -322,7 +322,14 @@ class RouterHandler(BaseHTTPRequestHandler):
                         cache_hints,
                         preferred,
                     )
-                    self._send_stream(result.content, model, result.deployment_id)
+                    self._send_stream(
+                        result.content,
+                        model,
+                        result.deployment_id,
+                        result.message,
+                        result.finish_reason,
+                        result.usage,
+                    )
                     self.state.record(session_id, prompt, self._deployment(result.deployment_id).capability.value, result.deployment_id, self._deployment(result.deployment_id).provider, self._deployment(result.deployment_id).config_fingerprint)
                     self.state.set_preferred(session_id, phase, result.deployment_id)
                     cached_tokens, cache_writes = _cache_usage(result.usage)
@@ -425,7 +432,15 @@ class RouterHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
-    def _send_stream(self, content: str, model: str, deployment_id: str) -> None:
+    def _send_stream(
+        self,
+        content: object,
+        model: str,
+        deployment_id: str,
+        message: dict[str, object] | None = None,
+        finish_reason: str | None = None,
+        usage: dict[str, object] | None = None,
+    ) -> None:
         """Emit a compatibility SSE stream from an adapter completion.
 
         The current adapter protocol is completion-oriented, so this preserves
@@ -440,15 +455,25 @@ class RouterHandler(BaseHTTPRequestHandler):
         self.end_headers()
         # Slice characters rather than words so code indentation and newlines
         # survive the compatibility streaming path unchanged.
-        chunks = [content[index:index + 256] for index in range(0, len(content), 256)] or [""]
+        text = content if isinstance(content, str) else ""
+        chunks = [text[index:index + 256] for index in range(0, len(text), 256)] or [""]
         for index, chunk in enumerate(chunks):
             delta = {"role": "assistant"} if index == 0 else {}
-            delta["content"] = chunk
+            if chunk or not message or not message.get("tool_calls"):
+                delta["content"] = chunk
+            if index == 0 and message:
+                for field in ("tool_calls", "function_call"):
+                    if field in message:
+                        delta[field] = message[field]
             event = {"id": "router-local", "object": "chat.completion.chunk", "model": model,
                      "choices": [{"index": 0, "delta": delta, "finish_reason": None}]}
             self.wfile.write(f"data: {json.dumps(event)}\n\n".encode("utf-8"))
+        if usage is not None:
+            usage_event = {"id": "router-local", "object": "chat.completion.chunk", "model": model,
+                           "choices": [], "usage": usage}
+            self.wfile.write(f"data: {json.dumps(usage_event)}\n\n".encode("utf-8"))
         final = {"id": "router-local", "object": "chat.completion.chunk", "model": model,
-                 "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]}
+                 "choices": [{"index": 0, "delta": {}, "finish_reason": finish_reason or "stop"}]}
         self.wfile.write(f"data: {json.dumps(final)}\n\ndata: [DONE]\n\n".encode("utf-8"))
 
     def _send_provider_stream(
@@ -506,7 +531,7 @@ class RouterHandler(BaseHTTPRequestHandler):
             self.close_connection = True
             return None
         finally:
-            payloads.close()
+            close_stream(payloads)
         self.health.mark_success(deployment.deployment_id)
         return deployment.deployment_id, usage
 

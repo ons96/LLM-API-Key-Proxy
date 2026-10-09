@@ -226,7 +226,7 @@ class OpenAICompatibleAdapter:
         except UnicodeDecodeError as exc:
             raise ProviderError("provider returned invalid SSE encoding", error_class="invalid_response") from exc
         finally:
-            response.close()
+            close_stream(response)
 
 
 def adapters_from_environment(deployments: list[Deployment]) -> dict[str, ProviderAdapter]:
@@ -341,6 +341,16 @@ def _normalize_adapter_exception(exc: Exception) -> ProviderError:
     return ProviderError("provider operation failed", error_class="provider_error")
 
 
+def close_stream(payloads) -> None:
+    """Close a provider iterator without masking the original failure."""
+    if payloads is None or not hasattr(payloads, "close"):
+        return
+    try:
+        payloads.close()
+    except Exception:
+        return
+
+
 def _prime_stream(stream, deployment: Deployment, provider_request: ProviderRequest):
     """Create and prime an adapter stream while normalizing pre-header faults."""
     payloads = None
@@ -348,12 +358,10 @@ def _prime_stream(stream, deployment: Deployment, provider_request: ProviderRequ
         payloads = iter(stream(deployment, provider_request))
         return payloads, next(payloads)
     except (ProviderError, StopIteration):
-        if payloads is not None and hasattr(payloads, "close"):
-            payloads.close()
+        close_stream(payloads)
         raise
     except Exception as exc:
-        if payloads is not None and hasattr(payloads, "close"):
-            payloads.close()
+        close_stream(payloads)
         raise _normalize_adapter_exception(exc) from exc
 
 
@@ -515,8 +523,7 @@ def stream_execute(
             )
             if on_failure is not None:
                 on_failure(deployment.deployment_id, error.error_class)
-            if payloads is not None and hasattr(payloads, "close"):
-                payloads.close()
+            close_stream(payloads)
             wait_seconds = _warm_wait(
                 error,
                 (cache_hints or {}).get(deployment.deployment_id),
@@ -547,8 +554,7 @@ def stream_execute(
                     )
                     if on_failure is not None:
                         on_failure(deployment.deployment_id, retry_error.error_class)
-                    if payloads is not None and hasattr(payloads, "close"):
-                        payloads.close()
+                    close_stream(payloads)
     raise ProviderError(
         f"no streaming adapter available for {group}",
         error_class=last_error.error_class if last_error else "no_adapter",
@@ -567,5 +573,4 @@ def _prepend_stream(first: str, payloads):
     except Exception as exc:
         raise _normalize_adapter_exception(exc) from exc
     finally:
-        if hasattr(payloads, "close"):
-            payloads.close()
+        close_stream(payloads)

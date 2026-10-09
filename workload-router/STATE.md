@@ -559,6 +559,29 @@ Run the full release/concurrency/secret checks, push this lifecycle fix to PR
 #315, and wait for a usable upstream before repeating the real OpenCode tool
 loop. Keep the existing gateway as fallback and do not cut over traffic.
 
+## Compatibility stream and cleanup checkpoint
+
+- Hardened cleanup across provider HTTP responses, primed iterators, native
+  streams, and compatibility streams so cleanup failures cannot mask the
+  original provider result or failover error.
+- Compatibility SSE now preserves tool calls and function calls when a
+  completion-only adapter returns `content: null`; it emits the provider finish
+  reason and usage event while still completing with `[DONE]`.
+- Added regressions for cleanup exceptions and textless completion-only tool
+  calls. Targeted tests passed: 39 passed.
+- Full verification passed: `python3 -m pytest -q` -> 99 passed (one existing
+  warning); `python3 tools/verify_release.py` -> 99 passed, session validation
+  OK, resource smoke health/route 200 at 26236 KB RSS, and compilation OK.
+  A direct resource smoke also returned health/route 200 at 26052 KB RSS.
+- No gateway/VPS files, provider credentials, live quotas, or deployment state
+  were touched.
+
+## Next action for a new implementation session
+
+Run the full release/concurrency/secret checks, push this compatibility and
+cleanup checkpoint to PR #315, and keep the existing gateway as fallback while
+real OpenCode tool-loop validation waits for upstream availability.
+
 ## Checkpoint protocol
 
 After every milestone, record changed files, exact commands and results,
