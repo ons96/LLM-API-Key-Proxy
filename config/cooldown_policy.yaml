@@ -24,6 +24,42 @@ providers:
     max_wait_s: 60
     reason: implicit-cache-free-tier
 
+# Relay entries (#1068): short-wait on 429 for free relays actually in use.
+# Rationale differs from #218 cache-credit rule: these relays are
+# unlimited-free (no cache discount to preserve), but a short Retry-After
+# wait still beats jumping to a weaker chain link. Cap is small (30s) so a
+# long Retry-After falls back immediately via existing cap logic.
+# kiosapi/nusapi/siliconflow/logfare from #1068 context are NOT gateway
+# provider keys (absent from router_config.yaml) — skipped, not added.
+  crowllm:
+    wait_on_429: true
+    max_wait_s: 30
+    reason: relay-short-retry-after
+  freetheai:
+    wait_on_429: true
+    max_wait_s: 30
+    reason: relay-short-retry-after
+  nvidia:
+    wait_on_429: true
+    max_wait_s: 30
+    reason: relay-short-retry-after
+  pooled:
+    wait_on_429: true
+    max_wait_s: 30
+    reason: relay-short-retry-after
+  tokenrouter:
+    wait_on_429: true
+    max_wait_s: 30
+    reason: relay-short-retry-after
+  kilo:
+    wait_on_429: true
+    max_wait_s: 30
+    reason: relay-short-retry-after
+  larprouter:
+    wait_on_429: true
+    max_wait_s: 30
+    reason: relay-short-retry-after
+
 default:
   wait_on_429: false
   max_wait_s: 0

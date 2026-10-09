@@ -109,6 +109,28 @@ def test_gemini_just_over_cap(policy):
     assert wait is False
 
 
+# --- relay short-wait entries (#1068) ---
+
+def test_relay_crowllm_waits_within_cap(policy):
+    """Crowllm + retry_after=20 (<= max_wait_s=30) -> wait."""
+    wait, _ = policy.should_wait_on_429("crowllm", 20)
+    assert wait is True
+
+
+def test_relay_crowllm_exceeds_cap_falls_back(policy):
+    """Crowllm + retry_after=600 (> max_wait_s=30) -> immediate fallback."""
+    wait, _ = policy.should_wait_on_429("crowllm", 600)
+    assert wait is False
+
+
+def test_relay_entries_all_configured(policy):
+    """All #1068 relay providers resolve to wait_on_429 with 30s cap."""
+    for name in ("crowllm", "freetheai", "nvidia", "pooled", "tokenrouter", "kilo", "larprouter"):
+        p = policy.get_policy(name)
+        assert p["wait_on_429"] is True
+        assert p["max_wait_s"] == 30
+
+
 # --- wait_until ---
 
 @pytest.mark.anyio
