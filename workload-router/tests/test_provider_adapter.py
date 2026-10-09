@@ -153,3 +153,41 @@ def test_unexpected_stream_exceptions_fail_over_before_headers(exception, error_
     assert selected.deployment_id == "second"
     assert list(events) == ['{"choices": []}', "[DONE]"]
     assert health.error_class("first") == error_class
+
+
+def test_pre_header_stream_failure_closes_acquired_iterator():
+    deployments = [
+        Deployment("first", Capability.FAST_GENERAL, 4096, latency_ms=1, success_rate=1),
+        Deployment("second", Capability.FAST_GENERAL, 4096, latency_ms=2, success_rate=1),
+    ]
+    closed = []
+
+    class Broken:
+        def stream(self, deployment, provider_request):
+            class Events:
+                def __iter__(self):
+                    return self
+
+                def __next__(self):
+                    raise OSError("connection reset")
+
+                def close(self):
+                    closed.append(deployment.deployment_id)
+
+            return Events()
+
+    class Working:
+        def stream(self, deployment, provider_request):
+            yield '{"choices": []}'
+            yield "[DONE]"
+
+    selected, events = stream_execute(
+        RequestFeatures("answer"),
+        deployments,
+        {"first": Broken(), "second": Working()},
+        HealthRegistry(),
+        "answer",
+    )
+    assert selected.deployment_id == "second"
+    assert list(events) == ['{"choices": []}', "[DONE]"]
+    assert closed == ["first"]

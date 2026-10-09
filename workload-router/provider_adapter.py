@@ -343,12 +343,17 @@ def _normalize_adapter_exception(exc: Exception) -> ProviderError:
 
 def _prime_stream(stream, deployment: Deployment, provider_request: ProviderRequest):
     """Create and prime an adapter stream while normalizing pre-header faults."""
+    payloads = None
     try:
         payloads = iter(stream(deployment, provider_request))
         return payloads, next(payloads)
     except (ProviderError, StopIteration):
+        if payloads is not None and hasattr(payloads, "close"):
+            payloads.close()
         raise
     except Exception as exc:
+        if payloads is not None and hasattr(payloads, "close"):
+            payloads.close()
         raise _normalize_adapter_exception(exc) from exc
 
 

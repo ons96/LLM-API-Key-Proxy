@@ -534,6 +534,31 @@ Push this checkpoint to PR #315 and re-run a real OpenCode tool loop after the
 legacy gateway has a usable upstream. Keep the existing gateway as fallback;
 then review/merge PR #315 before gated integration work.
 
+## Stream iterator lifecycle checkpoint
+
+- Audited the provider execution boundary after the adapter-failure release and
+  found that an iterator acquired before the first stream event could remain
+  open when priming raised `StopIteration`, `ProviderError`, or an unexpected
+  exception.
+- `_prime_stream()` now closes an acquired iterator on every pre-header failure;
+  successful priming still leaves it open for `_prepend_stream()`, which owns
+  later iteration and final cleanup.
+- Added a regression proving a pre-header iterator is closed while same-group
+  failover proceeds. Targeted tests passed: `10 passed`.
+- Full verification passed: `python3 -m pytest -q` -> 96 passed (one existing
+  warning); `python3 tools/verify_release.py` -> 96 passed, session validation
+  OK, resource smoke health/route 200 at 26132 KB RSS, and compilation OK.
+  A temporary local server passed `python3 tools/concurrency_smoke.py
+  --requests 100 --workers 8` with 100/100 successful requests.
+- No gateway/VPS files, provider credentials, live quotas, or deployment state
+  were touched.
+
+## Next action for a new implementation session
+
+Run the full release/concurrency/secret checks, push this lifecycle fix to PR
+#315, and wait for a usable upstream before repeating the real OpenCode tool
+loop. Keep the existing gateway as fallback and do not cut over traffic.
+
 ## Checkpoint protocol
 
 After every milestone, record changed files, exact commands and results,
