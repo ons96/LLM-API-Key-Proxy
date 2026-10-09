@@ -3,8 +3,9 @@
 from dataclasses import dataclass
 from copy import deepcopy
 from email.utils import parsedate_to_datetime
-from itertools import chain
+from http.client import IncompleteRead
 import json
+import math
 import time
 import os
 from urllib import error, request
@@ -43,8 +44,8 @@ class ProviderError(Exception):
         self.error_class = error_class if error_class in self._ERROR_CLASSES else "provider_error"
         self.status_code = status_code
         self.deployment_id = deployment_id
-        self.retry_after_seconds = max(0.0, retry_after_seconds) if retry_after_seconds is not None else None
-        self.quota_reset_at = quota_reset_at
+        self.retry_after_seconds = _finite_nonnegative(retry_after_seconds)
+        self.quota_reset_at = _finite_nonnegative(quota_reset_at)
 
 
 ROUTER_ONLY_FIELDS = {
@@ -53,6 +54,9 @@ ROUTER_ONLY_FIELDS = {
     "context_tokens",
     "cached_tokens",
     "cache_write_tokens",
+    "model_group",
+    "continuation",
+    "cache_ttl_seconds",
 }
 
 
@@ -155,11 +159,14 @@ class OpenAICompatibleAdapter:
                 retry_after_seconds=retry_after,
                 quota_reset_at=quota_reset,
             ) from exc
+        except error.URLError as exc:
+            category = "timeout" if isinstance(exc.reason, TimeoutError) else "network_error"
+            raise ProviderError("OpenAI-compatible request failed", error_class=category) from exc
         except TimeoutError as exc:
             raise ProviderError("OpenAI-compatible request timed out", error_class="timeout") from exc
-        except OSError as exc:
+        except (OSError, IncompleteRead) as exc:
             raise ProviderError("OpenAI-compatible request failed", error_class="network_error") from exc
-        except json.JSONDecodeError as exc:
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise ProviderError("provider returned invalid JSON", error_class="invalid_response") from exc
         try:
             choice = body["choices"][0]
@@ -196,6 +203,9 @@ class OpenAICompatibleAdapter:
                 retry_after_seconds=retry_after,
                 quota_reset_at=quota_reset,
             ) from exc
+        except error.URLError as exc:
+            category = "timeout" if isinstance(exc.reason, TimeoutError) else "network_error"
+            raise ProviderError("OpenAI-compatible stream failed", error_class=category) from exc
         except TimeoutError as exc:
             raise ProviderError("OpenAI-compatible stream timed out", error_class="timeout") from exc
         except OSError as exc:
@@ -204,7 +214,17 @@ class OpenAICompatibleAdapter:
             for raw_line in response:
                 line = raw_line.decode("utf-8").strip()
                 if line.startswith("data:"):
-                    yield line[5:].strip()
+                    payload = line[5:].strip()
+                    validate_stream_payload(payload)
+                    yield payload
+                    if payload == "[DONE]":
+                        return
+        except TimeoutError as exc:
+            raise ProviderError("OpenAI-compatible stream timed out", error_class="timeout") from exc
+        except (OSError, IncompleteRead) as exc:
+            raise ProviderError("OpenAI-compatible stream failed", error_class="network_error") from exc
+        except UnicodeDecodeError as exc:
+            raise ProviderError("provider returned invalid SSE encoding", error_class="invalid_response") from exc
         finally:
             response.close()
 
@@ -249,6 +269,15 @@ def _http_error_class(status_code: int) -> str:
     return "http_error"
 
 
+def _finite_nonnegative(value: object) -> float | None:
+    """Discard non-finite provider hints before cooldown/header calculations."""
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return max(0.0, parsed) if math.isfinite(parsed) else None
+
+
 def _retry_hints(headers) -> tuple[float | None, float | None]:
     """Parse bounded provider retry/quota hints without retaining response text."""
     if headers is None:
@@ -257,7 +286,7 @@ def _retry_hints(headers) -> tuple[float | None, float | None]:
     raw_retry = headers.get("Retry-After")
     if raw_retry:
         try:
-            retry_after = max(0.0, float(raw_retry))
+            retry_after = _finite_nonnegative(float(raw_retry))
         except (TypeError, ValueError):
             try:
                 retry_after = max(0.0, parsedate_to_datetime(raw_retry).timestamp() - time.time())
@@ -267,11 +296,38 @@ def _retry_hints(headers) -> tuple[float | None, float | None]:
     raw_reset = headers.get("X-RateLimit-Reset") or headers.get("RateLimit-Reset")
     if raw_reset:
         try:
-            parsed = float(raw_reset)
-            quota_reset = time.time() + parsed if parsed < time.time() else parsed
+            parsed = _finite_nonnegative(raw_reset)
+            if parsed is not None:
+                # X-RateLimit-Reset commonly uses Unix seconds (sometimes ms).
+                # A past Unix timestamp must not become a decades-long delta.
+                if headers.get("X-RateLimit-Reset") and parsed >= 1_000_000_000:
+                    quota_reset = parsed / 1000 if parsed >= 1_000_000_000_000 else parsed
+                else:
+                    quota_reset = time.time() + parsed
         except (TypeError, ValueError, OverflowError):
             quota_reset = None
     return retry_after, quota_reset
+
+
+def validate_stream_payload(payload: str) -> dict[str, object] | None:
+    """Validate an SSE data event before committing downstream headers/data."""
+    if payload == "[DONE]":
+        return None
+    try:
+        event = json.loads(payload)
+    except (json.JSONDecodeError, TypeError) as exc:
+        raise ProviderError("provider returned malformed SSE JSON", error_class="invalid_response") from exc
+    if not isinstance(event, dict) or "error" in event or not isinstance(event.get("choices"), list):
+        raise ProviderError("provider returned malformed SSE event", error_class="invalid_response")
+    return event
+
+
+def _warm_wait(error: ProviderError, hint: CacheHint | None) -> float:
+    """Respect the longer of quota reset and retry hints before cache retries."""
+    delay = error.retry_after_seconds
+    if error.quota_reset_at is not None:
+        delay = max(delay or 0.0, error.quota_reset_at - time.time())
+    return warm_cache_wait_seconds(error.error_class, delay, hint)
 
 
 def _as_execution_result(
@@ -335,9 +391,8 @@ def execute(
             failures.append((deployment.deployment_id, error_class))
             if on_failure is not None:
                 on_failure(deployment.deployment_id, error_class)
-            wait_seconds = warm_cache_wait_seconds(
-                error_class,
-                error.retry_after_seconds,
+            wait_seconds = _warm_wait(
+                error,
                 (cache_hints or {}).get(deployment.deployment_id),
             )
             if wait_seconds:
@@ -396,14 +451,17 @@ def stream_execute(
         stream = getattr(adapter, "stream", None) if adapter else None
         if stream is None:
             continue
+        payloads = None
         try:
             request_data = provider_request or ProviderRequest(
                 messages=[{"role": "user", "content": prompt}], options={}
             )
             payloads = iter(stream(deployment, request_data))
             first = next(payloads)
-            health.mark_success(deployment.deployment_id)
-            return deployment, chain((first,), payloads)
+            if first == "[DONE]":
+                raise ProviderError("provider returned an empty stream", error_class="empty_stream")
+            validate_stream_payload(first)
+            return deployment, _prepend_stream(first, payloads)
         except StopIteration:
             last_error = ProviderError("provider returned an empty stream", error_class="empty_stream")
             health.mark_failure(deployment.deployment_id, error_class="empty_stream")
@@ -419,9 +477,10 @@ def stream_execute(
             )
             if on_failure is not None:
                 on_failure(deployment.deployment_id, error.error_class)
-            wait_seconds = warm_cache_wait_seconds(
-                error.error_class,
-                error.retry_after_seconds,
+            if payloads is not None and hasattr(payloads, "close"):
+                payloads.close()
+            wait_seconds = _warm_wait(
+                error,
                 (cache_hints or {}).get(deployment.deployment_id),
             )
             if wait_seconds:
@@ -432,8 +491,10 @@ def stream_execute(
                     )
                     payloads = iter(stream(deployment, request_data))
                     first = next(payloads)
-                    health.mark_success(deployment.deployment_id)
-                    return deployment, chain((first,), payloads)
+                    if first == "[DONE]":
+                        raise ProviderError("provider returned an empty stream", error_class="empty_stream")
+                    validate_stream_payload(first)
+                    return deployment, _prepend_stream(first, payloads)
                 except StopIteration:
                     last_error = ProviderError("provider returned an empty stream", error_class="empty_stream")
                     health.mark_failure(deployment.deployment_id, error_class="empty_stream")
@@ -449,9 +510,21 @@ def stream_execute(
                     )
                     if on_failure is not None:
                         on_failure(deployment.deployment_id, retry_error.error_class)
+                    if payloads is not None and hasattr(payloads, "close"):
+                        payloads.close()
     raise ProviderError(
         f"no streaming adapter available for {group}",
         error_class=last_error.error_class if last_error else "no_adapter",
         retry_after_seconds=last_error.retry_after_seconds if last_error else None,
         quota_reset_at=last_error.quota_reset_at if last_error else None,
     )
+
+
+def _prepend_stream(first: str, payloads):
+    """Keep the upstream generator closeable after priming for safe failover."""
+    try:
+        yield first
+        yield from payloads
+    finally:
+        if hasattr(payloads, "close"):
+            payloads.close()

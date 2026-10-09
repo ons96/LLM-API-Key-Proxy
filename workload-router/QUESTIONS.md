@@ -12,13 +12,17 @@ credentials, host access, or an explicit repository decision.
   decide later whether production traffic should remain there or use direct
   upstream adapters.
 - Run provider-backed timeout, 429, 5xx, quota, and streaming tests on VPS 40.
+  A local scripted fault harness now covers these paths without touching live
+  quotas; live checks remain access-dependent.
 - The provider-free side-by-side canary is installed and tested on port 8123;
   the existing gateway remains active on port 8000. Defer reverse-proxy
   cutover until provider configuration and compatibility testing are complete.
 - Provider-backed tool-call, structured-output, code-phase, debug-phase, native
-  stream, and cooldown checks passed on the side-by-side canary. Remaining
-  external checks are provider-specific timeout/429/5xx/quota behavior and
-  OpenCode client compatibility before any cutover.
+  stream, and cooldown checks passed on the side-by-side canary. A real
+  OpenCode 1.18.35 request reached the canary through a local SSH tunnel, but
+  the existing gateway upstream chain exhausted/cooldowned on the large live
+  tool context; no router-side tool stripping was added. Repeat the real tool
+  loop after upstream availability recovers before any cutover.
 - The VPS has no `opencode` executable. The router's OpenCode signal-header path
   was exercised directly, but a real client session still requires the client
   to be installed or tested from another host.

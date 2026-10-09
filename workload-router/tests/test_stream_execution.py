@@ -1,16 +1,18 @@
+import json
+
 from provider_adapter import ProviderError, stream_execute
 from router_core import Capability, Deployment, HealthRegistry, RequestFeatures
 
 
 class FailingStream:
-    def stream(self, deployment, prompt):
+    def stream(self, deployment, request):
         raise ProviderError("stream failed")
         yield "unreachable"
 
 
 class WorkingStream:
-    def stream(self, deployment, prompt):
-        yield "first"
+    def stream(self, deployment, request):
+        yield json.dumps({"choices": [{"delta": {"content": "first"}}]})
         yield "[DONE]"
 
 
@@ -24,4 +26,4 @@ def test_stream_execution_fails_over_before_first_event():
         {"first": FailingStream(), "second": WorkingStream()}, HealthRegistry(), "hello"
     )
     assert selected.deployment_id == "second"
-    assert list(events) == ["first", "[DONE]"]
+    assert list(events) == [json.dumps({"choices": [{"delta": {"content": "first"}}]}), "[DONE]"]

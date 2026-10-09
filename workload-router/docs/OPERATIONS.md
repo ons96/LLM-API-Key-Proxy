@@ -61,6 +61,14 @@ recorded without upstream response text. A native stream that becomes malformed
 after headers are sent is closed and recorded as an operational failure; it is
 not converted into a false successful completion.
 
+The local `tests/test_provider_faults.py` harness exercises these categories with
+a scripted provider and does not consume live quota. Keep live provider fault
+checks bounded. A real OpenCode 1.18.35 request through the loopback canary was
+able to reach the router, but the existing gateway's upstream chain exhausted
+or cooled down on the large tool-context request; the router intentionally does
+not strip tools or silently downgrade that request. Repeat the tool-loop test
+after upstream availability recovers.
+
 Fresh requests restart at the top chain priority. Use the continuation signal
 (`X-Router-Continuation: true` or `continuation: true`) only for raw API/tool
 continuations that should retain the preferred deployment. A short rate-limit

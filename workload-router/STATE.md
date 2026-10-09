@@ -477,6 +477,35 @@ on VPS 40, run actual provider-specific quota/429/timeout/5xx tests and a real
 OpenCode client session; keep the current gateway and loopback canary as
 fallback.
 
+## Provider-fault and OpenCode compatibility checkpoint
+
+- Added `tests/test_provider_faults.py`, a local scripted OpenAI-compatible HTTP
+  provider harness covering 429/Retry-After, quota reset, timeout, 4xx/5xx,
+  malformed or truncated SSE, empty streams, same-group failover, cooldown
+  recovery, cache-aware retry, option forwarding, and usage/cache telemetry.
+  It uses no live provider, quota, or credential.
+- Hardened provider transport normalization for incomplete reads, malformed
+  events, finite retry/quota hints, closeable primed streams, and post-header
+  stream failure handling. Updated the stream-execution regression to the
+  structured provider-stream contract.
+- Full verification passed: `python3 -m pytest -q` -> 89 passed (one existing
+  warning); `python3 tools/verify_release.py` -> 89 passed, session validation
+  OK, resource smoke health/route 200 at 26116 KB RSS, and compilation OK.
+- OpenCode 1.18.35 was run through an SSH tunnel to the loopback canary using a
+  temporary provider config. The real request reached the router, but the
+  existing gateway's upstream chain exhausted/cooldowned during the large
+  real tool-context request; a sanitized equivalent completed. No tools were
+  stripped in the router, and no gateway or provider configuration was changed.
+- This is not a successful real OpenCode session yet. Re-run after provider
+  availability is restored, then test a real tool loop before any cutover.
+
+## Next action for a new implementation session
+
+Push this fault-hardening checkpoint into PR #315, then re-run a real OpenCode
+tool loop when the existing gateway has a usable upstream. Keep the existing
+gateway as fallback and do not perform reverse-proxy cutover until that client
+test and provider-specific checks pass.
+
 ## Checkpoint protocol
 
 After every milestone, record changed files, exact commands and results,

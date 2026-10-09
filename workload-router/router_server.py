@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from router_core import ROUTER_VERSION, HealthRegistry, RequestFeatures, estimate_context_tokens, normalize_phase, route_plan
 from router_config import default_deployments, load_deployments
-from provider_adapter import ProviderAdapter, ProviderError, ProviderRequest, adapters_from_environment, execute, stream_execute
+from provider_adapter import ProviderAdapter, ProviderError, ProviderRequest, adapters_from_environment, execute, stream_execute, validate_stream_payload
 from provider_metadata import load_provider_group_deployments
 from router_state import RouterState
 from stall_detector import StallState
@@ -288,25 +288,28 @@ class RouterHandler(BaseHTTPRequestHandler):
 
             def record_provider_failure(deployment_id: str, error_class: str) -> None:
                 self.state.record_outcome(session_id, deployment_id, "operational_failure", error_class)
-                self.health.mark_failure(deployment_id, error_class=error_class)
 
             response_format = payload.get("response_format")
             if response_format is not None and not isinstance(response_format, dict):
                 raise ValueError("response_format must be an object")
             if payload.get("stream") is True:
                 try:
-                    deployment_id = self._send_provider_stream(
+                    streamed = self._send_provider_stream(
                         features, prompt, model, provider_request, record_provider_failure, cache_hints, preferred
                     )
-                    if deployment_id is not None:
+                    if streamed is not None:
+                        deployment_id, usage = streamed
                         deployment = self._deployment(deployment_id)
                         self.state.record(session_id, prompt, deployment.capability.value, deployment.deployment_id, deployment.provider, deployment.config_fingerprint)
                         self.state.set_preferred(session_id, phase, deployment_id)
+                        if _has_cache_fields(usage):
+                            cached_tokens, cache_writes = _cache_usage(usage)
+                            self.state.record_cache(session_id, deployment_id, prefix, cached_tokens, cache_writes, deployment.cache_ttl_seconds)
                         self.state.record_outcome(session_id, deployment_id, "success")
                 except ProviderError as error:
                     # Completion-only adapters retain the compatibility stream
                     # contract; native adapters stream without buffering.
-                    if "streaming adapter" not in str(error):
+                    if error.error_class != "no_adapter":
                         raise
                     result = execute(
                         features,
@@ -457,7 +460,7 @@ class RouterHandler(BaseHTTPRequestHandler):
         on_failure,
         cache_hints,
         preferred,
-    ) -> str | None:
+    ) -> tuple[str, dict[str, object] | None] | None:
         deployment, payloads = stream_execute(
             features,
             self.deployments,
@@ -473,20 +476,24 @@ class RouterHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.send_header("X-Router-Deployment", deployment.deployment_id)
+        self.send_header("X-Router-Group", deployment.chain_group)
         self.end_headers()
+        usage = None
+        completed = False
         try:
             for payload in payloads:
                 if payload == "[DONE]":
                     self.wfile.write(b"data: [DONE]\n\n")
-                    continue
-                try:
-                    event = json.loads(payload)
-                except (json.JSONDecodeError, TypeError) as exc:
-                    raise ProviderError("provider returned malformed SSE JSON", error_class="invalid_response") from exc
-                if not isinstance(event, dict):
-                    raise ProviderError("provider returned malformed SSE event", error_class="invalid_response")
-                event.setdefault("model", model)
+                    completed = True
+                    break
+                event = validate_stream_payload(payload)
+                if isinstance(event.get("usage"), dict):
+                    usage = event["usage"]
+                event["model"] = model
                 self.wfile.write(f"data: {json.dumps(event)}\n\n".encode("utf-8"))
+                self.wfile.flush()
+            if not completed:
+                raise ProviderError("provider stream ended before DONE", error_class="invalid_response")
             self.wfile.flush()
         except ProviderError as error:
             on_failure(deployment.deployment_id, error.error_class)
@@ -498,7 +505,10 @@ class RouterHandler(BaseHTTPRequestHandler):
             self.health.mark_failure(deployment.deployment_id, error_class="network_error")
             self.close_connection = True
             return None
-        return deployment.deployment_id
+        finally:
+            payloads.close()
+        self.health.mark_success(deployment.deployment_id)
+        return deployment.deployment_id, usage
 
     def _deployment(self, deployment_id: str):
         """Resolve a selected deployment for metadata persistence."""
