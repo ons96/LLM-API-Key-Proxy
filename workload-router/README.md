@@ -140,8 +140,15 @@ cooldown; it does not perform semantic retries.
 Provider HTTP failures are reduced to bounded telemetry classes such as
 `timeout`, `rate_limit`, `upstream_failure`, `provider_rejection`, and
 `network_error`. Failed attempts are recorded without persisting upstream error
-text, while later same-capability attempts can still succeed. A malformed native
-SSE event closes the stream without being reported as a successful completion.
+text, while later same-capability attempts can still succeed. Unexpected adapter
+exceptions are normalized into the same bounded classes, including failures
+while creating or iterating a stream. A malformed native SSE event closes the
+stream without being reported as a successful completion.
+
+The provider-fault regression harness also sends an OpenCode-shaped request with
+69 tools, a large system message, stream usage options, and a 32,000-token
+output limit. It verifies that message history, tools, and standard options are
+forwarded intact without contacting a live provider.
 
 The chat boundary validates `response_format` objects and supports OpenAI-style
 SSE streaming. Adapters exposing `stream()` pass provider SSE payloads through

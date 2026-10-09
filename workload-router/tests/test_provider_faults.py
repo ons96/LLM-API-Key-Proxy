@@ -211,6 +211,47 @@ def test_router_controls_do_not_leak_into_real_upstream_request(chain_router):
     assert forwarded["temperature"] == 0
 
 
+def test_large_opencode_shaped_request_preserves_tools_and_options(chain_router):
+    server, _, _, calls = chain_router
+    system_content = "x" * 78297
+    tools = [
+        {"type": "function", "function": {
+            "name": f"tool_{index:02d}",
+            "description": "Tool description " + ("d" * 900),
+            "parameters": {
+                "type": "object",
+                "properties": {"value": {"type": "string"}},
+                "required": ["value"],
+                "additionalProperties": False,
+            },
+        }}
+        for index in range(69)
+    ]
+    messages = [
+        {"role": "system", "content": system_content},
+        {"role": "user", "content": "Reply with exactly the word OK."},
+    ]
+    status, body, _ = chat(
+        server,
+        session_id="opencode-large",
+        messages=messages,
+        tools=tools,
+        tool_choice="auto",
+        stream=True,
+        stream_options={"include_usage": True},
+        max_tokens=32000,
+    )
+    assert status == 200
+    assert body.endswith("data: [DONE]\n\n")
+    forwarded = calls[0]
+    assert len(json.dumps(forwarded)) > 150000
+    assert forwarded["messages"] == messages
+    assert forwarded["tools"] == tools
+    assert forwarded["tool_choice"] == "auto"
+    assert forwarded["stream_options"] == {"include_usage": True}
+    assert forwarded["max_tokens"] == 32000
+
+
 @pytest.mark.parametrize("failure,category", [("malformed", "invalid_response"), ("empty", "empty_stream")])
 def test_invalid_first_stream_event_fails_over_before_headers(chain_router, failure, category):
     server, router, scripts, calls = chain_router

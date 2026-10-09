@@ -300,7 +300,7 @@ def _retry_hints(headers) -> tuple[float | None, float | None]:
             if parsed is not None:
                 # X-RateLimit-Reset commonly uses Unix seconds (sometimes ms).
                 # A past Unix timestamp must not become a decades-long delta.
-                if headers.get("X-RateLimit-Reset") and parsed >= 1_000_000_000:
+                if parsed >= 1_000_000_000:
                     quota_reset = parsed / 1000 if parsed >= 1_000_000_000_000 else parsed
                 else:
                     quota_reset = time.time() + parsed
@@ -328,6 +328,28 @@ def _warm_wait(error: ProviderError, hint: CacheHint | None) -> float:
     if error.quota_reset_at is not None:
         delay = max(delay or 0.0, error.quota_reset_at - time.time())
     return warm_cache_wait_seconds(error.error_class, delay, hint)
+
+
+def _normalize_adapter_exception(exc: Exception) -> ProviderError:
+    """Convert unexpected adapter failures into bounded failover categories."""
+    if isinstance(exc, TimeoutError):
+        return ProviderError("provider operation timed out", error_class="timeout")
+    if isinstance(exc, OSError):
+        return ProviderError("provider operation failed", error_class="network_error")
+    if isinstance(exc, (TypeError, ValueError, UnicodeError, json.JSONDecodeError)):
+        return ProviderError("provider returned an invalid response", error_class="invalid_response")
+    return ProviderError("provider operation failed", error_class="provider_error")
+
+
+def _prime_stream(stream, deployment: Deployment, provider_request: ProviderRequest):
+    """Create and prime an adapter stream while normalizing pre-header faults."""
+    try:
+        payloads = iter(stream(deployment, provider_request))
+        return payloads, next(payloads)
+    except (ProviderError, StopIteration):
+        raise
+    except Exception as exc:
+        raise _normalize_adapter_exception(exc) from exc
 
 
 def _as_execution_result(
@@ -376,7 +398,13 @@ def execute(
             request_data = provider_request or ProviderRequest(
                 messages=[{"role": "user", "content": prompt}], options={}
             )
-            result = _as_execution_result(deployment, adapter.complete(deployment, request_data), attempts, tuple(failures))
+            try:
+                upstream_result = adapter.complete(deployment, request_data)
+            except ProviderError:
+                raise
+            except Exception as exc:
+                raise _normalize_adapter_exception(exc) from exc
+            result = _as_execution_result(deployment, upstream_result, attempts, tuple(failures))
             health.mark_success(deployment.deployment_id)
             return result
         except ProviderError as error:
@@ -402,9 +430,15 @@ def execute(
                     request_data = provider_request or ProviderRequest(
                         messages=[{"role": "user", "content": prompt}], options={}
                     )
+                    try:
+                        upstream_result = adapter.complete(deployment, request_data)
+                    except ProviderError:
+                        raise
+                    except Exception as exc:
+                        raise _normalize_adapter_exception(exc) from exc
                     result = _as_execution_result(
                         deployment,
-                        adapter.complete(deployment, request_data),
+                        upstream_result,
                         attempts,
                         tuple(failures),
                     )
@@ -456,8 +490,7 @@ def stream_execute(
             request_data = provider_request or ProviderRequest(
                 messages=[{"role": "user", "content": prompt}], options={}
             )
-            payloads = iter(stream(deployment, request_data))
-            first = next(payloads)
+            payloads, first = _prime_stream(stream, deployment, request_data)
             if first == "[DONE]":
                 raise ProviderError("provider returned an empty stream", error_class="empty_stream")
             validate_stream_payload(first)
@@ -489,8 +522,7 @@ def stream_execute(
                     request_data = provider_request or ProviderRequest(
                         messages=[{"role": "user", "content": prompt}], options={}
                     )
-                    payloads = iter(stream(deployment, request_data))
-                    first = next(payloads)
+                    payloads, first = _prime_stream(stream, deployment, request_data)
                     if first == "[DONE]":
                         raise ProviderError("provider returned an empty stream", error_class="empty_stream")
                     validate_stream_payload(first)
@@ -525,6 +557,10 @@ def _prepend_stream(first: str, payloads):
     try:
         yield first
         yield from payloads
+    except ProviderError:
+        raise
+    except Exception as exc:
+        raise _normalize_adapter_exception(exc) from exc
     finally:
         if hasattr(payloads, "close"):
             payloads.close()

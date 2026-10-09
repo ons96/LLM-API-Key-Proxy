@@ -2,7 +2,7 @@ import time
 
 import pytest
 
-from provider_adapter import ProviderError, execute
+from provider_adapter import ProviderError, execute, stream_execute
 from router_core import CacheHint, Capability, Deployment, HealthRegistry, RequestFeatures
 
 
@@ -94,3 +94,62 @@ def test_execution_retries_short_rate_limit_when_cache_is_warm():
     assert result.deployment_id == "warm"
     assert result.attempts == 2
     assert result.failures == (("warm", "rate_limit"),)
+
+
+@pytest.mark.parametrize("exception, error_class", [
+    (OSError("connection reset"), "network_error"),
+    (ValueError("bad provider result"), "invalid_response"),
+])
+def test_unexpected_completion_exceptions_fail_over_with_bounded_category(exception, error_class):
+    deployments = [
+        Deployment("first", Capability.FAST_GENERAL, 4096, latency_ms=1, success_rate=1),
+        Deployment("second", Capability.FAST_GENERAL, 4096, latency_ms=2, success_rate=1),
+    ]
+
+    class Broken:
+        def complete(self, deployment, provider_request):
+            raise exception
+
+    result = execute(
+        RequestFeatures("answer"),
+        deployments,
+        {"first": Broken(), "second": Adapter(result="ok")},
+        HealthRegistry(),
+        "answer",
+    )
+    assert result.deployment_id == "second"
+
+
+@pytest.mark.parametrize("exception, error_class", [
+    (OSError("connection reset"), "network_error"),
+    (ValueError("bad stream"), "invalid_response"),
+])
+def test_unexpected_stream_exceptions_fail_over_before_headers(exception, error_class):
+    deployments = [
+        Deployment("first", Capability.FAST_GENERAL, 4096, latency_ms=1, success_rate=1),
+        Deployment("second", Capability.FAST_GENERAL, 4096, latency_ms=2, success_rate=1),
+    ]
+
+    class Broken:
+        def stream(self, deployment, provider_request):
+            def events():
+                raise exception
+                yield "unreachable"
+            return events()
+
+    class Working:
+        def stream(self, deployment, provider_request):
+            yield '{"choices": []}'
+            yield "[DONE]"
+
+    health = HealthRegistry()
+    selected, events = stream_execute(
+        RequestFeatures("answer"),
+        deployments,
+        {"first": Broken(), "second": Working()},
+        health,
+        "answer",
+    )
+    assert selected.deployment_id == "second"
+    assert list(events) == ['{"choices": []}', "[DONE]"]
+    assert health.error_class("first") == error_class

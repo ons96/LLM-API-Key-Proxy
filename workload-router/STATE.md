@@ -506,6 +506,34 @@ tool loop when the existing gateway has a usable upstream. Keep the existing
 gateway as fallback and do not perform reverse-proxy cutover until that client
 test and provider-specific checks pass.
 
+## Large-request and adapter-lifecycle checkpoint
+
+- Normalized unexpected adapter exceptions during completion, stream creation,
+  first-event priming, warm-cache retry, and later stream iteration into bounded
+  provider error classes so same-group failover and cooldown behavior remains
+  deterministic.
+- Corrected generic `RateLimit-Reset` epoch parsing and added regression tests
+  for OSError/ValueError completion and stream failures, including pre-header
+  stream failover and health categorization.
+- Added an OpenCode-shaped provider-free regression with 69 tools, a 78,297
+  character system message, `tool_choice=auto`, `stream_options.include_usage`,
+  and `max_tokens=32000`; it verifies an intact serialized request over 150 KB
+  and a complete SSE response.
+- Verification passed: `python3 -m pytest -q` -> 95 passed (one existing
+  warning); `python3 tools/verify_release.py` -> 95 passed, session validation
+  OK, resource smoke health/route 200 at 26224 KB RSS, and compilation OK.
+  A temporary local server passed `python3 tools/concurrency_smoke.py
+  --requests 100 --workers 8` with 100/100 successful requests.
+- The real OpenCode client test remains externally blocked by upstream provider
+  availability in the legacy gateway; no router-side tool stripping, gateway
+  edit, VPS deployment, or credential change was made.
+
+## Next action for a new implementation session
+
+Push this checkpoint to PR #315 and re-run a real OpenCode tool loop after the
+legacy gateway has a usable upstream. Keep the existing gateway as fallback;
+then review/merge PR #315 before gated integration work.
+
 ## Checkpoint protocol
 
 After every milestone, record changed files, exact commands and results,

@@ -86,6 +86,19 @@ def test_openai_compatible_adapter_reads_retry_and_quota_headers():
     assert raised.value.quota_reset_at is not None
 
 
+def test_openai_compatible_adapter_reads_epoch_reset_from_generic_header():
+    reset_at = 1_800_000_000
+    headers = {"Retry-After": "3", "RateLimit-Reset": str(reset_at)}
+    with patch.dict("os.environ", {"DEMO_BASE_URL": "https://provider.invalid"}, clear=True):
+        adapter = OpenAICompatibleAdapter("demo")
+        with patch("provider_adapter.request.urlopen", side_effect=HTTPError(
+            "https://provider.invalid", 429, "rate limited", headers, None
+        )):
+            with pytest.raises(ProviderError) as raised:
+                adapter.complete(DEPLOYMENT, ProviderRequest([{"role": "user", "content": "hello"}], {}))
+    assert raised.value.quota_reset_at == reset_at
+
+
 @pytest.mark.parametrize(
     ("exception", "error_class"),
     [(TimeoutError(), "timeout"), (OSError("connection reset"), "network_error")],
