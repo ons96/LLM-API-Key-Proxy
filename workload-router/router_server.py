@@ -11,6 +11,7 @@ from provider_adapter import ProviderAdapter, ProviderError, ProviderRequest, ad
 from provider_metadata import load_provider_group_deployments
 from router_state import RouterState
 from stall_detector import StallState
+from router_gate import cutover_enabled, log_dry_run
 
 
 def _load_runtime_deployments():
@@ -199,6 +200,7 @@ class RouterHandler(BaseHTTPRequestHandler):
             cache_hints = self.state.cache_hints(session_id, prefix)
             plan = route_plan(features, self.deployments, preferred, self.health, cache_hints)
             deployment = plan.candidates[0]
+            log_dry_run(deployment, plan.reason, session_id=session_id, phase=phase)
             self.state.record(session_id, prompt, deployment.capability.value, deployment.deployment_id, deployment.provider, deployment.config_fingerprint)
             self.state.set_preferred(session_id, phase, deployment.deployment_id)
             if _has_cache_fields(payload):
@@ -220,6 +222,7 @@ class RouterHandler(BaseHTTPRequestHandler):
                 "escalation": stall.escalation_level,
                 "route_reason": plan.reason,
                 "cache_saved_ms": round(plan.cache_saved_ms, 3),
+                "cutover_enabled": cutover_enabled(),
                 "chain": [item.deployment_id for item in plan.candidates],
             }
             self._send_json(
@@ -281,6 +284,7 @@ class RouterHandler(BaseHTTPRequestHandler):
             prefix = prompt[:4096]
             cache_hints = self.state.cache_hints(session_id, prefix)
             plan = route_plan(features, self.deployments, preferred, self.health, cache_hints)
+            log_dry_run(plan.candidates[0], plan.reason, session_id=session_id, phase=phase)
 
             def record_provider_failure(deployment_id: str, error_class: str) -> None:
                 self.state.record_outcome(session_id, deployment_id, "operational_failure", error_class)
