@@ -1,6 +1,7 @@
 """Validated, credential-free deployment catalog loading."""
 
 import json
+import math
 from pathlib import Path
 
 from router_core import Capability, Deployment
@@ -38,13 +39,20 @@ def load_deployments(path: str | Path | None = None) -> list[Deployment]:
             if (
                 context_limit <= 0
                 or latency_ms <= 0
+                or not math.isfinite(latency_ms)
                 or not 0 <= success_rate <= 1
+                or not math.isfinite(success_rate)
                 or chain_priority < 1
                 or cache_ttl_seconds < 0
+                or not math.isfinite(cache_ttl_seconds)
             ):
                 raise ValueError("invalid deployment performance range")
             if quota_remaining is not None and quota_remaining < 0:
                 raise ValueError("quota_remaining cannot be negative")
+            if quota_reset_at is not None and (
+                not math.isfinite(quota_reset_at) or quota_reset_at < 0
+            ):
+                raise ValueError("quota_reset_at must be finite and non-negative")
             deployments.append(Deployment(
                 deployment_id=str(entry["deployment_id"]),
                 capability=Capability(str(entry["capability"])),
@@ -66,5 +74,5 @@ def load_deployments(path: str | Path | None = None) -> list[Deployment]:
                 env_prefix=str(entry.get("env_prefix", "")),
             ))
         return deployments
-    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+    except (OSError, KeyError, TypeError, ValueError, OverflowError, json.JSONDecodeError):
         return default_deployments()

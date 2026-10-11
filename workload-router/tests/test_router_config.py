@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from router_config import default_deployments, load_deployments
 
 
@@ -27,3 +29,30 @@ def test_catalog_invalid_ranges_use_safe_defaults(tmp_path):
     path = tmp_path / "invalid-range.json"
     path.write_text(json.dumps([{"deployment_id": "bad", "capability": "fast_general", "context_limit": 0, "success_rate": 2}]), encoding="utf-8")
     assert [item.deployment_id for item in load_deployments(path)] == [item.deployment_id for item in default_deployments()]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("latency_ms", float("nan")),
+        ("latency_ms", float("inf")),
+        ("success_rate", float("nan")),
+        ("success_rate", float("inf")),
+        ("cache_ttl_seconds", float("nan")),
+        ("cache_ttl_seconds", float("inf")),
+        ("quota_reset_at", float("nan")),
+        ("quota_reset_at", float("inf")),
+    ],
+)
+def test_catalog_rejects_non_finite_float_values(tmp_path, field, value):
+    path = tmp_path / f"non-finite-{field}.json"
+    entry = {
+        "deployment_id": "bad",
+        "capability": "fast_general",
+        "context_limit": 1234,
+        field: value,
+    }
+    path.write_text(json.dumps([entry]), encoding="utf-8")
+    assert [item.deployment_id for item in load_deployments(path)] == [
+        item.deployment_id for item in default_deployments()
+    ]

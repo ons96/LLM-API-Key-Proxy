@@ -605,6 +605,29 @@ Run the staged secret scan, commit and push this finite-metadata hardening to
 PR #315, then continue with review/merge preparation while the real OpenCode
 tool-loop test remains blocked on upstream availability.
 
+## Finite deployment catalog checkpoint
+
+- Hardened `router_config.load_deployments()` against JSON NaN and infinity in
+  latency, success rate, cache TTL, and quota reset fields. Invalid non-finite
+  values now trigger the existing safe-default catalog fallback instead of
+  entering scoring, freshness, or quota-reset calculations.
+- Added parametrized configuration regressions for NaN and positive infinity;
+  parsing remains credential-free and provider-free.
+- Full verification passed: `python3 -m pytest -q` -> 111 passed (one existing
+  warning); `python3 tools/verify_release.py` -> 111 passed, session validation
+  OK, resource smoke health/route 200 at 26248 KB RSS, and compilation OK.
+  Direct resource smoke returned health/route 200 at 26188 KB RSS, and a
+  temporary local server passed `python3 tools/concurrency_smoke.py
+  --requests 100 --workers 8` with 100/100 successful requests.
+- No gateway/VPS files, provider credentials, live quotas, or deployment state
+  were touched.
+
+## Next action for a new implementation session
+
+Run the staged secret scan, commit and push this catalog-validation fix to PR
+#315, then continue review/merge preparation while the real OpenCode tool-loop
+test remains blocked on legacy upstream availability.
+
 ## Checkpoint protocol
 
 After every milestone, record changed files, exact commands and results,
