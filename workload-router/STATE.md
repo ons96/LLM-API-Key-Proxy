@@ -653,6 +653,30 @@ Run the staged secret scan, commit and push this cache-state hardening to PR
 #315, then continue review/merge preparation while the real OpenCode tool-loop
 test remains blocked on legacy upstream availability.
 
+## Provider metadata boundary checkpoint
+
+- Hardened the read-only provider-manager metadata loader against non-finite or
+  malformed context-window, tokens-per-second, and chain-priority values. Safe
+  finite defaults now keep one corrupted metadata row from aborting the whole
+  eligible chain catalog.
+- Added a provider-free SQLite regression with one valid row and one corrupted
+  row; the valid deployment remains available and the corrupted deployment gets
+  bounded context, latency, and priority defaults.
+- Verification passed: `python3 -m pytest -q` -> 128 passed (one existing
+  warning); `python3 tools/verify_release.py` -> 128 passed, session validation
+  OK, resource smoke health/route 200 at 26128 KB RSS, and compilation OK.
+  Direct resource smoke returned health/route 200 at 26292 KB RSS, and a
+  temporary local server passed `python3 tools/concurrency_smoke.py
+  --requests 100 --workers 8` with 100/100 successful requests.
+- No gateway/VPS files, provider credentials, live quotas, or deployment state
+  were touched.
+
+## Next action for a new implementation session
+
+Run the staged secret scan, commit and push this provider-metadata hardening to
+PR #315, then finish review/merge preparation while real OpenCode tool-loop
+validation remains blocked on legacy upstream availability.
+
 ## Checkpoint protocol
 
 After every milestone, record changed files, exact commands and results,

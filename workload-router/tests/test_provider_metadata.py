@@ -42,3 +42,46 @@ def test_provider_metadata_exports_ordered_free_chain_without_secrets(tmp_path):
     assert deployment.env_prefix == "DEMO"
     assert deployment.structured_output is True
     assert deployment.chain_priority == 1
+
+
+def test_provider_metadata_uses_safe_numeric_defaults_per_row(tmp_path):
+    path = tmp_path / "providers.sqlite"
+    connection = sqlite3.connect(path)
+    connection.executescript(
+        """
+        CREATE TABLE virtual_models (id INTEGER PRIMARY KEY, name TEXT);
+        CREATE TABLE fallback_chains (
+            id INTEGER PRIMARY KEY, virtual_model_id INTEGER, provider_key TEXT,
+            model_id TEXT, priority, capabilities TEXT
+        );
+        CREATE TABLE providers (
+            id INTEGER, key_name TEXT, base_url TEXT, env_var TEXT, enabled INTEGER,
+            free_tier INTEGER, no_api_key_required INTEGER, free_unlimited INTEGER,
+            free_daily INTEGER
+        );
+        CREATE TABLE models (
+            id INTEGER, provider_id INTEGER, model_id TEXT, context_window, tps,
+            free_tier INTEGER, capabilities TEXT
+        );
+        INSERT INTO virtual_models VALUES (1, 'chat-fast');
+        INSERT INTO providers VALUES
+            (1, 'good', 'https://good.invalid/v1', 'GOOD_API_KEY', 1, 1, 0, 0, 0),
+            (2, 'bad', 'https://bad.invalid/v1', 'BAD_API_KEY', 1, 1, 0, 0, 0);
+        INSERT INTO models VALUES
+            (1, 1, 'good-model', 32768, 100, 1, '[]'),
+            (2, 2, 'bad-model', 'NaN', 'Infinity', 1, '[]');
+        INSERT INTO fallback_chains VALUES
+            (1, 1, 'good', 'good-model', 1, '[]'),
+            (2, 1, 'bad', 'bad-model', 'NaN', '[]');
+        """
+    )
+    connection.commit()
+    connection.close()
+
+    deployments = load_provider_group_deployments(path, ["chat-fast"])
+
+    assert [deployment.model for deployment in deployments] == ["good-model", "bad-model"]
+    bad = deployments[1]
+    assert bad.context_limit == 16_384
+    assert bad.latency_ms == 1000.0
+    assert bad.chain_priority == 1000

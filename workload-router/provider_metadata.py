@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import sqlite3
 from pathlib import Path
 
@@ -42,6 +43,17 @@ def _env_prefix(env_var: object, provider: str) -> str:
     if value.endswith("_API_KEY"):
         value = value[:-8]
     return value
+
+
+def _bounded_int(value: object, default: int, minimum: int = 0) -> int:
+    """Convert finite provider metadata without letting one bad row abort loading."""
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return default
+    if not math.isfinite(parsed):
+        return default
+    return max(minimum, int(parsed))
 
 
 def load_provider_group_deployments(
@@ -115,8 +127,8 @@ def load_provider_group_deployments(
         capability = _capability(group, capabilities)
         tools = capability == Capability.CODE_IMPLEMENT or "tools" in capabilities or "tool" in capabilities
         structured = bool({"json", "structured_output", "structured"} & capabilities)
-        context_limit = max(1024, int(context_window or 16_384))
-        tokens_per_second = max(1, int(tps or 1))
+        context_limit = _bounded_int(context_window, 16_384, minimum=1024)
+        tokens_per_second = _bounded_int(tps, 1, minimum=1)
         latency_ms = max(50.0, 1000.0 / tokens_per_second)
         quota_class = "free" if free_only else "metadata"
         deployments.append(
@@ -134,7 +146,7 @@ def load_provider_group_deployments(
                 quota_class=quota_class,
                 model=model,
                 group=group,
-                chain_priority=max(1, int(priority)),
+                chain_priority=_bounded_int(priority, 1000, minimum=1),
                 env_prefix=_env_prefix(env_var, provider),
             )
         )
