@@ -85,7 +85,10 @@ class CacheHint:
 
     def is_fresh(self, now: float | None = None) -> bool:
         current = time.time() if now is None else now
-        return self.cached_tokens > 0 and current - self.observed_at <= self.ttl_seconds
+        values = (current, self.observed_at, self.ttl_seconds, self.cached_tokens)
+        if not all(math.isfinite(float(value)) for value in values):
+            return False
+        return self.cached_tokens > 0 and self.ttl_seconds >= 0 and current - self.observed_at <= self.ttl_seconds
 
 
 @dataclass(frozen=True)

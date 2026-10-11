@@ -1,6 +1,7 @@
 """Small SQLite-backed session and decision state for the P0 router."""
 
 import hashlib
+import math
 import sqlite3
 import threading
 import time
@@ -136,14 +137,32 @@ class RouterState:
         ttl_seconds: float = 600.0,
     ) -> None:
         """Store provider-neutral cache observations keyed by deployment."""
-        if cached_tokens < 0 or cache_write_tokens < 0 or ttl_seconds < 0:
-            raise ValueError("cache counts and TTL cannot be negative")
+        cached_count = self._cache_count(cached_tokens)
+        write_count = self._cache_count(cache_write_tokens)
+        ttl = self._strict_nonnegative(ttl_seconds)
         with self.lock:
             self.connection.execute(
                 "INSERT INTO cache_observations(session_hash, deployment, prefix_hash, cached_tokens, cache_write_tokens, ttl_seconds, observed_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (self._hash(session_id), deployment, self._hash(prefix), cached_tokens, cache_write_tokens, ttl_seconds, time.time()),
+                (self._hash(session_id), deployment, self._hash(prefix), cached_count, write_count, ttl, time.time()),
             )
             self.connection.commit()
+
+    @staticmethod
+    def _cache_count(value: object) -> int:
+        parsed = RouterState._strict_nonnegative(value)
+        if not parsed.is_integer():
+            raise ValueError("cache counts must be finite non-negative integers")
+        return int(parsed)
+
+    @staticmethod
+    def _strict_nonnegative(value: object) -> float:
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError("cache values must be finite and non-negative") from exc
+        if not math.isfinite(parsed) or parsed < 0:
+            raise ValueError("cache values must be finite and non-negative")
+        return parsed
 
     def cache_hints(self, session_id: str, prefix: str) -> dict[str, CacheHint]:
         """Return the newest per-deployment cache observations for a prefix."""
@@ -158,12 +177,18 @@ class RouterState:
         hints: dict[str, CacheHint] = {}
         for deployment, cached_tokens, observed_at, ttl_seconds in rows:
             if deployment not in hints:
-                hints[str(deployment)] = CacheHint(
-                    deployment_id=str(deployment),
-                    cached_tokens=int(cached_tokens),
-                    observed_at=float(observed_at),
-                    ttl_seconds=float(ttl_seconds),
-                )
+                try:
+                    cached_count = self._cache_count(cached_tokens)
+                    observed = self._strict_nonnegative(observed_at)
+                    ttl = self._strict_nonnegative(ttl_seconds)
+                    hints[str(deployment)] = CacheHint(
+                        deployment_id=str(deployment),
+                        cached_tokens=cached_count,
+                        observed_at=observed,
+                        ttl_seconds=ttl,
+                    )
+                except (TypeError, ValueError, OverflowError):
+                    continue
         return hints
 
     def cache_count(self, deployment: str) -> int:

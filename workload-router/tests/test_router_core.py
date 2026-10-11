@@ -151,6 +151,24 @@ def test_warm_cache_wait_is_limited_to_short_rate_limits():
     assert warm_cache_wait_seconds("rate_limit", 5.0, hint, now=1100) == 0.0
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("observed_at", float("nan")),
+        ("observed_at", float("inf")),
+        ("observed_at", float("-inf")),
+        ("ttl_seconds", float("nan")),
+        ("ttl_seconds", float("inf")),
+        ("ttl_seconds", float("-inf")),
+    ],
+)
+def test_nonfinite_cache_hints_are_never_fresh(field, value):
+    values = {"observed_at": 100, "ttl_seconds": 600}
+    values[field] = value
+    hint = CacheHint("warm", cached_tokens=1000, **values)
+    assert not hint.is_fresh(now=200)
+
+
 def test_phase_normalization_is_bounded():
     assert normalize_phase("verification") == "verify"
     assert normalize_phase("DEEP-DEBUG") == "deep_debug"

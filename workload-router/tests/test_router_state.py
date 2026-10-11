@@ -1,3 +1,7 @@
+import math
+
+import pytest
+
 from router_state import RouterState
 
 
@@ -70,6 +74,30 @@ def test_state_rejects_negative_cache_ttl():
         raise AssertionError("negative cache TTL should be rejected")
     finally:
         state.close()
+
+
+@pytest.mark.parametrize("field", ["cached_tokens", "cache_write_tokens", "ttl_seconds"])
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_state_rejects_nonfinite_cache_values(field, value):
+    state = RouterState()
+    values = {"cached_tokens": 0, "cache_write_tokens": 0, "ttl_seconds": 600}
+    values[field] = value
+    try:
+        with pytest.raises(ValueError):
+            state.record_cache("session", "general", "prefix", **values)
+    finally:
+        state.close()
+
+
+def test_state_ignores_corrupt_nonfinite_cache_rows():
+    state = RouterState()
+    state.connection.execute(
+        "INSERT INTO cache_observations(session_hash, deployment, prefix_hash, cached_tokens, cache_write_tokens, ttl_seconds, observed_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (state._hash("session"), "general", state._hash("prefix"), 10, 0, math.inf, 100),
+    )
+    state.connection.commit()
+    assert state.cache_hints("session", "prefix") == {}
+    state.close()
 
 
 def test_state_migrates_legacy_decisions_table(tmp_path):
