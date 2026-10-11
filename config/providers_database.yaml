@@ -606,7 +606,7 @@ providers:
   base_url: https://api.openai.com/v1
   enabled: true
   free_tier: false
-  notes: Paid API — only enable if you have credits. Forbidden in free_only_mode.
+  notes: "Paid API \u2014 only enable if you have credits. Forbidden in free_only_mode."
   capabilities:
   - chat
   - code
@@ -655,7 +655,7 @@ providers:
     window_days: 12
     max_active_days: 3
     tz: UTC
-  notes: General G4F proxy — no API key required, rate limited
+  notes: "General G4F proxy \u2014 no API key required, rate limited"
   free_models:
   - id: gpt-4o
     context: 128000
@@ -864,7 +864,7 @@ providers:
   - fast
   rate_limits:
     rpm: 30
-  notes: Groq models via g4f.space proxy — no API key required
+  notes: "Groq models via g4f.space proxy \u2014 no API key required"
   free_models:
   - id: llama-3.3-70b-versatile
     context: 131072
@@ -917,7 +917,7 @@ providers:
   - vision
   rate_limits:
     rpm: 30
-  notes: Gemini models via g4f.space proxy — no API key required
+  notes: "Gemini models via g4f.space proxy \u2014 no API key required"
   free_models:
   - id: gemini-3-pro
     context: 2000000
@@ -3593,8 +3593,8 @@ providers:
   capabilities:
   - chat
   - reasoning
-  notes: Gemini models; chat confirmed 200 on gemini-2.5-pro. pseudo-streaming variants
-    (假流式-*) skipped.
+  notes: "Gemini models; chat confirmed 200 on gemini-2.5-pro. pseudo-streaming variants\
+    \ (\u5047\u6D41\u5F0F-*) skipped."
   free_models:
   - id: gemini-2.5-pro
     capabilities:
@@ -3653,7 +3653,8 @@ providers:
   enabled: false
   free_tier: true
   capabilities: []
-  notes: ARCHIVED 2026-07-13 — 401 Invalid token on all auth variants. new_api framework.
+  notes: "ARCHIVED 2026-07-13 \u2014 401 Invalid token on all auth variants. new_api\
+    \ framework."
 - id: euromodels
   name: EuroModels (euromodels.xyz)
   signup_url: ''
@@ -3662,7 +3663,7 @@ providers:
   enabled: false
   free_tier: true
   capabilities: []
-  notes: ARCHIVED 2026-07-13 — 403 Cloudflare access-gated from this network.
+  notes: "ARCHIVED 2026-07-13 \u2014 403 Cloudflare access-gated from this network."
 - id: aiand
   name: ai&
   enabled: false
@@ -3819,3 +3820,130 @@ providers:
   - id: ox-alpha-free
     context: 1000000
   notes: Discovered 2026-08-22
+- id: dlab-community
+  name: Dlab Community (shared free key)
+  env_var: DLAB_COMMUNITY_API_KEY
+  base_url: https://api.dlabkeys.com/v1
+  enabled: true
+  free_tier: true
+  free_models:
+  - id: kimi-k3-free
+    capabilities:
+    - chat
+    - reasoning
+    - vision
+  - id: glm-5-3-free
+    capabilities:
+    - chat
+    - reasoning
+    - vision
+  notes: Community shared key from dlabkeys Discord 2026-10-11; Kimi K3 + GLM 5.3
+    free tier
+- id: crowllm
+  name: CrowLLM
+  env_var: CROWLLM_API_KEY
+  base_url: https://crowllm.com/v1
+  enabled: true
+  free_tier: true
+  free_models:
+  - id: agnes-2-0-flash:free
+  - id: agnes-2-5-flash:free
+  - id: agnes-3-0-flash:free
+  - id: deepseek-v4-flash-0731-thinking:free
+  - id: deepseek-v4-flash-0731:free
+  - id: deepseek-v4-flash:free
+  - id: gemini-2.0-flash:free
+  - id: gemini-2.5-pro:free
+  - id: gemini-3-flash:free
+  - id: gemini-3-pro:free
+  - id: gemini-3.1-pro:free
+  - id: gemini-3.5-flash:free
+  - id: gemini-3.7-flash:free
+  - id: gemini-3.8-flash:free
+  - id: gemma-4-26b-a4b-it-chimerax:free
+  - id: gemma-4-26b-a4b-it-darksoul:free
+  - id: gemma-4-26b-a4b-it-luminous:free
+  - id: gemma-4-26b-a4b-it-meromero:free
+  - id: gemma-4-26b-a4b-it-moonlight:free
+  - id: gemma-4-26b-a4b-it-musica:free
+  - id: gemma4:31b:free
+  - id: glm-5.3-flash-thinking:free
+  - id: glm-5.3-flash:free
+  - id: gpt-4.1-mini:free
+  - id: gpt-4.1:free
+  - id: gpt-4.5:free
+  - id: gpt-4o-mini:free
+  - id: gpt-4o:free
+  - id: gpt-5.3-instant:free
+  - id: gpt-5.3:free
+  - id: gpt-5.4-thinking:free
+  - id: gpt-5.5-instant:free
+  - id: gpt-5.6-sol:free
+  - id: gpt-5:free
+  - id: gpt-oss:120b:free
+  - id: gpt-oss:20b:free
+  - id: grok-4.7-fast:free
+  - id: grok-4.7:free
+  - id: hy3:free
+  - id: kimi-k2.6:free
+  - id: laguna-s-2-1:free
+  - id: laguna-xs-2-1:free
+  - id: mimo-v2-6-flash:free
+  - id: minimax-m2.5:free
+  - id: minimax-m2.7:free
+  - id: minimax-m2.7:free-thinking
+  - id: mistral-medium-3.5:free
+  - id: muse-glimmer-30b:free
+  - id: muse-glimmer-30b:free-thinking
+  - id: muse-spark-1-3-contributor:free
+  - id: muse-spark-1.1:free
+  - id: nemotron-3-nano:30b:free
+  - id: nemotron-3-super-120b-a12b:free
+  - id: nemotron-3-ultra-550b-a55b:free
+  - id: nemotron-3-ultra:free
+  - id: north-mini-code:free
+  - id: o3:free
+  - id: o4-mini:free
+  - id: openai/gpt-oss-20b:free
+  - id: openai/gpt-oss-safeguard-20b:free
+  - id: qwen-3.6-plus:free
+  - id: qwen-3.8-27b:free
+  - id: qwen-3.8-max:free
+  - id: runpod/kimi-k3
+  - id: space-bunny-alpha:free
+  - id: step-5-preview:free
+  notes: Synced catalog 2026-10-11 (66 models incl step-5-preview:free)
+- id: kiosapi
+  name: KiosAPI
+  env_var: KIOSAPI_API_KEY
+  base_url: https://kiosapi.com/v1
+  enabled: true
+  free_tier: true
+  free_models:
+  - id: agnes-2.5-flash
+  - id: agnes-3.0-flash
+  - id: apodex-1.1-mini
+  - id: atria-dawn-preview
+  - id: deepseek-v4-flash-free
+  - id: deepseek-v4-flash-vision-exp-free
+  - id: dots-3-note-preview
+  - id: glm-4-9b-0414
+  - id: glm-z1-9b-0414
+  - id: glyph-cluster
+  - id: hunyuan-mt-7b
+  - id: laguna-s-2.1
+  - id: laguna-xs-2.1
+  - id: lfm-2.5-2.6b
+  - id: ling-3.1-flash
+  - id: nemotron-3-super-120b-a12b
+  - id: nemotron-3-ultra-550b-a55b
+  - id: nemotron-3.5-lightning
+  - id: north-mini-code
+  - id: openrouter/free
+  - id: qwen2.5-7b-instruct
+  - id: qwen3-8b
+  - id: qwen3.8-27b-free
+  - id: qwen3.8-flash-free
+  - id: sensenova-6.8-flash-lite
+  - id: step-5-preview-free
+  notes: Synced catalog 2026-10-11 (26 models incl step-5-preview-free)

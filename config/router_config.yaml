@@ -3,11 +3,6 @@ proxy_api_keys:
 - ${PROXY_API_KEY}
 providers:
   privaite:
-    # #405: PII-scrubbing proxy. base_url is the laptop PrivAiTe instance
-    # (localhost:8400), reachable from VPS-40 ONLY via a reverse SSH tunnel
-    # (ssh -R 8400:localhost:8400 ubuntu@40.233.101.233). Do NOT point at a
-    # public URL — scrubbing must always apply. PRIVAITE_API_KEY = the 32-byte
-    # client key from ~/.config/privaite/.client-key on the laptop.
     enabled: true
     env_var: PRIVAITE_API_KEY
     base_url: http://localhost:8400/v1
@@ -245,7 +240,8 @@ providers:
     - mimo-v2-pro
     - mimo-v2-omni
     _dead: true
-    _dead_reason: Railway app down — all routes return 404 JSON status page (audit 2026-07-03). Not recoverable.
+    _dead_reason: "Railway app down \u2014 all routes return 404 JSON status page\
+      \ (audit 2026-07-03). Not recoverable."
   brave_search:
     enabled: true
     env_var: BRAVE_API_KEY
@@ -471,7 +467,8 @@ providers:
     free_tier_models:
     - auto
     _dead: true
-    _dead_reason: No OpenAI-compat API at base_url — all /v1 routes 404 (nginx), root 200 only (audit 2026-07-03). Base URL wrong or API removed.
+    _dead_reason: "No OpenAI-compat API at base_url \u2014 all /v1 routes 404 (nginx),\
+      \ root 200 only (audit 2026-07-03). Base URL wrong or API removed."
   xinjianya:
     enabled: false
     env_var: XINJIANYA_API_KEY
@@ -489,7 +486,8 @@ providers:
     - moonshotai/kimi-k2.5
     - minimaxai/minimax-m2.5
     _dead: true
-    _dead_reason: DNS fail — Name or service not known (audit 2026-07-03). Domain dead.
+    _dead_reason: "DNS fail \u2014 Name or service not known (audit 2026-07-03). Domain\
+      \ dead."
   blaze-free:
     enabled: true
     env_var: BLAZE_FREE_API_KEY
@@ -593,7 +591,8 @@ providers:
     env_var: REDWAKEAI_API_KEY
     base_url: https://redwakeai.vercel.app/api/v1
     free_tier: true
-    _auto_disabled_reason: 429 limit_error on all chat during validation (server-wide, transient)
+    _auto_disabled_reason: 429 limit_error on all chat during validation (server-wide,
+      transient)
     free_tier_models:
     - zxz/claude-opus-4-6
     - zxz/claude-opus-4-7
@@ -652,7 +651,8 @@ providers:
     base_url: https://api.septorlabs.com/v1
     free_tier: true
     extra_headers:
-      User-Agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+      User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
+        like Gecko) Chrome/126.0.0.0 Safari/537.36
     free_tier_models:
     - qwen3-coder-free
     - qwen3-next-80b-a3b-instruct-free
@@ -665,7 +665,118 @@ providers:
     - nemotron-3-nano-30b-a3b-free
     - dolphin-mistral-24b-venice-edition-free
     - ling-2.6-flash-free
-
+  dlab-community:
+    enabled: true
+    env_var: DLAB_COMMUNITY_API_KEY
+    base_url: https://api.dlabkeys.com/v1
+    free_tier: true
+    free_tier_models:
+    - kimi-k3-free
+    - glm-5-3-free
+  crowllm:
+    enabled: true
+    env_var: CROWLLM_API_KEY
+    base_url: https://crowllm.com/v1
+    free_tier: true
+    free_tier_models:
+    - agnes-2-0-flash:free
+    - agnes-2-5-flash:free
+    - agnes-3-0-flash:free
+    - deepseek-v4-flash-0731-thinking:free
+    - deepseek-v4-flash-0731:free
+    - deepseek-v4-flash:free
+    - gemini-2.0-flash:free
+    - gemini-2.5-pro:free
+    - gemini-3-flash:free
+    - gemini-3-pro:free
+    - gemini-3.1-pro:free
+    - gemini-3.5-flash:free
+    - gemini-3.7-flash:free
+    - gemini-3.8-flash:free
+    - gemma-4-26b-a4b-it-chimerax:free
+    - gemma-4-26b-a4b-it-darksoul:free
+    - gemma-4-26b-a4b-it-luminous:free
+    - gemma-4-26b-a4b-it-meromero:free
+    - gemma-4-26b-a4b-it-moonlight:free
+    - gemma-4-26b-a4b-it-musica:free
+    - gemma4:31b:free
+    - glm-5.3-flash-thinking:free
+    - glm-5.3-flash:free
+    - gpt-4.1-mini:free
+    - gpt-4.1:free
+    - gpt-4.5:free
+    - gpt-4o-mini:free
+    - gpt-4o:free
+    - gpt-5.3-instant:free
+    - gpt-5.3:free
+    - gpt-5.4-thinking:free
+    - gpt-5.5-instant:free
+    - gpt-5.6-sol:free
+    - gpt-5:free
+    - gpt-oss:120b:free
+    - gpt-oss:20b:free
+    - grok-4.7-fast:free
+    - grok-4.7:free
+    - hy3:free
+    - kimi-k2.6:free
+    - laguna-s-2-1:free
+    - laguna-xs-2-1:free
+    - mimo-v2-6-flash:free
+    - minimax-m2.5:free
+    - minimax-m2.7:free
+    - minimax-m2.7:free-thinking
+    - mistral-medium-3.5:free
+    - muse-glimmer-30b:free
+    - muse-glimmer-30b:free-thinking
+    - muse-spark-1-3-contributor:free
+    - muse-spark-1.1:free
+    - nemotron-3-nano:30b:free
+    - nemotron-3-super-120b-a12b:free
+    - nemotron-3-ultra-550b-a55b:free
+    - nemotron-3-ultra:free
+    - north-mini-code:free
+    - o3:free
+    - o4-mini:free
+    - openai/gpt-oss-20b:free
+    - openai/gpt-oss-safeguard-20b:free
+    - qwen-3.6-plus:free
+    - qwen-3.8-27b:free
+    - qwen-3.8-max:free
+    - runpod/kimi-k3
+    - space-bunny-alpha:free
+    - step-5-preview:free
+  kiosapi:
+    enabled: true
+    env_var: KIOSAPI_API_KEY
+    free_tier: true
+    base_url: https://kiosapi.com/v1
+    free_tier_models:
+    - agnes-2.5-flash
+    - agnes-3.0-flash
+    - apodex-1.1-mini
+    - atria-dawn-preview
+    - deepseek-v4-flash-free
+    - deepseek-v4-flash-vision-exp-free
+    - dots-3-note-preview
+    - glm-4-9b-0414
+    - glm-z1-9b-0414
+    - glyph-cluster
+    - hunyuan-mt-7b
+    - laguna-s-2.1
+    - laguna-xs-2.1
+    - lfm-2.5-2.6b
+    - ling-3.1-flash
+    - nemotron-3-super-120b-a12b
+    - nemotron-3-ultra-550b-a55b
+    - nemotron-3.5-lightning
+    - north-mini-code
+    - openrouter/free
+    - qwen2.5-7b-instruct
+    - qwen3-8b
+    - qwen3.8-27b-free
+    - qwen3.8-flash-free
+    - sensenova-6.8-flash-lite
+    - step-5-preview-free
 search:
   default_enabled: true
   max_additional_searches: 2
