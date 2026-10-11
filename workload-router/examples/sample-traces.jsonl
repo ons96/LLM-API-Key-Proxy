@@ -1,0 +1,3 @@
+{"prompt":"summarize this text"}
+{"prompt":"inspect the repository and list relevant files","tools":true}
+{"prompt":"run the tests and diagnose failures","phase":"verify","tools":true}

@@ -1,0 +1,51 @@
+[
+  {
+    "deployment_id": "general",
+    "model": "general",
+    "capability": "fast_general",
+    "context_limit": 16384,
+    "provider": "unconfigured",
+    "config_fingerprint": "default",
+    "quota_class": "unlimited"
+  },
+  {
+    "deployment_id": "tool",
+    "model": "tool",
+    "capability": "fast_tool",
+    "context_limit": 16384,
+    "tools": true,
+    "provider": "unconfigured",
+    "config_fingerprint": "default",
+    "quota_class": "unlimited"
+  },
+  {
+    "deployment_id": "implement",
+    "model": "implement",
+    "capability": "code_implement",
+    "context_limit": 32768,
+    "tools": true,
+    "provider": "unconfigured",
+    "config_fingerprint": "default",
+    "quota_class": "unlimited"
+  },
+  {
+    "deployment_id": "verify",
+    "model": "verify",
+    "capability": "code_verify",
+    "context_limit": 32768,
+    "tools": true,
+    "provider": "unconfigured",
+    "config_fingerprint": "default",
+    "quota_class": "unlimited"
+  },
+  {
+    "deployment_id": "debug",
+    "model": "debug",
+    "capability": "code_debug",
+    "context_limit": 32768,
+    "tools": true,
+    "provider": "unconfigured",
+    "config_fingerprint": "default",
+    "quota_class": "unlimited"
+  }
+]
