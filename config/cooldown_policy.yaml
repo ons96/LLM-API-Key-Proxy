@@ -9,17 +9,59 @@
 #
 # Eligibility (all must be true): (1) supports prompt caching, (2) free-credit tier (not unlimited-free, not paid),
 # (3) cache benefit meaningful (>=20% speedup OR >=20% price discount).
+#
+# Quota classes (#1069): scalable replacement for hand-adding relays. Tag a
+# provider with `quota_class` + `supports_cache` and the wait-vs-fallback
+# decision is derived from the `quota_classes` table below. Explicit
+# wait_on_429/max_wait_s on a provider always win (back-compat layer).
+# Unknown or missing quota_class -> `default` (current behavior).
+#
+# Class mapping (keep #218 as the reference policy):
+#   unlimited  unlimited-free: no credit or cache to preserve, only TTFT
+#              matters -> prefer the faster fallback (no wait).
+#   credit     free-credit tier: waiting out a 429 preserves credit and warm
+#              cache (#218 eligibility) -> short wait, cache required.
+#   trial      trial credits: same rationale as credit, shorter cap.
+#   paid       never burn paid quota on waits -> rotate immediately.
+
+quota_classes:
+  unlimited:
+    wait_on_429: false
+    max_wait_s: 0
+    require_cache: false
+    reason: unlimited-prefer-fallback
+  credit:
+    wait_on_429: true
+    max_wait_s: 300
+    require_cache: true
+    reason: credit-cache-preserve
+  trial:
+    wait_on_429: true
+    max_wait_s: 120
+    require_cache: true
+    reason: trial-credit-preserve
+  paid:
+    wait_on_429: false
+    max_wait_s: 0
+    require_cache: false
+    reason: paid-rotate
 
 providers:
   anthropic:
+    quota_class: credit
+    supports_cache: true
     wait_on_429: true
     max_wait_s: 300
     reason: prompt-cache-discount
   openai:
+    quota_class: credit
+    supports_cache: true
     wait_on_429: true
     max_wait_s: 120
     reason: implicit-cache
   gemini:
+    quota_class: credit
+    supports_cache: true
     wait_on_429: true
     max_wait_s: 60
     reason: implicit-cache-free-tier
@@ -32,30 +74,44 @@ providers:
 # kiosapi/nusapi/siliconflow/logfare from #1068 context are NOT gateway
 # provider keys (absent from router_config.yaml) — skipped, not added.
   crowllm:
+    quota_class: unlimited
+    supports_cache: false
     wait_on_429: true
     max_wait_s: 30
     reason: relay-short-retry-after
   freetheai:
+    quota_class: unlimited
+    supports_cache: false
     wait_on_429: true
     max_wait_s: 30
     reason: relay-short-retry-after
   nvidia:
+    quota_class: unlimited
+    supports_cache: false
     wait_on_429: true
     max_wait_s: 30
     reason: relay-short-retry-after
   pooled:
+    quota_class: unlimited
+    supports_cache: false
     wait_on_429: true
     max_wait_s: 30
     reason: relay-short-retry-after
   tokenrouter:
+    quota_class: unlimited
+    supports_cache: false
     wait_on_429: true
     max_wait_s: 30
     reason: relay-short-retry-after
   kilo:
+    quota_class: unlimited
+    supports_cache: false
     wait_on_429: true
     max_wait_s: 30
     reason: relay-short-retry-after
   larprouter:
+    quota_class: unlimited
+    supports_cache: false
     wait_on_429: true
     max_wait_s: 30
     reason: relay-short-retry-after

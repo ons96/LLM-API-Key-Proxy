@@ -202,6 +202,139 @@ def test_metadata_fields_set_correctly():
     assert meta.get("wait_duration_s") == 30.0
 
 
+# --- quota classes (#1069) ---
+
+_QUOTA_CONFIG = """
+quota_classes:
+  unlimited:
+    wait_on_429: false
+    max_wait_s: 0
+    require_cache: false
+    reason: unlimited-prefer-fallback
+  credit:
+    wait_on_429: true
+    max_wait_s: 300
+    require_cache: true
+    reason: credit-cache-preserve
+  trial:
+    wait_on_429: true
+    max_wait_s: 120
+    require_cache: true
+    reason: trial-credit-preserve
+  paid:
+    wait_on_429: false
+    max_wait_s: 0
+    require_cache: false
+    reason: paid-rotate
+providers:
+  credcache:
+    quota_class: credit
+    supports_cache: true
+  crednocache:
+    quota_class: credit
+    supports_cache: false
+  trialcache:
+    quota_class: trial
+    supports_cache: true
+  unlimitedp:
+    quota_class: unlimited
+    supports_cache: true
+  paidp:
+    quota_class: paid
+    supports_cache: true
+  unknownp:
+    quota_class: something-new
+    supports_cache: true
+  barep: {}
+  overridep:
+    quota_class: credit
+    supports_cache: true
+    wait_on_429: true
+    max_wait_s: 30
+    reason: relay-short-retry-after
+default:
+  wait_on_429: false
+  max_wait_s: 0
+"""
+
+
+@pytest.fixture
+def quota_policy(tmp_path):
+    cfg = tmp_path / "cooldown_policy.yaml"
+    cfg.write_text(_QUOTA_CONFIG)
+    return CooldownPolicy(config_path=str(cfg))
+
+
+def test_quota_class_credit_waits_with_cache(quota_policy):
+    """credit + cache support: wait out 429, capped at the class limit (#218 rule)."""
+    wait, _ = quota_policy.should_wait_on_429("credcache", 60)
+    assert wait is True
+    wait, _ = quota_policy.should_wait_on_429("credcache", 600)
+    assert wait is False  # beyond the 300s class cap -> fall back
+
+
+def test_quota_class_credit_without_cache_rotates(quota_policy):
+    """credit without cache support: no cache benefit to preserve -> rotate."""
+    wait, _ = quota_policy.should_wait_on_429("crednocache", 30)
+    assert wait is False
+
+
+def test_quota_class_trial_short_wait(quota_policy):
+    """trial + cache support: short wait to preserve trial credit + warm cache."""
+    wait, _ = quota_policy.should_wait_on_429("trialcache", 60)
+    assert wait is True
+    wait, _ = quota_policy.should_wait_on_429("trialcache", 300)
+    assert wait is False  # beyond the 120s class cap
+
+
+def test_quota_class_unlimited_prefers_fallback(quota_policy):
+    """unlimited-free: no credit/cache to preserve -> prefer faster fallback."""
+    wait, _ = quota_policy.should_wait_on_429("unlimitedp", 10)
+    assert wait is False
+
+
+def test_quota_class_paid_rotates_immediately(quota_policy):
+    """paid: never burn paid quota on waits."""
+    wait, _ = quota_policy.should_wait_on_429("paidp", 10)
+    assert wait is False
+
+
+def test_quota_class_unknown_uses_default(quota_policy):
+    """Unknown quota_class -> current default behavior (rotate now)."""
+    wait, _ = quota_policy.should_wait_on_429("unknownp", 10)
+    assert wait is False
+    p = quota_policy.get_policy("unknownp")
+    assert p["wait_on_429"] is False
+
+
+def test_missing_metadata_uses_default(quota_policy):
+    """Provider with no metadata at all -> default (unchanged behavior)."""
+    wait, _ = quota_policy.should_wait_on_429("barep", 10)
+    assert wait is False
+
+
+def test_explicit_wait_overrides_class(quota_policy):
+    """Explicit wait_on_429/max_wait_s always win over the class table (back-compat)."""
+    wait, _ = quota_policy.should_wait_on_429("overridep", 10)
+    assert wait is True
+    wait, _ = quota_policy.should_wait_on_429("overridep", 60)
+    assert wait is False  # explicit 30s cap, not the 300s credit cap
+
+
+def test_real_config_relays_keep_short_wait(policy):
+    """#1068 relay entries keep their explicit 30s short-wait despite class=unlimited."""
+    wait, _ = policy.should_wait_on_429("crowllm", 10)
+    assert wait is True
+    wait, _ = policy.should_wait_on_429("crowllm", 60)
+    assert wait is False
+
+
+def test_real_config_credit_provider_still_waits(policy):
+    """#218 reference behavior preserved for the credit-class providers."""
+    wait, _ = policy.should_wait_on_429("anthropic", 30)
+    assert wait is True
+
+
 if __name__ == "__main__":
     # ponytail: self-check for manual run
     pytest.main([__file__, "-v"])
