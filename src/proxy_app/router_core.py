@@ -792,10 +792,16 @@ class RouterCore:
         self._smart_selectors: Dict[str, Any] = {}
         self._smart_default: Any = None
         self._smart_output_est: Any = None
+        self._smart_log_decision: Any = None
         self._router_enabled = os.environ.get("ROUTER_ENABLED", "0").lower() in (
             "1",
             "true",
             "yes",
+        ) or os.environ.get("ROUTER_CUTOVER_ENABLED", "0").lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
         )
         self._router_dry_run = os.environ.get("ROUTER_DRY_RUN", "1").lower() in (
             "1",
@@ -816,6 +822,7 @@ class RouterCore:
                 )
                 from proxy_app.routing.latency_predictor import LatencyPredictor
                 from proxy_app.routing.output_estimator import OutputEstimator
+                from proxy_app.routing.decision_observer import log_decision
 
                 _base_dir = os.path.dirname(self.config_path)
                 _model_scores = load_model_scores(
@@ -852,6 +859,7 @@ class RouterCore:
                     classify_request,
                     to_debug_header,
                 )
+                self._smart_log_decision = log_decision
                 logger.info(
                     "smart router enabled (ROUTER_ENABLED=%s, ROUTER_DRY_RUN=%s): "
                     "%d pinned selectors, %d ranked models",
@@ -862,6 +870,7 @@ class RouterCore:
                 )
             except Exception as _smart_exc:
                 self._smart_fx = None
+                self._smart_log_decision = None
                 logger.warning(
                     "smart router init failed, routing disabled: %r", _smart_exc
                 )
@@ -2892,6 +2901,22 @@ class RouterCore:
                 )
                 _header = _fmt(_result, request.get("model", ""))
                 logger.info("[%s] X-Route-Chain: %s", request_id, _header)
+                if self._smart_log_decision is not None:
+                    try:
+                        self._smart_log_decision(
+                            _result,
+                            request.get("model", ""),
+                            _tier,
+                            request=request,
+                            request_id=request_id,
+                        )
+                    except Exception as _observe_exc:
+                        logger.debug(
+                            "[%s] smart routing observation skipped: %s: %s",
+                            request_id,
+                            type(_observe_exc).__name__,
+                            _observe_exc,
+                        )
                 if self._router_enabled and not _result.static_fallback:
                     _order = {
                         f"{c.provider}|{c.model}": i
