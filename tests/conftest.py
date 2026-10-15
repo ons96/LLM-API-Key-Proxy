@@ -18,6 +18,10 @@ os.environ["SKIP_LAUNCHER"] = "true"
 # Keep unit tests hermetic: don't merge the repo's real config/virtual_models.yaml
 # over the mock router_models configs built by each test fixture.
 os.environ["SKIP_REAL_VIRTUAL_MODELS"] = "true"
+# Keep unit tests hermetic: don't apply the repo's real config/dead_providers.yaml
+# blocklist to mock router configs (a blocked provider name in a fixture would be
+# silently dropped by the _is_dead_candidate fast-skip in _get_candidates).
+os.environ["SKIP_REAL_DEAD_PROVIDERS"] = "true"
 
 
 @pytest.fixture(autouse=True)

@@ -57,6 +57,15 @@ def _load_dead_providers():
     global _dead_providers_cache
     if _dead_providers_cache is not None:
         return _dead_providers_cache
+    # Test isolation: unit tests build their own mock router_models configs and
+    # must not have the repo's real dead_providers.yaml blocklist applied to
+    # them (a blocked provider name in a fixture gets silently dropped).
+    if os.getenv("SKIP_REAL_DEAD_PROVIDERS", "false").lower() == "true":
+        logger.info(
+            "SKIP_REAL_DEAD_PROVIDERS=true - not loading config/dead_providers.yaml"
+        )
+        _dead_providers_cache = (set(), [], set(), [])
+        return _dead_providers_cache
     try:
         if _dead_providers_path.exists():
             with open(_dead_providers_path) as f:

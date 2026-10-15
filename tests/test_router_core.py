@@ -523,8 +523,60 @@ class TestMoEMode:
 
         # Should get expert candidates
         experts = [c for c in candidates if c.role and "expert" in c.role]
-        assert len(experts) > 0
+        # Every expert must survive the dead-provider fast-skip.
+        assert len(experts) == 3
         assert all("expert" in e.role for e in experts)
+
+
+class TestDeadProviderFastSkip:
+    """Coverage for the #813 dead-provider fast-skip policy loader.
+
+    conftest sets SKIP_REAL_DEAD_PROVIDERS so mock-config unit tests stay
+    hermetic; these tests exercise the loader directly against a tmp policy.
+    """
+
+    @pytest.fixture
+    def dead_policy(self, tmp_path, monkeypatch):
+        import src.proxy_app.router_core as rc
+
+        policy = tmp_path / "dead_providers.yaml"
+        policy.write_text(
+            yaml.safe_dump(
+                {
+                    "blocked_providers": [
+                        {"provider": "gemini", "reason": "quota exhausted"}
+                    ],
+                    "blocked_provider_prefixes": [{"prefix": "g4f_"}],
+                    "blocked_models": [
+                        {"provider": "groq", "model": "dead-model"},
+                        {"provider": "cerebras", "model_prefix": "legacy-"},
+                    ],
+                }
+            )
+        )
+        monkeypatch.setattr(rc, "_dead_providers_path", policy)
+        monkeypatch.setattr(rc, "_dead_providers_cache", None)
+        monkeypatch.delenv("SKIP_REAL_DEAD_PROVIDERS", raising=False)
+        return rc
+
+    def test_blocks_listed_provider(self, dead_policy):
+        assert dead_policy._is_dead_candidate("gemini", "gemini-3-flash") is True
+
+    def test_allows_unlisted_provider(self, dead_policy):
+        assert dead_policy._is_dead_candidate("groq", "llama-3.3-70b") is False
+
+    def test_blocks_prefix_and_model_entries(self, dead_policy):
+        assert dead_policy._is_dead_candidate("g4f_ollama", "anything") is True
+        assert dead_policy._is_dead_candidate("groq", "dead-model") is True
+        assert dead_policy._is_dead_candidate("cerebras", "legacy-8b") is True
+
+    def test_repo_policy_keeps_gemini_blocked(self, monkeypatch):
+        """Regression guard: the real config/dead_providers.yaml blocks gemini."""
+        import src.proxy_app.router_core as rc
+
+        monkeypatch.setattr(rc, "_dead_providers_cache", None)
+        monkeypatch.delenv("SKIP_REAL_DEAD_PROVIDERS", raising=False)
+        assert rc._is_dead_candidate("gemini", "gemini-3-flash") is True
 
 
 # Integration Tests (require mocking)
