@@ -173,6 +173,7 @@ jobs:
             if [ -d "$dir" ]; then
                 os_name=$(basename "$dir" | cut -d'-' -f4)
                 archive_name="LLM-API-Key-Proxy-${os_name}-${{ steps.version.outputs.archive_version_part }}.zip"
+                archive_name="${archive_name//\//-}"
                 (
                     cd "$dir"
                     zip -r "$GITHUB_WORKSPACE/$archive_name" .
