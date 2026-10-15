@@ -48,11 +48,14 @@ class CooldownManager:
 
 class CooldownPolicy:
     """
-    Per-provider 429 wait-vs-fallback policy (#218).
+    Per-provider 429 wait-vs-fallback policy (#218, generalized by #1069).
 
-    For cache-supporting free-credit providers (anthropic, openai, gemini),
-    waiting out a 429 rate-limit preserves prompt cache benefit. For other
-    providers, the default is to rotate immediately (legacy behavior).
+    Explicit per-provider wait settings win (back-compat). New providers are
+    tagged with `quota_class` (unlimited/credit/trial/paid) + `supports_cache`
+    and the wait-vs-fallback decision derives from the quota_classes table:
+    cache-supporting free-credit/trial tiers wait to preserve credit and warm
+    cache, unlimited-free prefers the faster fallback, paid rotates
+    immediately. Unknown classes keep the legacy default (rotate now).
     """
 
     def __init__(self, config_path: Optional[str] = None) -> None:
@@ -60,6 +63,7 @@ class CooldownPolicy:
             # ponytail: resolve relative to this file so tests + prod both work
             config_path = str(Path(__file__).resolve().parents[2] / "config" / "cooldown_policy.yaml")
         self._policies: Dict[str, dict] = {}
+        self._classes: Dict[str, dict] = {}
         self._load(config_path)
 
     def _load(self, config_path: str) -> None:
@@ -68,6 +72,18 @@ class CooldownPolicy:
                 data = yaml.safe_load(f) or {}
             providers = data.get("providers", {}) or {}
             self._default = data.get("default", _DEFAULT_POLICY) or _DEFAULT_POLICY
+            # #1069: quota-class table -> derived wait-vs-fallback policies.
+            # In-memory dict lookups only; no hot-path cost.
+            self._classes = {}
+            for cls_name, cfg in (data.get("quota_classes", {}) or {}).items():
+                if not isinstance(cfg, dict):
+                    continue
+                self._classes[str(cls_name).lower()] = {
+                    "wait_on_429": bool(cfg.get("wait_on_429", False)),
+                    "max_wait_s": int(cfg.get("max_wait_s", 0) or 0),
+                    "require_cache": bool(cfg.get("require_cache", False)),
+                    "reason": str(cfg.get("reason", "quota-class")),
+                }
             # ponytail: normalize keys to lowercase, drop missing fields
             for name, cfg in providers.items():
                 if not isinstance(cfg, dict):
@@ -76,6 +92,11 @@ class CooldownPolicy:
                     "wait_on_429": bool(cfg.get("wait_on_429", False)),
                     "max_wait_s": int(cfg.get("max_wait_s", 0) or 0),
                     "reason": str(cfg.get("reason", "configured")),
+                    # #1069: scalable metadata path for new providers
+                    "quota_class": str(cfg.get("quota_class", "") or "").lower(),
+                    "supports_cache": bool(cfg.get("supports_cache", False)),
+                    # explicit wait fields always win over the class table (back-compat)
+                    "explicit_wait": ("wait_on_429" in cfg) or ("max_wait_s" in cfg),
                 }
             # ensure default has all keys
             self._default = {
@@ -92,15 +113,52 @@ class CooldownPolicy:
         except FileNotFoundError:
             log.warning("cooldown_policy.yaml not found at %s, using default (no wait)", config_path)
             self._policies = {}
+            self._classes = {}
             self._default = _DEFAULT_POLICY.copy()
         except Exception as e:
             log.error("failed to load cooldown_policy.yaml: %s — using default (no wait)", e)
             self._policies = {}
+            self._classes = {}
             self._default = _DEFAULT_POLICY.copy()
 
+    def _class_policy(self, quota_class: str, supports_cache: bool) -> dict:
+        """#1069: derive the wait-vs-fallback policy from quota class + cache support.
+
+        Unknown class -> the configured default (current behavior preserved).
+        Classes with require_cache rotate immediately when the deployment does
+        not support prompt caching (#218 eligibility: cache benefit required).
+        """
+        cls = self._classes.get(quota_class)
+        if cls is None:
+            return self._default
+        if cls["require_cache"] and not supports_cache:
+            return {
+                "wait_on_429": False,
+                "max_wait_s": 0,
+                "reason": f"{quota_class}-no-cache-rotate",
+            }
+        return {
+            "wait_on_429": cls["wait_on_429"],
+            "max_wait_s": cls["max_wait_s"],
+            "reason": cls["reason"],
+        }
+
     def get_policy(self, provider: str) -> dict:
-        """Return merged policy for a provider (falls back to default)."""
-        return self._policies.get(provider.lower(), self._default)
+        """Return merged policy for a provider (falls back to default).
+
+        Resolution order: explicit wait_on_429/max_wait_s (back-compat, #218)
+        > quota_class + supports_cache metadata (#1069) > default.
+        """
+        entry = self._policies.get(provider.lower())
+        if entry is None:
+            return self._default
+        if entry.get("explicit_wait"):
+            return {
+                "wait_on_429": entry["wait_on_429"],
+                "max_wait_s": entry["max_wait_s"],
+                "reason": entry["reason"],
+            }
+        return self._class_policy(entry.get("quota_class", ""), entry.get("supports_cache", False))
 
     def should_wait_on_429(
         self, provider: str, retry_after_s: Optional[float]
