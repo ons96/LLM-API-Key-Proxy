@@ -175,7 +175,7 @@ jobs:
                 archive_name="LLM-API-Key-Proxy-${os_name}-${{ steps.version.outputs.archive_version_part }}.zip"
                 (
                     cd "$dir"
-                    zip -r "../../$archive_name" .
+                    zip -r "$GITHUB_WORKSPACE/$archive_name" .
                 )
                 if [ -z "$ASSET_PATHS" ]; then
                     ASSET_PATHS="$archive_name"
