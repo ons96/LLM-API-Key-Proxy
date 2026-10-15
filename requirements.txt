@@ -27,4 +27,4 @@ curl_cffi
 # Semantic auto-router (local embeddings via FastEmbed ONNX, no API key)
 # Used by src/proxy_app/semantic_router.py for `model="auto"` routing.
 # Optional: if absent, gateway falls back to keyword intent_detector.
-semantic-router[local]
+semantic-router[fastembed]
