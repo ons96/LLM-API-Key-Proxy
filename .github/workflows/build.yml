@@ -368,9 +368,9 @@ jobs:
         | \`proxy_app\` | Main application executable with built-in TUI launcher for **Linux** and **macOS**. |"
 
         # List archives
-        WINDOWS_ARCHIVE=$(echo "${{ steps.archive.outputs.ASSET_PATHS }}" | tr ' ' '\n' | grep 'Windows')
-        LINUX_ARCHIVE=$(echo "${{ steps.archive.outputs.ASSET_PATHS }}" | tr ' ' '\n' | grep 'Linux')
-        MACOS_ARCHIVE=$(echo "${{ steps.archive.outputs.ASSET_PATHS }}" | tr ' ' '\n' | grep 'macOS')
+        WINDOWS_ARCHIVE=$(echo "${{ steps.archive.outputs.ASSET_PATHS }}" | tr ' ' '\n' | { grep 'Windows' || true; })
+        LINUX_ARCHIVE=$(echo "${{ steps.archive.outputs.ASSET_PATHS }}" | tr ' ' '\n' | { grep 'Linux' || true; })
+        MACOS_ARCHIVE=$(echo "${{ steps.archive.outputs.ASSET_PATHS }}" | tr ' ' '\n' | { grep 'macOS' || true; })
         ARCHIVE_LIST="- **Windows**: \`$WINDOWS_ARCHIVE\`
         - **Linux**: \`$LINUX_ARCHIVE\`
         - **macOS**: \`$MACOS_ARCHIVE\`"
