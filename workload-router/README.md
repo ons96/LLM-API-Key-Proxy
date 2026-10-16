@@ -34,6 +34,32 @@ The production implementation remains in the VPS repository
 `/home/ubuntu/LLM-API-Key-Proxy`. This repository contains portable review and
 validation artifacts for the router project.
 
+## Parallel and gated, not production-wired
+
+This component runs **parallel to the gateway and is gated**: it is not wired
+into the live request path, and it never changes `virtual_models.yaml` chains
+or gateway fallback behavior. Two controls keep it that way:
+
+- `ROUTER_CUTOVER_ENABLED` - env-var feature flag that would apply router
+  decisions to live routing. **Defaults OFF.** Any run without an explicit
+  truthy value (`1`, `true`, `yes`, `on`) stays observe-only.
+- Dry-run logging - every routed request emits one JSON line to stderr with
+  `mode`, `tier`, `deployment`, and `why`, so decisions are reviewable without
+  affecting routing:
+
+  ```text
+  {"deployment": "...", "mode": "dry_run", "tier": 1, "why": "chain_top", ...}
+  ```
+
+  Disable with `ROUTER_DRY_RUN_LOG=0` (logging is on by default because it is
+  read-only). The `GET /v1/router/route` response also reports
+  `cutover_enabled`.
+
+Cutover plan: keep the flag OFF in all environments, validate decisions via
+dry-run logs and `trace_replay.py` shadow replay against a fixed baseline,
+then enable `ROUTER_CUTOVER_ENABLED=1` in a later, separately reviewed change
+that wires the router into the gateway path.
+
 The latest VPS verification confirmed that the systemd service and socket are
 active, the unauthenticated endpoint responds with HTTP 401, and the gateway
 commits are `cf7a7fe`, `04a1986`, and `e6b86fa`.
