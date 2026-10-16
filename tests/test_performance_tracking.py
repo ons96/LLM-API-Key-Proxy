@@ -56,6 +56,33 @@ def router(mock_router_config):
     return RouterCore(mock_router_config)
 
 
+@pytest.fixture(autouse=True)
+def deterministic_clock(monkeypatch):
+    """Pin ``time.time()`` to one shared, strictly increasing fake clock.
+
+    These tests assert that timestamps recorded by the code under test
+    (ProviderMetrics.last_success_ts / cooldown_until, which are wall-clock
+    ``time.time()`` values) line up with timestamps taken by the test itself.
+    That only holds if the wall clock does not step between the two reads,
+    and this host's clock does step: a 15s sampler caught a -9.27s backwards
+    jump, which made two tests here fail intermittently
+    (TestStatsPerRequest::test_stats_tracked_per_request and
+    TestTimestampAccuracy::test_request_timestamp_accurate).
+
+    Routing both sides through the same fake clock makes the assertions test
+    the timestamp-recording code rather than NTP behaviour. asyncio keeps its
+    own monotonic clock, so sleeps and scheduling are unaffected.
+    """
+    state = {"now": 1_700_000_000.0}
+    step = 0.001
+
+    def fake_time():
+        state["now"] += step
+        return state["now"]
+
+    monkeypatch.setattr(time, "time", fake_time)
+
+
 class TestStatsPerRequest:
     """
     Test: test_stats_tracked_per_request()

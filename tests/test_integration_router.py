@@ -176,18 +176,20 @@ class TestLoadTest50Concurrent:
         num_requests = 50
         timeout_seconds = 60
         
-        # Track metrics
-        start_time = time.time()
+        # Track metrics. Durations use time.monotonic(): the wall clock on this
+        # host steps (a 15s sample caught a -9.27s backwards jump), which made
+        # wall-clock duration assertions flaky.
+        start_time = time.monotonic()
         completed_requests = []
         failed_requests = []
         
         async def load_test_execution(candidate, request, request_id):
-            req_start = time.time()
+            req_start = time.monotonic()
             
             # Simulate realistic processing time
             await asyncio.sleep(0.05)  # 50ms
             
-            req_duration = time.time() - req_start
+            req_duration = time.monotonic() - req_start
             
             # Small chance of failure for realism
             req_num = int(request_id.split("-")[-1])
@@ -216,7 +218,7 @@ class TestLoadTest50Concurrent:
             except asyncio.TimeoutError:
                 pytest.fail(f"Load test exceeded {timeout_seconds}s timeout")
         
-        end_time = time.time()
+        end_time = time.monotonic()
         total_time = end_time - start_time
         
         # Analyze results
@@ -351,7 +353,7 @@ class TestStressTestConcurrency:
             return MockProviderResponse(model=f"{candidate.provider}/{candidate.model}")
         
         with patch.object(router, '_execute_single_candidate', side_effect=quick_response):
-            start = time.time()
+            start = time.monotonic()
             
             requests = [
                 router.route_request(create_request(model="coding-smart"), request_id=f"stress-{i}")
@@ -360,7 +362,7 @@ class TestStressTestConcurrency:
             
             results = await asyncio.gather(*requests, return_exceptions=True)
             
-            duration = time.time() - start
+            duration = time.monotonic() - start
         
         # Count successes
         successes = [r for r in results if not isinstance(r, Exception)]
@@ -539,7 +541,7 @@ class TestTimeoutHandling:
                 return MockProviderResponse(model=f"{candidate.provider}/{candidate.model}")
         
         with patch.object(router, '_execute_single_candidate', side_effect=slow_then_fast_provider):
-            start = time.time()
+            start = time.monotonic()
             
             # This should timeout on provider_a and fallback to provider_b
             try:
@@ -551,7 +553,7 @@ class TestTimeoutHandling:
                 # If overall timeout, that's also acceptable behavior
                 result = None
             
-            duration = time.time() - start
+            duration = time.monotonic() - start
         
         print(f"\nTimeout test completed in {duration:.2f}s")
         
