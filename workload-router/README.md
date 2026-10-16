@@ -4,6 +4,25 @@ This repository records the resource-light router work for the Oracle VPS at
 `40.233.101.233`. The current release is running as a side-by-side,
 loopback-only canary; it has not replaced the existing gateway.
 
+## Status: parallel and gated, not production-wired
+
+This directory is a parallel build owned by the canonical repo. It is not in
+the live request path:
+
+- The gateway routes no traffic through it. The single gateway-side contact
+  point is `src/proxy_app/workload_router_shadow.py`, an observe-only dry run
+  that is **off unless `WORKLOAD_ROUTER_DRY_RUN=1`**. When off it performs no
+  I/O; when on it appends `tier`/`deployment`/`why` per request to a bounded,
+  prompt-free JSONL log and discards the result, so live routing is identical
+  with the flag on or off.
+- `config/virtual_models.yaml`, the existing fallback chains, and client
+  behavior are not modified by anything in this directory.
+- Promotion past dry run follows the staged, feature-flagged plan in
+  `../docs/workload-router-cutover-plan.md`. No stage advances until its gate
+  passes, and every stage has a one-flag rollback.
+
+Design: `docs/workload-router-architecture.md`. Session checkpoints: `STATE.md`.
+
 The gateway changes currently deployed are:
 
 - runtime enforcement of the mapping-based dead-provider policy;
