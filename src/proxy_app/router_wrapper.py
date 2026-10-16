@@ -12,8 +12,26 @@ from fastapi import HTTPException, Request
 
 from .router_integration import RouterIntegration
 from .semantic_router import resolve_auto
+from . import workload_router_shadow
 
 logger = logging.getLogger(__name__)
+
+
+def _shadow_observe(request_data: Dict[str, Any], raw_request: Any) -> None:
+    """Run the workload-router dry run for one request (task-board #1070).
+
+    Observation only and off by default. The record it produces is discarded
+    here, and every failure is contained, so the live routing decision below
+    is identical whether ``WORKLOAD_ROUTER_DRY_RUN`` is set or not.
+    """
+    try:
+        workload_router_shadow.observe(
+            request_data,
+            live_model=str(request_data.get("model", "")),
+            headers=getattr(raw_request, "headers", None),
+        )
+    except Exception:  # pragma: no cover - containment is the contract
+        logger.debug("workload-router dry-run observation failed", exc_info=True)
 
 
 class RouterWrapper:
@@ -31,6 +49,11 @@ class RouterWrapper:
         
         # Check if we should use legacy path (when no virtual models are specified)
         model_id = request_data.get("model", "")
+
+        # Gated shadow evaluation of the vendored workload-router (#1070).
+        # Placed before the auto-router mutates request_data so the record
+        # shows the alias the client actually asked for.
+        _shadow_observe(request_data, raw_request)
         
         # Semantic auto-router: resolve `model="auto"` to a concrete chain.
         # Runs before any other routing so tool-capability guard + intent
