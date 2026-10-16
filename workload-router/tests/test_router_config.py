@@ -3,6 +3,7 @@ import json
 import pytest
 
 from router_config import default_deployments, load_deployments
+from router_core import RequestFeatures, route_plan
 
 
 def test_catalog_loads_valid_profiles(tmp_path):
@@ -53,6 +54,40 @@ def test_catalog_rejects_non_finite_float_values(tmp_path, field, value):
         field: value,
     }
     path.write_text(json.dumps([entry]), encoding="utf-8")
+    assert [item.deployment_id for item in load_deployments(path)] == [
+        item.deployment_id for item in default_deployments()
+    ]
+
+
+def test_default_catalog_covers_deep_reasoning():
+    """Regression (#1095): deep_reasoning had no deployment, so every reasoning
+    request resolved to no_eligible_deployment and could never be routed."""
+    deployments = default_deployments()
+    assert any(item.capability.value == "deep_reasoning" for item in deployments)
+
+    plan = route_plan(
+        RequestFeatures("prove step by step that this holds"), deployments
+    )
+    assert plan.candidates[0].capability.value == "deep_reasoning"
+
+
+def test_catalog_unknown_capability_uses_safe_defaults(tmp_path):
+    """Documented trap: one unknown capability string discards the whole catalog
+    (load_deployments falls back to defaults), so capability typos hide as
+    'missing deployment' instead of raising."""
+    path = tmp_path / "unknown-capability.json"
+    path.write_text(
+        json.dumps(
+            [
+                {
+                    "deployment_id": "weird",
+                    "capability": "not_a_capability",
+                    "context_limit": 1024,
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
     assert [item.deployment_id for item in load_deployments(path)] == [
         item.deployment_id for item in default_deployments()
     ]
