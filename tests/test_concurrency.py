@@ -231,7 +231,11 @@ class TestHeadOfLineBlocking:
                 return await fast_provider_call(candidate, request, request_id)
         
         with patch.object(router, '_execute_single_candidate', side_effect=mixed_provider_call):
-            start_time = time.time()
+            # Elapsed time must be measured on a monotonic clock. Wall-clock
+            # (time.time()) steps under NTP correction, which can make a real
+            # 5s sleep measure ~4.8s and fail this test at random (observed
+            # repeatedly on the laptop runner, on clean main as well).
+            start_time = time.monotonic()
             
             # Start both requests concurrently
             slow_req = router.route_request(create_request(model="coding-smart"), request_id="slow-req")
@@ -239,7 +243,7 @@ class TestHeadOfLineBlocking:
             
             # Wait for fast request only
             fast_result = await fast_req
-            fast_time = time.time() - start_time
+            fast_time = time.monotonic() - start_time
             
             # Fast request should complete quickly
             assert fast_time < 1.0, f"Fast request took {fast_time}s, should be < 1.0s"
@@ -247,7 +251,7 @@ class TestHeadOfLineBlocking:
             
             # Now wait for slow request
             slow_result = await slow_req
-            slow_time = time.time() - start_time
+            slow_time = time.monotonic() - start_time
             
             assert slow_time >= 5.0, f"Slow request took {slow_time}s, should be >= 5.0s"
             print(f"Slow request completed in {slow_time:.2f}s")
