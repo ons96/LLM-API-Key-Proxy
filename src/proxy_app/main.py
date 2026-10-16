@@ -175,6 +175,9 @@ with _console.status("[dim]Initializing proxy core...", spinner="dots"):
     # [NEW] Import RouterWrapper
     from proxy_app.router_wrapper import initialize_router, get_router
 
+    # Client-safe HTTP error details (never echo upstream error text)
+    from proxy_app.safe_errors import safe_error_detail
+
     # [NEW] Import HealthChecker
     from proxy_app.health_checker import HealthChecker
 
@@ -1126,7 +1129,15 @@ async def chat_completions(
                     # OpenAI-compatible chunk instead of a bare {"error": ...}
                     # object. AI SDK/OpenCode validates every SSE item as a
                     # chat.completion.chunk and rejects non-OpenAI error shapes.
-                    error_text = f"Gateway stream error: {str(e)[:1000]}"
+                    # The chunk text is user-visible, so it must not carry the
+                    # upstream error body (may contain URLs/credentials). Log
+                    # the full message and give the request id instead.
+                    logging.error(
+                        "[%s] Gateway stream error: %s", request_id, str(e)[:2000]
+                    )
+                    error_text = safe_error_detail(
+                        e, request_id=request_id, prefix="Gateway stream error"
+                    )
                     error_chunk = {
                         "id": request_id,
                         "object": "chat.completion.chunk",
@@ -1182,7 +1193,7 @@ async def chat_completions(
         logging.error(f"Router delegation failed: {e}.")
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail=f"Router Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=safe_error_detail(e))
 
 
 # Legacy endpoint logic preserved below for reference but bypassed by return above
