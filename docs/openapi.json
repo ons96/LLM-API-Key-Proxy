@@ -1,0 +1,1112 @@
+{
+  "components": {
+    "schemas": {
+      "EmbeddingRequest": {
+        "properties": {
+          "dimensions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dimensions"
+          },
+          "input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Input"
+          },
+          "input_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Type"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User"
+          }
+        },
+        "required": [
+          "model",
+          "input"
+        ],
+        "title": "EmbeddingRequest",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IntentDetectRequest": {
+        "properties": {
+          "current_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Model"
+          },
+          "messages": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Messages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "title": "IntentDetectRequest",
+        "type": "object"
+      },
+      "ModelSwitchRequest": {
+        "properties": {
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          }
+        },
+        "required": [
+          "model"
+        ],
+        "title": "ModelSwitchRequest",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "in": "header",
+        "name": "Authorization",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "title": "FastAPI",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "read_root__get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Read Root"
+      }
+    },
+    "/api/cliproxyapi/backend/{backend_name}": {
+      "get": {
+        "description": "Get status for a specific CLIProxyAPI backend.\n\nArgs:\n    backend_name: Backend name (gemini, iflow, antigravity, qwen)\n\nReturns:\n    JSON with backend status and available models",
+        "operationId": "cliproxyapi_backend_status_api_cliproxyapi_backend__backend_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "backend_name",
+            "required": true,
+            "schema": {
+              "title": "Backend Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cliproxyapi Backend Status Api Cliproxyapi Backend  Backend Name  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cliproxyapi Backend Status",
+        "tags": [
+          "cliproxyapi"
+        ]
+      }
+    },
+    "/api/cliproxyapi/config": {
+      "get": {
+        "description": "Get CLIProxyAPI provider configuration.\n\nReturns:\n    JSON with configuration details",
+        "operationId": "cliproxyapi_config_api_cliproxyapi_config_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cliproxyapi Config Api Cliproxyapi Config Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Cliproxyapi Config",
+        "tags": [
+          "cliproxyapi"
+        ]
+      }
+    },
+    "/api/cliproxyapi/health": {
+      "get": {
+        "description": "Check CLIProxyAPI sidecar health.\n\nReturns:\n    JSON with health status and connection info",
+        "operationId": "cliproxyapi_health_api_cliproxyapi_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cliproxyapi Health Api Cliproxyapi Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Cliproxyapi Health",
+        "tags": [
+          "cliproxyapi"
+        ]
+      }
+    },
+    "/api/cliproxyapi/models": {
+      "get": {
+        "description": "Get available models from CLIProxyAPI.\n\nReturns:\n    JSON with list of available models grouped by backend",
+        "operationId": "cliproxyapi_models_api_cliproxyapi_models_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cliproxyapi Models Api Cliproxyapi Models Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Cliproxyapi Models",
+        "tags": [
+          "cliproxyapi"
+        ]
+      }
+    },
+    "/api/cliproxyapi/status": {
+      "get": {
+        "description": "Get detailed CLIProxyAPI status including all backends.\n\nReturns:\n    JSON with:\n    - Overall status\n    - Per-backend health (gemini, iflow, antigravity, qwen)\n    - Model counts\n    - Last check timestamp",
+        "operationId": "cliproxyapi_status_api_cliproxyapi_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cliproxyapi Status Api Cliproxyapi Status Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Cliproxyapi Status",
+        "tags": [
+          "cliproxyapi"
+        ]
+      }
+    },
+    "/api/providers/best": {
+      "get": {
+        "description": "Get the healthiest/fastest provider.\n\nReturns:\n    JSON with best provider recommendation and alternatives",
+        "operationId": "get_best_provider_api_providers_best_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Best Provider Api Providers Best Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Best Provider",
+        "tags": [
+          "provider-status"
+        ]
+      }
+    },
+    "/api/providers/export/csv": {
+      "get": {
+        "description": "Export current provider status to CSV format.\n\nReturns:\n    CSV file with provider status data",
+        "operationId": "export_provider_status_csv_api_providers_export_csv_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Export Provider Status Csv",
+        "tags": [
+          "provider-status"
+        ]
+      }
+    },
+    "/api/providers/health": {
+      "get": {
+        "description": "Health check endpoint for the status tracker itself.\n\nReturns:\n    JSON with tracker status and basic info",
+        "operationId": "health_check_endpoint_api_providers_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Health Check Endpoint Api Providers Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Check Endpoint",
+        "tags": [
+          "provider-status"
+        ]
+      }
+    },
+    "/api/providers/history": {
+      "get": {
+        "description": "Get historical data for all providers.\n\nArgs:\n    hours: Time window in hours (default: 24)\n\nReturns:\n    JSON with time-series data for each provider",
+        "operationId": "get_provider_history_api_providers_history_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "hours",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "title": "Hours",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "title": "Response Get Provider History Api Providers History Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Provider History",
+        "tags": [
+          "provider-status"
+        ]
+      }
+    },
+    "/api/providers/history/{provider_name}": {
+      "get": {
+        "description": "Get historical data for a single provider.\n\nArgs:\n    provider_name: Name of the provider to query\n    hours: Time window in hours (default: 24)\n\nReturns:\n    JSON with time-series data for the provider",
+        "operationId": "get_single_provider_history_api_providers_history__provider_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_name",
+            "required": true,
+            "schema": {
+              "title": "Provider Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hours",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "title": "Hours",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Get Single Provider History Api Providers History  Provider Name  Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Single Provider History",
+        "tags": [
+          "provider-status"
+        ]
+      }
+    },
+    "/api/providers/status": {
+      "get": {
+        "description": "Get current status snapshot for all providers.\n\nReturns:\n    JSON with timestamp and provider status details",
+        "operationId": "get_provider_status_api_providers_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Provider Status Api Providers Status Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Provider Status",
+        "tags": [
+          "provider-status"
+        ]
+      }
+    },
+    "/api/providers/status/{provider_name}": {
+      "get": {
+        "description": "Get detailed status for a single provider.\n\nArgs:\n    provider_name: Name of the provider to query\n\nReturns:\n    JSON with provider status details",
+        "operationId": "get_single_provider_status_api_providers_status__provider_name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_name",
+            "required": true,
+            "schema": {
+              "title": "Provider Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Single Provider Status Api Providers Status  Provider Name  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Single Provider Status",
+        "tags": [
+          "provider-status"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Check"
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "description": "OpenAI-compatible endpoint powered by the RouterWrapper.\nHandles virtual models, fallbacks, and standard requests.",
+        "operationId": "chat_completions_v1_chat_completions_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Chat Completions"
+      }
+    },
+    "/v1/cost-estimate": {
+      "post": {
+        "description": "Estimates the cost for a request based on token counts and model pricing.\n\nRequest body:\n    {\n        \"model\": \"anthropic/claude-3-opus\",\n        \"prompt_tokens\": 1000,\n        \"completion_tokens\": 500,\n        \"cache_read_tokens\": 0,       # optional\n        \"cache_creation_tokens\": 0    # optional\n    }\n\nReturns:\n    {\n        \"model\": \"anthropic/claude-3-opus\",\n        \"cost\": 0.0375,\n        \"currency\": \"USD\",\n        \"pricing\": {\n            \"input_cost_per_token\": 0.000015,\n            \"output_cost_per_token\": 0.000075\n        },\n        \"source\": \"model_info_service\"  # or \"litellm_fallback\"\n    }",
+        "operationId": "cost_estimate_v1_cost_estimate_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Cost Estimate"
+      }
+    },
+    "/v1/embeddings": {
+      "post": {
+        "description": "OpenAI-compatible endpoint for creating embeddings.\nSupports two modes based on the USE_EMBEDDING_BATCHER flag:\n- True: Uses a server-side batcher for high throughput.\n- False: Passes requests directly to the provider.",
+        "operationId": "embeddings_v1_embeddings_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmbeddingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Embeddings"
+      }
+    },
+    "/v1/model-info/stats": {
+      "get": {
+        "description": "Returns statistics about the model info service (for monitoring/debugging).",
+        "operationId": "model_info_stats_v1_model_info_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Model Info Stats"
+      }
+    },
+    "/v1/model/detect-intent": {
+      "post": {
+        "description": "Detect intent from messages and get model recommendation.",
+        "operationId": "detect_message_intent_v1_model_detect_intent_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntentDetectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Detect Message Intent",
+        "tags": [
+          "model-management"
+        ]
+      }
+    },
+    "/v1/model/list": {
+      "get": {
+        "description": "List all available virtual models.",
+        "operationId": "list_available_models_v1_model_list_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Available Models",
+        "tags": [
+          "model-management"
+        ]
+      }
+    },
+    "/v1/model/parse-command": {
+      "post": {
+        "description": "Parse a message for model switch commands (e.g., /model coding-elite).",
+        "operationId": "parse_model_command_v1_model_parse_command_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Parse Model Command",
+        "tags": [
+          "model-management"
+        ]
+      }
+    },
+    "/v1/model/session/{session_id}": {
+      "get": {
+        "description": "Get the current model for a specific session (e.g., Zeroclaw bot).",
+        "operationId": "get_session_model_status_v1_model_session__session_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Session Model Status",
+        "tags": [
+          "model-management"
+        ]
+      }
+    },
+    "/v1/model/status": {
+      "get": {
+        "description": "Get current model status and available models.",
+        "operationId": "get_model_status_v1_model_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Model Status",
+        "tags": [
+          "model-management"
+        ]
+      }
+    },
+    "/v1/model/switch": {
+      "post": {
+        "description": "Switch to a different model for a session.",
+        "operationId": "switch_model_v1_model_switch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelSwitchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Switch Model",
+        "tags": [
+          "model-management"
+        ]
+      }
+    },
+    "/v1/models": {
+      "get": {
+        "description": "Returns a list of available models in the OpenAI-compatible format.\n\nQuery Parameters:\n    enriched: If True (default), returns detailed model info with pricing and capabilities.\n              If False, returns minimal OpenAI-compatible response.",
+        "operationId": "list_models_v1_models_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "enriched",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Enriched",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "List Models"
+      }
+    },
+    "/v1/models/{model_id}": {
+      "get": {
+        "description": "Returns detailed information about a specific model.\n\nPath Parameters:\n    model_id: The model ID (e.g., \"anthropic/claude-3-opus\", \"openrouter/openai/gpt-4\")",
+        "operationId": "get_model_v1_models__model_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "model_id",
+            "required": true,
+            "schema": {
+              "title": "Model Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Get Model"
+      }
+    },
+    "/v1/providers": {
+      "get": {
+        "description": "Returns a list of all available providers.",
+        "operationId": "list_providers_v1_providers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "List Providers"
+      }
+    },
+    "/v1/responses": {
+      "post": {
+        "description": "OpenAI Responses API compatibility layer.\nTranslates Requests API format to Chat Completions format.",
+        "operationId": "responses_endpoint_v1_responses_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Responses Endpoint"
+      }
+    },
+    "/v1/token-count": {
+      "post": {
+        "description": "Calculates the token count for a given list of messages and a model.",
+        "operationId": "token_count_v1_token_count_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Token Count"
+      }
+    },
+    "/v1/tps-stats": {
+      "get": {
+        "description": "Returns aggregated TPS (tokens-per-second) statistics per provider/model pair.\n\nQuery Parameters:\n    days: Number of days to look back (default: 7).\n    min_samples: Minimum sample count to include a provider/model pair (default: 5).\n    export: If True, also writes the results to config/self_tracked_tps.json (default: False).\n\nReturns:\n    A JSON list of objects with median_tps, avg_tps, p95_tps, avg_ttft_ms, sample_count, etc.",
+        "operationId": "tps_stats_v1_tps_stats_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "title": "Days",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_samples",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "title": "Min Samples",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "export",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Export",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "summary": "Tps Stats"
+      }
+    }
+  }
+}
