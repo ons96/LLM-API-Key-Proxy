@@ -178,7 +178,9 @@ def test_health_and_diagnostics_are_prompt_free():
         status, result = get(server, "/v1/router/diagnostics")
         assert status == 200
         assert result["status"] == "ok"
-        assert result["deployments"] == 5
+        # Reported count must match the catalog the handler actually loaded;
+        # a hardcoded number breaks whenever the catalog gains a deployment.
+        assert result["deployments"] == len(RouterHandler.deployments)
         assert "successful_routes" in result
         assert "cache_hits" in result
         assert "prompt" not in json.dumps(result).lower()
