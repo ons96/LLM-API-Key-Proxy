@@ -47,5 +47,15 @@
     "provider": "unconfigured",
     "config_fingerprint": "default",
     "quota_class": "unlimited"
+  },
+  {
+    "deployment_id": "reasoning",
+    "model": "reasoning",
+    "capability": "deep_reasoning",
+    "context_limit": 65536,
+    "tools": true,
+    "provider": "unconfigured",
+    "config_fingerprint": "default",
+    "quota_class": "unlimited"
   }
 ]

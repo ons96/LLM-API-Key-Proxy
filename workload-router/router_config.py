@@ -14,6 +14,10 @@ def default_deployments() -> list[Deployment]:
         Deployment("implement", Capability.CODE_IMPLEMENT, 32_768, tools=True, group="code_implement", chain_priority=1),
         Deployment("verify", Capability.CODE_VERIFY, 32_768, tools=True, group="code_verify", chain_priority=1),
         Deployment("debug", Capability.CODE_DEBUG, 32_768, tools=True, group="code_debug", chain_priority=1),
+        # Reasoning needs a larger context and must exist explicitly: chain_group
+        # falls back to capability.value, so without this entry every request
+        # classified deep_reasoning resolves to no_eligible_deployment (#1095).
+        Deployment("reasoning", Capability.DEEP_REASONING, 65_536, tools=True, group="deep_reasoning", chain_priority=1),
     ]
 
 
