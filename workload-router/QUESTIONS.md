@@ -62,3 +62,21 @@ credentials, host access, or an explicit repository decision.
   response, and native-stream fault tests using the existing gateway fallback.
 - Confirm PR #315 review/merge before enabling the gated gateway integration;
   its current review check is skipped, while local validation remains green.
+
+## Issue #1083 evaluation (New-API vs LiteLLM, dashboard + free/paid tagging)
+
+- The evaluation doc (`docs/newapi-vs-litellm-eval.md`) is complete, but it
+  assumes "OMP" means the opencode-side model/provider catalog (omo/opencode
+  config templates plus the shared provider metadata). The term is not defined
+  anywhere in this repository — confirm the exact referent and its sync
+  contract (what pushes, what pulls, and which side wins on conflict) before
+  building any dashboard-to-OMP feed.
+- Decide which host would serve a provider dashboard if the recommended thin
+  read-only HTML page over `status_api.py` is built: gateway-40 (existing
+  gateway process, no extra memory) versus VPS-155 (~273MiB avail, would need
+  its own service or an SSH-tunnel reachability check from the dashboard
+  consumer).
+- If the quota-class tagging from branch `feat/1069-quota-class` is the
+  accepted free/paid metadata model, confirm that PR's merge priority so the
+  dashboard reads `quota_class` instead of duplicating a parallel tagging
+  scheme.
