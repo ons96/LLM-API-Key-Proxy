@@ -31,6 +31,10 @@ from proxy_app.main import (
     ModelList,
 )
 from proxy_app.router_integration import RouterIntegration
+# FastAPI symbols used by the endpoints below but never imported, which made
+# this module fail at import time (NameError on `Request`).
+from fastapi import Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +146,9 @@ async def enhanced_health_check(request: Request) -> Dict[str, Any]:
 
 
 # Enhanced chat completions endpoint
-@app.post("/v1/chat/completions")
+# response_model=None: the handler returns either a dict or an async SSE
+# generator, which FastAPI refuses to build a response model from.
+@app.post("/v1/chat/completions", response_model=None)
 async def enhanced_chat_completions(
     request: Request, auth: str = Depends(verify_api_key)
 ) -> Union[Dict[str, Any], AsyncGenerator[str, None]]:
@@ -350,20 +356,9 @@ async def perform_search(request: Request) -> Dict[str, Any]:
         if not query:
             raise HTTPException(status_code=400, detail="Query is required")
 
-        # This is simplified - real implementation would use router's search providers
-        # For now, return a placeholder response
-        return {
-            "query": query,
-            "results": [
-                {
-                    "title": "Example search result",
-                    "url": "https://example.com",
-                    "description": "This is a placeholder for search results",
-                }
-            ],
-            "status": "placeholder",
-            "message": "Search functionality will be implemented with real providers",
-        }
+        # Search is not implemented yet (#261). Report that honestly instead of
+        # returning a fabricated success payload that clients would trust.
+        raise HTTPException(status_code=501, detail="Search functionality is not implemented yet")
 
     except HTTPException:
         raise
