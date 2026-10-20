@@ -252,8 +252,13 @@ venv/bin/python -m pytest -q          # full gateway suite
 
 ```
 94 passed in 15.14s   (the four new test files together)
-725 passed, 2 failed  (full suite; the 2 are the known GROQ env failures)
+2 failed, 726 passed  (full suite, PYTEST_EXIT=1)
 ```
+
+The 2 failures are `tests/test_probe_providers_332.py::TestSelectTargets::test_only_filter`
+and `::test_max_models_cap` (`assert set() == {'groq'}`). They are **pre-existing**:
+running that file alone at the branch base `e7f3917` in a clean worktree gives the
+same `2 failed, 14 passed`. Not caused by this run and not weakened to pass.
 
 Covers the decision header, mid-stream fallback, 3-client compatibility, and 10
 concurrent streams.

@@ -32,7 +32,7 @@ restart.
 | Chain ordering | `src/proxy_app/routing/chain_order.py` -- tiers 0/1/2, then 3; never 4 |
 | Decision header + fallback | `src/proxy_app/routing/decision.py` |
 | Verification harness | `scripts/harness_check.py`, `scripts/gateway_smoke_stream.py`, `scripts/telemetry_report.py` |
-| Tests | 94 new across 4 files; 725 passing in the full gateway suite; 18 in the catalog package |
+| Tests | 94 new across 4 files; 726 passing in the full gateway suite (2 pre-existing failures); 18 in the catalog package |
 
 ## 3. Bugs found and fixed
 
@@ -44,6 +44,10 @@ restart.
    normalised before every lookup.
 3. **Tier 3 excluded outright.** The brief makes one-time-credit providers a last
    resort; excluding them emptied every chain that depended on one.
+
+Two failures remain in the suite (`tests/test_probe_providers_332.py::TestSelectTargets`).
+They fail identically at the branch base `e7f3917`, so they are recorded as
+pre-existing rather than fixed here -- see DECISIONS D3.
 
 Not a bug, but the most expensive finding: **the host `.env` had
 `FREE_ONLY_MODE=false`**, which disabled the listing filter while the code and
@@ -58,7 +62,7 @@ serving unfiltered.
 | `new-api` | Left running. Zero requests in 24 h, but four watchdog/healthcheck/backup timers manage it, so stopping it means disabling monitoring too (DECISIONS D12). |
 | `cliproxyapi` | Left running on :8317. Carrying live traffic (DECISIONS D11). |
 | `zeroclaw` | Stopped and disabled. Reversible: `systemctl enable --now zeroclaw`. |
-| GROQ tests | 2 failures on a keyed test path, same two that fail on a pristine tree. Untouched (DECISIONS D3). |
+| `test_probe_providers_332` | 2 failures (`TestSelectTargets`), reproduced identically at the branch base `e7f3917`. Pre-existing, untouched (DECISIONS D3). |
 
 ## 5. Where to start next
 

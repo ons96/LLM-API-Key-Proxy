@@ -45,13 +45,24 @@ Empty `free_tier_models` is deliberate: fail closed. Free-only mode treats an
 empty list as "no known free models", which is the honest state for a provider we
 have never verified.
 
-## D3. The 2 GROQ failures are left failing
+## D3. The 2 pre-existing probe-selector failures are left failing
 
-**Decision.** Not touched.
+**Decision.** Not touched, not skipped, not weakened.
 
-**Evidence.** They need `GROQ_API_KEY` in the test environment and the brief
-identifies them as environment failures, not regressions. Making them pass by
-injecting a fake key would hide a real signal.
+**Which failures.** `tests/test_probe_providers_332.py::TestSelectTargets::test_only_filter`
+(`assert set() == {'groq'}`) and `::test_max_models_cap` (`assert 0 == 1`). The
+selector returns no targets for `--only groq`.
+
+**Evidence they predate this run.** The file's last commit is `c884f36` (#332),
+not this branch. Running that file alone in a clean worktree at the branch base
+`e7f3917` gives the identical `2 failed, 14 passed`.
+
+**Corrected.** An earlier draft of this file called them GROQ *environment*
+failures. Re-running the suite after the final edit showed the real names, so the
+claim was corrected rather than left standing.
+
+**Why not fix them here.** The selector is unrelated to the catalog/free-only
+work; changing it to pass would mean guessing at probe semantics.
 
 ## D4. Tier vocabulary kept distinct from the existing `tier_classifier`
 

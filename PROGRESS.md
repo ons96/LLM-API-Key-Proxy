@@ -13,7 +13,7 @@ Mode: full (M0 through M6). Run date 2026-10-20.
 | M2 | PASS | GATES.md M2.1-M2.3 (live: 2888 -> 2116 ids, paid -> 402) |
 | M3 | PASS | GATES.md M3 (quota ledger tests, transient-error fix) |
 | M4 | PASS | GATES.md M4 (tier-3 last-resort fix) |
-| M5 | PASS | GATES.md M5 (725 passed / 2 known env failures) |
+| M5 | PASS | GATES.md M5 (726 passed / 2 pre-existing failures) |
 | M6 | PASS | GATES.md M6.1-M6.6, deviation: new-api kept |
 
 ## Done (verified, and how)
@@ -42,7 +42,8 @@ Mode: full (M0 through M6). Run date 2026-10-20.
 - Free-only invariant live: `/v1/models` hides 792 of 2888 ids, `g4f` gone, a
   paid model returns `402 paid_model_rejected`.
 - Quota ledger, chain ordering, decision header and mid-stream fallback: 94 tests
-  across the four new files, 725 in the full suite.
+  across the four new files, 726 passing in the full suite (2 pre-existing
+  `test_probe_providers_332` failures, reproduced at the branch base).
 - Rollback timed at 41.9 s; deploy is live; `/health` 200.
 - Workflow `scrape_leaderboards.yml` (229154715) re-enabled.
 - `zeroclaw` stopped and disabled (idle, unmonitored). `new-api` restored
