@@ -201,3 +201,15 @@ def test_catalog_artifact_is_present_and_parsable(catalog):
     assert catalog["schema_version"] == 1
     assert catalog["providers"], "catalog artifact is empty"
     assert catalog["totals"]["models"] > 0
+
+
+def test_underscore_and_hyphen_provider_ids_resolve_identically(tiers):
+    """The DB writes 'g4f' and config says 'g4f'; the DB writes 'nous-inference'
+    while config says 'nous_inference'. Both spellings must reach the same tier,
+    otherwise a paid provider leaks through under the other name."""
+    hyphen = free_policy.provider_tier(tiers, "nous-inference")
+    underscore = free_policy.provider_tier(tiers, "nous_inference")
+    assert hyphen == underscore, (hyphen, underscore)
+
+    g4f_tier = free_policy.provider_tier(tiers, "g4f")
+    assert g4f_tier >= free_policy.PAID_TIER, "g4f is observed paywalled, must be tier 4"

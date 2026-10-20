@@ -191,19 +191,37 @@ def load_tiers(
         return _CACHE
 
 
+def _normalize(name: str) -> str:
+    """Provider ids differ between the DB and the gateway config: the catalog
+    writes ``blaze-free`` / ``nous-inference`` while config declares
+    ``blaze_free`` / ``nous_inference``. Normalise before every lookup, or a
+    paid provider slips through under the other spelling."""
+    return str(name or "").strip().lower().replace("-", "_")
+
+
+def _lookup(mapping: dict[str, Any], provider: str, default: Any) -> Any:
+    if provider in mapping:
+        return mapping[provider]
+    normalized = _normalize(provider)
+    for key, value in mapping.items():
+        if _normalize(key) == normalized:
+            return value
+    return default
+
+
 def provider_tier(cache: dict[str, Any], provider: str) -> int:
-    return int(cache["tiers"].get(provider, PAID_TIER))
+    return int(_lookup(cache["tiers"], provider, PAID_TIER))
 
 
 def provider_type(cache: dict[str, Any], provider: str) -> str:
-    return str(cache["types"].get(provider, "unknown"))
+    return str(_lookup(cache["types"], provider, "unknown"))
 
 
 def model_is_free(cache: dict[str, Any], provider: str, model: str) -> bool:
     """Free if the catalog says so, or if the model id itself is marked free."""
     if str(model).endswith(":free"):
         return True
-    free_models = cache["models"].get(provider) or set()
+    free_models = _lookup(cache["models"], provider, set()) or set()
     return bool(free_models) and model in free_models
 
 
@@ -252,7 +270,7 @@ def allowed_in_free_mode(
         # and the ledger's per-day budget are what keep it from being drained.
         return True, "tier 3 (one-time credit): allowed last, after tier 0/1/2"
     if tier <= 2 and not model_is_free(cache, provider, model):
-        known = cache["models"].get(provider) or set()
+        known = _lookup(cache["models"], provider, set()) or set()
         if known:
             return False, "model is not in the catalog's free set for this provider"
     return True, f"tier {tier} allowed"
