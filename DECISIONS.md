@@ -39,7 +39,8 @@ invariant) or disabling `crax` (changes serving behaviour for a provider the use
 turned on).
 
 **Evidence.** `venv/bin/python -m pytest -q` after the fix -> `2 failed, 632
-passed`, and the 2 are the predicted GROQ environment failures.
+passed`; the 2 were attributed to GROQ environment failures at the time and are
+in fact the pre-existing probe-selector failures recorded in D3.
 
 Empty `free_tier_models` is deliberate: fail closed. Free-only mode treats an
 empty list as "no known free models", which is the honest state for a provider we

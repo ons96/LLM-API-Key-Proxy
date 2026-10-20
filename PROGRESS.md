@@ -23,7 +23,8 @@ Mode: full (M0 through M6). Run date 2026-10-20.
   `venv/bin/python -c "import litellm, pytest"` succeeds; gateway repo tree clean
   on work/gateway-catalog.
 - M0 measurement 1: gateway suite `2 failed, 632 passed` (both failures are the
-  known GROQ env failures); workload-router 128, llm-provider-manager 172,
+  pre-existing `test_probe_providers_332` failures, reproduced at base);
+  workload-router 128, llm-provider-manager 172,
   free-llm-provider-pipeline 60 passed.
 - M0 measurement 2: 2894 model ids / 28 providers / 20 aliases; 10 concurrent
   streams 0 5xx, TTFT p50 1375.7 ms; 27832 telemetry calls with 8 providers at
