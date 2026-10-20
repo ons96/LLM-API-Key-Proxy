@@ -11,131 +11,44 @@ metadata:
   - build
   - metis
   - momus
+  last_reorder_at: '2026-10-20T22:00:05Z'
+  last_reorder_stats:
+    total_models: 19
+    reordered: 0
+    window_h: 24
+    min_samples: 5
+    mode: u_formula
 virtual_models:
   coding-free:
     description: Pure free-tier agentic coding models (no paid fallback). Daily checkin
       required for freetheai. Updated 2026-06-23 from live probe.
     fallback_chain:
-    - provider: freetheai
-      model: opc/deepseek-v4-flash-free
+    - provider: crowllm
+      model: minimax-m2.5:free
       priority: 1
-    - provider: freetheai
-      model: glm/glm-5-turbo
+    - provider: septorlabs
+      model: minimax-m2.5-free
       priority: 2
-    - provider: freetheai
-      model: glm/glm-5.1
+    - provider: crowllm
+      model: minimax-m2.7:free
       priority: 3
-    - provider: freetheai
-      model: glm/glm-5
-      priority: 4
-    - provider: freetheai
-      model: bbl/gpt-5.5-mini
-      priority: 5
-    - provider: freetheai
-      model: bbl/gemini-3.0-flash
-      priority: 6
-    - provider: freetheai
-      model: bbl/gemini-3.5-flash
-      priority: 7
-    - provider: freetheai
-      model: glm/glm-5.2
-      priority: 8
-    - provider: blaze-free
-      model: qwen3.7-plus-official
-      priority: 9
-    - provider: freetheai
-      model: olm/deepseek-v4-pro
-      priority: 10
-    - provider: tokenrouter
-      model: MiniMax-M3
-      priority: 11
-    - provider: blaze-free
-      model: MiniMax-M3-official
-      priority: 12
-    - provider: futureppo
-      model: kimi-k2.6
-      priority: 13
-    - provider: freetheai
-      model: min/minimax-m3
-      priority: 14
-    - provider: blaze-free
-      model: glm-5.2-china
-      priority: 15
-    - provider: pooled
-      model: MiniMax-M3-Official
-      priority: 16
-    - provider: futureppo
-      model: gemini-3.5-flash
-      priority: 17
-    - provider: futureppo
-      model: qwen3.7-max-t
-      priority: 18
-    - provider: freetheai
-      model: olm/kimi-k2.7-code
-      priority: 19
-    - provider: kilocode
-      model: stepfun/step-3.7-flash:free
-      priority: 20
-    - provider: blaze-free
-      model: gemini-2.5-flash-lite
-      priority: 21
-    - provider: iamhc
-      model: Kimi-K2.6
-      priority: 22
-    - provider: koyeb-new
-      model: kimi-k2.6
-      priority: 23
-    - provider: pooled
-      model: z-ai/glm-5.1-slow
-      priority: 24
-    - provider: kilocode
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
-      priority: 25
-    - provider: freetheai
-      model: bbl/gemini-3.1-flash-lite
-      priority: 26
-    - provider: kilocode
-      model: poolside/laguna-m.1:free
-      priority: 27
-    - provider: kilocode
-      model: poolside/laguna-xs.2:free
-      priority: 28
-    - provider: kilocode
-      model: kilo-auto/free
-      priority: 29
-    - provider: blaze-free
-      model: qwen3.6-plus
-      priority: 30
-    - provider: blaze-free
-      model: glm-4.7-china
-      priority: 31
-    - provider: blaze-free
-      model: MiniMax-M2.5-official
-      priority: 32
-    - provider: blaze-free
-      model: MiniMax-M2.7-official
-      priority: 33
-    - provider: blaze-free
-      model: glm-5.1-slow
-      priority: 34
-    - provider: blaze-free
-      model: glm-5.1-china
-      priority: 35
-    - provider: blaze-free
-      model: gemini-2.5-flash-lite-rp
-      priority: 36
-    - provider: pooled
-      model: qwen3.7-max-official
-      priority: 37
-    - provider: zenllm-free
-      model: free/claude-opus-4.8
-      priority: 38
-    - provider: zenllm-free
-      model: free/gpt-5.5
-      priority: 39
-    - provider: zenllm-free
-      model: free/gemini-3.1-pro
-      priority: 40
+    settings:
+      timeout_ms: 120000
+      retry_on_rate_limit: true
+      auto_continue_on_truncate: true
+  p0-minimax-m3:
+    description: Phantom minimax-m3 model; routes to available minimax-m2.5 so stale
+      opencode model references resolve quickly instead of exhausting open-ended providers.
+    fallback_chain:
+    - provider: crowllm
+      model: minimax-m2.5:free
+      priority: 1
+    - provider: septorlabs
+      model: minimax-m2.5-free
+      priority: 2
+    - provider: crowllm
+      model: minimax-m2.7:free
+      priority: 3
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
@@ -143,48 +56,9 @@ virtual_models:
   glm5-elite:
     description: NVIDIA GLM-5 primary with intelligent gateway fallback
     fallback_chain:
-    - provider: gemini
-      model: gemini-2.5-flash
-      priority: 1
-    - provider: freetheai
-      model: glm/glm-5-turbo
-      priority: 2
-    - provider: freetheai
-      model: glm/glm-5.1
-      priority: 3
-    - provider: freetheai
-      model: glm/glm-5
-      priority: 4
-    - provider: freetheai
-      model: glm/glm-5.2
-      priority: 5
-    - provider: nvidia
-      model: GLM5
-      priority: 6
-    - provider: antigravity
-      model: gemini-3.1-pro
-      priority: 7
-    - provider: antigravity
-      model: gemini-3-flash
-      priority: 8
-    - provider: supacoder
-      model: gpt-5.4
-      priority: 9
-    - provider: supacoder
-      model: gpt-5.3-codex
-      priority: 10
-    - provider: aihubmix
-      model: coding-glm-5-free
-      priority: 11
     - provider: cliproxyapi
       model: gemini-2.5-flash
-      priority: 12
-    - provider: kilo
-      model: minimax/minimax-m2.5:free
-      priority: 13
-    - provider: cerebras
-      model: llama-3.3-70b
-      priority: 14
+      priority: 1
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
@@ -193,174 +67,21 @@ virtual_models:
     description: Best to worst agentic coding performance (free models first, paid
       as backup). Updated 2026-06-23 from live probe.
     fallback_chain:
-    - provider: freetheai
-      model: glm/glm-5.2
+    - provider: cliproxyapi
+      model: gemini-3-flash
       priority: 1
-    - provider: gemini
-      model: gemini-3-flash
-      priority: 2
-    - provider: gemini
-      model: gemini-3-pro
-      priority: 3
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 4
-    - provider: freetheai
-      model: glm/glm-5.1
-      priority: 5
-    - provider: freetheai
-      model: bbl/gpt-5.5-mini
-      priority: 6
-    - provider: freetheai
-      model: bbl/gemini-3.5-flash
-      priority: 7
-    - provider: blaze-free
-      model: qwen3.7-plus-official
-      priority: 8
-    - provider: freetheai
-      model: olm/deepseek-v4-pro
-      priority: 9
-    - provider: tokenrouter
-      model: MiniMax-M3
-      priority: 10
-    - provider: futureppo
-      model: kimi-k2.6
-      priority: 11
-    - provider: cliproxyapi
-      model: gemini-3.1-pro-preview
-      priority: 12
-    - provider: supacoder
-      model: gpt-5-codex
-      priority: 13
-    - provider: cliproxyapi
-      model: gemini-3-pro-preview
-      priority: 14
-    - provider: supacoder
-      model: gpt-5.1-codex-mini
-      priority: 15
-    - provider: cliproxyapi
-      model: gemini-3-flash
-      priority: 16
-    - provider: antigravity
-      model: gemini-3-pro
-      priority: 17
-    - provider: supacoder
-      model: gpt-5.4
-      priority: 18
-    - provider: cliproxyapi
-      model: gemini-3.1-pro-low
-      priority: 19
     - provider: cliproxyapi
       model: gemini-2.5-flash
-      priority: 20
-    - provider: supacoder
-      model: gpt-5.3-codex
-      priority: 21
-    - provider: supacoder
-      model: gpt-5.2
-      priority: 22
-    - provider: cliproxyapi
-      model: gemini-3-pro-low
-      priority: 23
-    - provider: nvidia
-      model: GLM5
-      priority: 24
-    - provider: supacoder
-      model: gpt-5.2-codex
-      priority: 25
-    - provider: supacoder
-      model: gpt-5.1-codex-max
-      priority: 26
+      priority: 2
     - provider: cliproxyapi
       model: gpt-oss-120b-medium
-      priority: 27
-    - provider: cerebras
-      model: glm-5
-      priority: 28
-    - provider: aihubmix
-      model: coding-glm-5-free
-      priority: 29
-    - provider: supacoder
-      model: gpt-5.1-codex
-      priority: 30
-    - provider: supacoder
-      model: gpt-5
-      priority: 31
-    - provider: supacoder
-      model: gpt-5.4-mini
-      priority: 32
+      priority: 3
     - provider: cliproxyapi
       model: coder-model
-      priority: 33
-    - provider: aihubmix
-      model: glm-4.7-free
-      priority: 34
-    - provider: cerebras
-      model: llama-3.3-70b
-      priority: 35
-    - provider: kilo
-      model: nvidia/nemotron-3-super-120b-a12b:free
-      priority: 36
-    - provider: kilo
-      model: x-ai/grok-code-fast-1:optimized:free
-      priority: 37
-    - provider: cerebras
-      model: qwen-3-235b-a22b-instruct-2507
-      priority: 38
-    - provider: kilo
-      model: qwen/qwen3-coder:free
-      priority: 39
-    - provider: kilo
-      model: meta-llama/llama-3.3-70b-instruct:free
-      priority: 40
-    - provider: kilocode
-      model: stepfun/step-3.7-flash:free
-      priority: 41
-    - provider: freetheai
-      model: min/minimax-m3
-      priority: 42
-    - provider: freetheai
-      model: olm/kimi-k2.7-code
-      priority: 43
-    - provider: futureppo
-      model: gemini-3.5-flash
-      priority: 44
-    - provider: futureppo
-      model: qwen3.7-max-t
-      priority: 45
-    - provider: pooled
-      model: MiniMax-M3-Official
-      priority: 46
-    - provider: pooled
-      model: z-ai/glm-5.1-slow
-      priority: 47
+      priority: 4
     - provider: blaze-free
       model: MiniMax-M3-official
-      priority: 48
-    - provider: blaze-free
-      model: qwen3.6-plus
-      priority: 49
-    - provider: blaze-free
-      model: glm-5.2-china
-      priority: 50
-    - provider: blaze-free
-      model: glm-5.1-slow
-      priority: 51
-    - provider: iamhc
-      model: Kimi-K2.6
-      priority: 52
-    - provider: koyeb-new
-      model: kimi-k2.6
-      priority: 53
-    - provider: zenllm-free
-      model: free/claude-opus-4.8
-      priority: 54
-    - provider: zenllm-free
-      model: free/gpt-5.5
-      priority: 55
-    - provider: zenllm-free
-      model: free/gemini-3.1-pro
-      priority: 56
+      priority: 5
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
@@ -369,164 +90,38 @@ virtual_models:
     description: Agentic coding balanced with speed (tool-capable, no g4f)
     fallback_chain:
     - provider: cliproxyapi
-      model: gemini-3.1-pro-preview
+      model: gemini-3-flash
       priority: 1
-    - provider: gemini
-      model: gemini-3-flash
+    - provider: cliproxyapi
+      model: gemini-2.5-flash
       priority: 2
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 3
-    - provider: gemini
-      model: gemini-2.5-flash
-      priority: 4
-    - provider: cliproxyapi
-      model: gemini-3-flash
-      priority: 5
-    - provider: supacoder
-      model: gpt-5-codex
-      priority: 6
-    - provider: cliproxyapi
-      model: gemini-2.5-flash
-      priority: 7
-    - provider: supacoder
-      model: gpt-5.1-codex-mini
-      priority: 8
-    - provider: antigravity
-      model: gemini-3-flash
-      priority: 9
-    - provider: supacoder
-      model: gpt-5.2
-      priority: 10
-    - provider: kilo
-      model: minimax/minimax-m2.5:free
-      priority: 11
-    - provider: nvidia
-      model: GLM5
-      priority: 12
-    - provider: supacoder
-      model: gpt-5.4-mini
-      priority: 13
-    - provider: cerebras
-      model: glm-5
-      priority: 14
-    - provider: aihubmix
-      model: coding-glm-5-free
-      priority: 15
     - provider: cliproxyapi
       model: coder-model
-      priority: 16
-    - provider: cerebras
-      model: llama-3.3-70b
-      priority: 17
-    - provider: kilo
-      model: qwen/qwen3-coder:free
-      priority: 18
+      priority: 3
+    - provider: jasper
+      model: nemotron-3-super-120b-a12b
+      priority: 4
+    - provider: jasper
+      model: deepseek-v4.1-flash
+      priority: 5
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
   coding-fast:
     description: Fastest coding models (TPS/latency ranked, no g4f, free first)
     fallback_chain:
-    - provider: gemini
-      model: gemini-3-flash
-      priority: 1
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 2
-    - provider: groq
-      model: llama-3.1-8b-instant
-      priority: 3
-    - provider: groq
-      model: meta-llama/llama-4-scout-17b-16e-instruct
-      priority: 4
-    - provider: freetheai
-      model: bbl/gpt-5.5-mini
-      priority: 5
-    - provider: freetheai
-      model: bbl/gemini-3.0-flash
-      priority: 6
-    - provider: freetheai
-      model: bbl/gemini-3.5-flash
-      priority: 7
-    - provider: futureppo
-      model: kimi-k2.6
-      priority: 8
-    - provider: kilocode
-      model: poolside/laguna-xs.2:free
-      priority: 9
-    - provider: kilocode
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
-      priority: 10
-    - provider: freetheai
-      model: olm/deepseek-v4-pro
-      priority: 11
-    - provider: freetheai
-      model: olm/kimi-k2.7-code
-      priority: 12
-    - provider: freetheai
-      model: bbl/gemini-3.1-flash-lite
-      priority: 13
-    - provider: freetheai
-      model: min/minimax-m3
-      priority: 14
-    - provider: tokenrouter
-      model: MiniMax-M3
-      priority: 15
-    - provider: pooled
-      model: MiniMax-M3-Official
-      priority: 16
-    - provider: pooled
-      model: z-ai/glm-5.1-slow
-      priority: 17
-    - provider: futureppo
-      model: gemini-3.5-flash
-      priority: 18
-    - provider: futureppo
-      model: qwen3.7-max-t
-      priority: 19
-    - provider: blaze-free
-      model: MiniMax-M3-official
-      priority: 20
-    - provider: blaze-free
-      model: qwen3.7-plus-official
-      priority: 21
-    - provider: blaze-free
-      model: gemini-2.5-flash-lite
-      priority: 22
-    - provider: iamhc
-      model: Kimi-K2.6
-      priority: 23
-    - provider: koyeb-new
-      model: kimi-k2.6
-      priority: 24
-    - provider: kilocode
-      model: poolside/laguna-m.1:free
-      priority: 25
-    - provider: kilocode
-      model: stepfun/step-3.7-flash:free
-      priority: 26
-    - provider: kilocode
-      model: kilo-auto/free
-      priority: 27
     - provider: cliproxyapi
       model: gemini-2.5-flash
-      priority: 28
-    - provider: cerebras
-      model: llama-3.3-70b
-      priority: 29
-    - provider: cerebras
-      model: llama3.1-8b
-      priority: 30
+      priority: 1
     - provider: cliproxyapi
       model: gemini-3-flash
-      priority: 31
-    - provider: cerebras
-      model: glm-5
-      priority: 32
-    - provider: aihubmix
-      model: glm-4-flash
-      priority: 33
+      priority: 2
+    - provider: jasper
+      model: nemotron-3-super-120b-a12b
+      priority: 3
+    - provider: blaze-free
+      model: MiniMax-M3-official
+      priority: 4
     settings:
       timeout_ms: 30000
       retry_on_rate_limit: true
@@ -534,23 +129,8 @@ virtual_models:
     description: Fast title generation with NVIDIA TTFT-ranked fallback chain
     fallback_chain:
     - provider: nvidia
-      model: meta/llama-3.1-8b-instruct
-      priority: 1
-    - provider: nvidia
-      model: nvidia/nemotron-mini-4b-instruct
-      priority: 2
-    - provider: nvidia
-      model: z-ai/glm-5.1
-      priority: 3
-    - provider: nvidia
-      model: google/gemma-3n-e4b-it
-      priority: 4
-    - provider: nvidia
-      model: google/gemma-3n-e2b-it
-      priority: 5
-    - provider: nvidia
       model: nvidia/nemotron-content-safety-reasoning-4b
-      priority: 6
+      priority: 1
     settings:
       timeout_ms: 10000
       retry_on_rate_limit: true
@@ -558,110 +138,59 @@ virtual_models:
     description: Most intelligent chat models (g4f OK, no Claude, no gemini-2.5-pro)
     fallback_chain:
     - provider: gemini
-      model: gemini-3-pro
+      model: gemini-3-pro-preview
       priority: 1
-    - provider: cliproxyapi
+    - provider: gcli
       model: gemini-3.1-pro-preview
       priority: 2
-    - provider: cliproxyapi
-      model: gemini-3-pro-preview
+    - provider: crowllm
+      model: gemini-3-pro:free
       priority: 3
-    - provider: cliproxyapi
-      model: gemini-3-pro-high
+    - provider: crowllm
+      model: gemini-3.1-pro:free
       priority: 4
-    - provider: supacoder
-      model: gpt-5.4
+    - provider: septorlabs
+      model: minimax-m2.5-free
       priority: 5
-    - provider: g4f_gemini
-      model: gemini-2.5-pro
+    - provider: crowllm
+      model: minimax-m2.5:free
       priority: 6
-    - provider: g4f_nvidia
-      model: deepseek-ai/deepseek-v3.2
-      priority: 7
-    - provider: kilo
-      model: minimax/minimax-m2.5:free
-      priority: 8
-    - provider: antigravity
-      model: gemini-3.1-pro
-      priority: 9
-    - provider: cerebras
-      model: qwen-3-235b-a22b-instruct-2507
-      priority: 10
-    - provider: kilo
-      model: qwen/qwen3-next-80b-a3b-instruct:free
-      priority: 11
     settings:
       timeout_ms: 300000
       retry_on_rate_limit: true
   chat-smart:
     description: Best intelligence-to-speed ratio (g4f OK, no Claude, no iflow)
     fallback_chain:
-    - provider: gemini
-      model: gemini-2.5-flash
-      priority: 1
-    - provider: groq
-      model: moonshotai/kimi-k2-instruct
-      priority: 2
     - provider: cliproxyapi
       model: gemini-3-flash
-      priority: 3
+      priority: 1
     - provider: cliproxyapi
       model: gemini-2.5-flash
+      priority: 2
+    - provider: jasper
+      model: nemotron-3-super-120b-a12b
+      priority: 3
+    - provider: jasper
+      model: deepseek-v4.1-flash
       priority: 4
-    - provider: cerebras
-      model: qwen-3-235b-a22b-instruct-2507
+    - provider: crowllm
+      model: gemini-3-flash:free
       priority: 5
-    - provider: g4f_nvidia
-      model: deepseek-ai/deepseek-v3.2
-      priority: 6
-    - provider: g4f_groq
-      model: llama-3.3-70b-versatile
-      priority: 7
-    - provider: g4f_gemini
-      model: gemini-2.5-flash
-      priority: 8
-    - provider: aihubmix
-      model: glm-4.7-free
-      priority: 9
-    - provider: kilo
-      model: qwen/qwen3-next-80b-a3b-instruct:free
-      priority: 10
-    - provider: kilo
-      model: google/gemma-4-31b-it:free
-      priority: 11
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
   chat-fast:
     description: Fastest chat models (TPS/TTFT ranked, g4f OK)
     fallback_chain:
-    - provider: gemini
-      model: gemini-2.5-flash
-      priority: 1
-    - provider: groq
-      model: meta-llama/llama-4-scout-17b-16e-instruct
-      priority: 2
-    - provider: groq
-      model: llama-3.1-8b-instant
-      priority: 3
     - provider: cliproxyapi
       model: gemini-2.5-flash
-      priority: 4
-    - provider: cerebras
-      model: llama-3.3-70b
-      priority: 5
-    - provider: cerebras
-      model: llama3.1-8b
-      priority: 6
-    - provider: g4f_groq
-      model: llama-3.1-8b-instruct
-      priority: 7
-    - provider: aihubmix
-      model: glm-4-flash
-      priority: 8
-    - provider: kilo
-      model: openai/gpt-oss-20b:free
-      priority: 9
+      priority: 1
+    - provider: jasper
+      model: nemotron-3-super-120b-a12b
+      priority: 2
+    - provider: crowllm
+      model: gemini-3-flash:free
+      priority: 3
     settings:
       timeout_ms: 15000
       retry_on_rate_limit: true
@@ -672,15 +201,9 @@ virtual_models:
       endpoints that skip router_wrapper). Normal path mutates request.model to a
       concrete chain before this is consulted.
     fallback_chain:
-    - provider: groq
-      model: llama-3.1-8b-instant
-      priority: 1
     - provider: cliproxyapi
       model: gemini-2.5-flash
-      priority: 2
-    - provider: cerebras
-      model: llama-3.3-70b
-      priority: 3
+      priority: 1
     settings:
       timeout_ms: 180000
       retry_on_rate_limit: true
@@ -690,45 +213,30 @@ virtual_models:
     description: Roleplay and creative writing models (no g4f, no llama 3.3 70b at
       top, NIM-first, fixed 2026-06-02)
     fallback_chain:
-    - provider: groq
-      model: meta-llama/llama-4-scout-17b-16e-instruct
+    - provider: jasper
+      model: nemotron-3-super-120b-a12b
       priority: 1
-    - provider: groq
-      model: llama-3.3-70b-versatile
-      priority: 2
-    - provider: groq
-      model: llama-3.1-8b-instant
-      priority: 3
-    - provider: cerebras
-      model: zai-glm-4.7
-      priority: 4
     - provider: nvidia
       model: mistralai/mistral-small-4-119b-2603
-      priority: 5
+      priority: 2
     - provider: nvidia
       model: mistralai/mistral-large-3-675b-instruct-2512
-      priority: 6
-    - provider: mistral
-      model: mistral-large-latest
-      priority: 7
+      priority: 3
     - provider: nvidia
       model: mistralai/mistral-nemotron
-      priority: 8
+      priority: 4
     - provider: nvidia
       model: meta/llama-3.3-70b-instruct
-      priority: 9
+      priority: 5
     - provider: nvidia
       model: upstage/solar-10.7b-instruct
-      priority: 10
-    - provider: groq
-      model: qwen/qwen3-32b
-      priority: 11
-    - provider: gemini
-      model: gemini-3-flash-preview
-      priority: 12
+      priority: 6
     - provider: nvidia
       model: mistralai/mistral-7b-instruct-v0.3
-      priority: 13
+      priority: 7
+    - provider: crowllm
+      model: muse-spark-1-3-contributor:free
+      priority: 8
     settings:
       timeout_ms: 60000
       retry_on_rate_limit: true
@@ -738,61 +246,61 @@ virtual_models:
     description: Optimized for oracle agent - ['accuracy', 'depth']
     fallback_chain:
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 1
     - provider: nvidia
       model: nvidia/nemotron-3-nano-30b-a3b
       priority: 2
     - provider: nvidia
-      model: nvidia/llama-3.1-nemotron-nano-8b-v1
+      model: nvidia/nvidia-nemotron-nano-9b-v2
       priority: 3
     - provider: nvidia
-      model: nvidia/gliner-pii
+      model: nvidia/nemotron-nano-12b-v2-vl
       priority: 4
     - provider: nvidia
-      model: nvidia/nemotron-3-content-safety
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
       priority: 5
     - provider: nvidia
-      model: nvidia/llama-3.1-nemotron-70b-instruct
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
       priority: 6
     - provider: nvidia
-      model: nvidia/nemotron-nano-12b-v2-vl
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 7
     - provider: nvidia
-      model: nvidia/nemotron-voicechat
+      model: nvidia/gliner-pii
       priority: 8
     - provider: nvidia
-      model: nvidia/studiovoice
+      model: nvidia/nemotron-3-content-safety
       priority: 9
     - provider: nvidia
-      model: nvidia/llama-nemotron-rerank-vl-1b-v2
+      model: nvidia/llama-3.1-nemotron-70b-instruct
       priority: 10
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      model: nvidia/nemotron-voicechat
       priority: 11
     - provider: nvidia
-      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
+      model: nvidia/studiovoice
       priority: 12
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: nvidia/llama-nemotron-rerank-vl-1b-v2
       priority: 13
     - provider: nvidia
-      model: nvidia/rerank-qa-mistral-4b
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 14
     - provider: nvidia
-      model: nvidia/nv-embed-v1
+      model: nvidia/rerank-qa-mistral-4b
       priority: 15
     - provider: nvidia
-      model: nvidia/nv-embedcode-7b-v1
+      model: nvidia/nv-embed-v1
       priority: 16
     - provider: nvidia
-      model: nvidia/usdvalidate
+      model: nvidia/nv-embedcode-7b-v1
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-content-safety-reasoning-4b
+      model: nvidia/usdvalidate
       priority: 18
     - provider: nvidia
-      model: nvidia/nvidia-nemotron-nano-9b-v2
+      model: nvidia/nemotron-content-safety-reasoning-4b
       priority: 19
     - provider: nvidia
       model: nvidia/nemotron-3.5-lightning-30b-a3b
@@ -804,61 +312,61 @@ virtual_models:
     description: Optimized for explore agent - ['latency', 'throughput']
     fallback_chain:
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 1
     - provider: nvidia
       model: nvidia/nemotron-3-nano-30b-a3b
       priority: 2
     - provider: nvidia
-      model: nvidia/llama-3.1-nemotron-nano-8b-v1
+      model: nvidia/nvidia-nemotron-nano-9b-v2
       priority: 3
     - provider: nvidia
-      model: nvidia/gliner-pii
+      model: nvidia/nemotron-nano-12b-v2-vl
       priority: 4
     - provider: nvidia
-      model: nvidia/nemotron-3-content-safety
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
       priority: 5
     - provider: nvidia
-      model: nvidia/llama-3.1-nemotron-70b-instruct
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
       priority: 6
     - provider: nvidia
-      model: nvidia/nemotron-nano-12b-v2-vl
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 7
     - provider: nvidia
-      model: nvidia/nemotron-voicechat
+      model: nvidia/gliner-pii
       priority: 8
     - provider: nvidia
-      model: nvidia/studiovoice
+      model: nvidia/nemotron-3-content-safety
       priority: 9
     - provider: nvidia
-      model: nvidia/llama-nemotron-rerank-vl-1b-v2
+      model: nvidia/llama-3.1-nemotron-70b-instruct
       priority: 10
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      model: nvidia/nemotron-voicechat
       priority: 11
     - provider: nvidia
-      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
+      model: nvidia/studiovoice
       priority: 12
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: nvidia/llama-nemotron-rerank-vl-1b-v2
       priority: 13
     - provider: nvidia
-      model: nvidia/rerank-qa-mistral-4b
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 14
     - provider: nvidia
-      model: nvidia/nv-embed-v1
+      model: nvidia/rerank-qa-mistral-4b
       priority: 15
     - provider: nvidia
-      model: nvidia/nv-embedcode-7b-v1
+      model: nvidia/nv-embed-v1
       priority: 16
     - provider: nvidia
-      model: nvidia/usdvalidate
+      model: nvidia/nv-embedcode-7b-v1
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-content-safety-reasoning-4b
+      model: nvidia/usdvalidate
       priority: 18
     - provider: nvidia
-      model: nvidia/nvidia-nemotron-nano-9b-v2
+      model: nvidia/nemotron-content-safety-reasoning-4b
       priority: 19
     - provider: nvidia
       model: nvidia/nemotron-3.5-lightning-30b-a3b
@@ -870,61 +378,61 @@ virtual_models:
     description: Optimized for librarian agent - ['availability', 'reliability']
     fallback_chain:
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 1
     - provider: nvidia
       model: nvidia/nemotron-3-nano-30b-a3b
       priority: 2
     - provider: nvidia
-      model: nvidia/llama-3.1-nemotron-nano-8b-v1
+      model: nvidia/nvidia-nemotron-nano-9b-v2
       priority: 3
     - provider: nvidia
-      model: nvidia/gliner-pii
+      model: nvidia/nemotron-nano-12b-v2-vl
       priority: 4
     - provider: nvidia
-      model: nvidia/nemotron-3-content-safety
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
       priority: 5
     - provider: nvidia
-      model: nvidia/llama-3.1-nemotron-70b-instruct
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
       priority: 6
     - provider: nvidia
-      model: nvidia/nemotron-nano-12b-v2-vl
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 7
     - provider: nvidia
-      model: nvidia/nemotron-voicechat
+      model: nvidia/gliner-pii
       priority: 8
     - provider: nvidia
-      model: nvidia/studiovoice
+      model: nvidia/nemotron-3-content-safety
       priority: 9
     - provider: nvidia
-      model: nvidia/llama-nemotron-rerank-vl-1b-v2
+      model: nvidia/llama-3.1-nemotron-70b-instruct
       priority: 10
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      model: nvidia/nemotron-voicechat
       priority: 11
     - provider: nvidia
-      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
+      model: nvidia/studiovoice
       priority: 12
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: nvidia/llama-nemotron-rerank-vl-1b-v2
       priority: 13
     - provider: nvidia
-      model: nvidia/rerank-qa-mistral-4b
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 14
     - provider: nvidia
-      model: nvidia/nv-embed-v1
+      model: nvidia/rerank-qa-mistral-4b
       priority: 15
     - provider: nvidia
-      model: nvidia/nv-embedcode-7b-v1
+      model: nvidia/nv-embed-v1
       priority: 16
     - provider: nvidia
-      model: nvidia/usdvalidate
+      model: nvidia/nv-embedcode-7b-v1
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-content-safety-reasoning-4b
+      model: nvidia/usdvalidate
       priority: 18
     - provider: nvidia
-      model: nvidia/nvidia-nemotron-nano-9b-v2
+      model: nvidia/nemotron-content-safety-reasoning-4b
       priority: 19
     - provider: nvidia
       model: nvidia/nemotron-3.5-lightning-30b-a3b
@@ -936,61 +444,61 @@ virtual_models:
     description: Optimized for build agent - ['balanced']
     fallback_chain:
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 1
     - provider: nvidia
       model: nvidia/nemotron-3-nano-30b-a3b
       priority: 2
     - provider: nvidia
-      model: nvidia/llama-3.1-nemotron-nano-8b-v1
+      model: nvidia/nvidia-nemotron-nano-9b-v2
       priority: 3
     - provider: nvidia
-      model: nvidia/gliner-pii
+      model: nvidia/nemotron-nano-12b-v2-vl
       priority: 4
     - provider: nvidia
-      model: nvidia/nemotron-3-content-safety
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
       priority: 5
     - provider: nvidia
-      model: nvidia/llama-3.1-nemotron-70b-instruct
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
       priority: 6
     - provider: nvidia
-      model: nvidia/nemotron-nano-12b-v2-vl
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 7
     - provider: nvidia
-      model: nvidia/nemotron-voicechat
+      model: nvidia/gliner-pii
       priority: 8
     - provider: nvidia
-      model: nvidia/studiovoice
+      model: nvidia/nemotron-3-content-safety
       priority: 9
     - provider: nvidia
-      model: nvidia/llama-nemotron-rerank-vl-1b-v2
+      model: nvidia/llama-3.1-nemotron-70b-instruct
       priority: 10
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      model: nvidia/nemotron-voicechat
       priority: 11
     - provider: nvidia
-      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
+      model: nvidia/studiovoice
       priority: 12
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: nvidia/llama-nemotron-rerank-vl-1b-v2
       priority: 13
     - provider: nvidia
-      model: nvidia/rerank-qa-mistral-4b
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 14
     - provider: nvidia
-      model: nvidia/nv-embed-v1
+      model: nvidia/rerank-qa-mistral-4b
       priority: 15
     - provider: nvidia
-      model: nvidia/nv-embedcode-7b-v1
+      model: nvidia/nv-embed-v1
       priority: 16
     - provider: nvidia
-      model: nvidia/usdvalidate
+      model: nvidia/nv-embedcode-7b-v1
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-content-safety-reasoning-4b
+      model: nvidia/usdvalidate
       priority: 18
     - provider: nvidia
-      model: nvidia/nvidia-nemotron-nano-9b-v2
+      model: nvidia/nemotron-content-safety-reasoning-4b
       priority: 19
     - provider: nvidia
       model: nvidia/nemotron-3.5-lightning-30b-a3b
@@ -1002,61 +510,61 @@ virtual_models:
     description: Optimized for metis agent - ['accuracy']
     fallback_chain:
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 1
     - provider: nvidia
       model: nvidia/nemotron-3-nano-30b-a3b
       priority: 2
     - provider: nvidia
-      model: nvidia/llama-3.1-nemotron-nano-8b-v1
+      model: nvidia/nvidia-nemotron-nano-9b-v2
       priority: 3
     - provider: nvidia
-      model: nvidia/gliner-pii
+      model: nvidia/nemotron-nano-12b-v2-vl
       priority: 4
     - provider: nvidia
-      model: nvidia/nemotron-3-content-safety
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
       priority: 5
     - provider: nvidia
-      model: nvidia/llama-3.1-nemotron-70b-instruct
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
       priority: 6
     - provider: nvidia
-      model: nvidia/nemotron-nano-12b-v2-vl
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 7
     - provider: nvidia
-      model: nvidia/nemotron-voicechat
+      model: nvidia/gliner-pii
       priority: 8
     - provider: nvidia
-      model: nvidia/studiovoice
+      model: nvidia/nemotron-3-content-safety
       priority: 9
     - provider: nvidia
-      model: nvidia/llama-nemotron-rerank-vl-1b-v2
+      model: nvidia/llama-3.1-nemotron-70b-instruct
       priority: 10
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      model: nvidia/nemotron-voicechat
       priority: 11
     - provider: nvidia
-      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
+      model: nvidia/studiovoice
       priority: 12
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: nvidia/llama-nemotron-rerank-vl-1b-v2
       priority: 13
     - provider: nvidia
-      model: nvidia/rerank-qa-mistral-4b
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 14
     - provider: nvidia
-      model: nvidia/nv-embed-v1
+      model: nvidia/rerank-qa-mistral-4b
       priority: 15
     - provider: nvidia
-      model: nvidia/nv-embedcode-7b-v1
+      model: nvidia/nv-embed-v1
       priority: 16
     - provider: nvidia
-      model: nvidia/usdvalidate
+      model: nvidia/nv-embedcode-7b-v1
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-content-safety-reasoning-4b
+      model: nvidia/usdvalidate
       priority: 18
     - provider: nvidia
-      model: nvidia/nvidia-nemotron-nano-9b-v2
+      model: nvidia/nemotron-content-safety-reasoning-4b
       priority: 19
     - provider: nvidia
       model: nvidia/nemotron-3.5-lightning-30b-a3b
@@ -1068,61 +576,61 @@ virtual_models:
     description: Optimized for momus agent - ['quality']
     fallback_chain:
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1
+      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
       priority: 1
     - provider: nvidia
       model: nvidia/nemotron-3-nano-30b-a3b
       priority: 2
     - provider: nvidia
-      model: nvidia/llama-3.1-nemotron-nano-8b-v1
+      model: nvidia/nvidia-nemotron-nano-9b-v2
       priority: 3
     - provider: nvidia
-      model: nvidia/gliner-pii
+      model: nvidia/nemotron-nano-12b-v2-vl
       priority: 4
     - provider: nvidia
-      model: nvidia/nemotron-3-content-safety
+      model: nvidia/llama-3.1-nemotron-nano-8b-v1
       priority: 5
     - provider: nvidia
-      model: nvidia/llama-3.1-nemotron-70b-instruct
+      model: nvidia/llama-3.3-nemotron-super-49b-v1
       priority: 6
     - provider: nvidia
-      model: nvidia/nemotron-nano-12b-v2-vl
+      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
       priority: 7
     - provider: nvidia
-      model: nvidia/nemotron-voicechat
+      model: nvidia/gliner-pii
       priority: 8
     - provider: nvidia
-      model: nvidia/studiovoice
+      model: nvidia/nemotron-3-content-safety
       priority: 9
     - provider: nvidia
-      model: nvidia/llama-nemotron-rerank-vl-1b-v2
+      model: nvidia/llama-3.1-nemotron-70b-instruct
       priority: 10
     - provider: nvidia
-      model: nvidia/llama-3.3-nemotron-super-49b-v1.5
+      model: nvidia/nemotron-voicechat
       priority: 11
     - provider: nvidia
-      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
+      model: nvidia/studiovoice
       priority: 12
     - provider: nvidia
-      model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+      model: nvidia/llama-nemotron-rerank-vl-1b-v2
       priority: 13
     - provider: nvidia
-      model: nvidia/rerank-qa-mistral-4b
+      model: nvidia/llama-3_2-nemoretriever-300m-embed-v1
       priority: 14
     - provider: nvidia
-      model: nvidia/nv-embed-v1
+      model: nvidia/rerank-qa-mistral-4b
       priority: 15
     - provider: nvidia
-      model: nvidia/nv-embedcode-7b-v1
+      model: nvidia/nv-embed-v1
       priority: 16
     - provider: nvidia
-      model: nvidia/usdvalidate
+      model: nvidia/nv-embedcode-7b-v1
       priority: 17
     - provider: nvidia
-      model: nvidia/nemotron-content-safety-reasoning-4b
+      model: nvidia/usdvalidate
       priority: 18
     - provider: nvidia
-      model: nvidia/nvidia-nemotron-nano-9b-v2
+      model: nvidia/nemotron-content-safety-reasoning-4b
       priority: 19
     - provider: nvidia
       model: nvidia/nemotron-3.5-lightning-30b-a3b

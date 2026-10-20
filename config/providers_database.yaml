@@ -26,6 +26,7 @@ providers:
     - tools
     - fast
     notes: Fastest free model on Groq
+    free: true
   - id: llama-3.3-70b-versatile
     context: 131072
     tps: 275
@@ -35,6 +36,7 @@ providers:
     - tools
     - reasoning
     notes: Best quality free model on Groq
+    free: true
   - id: mixtral-8x7b-32768
     context: 32768
     tps: 500
@@ -42,12 +44,14 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: gemma2-9b-it
     context: 8192
     tps: 500
     capabilities:
     - chat
     - code
+    free: true
   - id: meta-llama/llama-4-maverick-17b-128e-instruct
     context: 131072
     tps: 400
@@ -56,6 +60,7 @@ providers:
     - code
     - tools
     - vision
+    free: true
   - id: meta-llama/llama-4-scout-17b-16e-instruct
     context: 131072
     tps: 400
@@ -63,6 +68,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: groq/compound
     context: 131072
     tps: 200
@@ -72,6 +78,7 @@ providers:
     - tools
     - reasoning
     notes: Compound AI model with search
+    free: true
   - id: groq/compound-mini
     context: 131072
     tps: 400
@@ -80,6 +87,7 @@ providers:
     - code
     - tools
     - fast
+    free: true
   - id: moonshotai/kimi-k2-instruct
     context: 131072
     tps: 200
@@ -88,6 +96,7 @@ providers:
     - code
     - tools
     - reasoning
+    free: true
   - id: moonshotai/kimi-k2-instruct-0905
     context: 131072
     tps: 200
@@ -96,6 +105,7 @@ providers:
     - code
     - tools
     - reasoning
+    free: true
   - id: openai/gpt-oss-120b
     context: 131072
     tps: 150
@@ -103,6 +113,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: openai/gpt-oss-20b
     context: 131072
     tps: 400
@@ -111,6 +122,7 @@ providers:
     - code
     - tools
     - fast
+    free: true
   - id: qwen/qwen3-32b
     context: 32768
     tps: 300
@@ -119,22 +131,26 @@ providers:
     - code
     - tools
     - reasoning
+    free: true
   - id: allam-2-7b
     context: 8192
     tps: 600
     capabilities:
     - chat
     notes: Arabic language model
+    free: true
   - id: canopylabs/orpheus-arabic-saudi
     context: 32768
     tps: 400
     capabilities:
     - chat
+    free: true
   - id: canopylabs/orpheus-v1-english
     context: 32768
     tps: 400
     capabilities:
     - chat
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: daily_renewable
@@ -169,6 +185,7 @@ providers:
     - vision
     - fast
     notes: Best free flash model, 1M context
+    free: true
   - id: gemini-2.5-pro
     context: 2000000
     tps: 50
@@ -180,6 +197,7 @@ providers:
     - long_context
     - reasoning
     notes: Best free Gemini model, 2M context
+    free: true
   - id: gemini-2.0-flash
     context: 1000000
     tps: 150
@@ -189,6 +207,7 @@ providers:
     - tools
     - vision
     - fast
+    free: true
   - id: gemini-3-pro-preview
     context: 2000000
     tps: 50
@@ -199,12 +218,14 @@ providers:
     - vision
     - long_context
     - reasoning
+    free: true
   - id: gemma-3-27b-it
     context: 131072
     tps: 80
     capabilities:
     - chat
     - code
+    free: true
   - id: gemini-1.5-flash
     context: 1000000
     tps: 120
@@ -214,6 +235,7 @@ providers:
     - tools
     - vision
     - fast
+    free: true
   - id: gemini-1.5-pro
     context: 2000000
     tps: 60
@@ -223,6 +245,7 @@ providers:
     - tools
     - vision
     - long_context
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: daily_renewable
@@ -252,6 +275,7 @@ providers:
     - code
     - tools
     notes: Ultra-fast 70B inference
+    free: true
   - id: llama3.1-8b
     context: 8192
     tps: 2600
@@ -261,6 +285,7 @@ providers:
     - tools
     - fast
     notes: Fastest free inference available
+    free: true
   - id: qwen-3-235b-a22b-instruct-2507
     context: 32768
     tps: 500
@@ -269,6 +294,7 @@ providers:
     - code
     - tools
     - reasoning
+    free: true
   - id: qwen-3-32b
     context: 32768
     tps: 1200
@@ -277,6 +303,7 @@ providers:
     - code
     - tools
     - reasoning
+    free: true
   - id: gpt-oss-120b
     context: 131072
     tps: 800
@@ -284,6 +311,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: zai-glm-4.7
     context: 32768
     tps: 1000
@@ -291,6 +319,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: unlimited_rate_limited
@@ -318,6 +347,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: nvidia/llama-3.1-405b-instruct
     context: 131072
     tps: 50
@@ -326,12 +356,14 @@ providers:
     - code
     - tools
     notes: 405B free via NVIDIA
+    free: true
   - id: nvidia/gemma-2-27b-it
     context: 8192
     tps: 120
     capabilities:
     - chat
     - code
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: daily_renewable
@@ -358,6 +390,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: codestral-latest
     context: 200000
     tps: 100
@@ -366,12 +399,14 @@ providers:
     - code
     - tools
     notes: Best free code model from Mistral
+    free: true
   - id: mistral-nemo
     context: 128000
     tps: 150
     capabilities:
     - chat
     - code
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: daily_renewable
@@ -400,6 +435,7 @@ providers:
     - code
     - tools
     notes: Mixture of Agents ensemble model
+    free: true
   - id: togethercomputer/MoA-1-Turbo
     context: 32768
     tps: 200
@@ -408,6 +444,7 @@ providers:
     - code
     - tools
     - fast
+    free: true
   - id: meta-llama/Llama-3.3-70B-Instruct-Turbo
     context: 131072
     tps: 150
@@ -415,6 +452,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: deepseek-ai/DeepSeek-V3
     context: 64000
     tps: 80
@@ -422,6 +460,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: one_time_credit
@@ -451,6 +490,7 @@ providers:
     - code
     - tools
     - fast
+    free: true
   - id: arcee-ai/trinity-large-preview:free
     context: 32768
     tps: 100
@@ -458,6 +498,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: minimax/minimax-m2.5:free
     context: 32768
     tps: 80
@@ -465,6 +506,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: nvidia/nemotron-3-super-120b-a12b:free
     context: 131072
     tps: 50
@@ -472,6 +514,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: stepfun/step-3.5-flash:free
     context: 32768
     tps: 200
@@ -479,6 +522,7 @@ providers:
     - chat
     - code
     - fast
+    free: true
   - id: corethink:free
     context: 131072
     tps: 100
@@ -486,6 +530,7 @@ providers:
     - chat
     - code
     - reasoning
+    free: true
   - id: kilo/auto-free
     context: 131072
     tps: 150
@@ -494,18 +539,21 @@ providers:
     - code
     - tools
     notes: Auto-routes to best free model
+    free: true
   - id: openrouter/auto
     context: 131072
     tps: 100
     capabilities:
     - chat
     - code
+    free: true
   - id: openrouter/free
     context: 131072
     tps: 100
     capabilities:
     - chat
     - code
+    free: true
   - id: giga-potato
     context: 131072
     tps: 100
@@ -513,6 +561,7 @@ providers:
     - chat
     - code
     - reasoning
+    free: true
   - id: giga-potato-thinking
     context: 131072
     tps: 80
@@ -520,12 +569,14 @@ providers:
     - chat
     - code
     - reasoning
+    free: true
   - id: kilo-auto/free
     context: 131072
     tps: 150
     capabilities:
     - chat
     - code
+    free: true
   - id: morph-warp-grep-v2
     context: 131072
     tps: 150
@@ -533,24 +584,28 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: openrouter/healer-alpha
     context: 131072
     tps: 100
     capabilities:
     - chat
     - code
+    free: true
   - id: openrouter/hunter-alpha
     context: 131072
     tps: 100
     capabilities:
     - chat
     - code
+    free: true
   - id: openrouter/bodybuilder
     context: 131072
     tps: 100
     capabilities:
     - chat
     - code
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: freemium
@@ -578,6 +633,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: deepseek/deepseek-chat
     context: 65536
     tps: 60
@@ -585,6 +641,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: google/gemini-flash-1.5
     context: 1000000
     tps: 120
@@ -594,6 +651,7 @@ providers:
     - tools
     - vision
     - fast
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: daily_renewable
@@ -625,6 +683,7 @@ providers:
     - tools
     - fast
     notes: Cheapest OpenAI model
+    free: false
   - id: gpt-3.5-turbo
     context: 16385
     tps: 200
@@ -633,6 +692,7 @@ providers:
     - code
     - tools
     - fast
+    free: false
   last_verified: '2026-03-17'
   free_quota:
     free_type: freemium
@@ -663,12 +723,14 @@ providers:
     capabilities:
     - chat
     - code
+    free: true
   - id: gpt-4
     context: 8192
     tps: 50
     capabilities:
     - chat
     - code
+    free: true
   - id: gpt-3.5-turbo
     context: 16385
     tps: 80
@@ -676,18 +738,21 @@ providers:
     - chat
     - code
     - fast
+    free: true
   - id: claude-3-opus
     context: 200000
     tps: 40
     capabilities:
     - chat
     - code
+    free: true
   - id: gemini-2.0-flash
     context: 1000000
     tps: 80
     capabilities:
     - chat
     - code
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: unlimited_rate_limited
@@ -716,6 +781,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: meta/llama-3.3-70b-instruct
     context: 131072
     tps: 80
@@ -723,6 +789,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: meta/llama-4-maverick-17b-128e-instruct
     context: 131072
     tps: 150
@@ -730,6 +797,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: meta/llama-4-scout-17b-16e-instruct
     context: 131072
     tps: 200
@@ -737,6 +805,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: deepseek-ai/deepseek-v3.1
     context: 65536
     tps: 60
@@ -744,6 +813,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: deepseek-ai/deepseek-v3.2
     context: 65536
     tps: 60
@@ -751,24 +821,28 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: deepseek-ai/deepseek-r1-distill-llama-70b
     context: 65536
     tps: 60
     capabilities:
     - chat
     - code
+    free: true
   - id: google/gemma-3-27b-it
     context: 131072
     tps: 80
     capabilities:
     - chat
     - code
+    free: true
   - id: google/gemma-3-12b-it
     context: 131072
     tps: 120
     capabilities:
     - chat
     - code
+    free: true
   - id: google/gemma-3-4b-it
     context: 131072
     tps: 200
@@ -776,6 +850,7 @@ providers:
     - chat
     - code
     - fast
+    free: true
   - id: mistralai/mistral-large-3-675b
     context: 128000
     tps: 50
@@ -783,6 +858,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: mistralai/codestral-2501
     context: 200000
     tps: 80
@@ -790,6 +866,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: qwen/qwen3-235b-a22b
     context: 32768
     tps: 40
@@ -798,6 +875,7 @@ providers:
     - code
     - tools
     - reasoning
+    free: true
   - id: qwen/qwen3-coder-480b
     context: 32768
     tps: 30
@@ -805,6 +883,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: qwen/qwen3.5-397b
     context: 32768
     tps: 30
@@ -812,6 +891,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: nvidia/nemotron-ultra-253b-v1
     context: 131072
     tps: 30
@@ -819,12 +899,14 @@ providers:
     - chat
     - code
     - reasoning
+    free: true
   - id: nvidia/nemotron-super-49b-v1
     context: 131072
     tps: 80
     capabilities:
     - chat
     - code
+    free: true
   - id: microsoft/phi-4-mini-instruct
     context: 131072
     tps: 200
@@ -832,6 +914,7 @@ providers:
     - chat
     - code
     - fast
+    free: true
   - id: microsoft/phi-3.5-mini
     context: 131072
     tps: 250
@@ -839,12 +922,14 @@ providers:
     - chat
     - code
     - fast
+    free: true
   - id: moonshotai/kimi-k2-base
     context: 131072
     tps: 80
     capabilities:
     - chat
     - code
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: unlimited_rate_limited
@@ -873,6 +958,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: llama-3.1-8b-instant
     context: 131072
     tps: 750
@@ -880,24 +966,28 @@ providers:
     - chat
     - code
     - fast
+    free: true
   - id: llama-3.1-70b-versatile
     context: 131072
     tps: 300
     capabilities:
     - chat
     - code
+    free: true
   - id: mixtral-8x7b-32768
     context: 32768
     tps: 500
     capabilities:
     - chat
     - code
+    free: true
   - id: gemma2-9b-it
     context: 8192
     tps: 500
     capabilities:
     - chat
     - code
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: unlimited_rate_limited
@@ -927,6 +1017,7 @@ providers:
     - code
     - vision
     - long_context
+    free: true
   - id: gemini-2.5-flash
     context: 1000000
     tps: 100
@@ -935,6 +1026,7 @@ providers:
     - code
     - vision
     - fast
+    free: true
   - id: gemini-2.5-pro
     context: 2000000
     tps: 60
@@ -944,6 +1036,7 @@ providers:
     - vision
     - long_context
     - reasoning
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: unlimited_rate_limited
@@ -970,12 +1063,14 @@ providers:
     capabilities:
     - chat
     - code
+    free: true
   - id: devstral-small-2:24b
     context: 32768
     tps: 80
     capabilities:
     - chat
     - code
+    free: true
   - id: gemini-3-flash-preview
     context: 1000000
     tps: 120
@@ -983,12 +1078,14 @@ providers:
     - chat
     - code
     - fast
+    free: true
   - id: gemma3:27b
     context: 131072
     tps: 80
     capabilities:
     - chat
     - code
+    free: true
   - id: qwen3.5:397b
     context: 32768
     tps: 30
@@ -996,30 +1093,35 @@ providers:
     - chat
     - code
     - reasoning
+    free: true
   - id: glm-4.7
     context: 32768
     tps: 100
     capabilities:
     - chat
     - code
+    free: true
   - id: gpt-oss:120b
     context: 131072
     tps: 50
     capabilities:
     - chat
     - code
+    free: true
   - id: minimax-m2
     context: 32768
     tps: 80
     capabilities:
     - chat
     - code
+    free: true
   - id: minimax-m2.5
     context: 32768
     tps: 80
     capabilities:
     - chat
     - code
+    free: true
   - id: rnj-1:8b
     context: 8192
     tps: 200
@@ -1027,6 +1129,7 @@ providers:
     - chat
     - code
     - fast
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: unlimited_rate_limited
@@ -1053,6 +1156,7 @@ providers:
     capabilities:
     - chat
     - code
+    free: true
   - id: openai-fast
     context: 128000
     tps: 200
@@ -1060,24 +1164,28 @@ providers:
     - chat
     - code
     - fast
+    free: true
   - id: qwen-coder
     context: 32768
     tps: 150
     capabilities:
     - chat
     - code
+    free: true
   - id: mistral
     context: 32000
     tps: 120
     capabilities:
     - chat
     - code
+    free: true
   - id: openai-audio
     context: 128000
     tps: 100
     capabilities:
     - chat
     - code
+    free: true
   - id: gemini-fast
     context: 1000000
     tps: 150
@@ -1085,12 +1193,14 @@ providers:
     - chat
     - code
     - fast
+    free: true
   - id: deepseek
     context: 65536
     tps: 80
     capabilities:
     - chat
     - code
+    free: true
   - id: gemini-search
     context: 1000000
     tps: 100
@@ -1098,17 +1208,20 @@ providers:
     - chat
     - code
     - vision
+    free: true
   - id: midijourney
     context: 8192
     tps: 100
     capabilities:
     - chat
+    free: true
   - id: claude-fast
     context: 200000
     tps: 100
     capabilities:
     - chat
     - code
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: unlimited_rate_limited
@@ -1137,6 +1250,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: DeepSeek-R1-Distill-Llama-70B
     context: 65536
     tps: 200
@@ -1144,6 +1258,7 @@ providers:
     - chat
     - code
     - reasoning
+    free: true
   - id: Llama-4-Maverick-17B-128E-Instruct
     context: 131072
     tps: 400
@@ -1151,6 +1266,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: Meta-Llama-3.1-8B-Instruct
     context: 8192
     tps: 1000
@@ -1158,6 +1274,7 @@ providers:
     - chat
     - code
     - fast
+    free: true
   - id: Meta-Llama-3.3-70B-Instruct
     context: 131072
     tps: 400
@@ -1165,6 +1282,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: Qwen3-235B
     context: 32768
     tps: 200
@@ -1173,6 +1291,7 @@ providers:
     - code
     - tools
     - reasoning
+    free: true
   - id: Qwen3-32B
     context: 32768
     tps: 500
@@ -1180,12 +1299,14 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: gpt-oss-120b
     context: 131072
     tps: 300
     capabilities:
     - chat
     - code
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: daily_renewable
@@ -1215,12 +1336,14 @@ providers:
     - chat
     - code
     - vision
+    free: true
   - id: grok-3-mini
     context: 131072
     tps: 100
     capabilities:
     - chat
     - code
+    free: true
   - id: deepseek-r1
     context: 65536
     tps: 60
@@ -1228,18 +1351,21 @@ providers:
     - chat
     - code
     - reasoning
+    free: true
   - id: deepseek-v3
     context: 65536
     tps: 80
     capabilities:
     - chat
     - code
+    free: true
   - id: phi-4
     context: 128000
     tps: 150
     capabilities:
     - chat
     - code
+    free: true
   - id: llama-4-scout-17b
     context: 128000
     tps: 150
@@ -1247,6 +1373,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: meta-llama/Llama-3.3-70B-Instruct
     context: 131072
     tps: 100
@@ -1254,6 +1381,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: mistralai/Mistral-large-2411
     context: 128000
     tps: 80
@@ -1261,6 +1389,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: daily_renewable
@@ -1288,6 +1417,7 @@ providers:
     capabilities:
     - chat
     - code
+    free: true
   - id: '@cf/meta/llama-3.1-8b-instruct'
     context: 131072
     tps: 300
@@ -1295,30 +1425,35 @@ providers:
     - chat
     - code
     - fast
+    free: true
   - id: '@cf/mistral/mistral-large-2407'
     context: 128000
     tps: 100
     capabilities:
     - chat
     - code
+    free: true
   - id: '@cf/qwen/qwen2.5-72b-instruct'
     context: 32768
     tps: 100
     capabilities:
     - chat
     - code
+    free: true
   - id: '@cf/openchat/openchat-7b'
     context: 8192
     tps: 300
     capabilities:
     - chat
     - fast
+    free: true
   - id: '@cf/tinyllama/tinyllama-1.1b-chat'
     context: 2048
     tps: 500
     capabilities:
     - chat
     - fast
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: daily_renewable
@@ -1348,6 +1483,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: trinity/large-preview
     context: 32768
     tps: 80
@@ -1355,6 +1491,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: moonshot/kimi-k2.5
     context: 131072
     tps: 80
@@ -1363,6 +1500,7 @@ providers:
     - code
     - tools
     - reasoning
+    free: true
   - id: zhipu/glm-4.7
     context: 32768
     tps: 100
@@ -1370,12 +1508,14 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: bigcode/pickle
     context: 16384
     tps: 150
     capabilities:
     - chat
     - code
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: unlimited_rate_limited
@@ -1388,8 +1528,7 @@ providers:
   base_url: https://api.iflow.cn/v1
   enabled: true
   free_tier: true
-  notes: Free DeepSeek/Qwen/Kimi models via Chinese aggregator. Requires OAuth (WeChat
-    or Chinese phone).
+  notes: Free DeepSeek/Qwen/Kimi models via Chinese aggregator. Requires OAuth (WeChat or Chinese phone).
   capabilities:
   - chat
   - code
@@ -1405,6 +1544,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: deepseek-v3.1
     context: 65536
     tps: 80
@@ -1412,6 +1552,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: deepseek-v3
     context: 65536
     tps: 80
@@ -1419,6 +1560,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: deepseek-r1
     context: 65536
     tps: 40
@@ -1426,6 +1568,7 @@ providers:
     - chat
     - code
     - reasoning
+    free: true
   - id: glm-4.6
     context: 32768
     tps: 100
@@ -1433,6 +1576,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: minimax-m2
     context: 32768
     tps: 80
@@ -1440,6 +1584,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: qwen3-coder-plus
     context: 131072
     tps: 60
@@ -1447,6 +1592,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   - id: kimi-k2
     context: 131072
     tps: 60
@@ -1455,6 +1601,7 @@ providers:
     - code
     - tools
     - reasoning
+    free: true
   - id: kimi-k2-thinking
     context: 131072
     tps: 40
@@ -1462,6 +1609,7 @@ providers:
     - chat
     - code
     - reasoning
+    free: true
   - id: qwen3-max
     context: 32768
     tps: 60
@@ -1470,6 +1618,7 @@ providers:
     - code
     - tools
     - reasoning
+    free: true
   - id: qwen3-235b-a22b-instruct
     context: 32768
     tps: 40
@@ -1477,6 +1626,7 @@ providers:
     - chat
     - code
     - tools
+    free: true
   last_verified: '2026-03-17'
   free_quota:
     free_type: unlimited_rate_limited
@@ -1505,6 +1655,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: true
   - id: glm-4.7-free
     context: 128000
     tps: 100
@@ -1513,6 +1664,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: true
   - id: glm-4-flash
     context: 128000
     tps: 150
@@ -1522,6 +1674,7 @@ providers:
     - tools
     - function_calling
     - fast
+    free: true
   last_verified: '2026-03-24'
   free_quota:
     free_type: unlimited_rate_limited
@@ -1550,6 +1703,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: true
   - id: gpt-5.3-codex
     context: 128000
     tps: 100
@@ -1559,6 +1713,7 @@ providers:
     - tools
     - function_calling
     - coding
+    free: true
   - id: gpt-5.2
     context: 128000
     tps: 100
@@ -1567,6 +1722,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: true
   - id: gpt-5.2-codex
     context: 128000
     tps: 100
@@ -1576,6 +1732,7 @@ providers:
     - tools
     - function_calling
     - coding
+    free: true
   - id: gpt-5.1
     context: 128000
     tps: 100
@@ -1584,6 +1741,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: true
   - id: gpt-5.1-codex
     context: 128000
     tps: 100
@@ -1593,6 +1751,7 @@ providers:
     - tools
     - function_calling
     - coding
+    free: true
   - id: gpt-5.1-codex-max
     context: 128000
     tps: 100
@@ -1602,6 +1761,7 @@ providers:
     - tools
     - function_calling
     - coding
+    free: true
   - id: gemini-3-flash-preview
     context: 1000000
     tps: 150
@@ -1611,6 +1771,7 @@ providers:
     - tools
     - function_calling
     - fast
+    free: true
   - id: gemini-2.5-flash
     context: 1000000
     tps: 150
@@ -1620,6 +1781,7 @@ providers:
     - tools
     - function_calling
     - fast
+    free: true
   - id: glm5
     context: 200000
     tps: 100
@@ -1628,6 +1790,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: true
   - id: kimi-k2.5
     context: 131072
     tps: 100
@@ -1636,6 +1799,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: true
   - id: minimax-m2.5
     context: 100000
     tps: 200
@@ -1644,6 +1808,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: true
   - id: minimax-m2.7
     context: 100000
     tps: 200
@@ -1652,6 +1817,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: true
   - id: qwen-3.5
     context: 131072
     tps: 100
@@ -1660,6 +1826,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: true
   last_verified: '2026-03-24'
   free_quota:
     free_type: unlimited_rate_limited
@@ -1679,697 +1846,7 @@ providers:
   - function_calling
   rate_limits:
     rpm: 60
-  free_models:
-  - id: gpt-5.2-xhigh
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.1-minimal
-    context: 128000
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.4
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gemini-2.5-flash-thinking
-    context: 1000000
-    tps: 150
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - fast
-    - reasoning
-  - id: gpt-5.3-codex
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5-codex-high
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.3-codex-xhigh
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.3-codex-low
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: claude-sonnet-4-6-20260217-thinking
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - reasoning
-  - id: gpt-5
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.2-low
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.1-codex-max-xhigh
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5-codex
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gemini-3.1-pro-preview
-    context: 1000000
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: claude-opus-4-6-20260205
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: kimi-k2.5
-    context: 131072
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.3-codex-spark-high
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.1-codex-medium
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.1-medium
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.3-codex-high
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.1-codex-mini-high
-    context: 128000
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.2-codex
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: qwen3-max
-    context: 131072
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gemini-3-pro-preview
-    context: 1000000
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.1-codex-mini
-    context: 128000
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.4-codex-xhigh
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.1-codex-max
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.3-codex-spark-xhigh
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: claude-opus-4-6-20260205-thinking
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - reasoning
-  - id: gpt-5.2-medium
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gemini-2.5-pro
-    context: 1000000
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.1-codex-max-low
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.1-codex-high
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.1-codex-low
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5-low
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gemini-2.5-pro-thinking
-    context: 1000000
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - reasoning
-  - id: gpt-5.3-codex-spark
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: claude-sonnet-4-5-20250929
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5-codex-mini-medium
-    context: 128000
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gemini-3-flash-preview-thinking
-    context: 1000000
-    tps: 150
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - fast
-    - reasoning
-  - id: gpt-5.2-codex-xhigh
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.3-codex-spark-low
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5-codex-mini-high
-    context: 128000
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.1
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.2-codex-high
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: minimax-m2.5
-    context: 100000
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gemini-2.5-flash
-    context: 1000000
-    tps: 150
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - fast
-  - id: gpt-5-codex-low
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.1-high
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: claude-opus-4-1-20250805
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: claude-haiku-4-5-20251001
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.2-codex-low
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5-high
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: claude-sonnet-4-5-20250929-thinking
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - reasoning
-  - id: gpt-5-codex-medium
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5-codex-mini
-    context: 128000
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.1-low
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.4-xhigh
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.2-thinking
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - reasoning
-  - id: gpt-5-minimal
-    context: 128000
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.4-high
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: glm-5
-    context: 200000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: qwen3.5-plus
-    context: 131072
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.2-codex-medium
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: claude-sonnet-4-6-20260217
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.1-codex-max-high
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.2
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: claude-opus-4-5-20251101-thinking
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - reasoning
-  - id: claude-opus-4-1-20250805-thinking
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - reasoning
-  - id: gpt-5.2-high
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.1-codex-max-medium
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5.1-codex-mini-medium
-    context: 128000
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gemini-3-pro-preview-thinking
-    context: 1000000
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - reasoning
-  - id: gpt-5.3-codex-medium
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gemini-3-flash-preview
-    context: 1000000
-    tps: 150
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - fast
-  - id: claude-opus-4-5-20251101
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: gpt-5.3-codex-spark-medium
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
-  - id: gpt-5-medium
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-  - id: claude-haiku-4-5-20251001-thinking
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - reasoning
-  - id: gpt-5.1-codex
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    - coding
+  free_models: []
   last_verified: '2026-03-24'
   free_quota:
     free_type: unlimited_rate_limited
@@ -2398,6 +1875,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: false
   - id: gpt-5.3-codex
     context: 128000
     tps: 100
@@ -2407,6 +1885,7 @@ providers:
     - tools
     - function_calling
     - coding
+    free: false
   - id: glm-5
     context: 200000
     tps: 100
@@ -2415,6 +1894,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: false
   - id: glm-4.7
     context: 128000
     tps: 100
@@ -2423,6 +1903,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: false
   - id: kimi-k2.5
     context: 131072
     tps: 100
@@ -2431,6 +1912,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: false
   - id: qwen3.5-397b-a17b
     context: 131072
     tps: 100
@@ -2439,6 +1921,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: false
   - id: minimax-m2.7
     context: 100000
     tps: 200
@@ -2447,6 +1930,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: false
   - id: minimax-m2.1
     context: 100000
     tps: 200
@@ -2455,6 +1939,7 @@ providers:
     - code
     - tools
     - function_calling
+    free: false
   last_verified: '2026-03-24'
   free_quota:
     free_type: unlimited_rate_limited
@@ -2468,24 +1953,34 @@ providers:
   free_models:
   - id: cogview-4
     context: 2000
+    free: false
   - id: grok-imagine-image
     context: 2000
+    free: false
   - id: glm-4.6v-flash
     context: 128000
+    free: false
   - id: seedream-4-0
     context: 2000
+    free: false
   - id: veo-3.1-generate-preview
     context: 32768
+    free: false
   - id: grok-imagine-image-pro
     context: 2000
+    free: false
   - id: veo-3.1-fast-generate-preview
     context: 32768
+    free: false
   - id: qwen-image-max
     context: 2000
+    free: false
   - id: qwen-image-max-2025-12-30
     context: 2000
+    free: false
   - id: seedream-4-5
     context: 2000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2499,24 +1994,34 @@ providers:
   free_models:
   - id: glm-5v-turbo
     context: 200000
+    free: false
   - id: glm-5.1
     context: 200000
+    free: false
   - id: glm-4.6v-flash
     context: 128000
+    free: false
   - id: glm-4.7-flash
     context: 200000
+    free: false
   - id: glm-4.5-flash
     context: 131072
+    free: false
   - id: glm-4.6v
     context: 128000
+    free: false
   - id: glm-4.5v
     context: 64000
+    free: false
   - id: glm-5-turbo
     context: 200000
+    free: false
   - id: glm-4.5-air
     context: 131072
+    free: false
   - id: glm-4.5
     context: 131072
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2530,22 +2035,31 @@ providers:
   free_models:
   - id: glm-5v-turbo
     context: 200000
+    free: false
   - id: glm-5.1
     context: 200000
+    free: false
   - id: glm-4.5
     context: 131072
+    free: false
   - id: glm-4.5-air
     context: 131072
+    free: false
   - id: glm-5-turbo
     context: 200000
+    free: false
   - id: glm-4.5v
     context: 64000
+    free: false
   - id: glm-4.6v
     context: 128000
+    free: false
   - id: glm-4.5-flash
     context: 131072
+    free: false
   - id: glm-4.7-flash
     context: 200000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2559,18 +2073,25 @@ providers:
   free_models:
   - id: llama-3.3-70b-instruct
     context: 128000
+    free: false
   - id: cerebras-llama-4-maverick-17b-128e-instruct
     context: 128000
+    free: false
   - id: llama-3.3-8b-instruct
     context: 128000
+    free: false
   - id: cerebras-llama-4-scout-17b-16e-instruct
     context: 128000
+    free: false
   - id: groq-llama-4-maverick-17b-128e-instruct
     context: 128000
+    free: false
   - id: llama-4-scout-17b-16e-instruct-fp8
     context: 128000
+    free: false
   - id: llama-4-maverick-17b-128e-instruct-fp8
     context: 128000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2584,18 +2105,25 @@ providers:
   free_models:
   - id: Qwen/Qwen3-30B-A3B-Thinking-2507
     context: 262144
+    free: false
   - id: Qwen/Qwen3-30B-A3B-Instruct-2507
     context: 262144
+    free: false
   - id: Qwen/Qwen3-235B-A22B-Instruct-2507
     context: 262144
+    free: false
   - id: Qwen/Qwen3-Coder-30B-A3B-Instruct
     context: 262144
+    free: false
   - id: Qwen/Qwen3-235B-A22B-Thinking-2507
     context: 262144
+    free: false
   - id: ZhipuAI/GLM-4.5
     context: 131072
+    free: false
   - id: ZhipuAI/GLM-4.6
     context: 202752
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: one_time_credit
@@ -2610,14 +2138,19 @@ providers:
   free_models:
   - id: Qwen/Qwen3.5-4B
     context: 262144
+    free: false
   - id: tencent/Hunyuan-MT-7B
     context: 33000
+    free: false
   - id: PaddlePaddle/PaddleOCR-VL
     context: 16384
+    free: false
   - id: PaddlePaddle/PaddleOCR-VL-1.5
     context: 16384
+    free: false
   - id: deepseek-ai/DeepSeek-OCR
     context: 8192
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: daily_renewable
@@ -2631,14 +2164,19 @@ providers:
   free_models:
   - id: hunyuan-turbos
     context: 131072
+    free: false
   - id: hunyuan-t1
     context: 131072
+    free: false
   - id: hunyuan-2.0-instruct
     context: 131072
+    free: false
   - id: tc-code-latest
     context: 131072
+    free: false
   - id: hunyuan-2.0-thinking
     context: 131072
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2652,12 +2190,16 @@ providers:
   free_models:
   - id: qwen3-235b-a22b-thinking-2507
     context: 256000
+    free: false
   - id: kimi-k2-0905
     context: 256000
+    free: false
   - id: qwen3-vl-plus
     context: 256000
+    free: false
   - id: qwen3-max-preview
     context: 256000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2671,10 +2213,13 @@ providers:
   free_models:
   - id: qwen3.6-plus
     context: 1000000
+    free: false
   - id: qwen3-max-2026-01-23
     context: 262144
+    free: false
   - id: qwen3-coder-next
     context: 262144
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2688,10 +2233,13 @@ providers:
   free_models:
   - id: qwen3.6-plus
     context: 1000000
+    free: false
   - id: qwen3-max-2026-01-23
     context: 262144
+    free: false
   - id: qwen3-coder-next
     context: 262144
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2705,10 +2253,13 @@ providers:
   free_models:
   - id: devstral-2512
     context: 262000
+    free: false
   - id: devstral-small-2512
     context: 262000
+    free: false
   - id: llama-3.1-405b-instruct
     context: 128000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2722,10 +2273,13 @@ providers:
   free_models:
   - id: fireworks-ai/kimi-k2.5-fw
     context: 262144
+    free: false
   - id: openai/gpt-5.3-codex-spark
     context: 128000
+    free: false
   - id: google/gemma-4-31b
     context: 262144
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: daily_renewable
@@ -2739,10 +2293,13 @@ providers:
   free_models:
   - id: stepfun/step-3.5-flash-free
     context: 256000
+    free: false
   - id: z-ai/glm-4.7-flash-free
     context: 200000
+    free: false
   - id: z-ai/glm-4.6v-flash-free
     context: 200000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2756,8 +2313,10 @@ providers:
   free_models:
   - id: deepseek-r1-distill-qwen-1-5b
     context: 32768
+    free: false
   - id: deepseek-r1-distill-llama-8b
     context: 32768
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2771,8 +2330,10 @@ providers:
   free_models:
   - id: MiniMax-M2.7-highspeed
     context: 204800
+    free: false
   - id: MiniMax-M2.5-highspeed
     context: 204800
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2786,8 +2347,10 @@ providers:
   free_models:
   - id: MiniMax-M2.7-highspeed
     context: 204800
+    free: false
   - id: MiniMax-M2.5-highspeed
     context: 204800
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2801,8 +2364,10 @@ providers:
   free_models:
   - id: nova-2-lite-v1
     context: 1000000
+    free: false
   - id: nova-2-pro-v1
     context: 1000000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2816,8 +2381,10 @@ providers:
   free_models:
   - id: mimo-v2-pro
     context: 1000000
+    free: false
   - id: mimo-v2-omni
     context: 256000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2831,8 +2398,10 @@ providers:
   free_models:
   - id: mimo-v2-omni
     context: 256000
+    free: false
   - id: mimo-v2-pro
     context: 1000000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2846,8 +2415,10 @@ providers:
   free_models:
   - id: mimo-v2-pro
     context: 1000000
+    free: false
   - id: mimo-v2-omni
     context: 256000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2861,8 +2432,10 @@ providers:
   free_models:
   - id: glm-4.5-flash
     context: 131072
+    free: false
   - id: glm-4.7-flash
     context: 200000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2876,8 +2449,10 @@ providers:
   free_models:
   - id: glm-4.7-flash
     context: 200000
+    free: false
   - id: glm-4.5-flash
     context: 131072
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2891,6 +2466,7 @@ providers:
   free_models:
   - id: accounts/fireworks/routers/kimi-k2p5-turbo
     context: 256000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: one_time_credit
@@ -2905,6 +2481,7 @@ providers:
   free_models:
   - id: zai-org/GLM-4.7-Flash
     context: 200000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: daily_renewable
@@ -2918,6 +2495,7 @@ providers:
   free_models:
   - id: xiaomimimo/mimo-v2-flash
     context: 262144
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2931,6 +2509,7 @@ providers:
   free_models:
   - id: k2p5
     context: 262144
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2944,6 +2523,7 @@ providers:
   free_models:
   - id: mistralai/Mistral-Small-3.2-24B-Instruct-2506
     context: 32768
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2957,6 +2537,7 @@ providers:
   free_models:
   - id: auto-model
     context: 1000000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2970,6 +2551,7 @@ providers:
   free_models:
   - id: kwaipilot/kat-coder
     context: 256000
+    free: false
   notes: Discovered 2026-04-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -2984,6 +2566,7 @@ providers:
   - id: tencent/Hunyuan-MT-7B
     context: 33000
     notes: Discovered 2026-04-10
+    free: false
   free_quota:
     free_type: daily_renewable
     initial_allowance: 100
@@ -3004,234 +2587,8 @@ providers:
     rpm: 10
     daily: 5000000
     daily_reset_utc: 00:00
-  notes: 'Free starter plan: 41 models. Paid plans: Pro $10/mo, Max $20/mo. $20 signup
-    credit.'
-  free_models:
-  - id: gpt-5.3-codex
-    context: 400000
-    tps: 50
-    capabilities:
-    - chat
-    - code
-    - tools
-    - function_calling
-    tier: paid
-    notes: Requires Pro/Max plan
-  - id: gpt-5.4-mini
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-    - fast
-    tier: free
-    notes: Starter plan (free)
-  - id: gpt-5
-    context: 400000
-    tps: 50
-    capabilities:
-    - chat
-    - code
-    - tools
-    tier: paid
-    notes: Requires Pro/Max plan
-  - id: gpt-5.2
-    context: 400000
-    tps: 50
-    capabilities:
-    - chat
-    - code
-    - tools
-    tier: paid
-    notes: Requires Pro/Max plan
-  - id: gpt-5.4
-    context: 400000
-    tps: 50
-    capabilities:
-    - chat
-    - code
-    - tools
-    tier: paid
-    notes: Requires Pro/Max plan
-  - id: gemini-2.5-flash
-    context: 1048576
-    tps: 80
-    capabilities:
-    - chat
-    - code
-    - vision
-    tier: paid
-    notes: Requires Pro/Max plan
-  - id: gemini-2.5-pro
-    context: 2000000
-    tps: 30
-    capabilities:
-    - chat
-    - code
-    - vision
-    tier: paid
-    notes: Requires Pro/Max plan
-  - id: gemini-3-flash-preview
-    context: 1048576
-    tps: 80
-    capabilities:
-    - chat
-    - code
-    - vision
-    tier: paid
-    notes: Requires Pro/Max plan
-  - id: gemini-3-pro-preview
-    context: 1048576
-    tps: 50
-    capabilities:
-    - chat
-    - code
-    - vision
-    tier: paid
-    notes: Requires Pro/Max plan
-  - id: llama-3.1-70b-instruct
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    tier: free
-    notes: Starter plan (free)
-  - id: llama-3.1-8b-instruct
-    context: 128000
-    tps: 150
-    capabilities:
-    - chat
-    - code
-    - fast
-    tier: free
-    notes: Starter plan (free)
-  - id: llama-3-70b-instruct
-    context: 128000
-    tps: 80
-    capabilities:
-    - chat
-    - code
-    tier: free
-    notes: Starter plan (free)
-  - id: llama-3-8b-instruct
-    context: 128000
-    tps: 150
-    capabilities:
-    - chat
-    - code
-    - fast
-    tier: free
-    notes: Starter plan (free)
-  - id: gemma-3-27b-it
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    tier: free
-    notes: Starter plan (free)
-  - id: mixtral-8x7b-instruct
-    context: 32000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    tier: free
-    notes: Starter plan (free)
-  - id: qwen3.6-plus
-    context: 131072
-    tps: 80
-    capabilities:
-    - chat
-    - code
-    tier: paid
-    notes: Requires Pro/Max plan
-  - id: deepseek-v3.2
-    context: 64000
-    tps: 60
-    capabilities:
-    - chat
-    - code
-    - reasoning
-    tier: free
-    notes: Starter plan (free)
-  - id: minimax-m2.5
-    context: 100000
-    tps: 80
-    capabilities:
-    - chat
-    - code
-    tier: paid
-    notes: Requires Pro/Max plan
-  - id: glm-5
-    context: 128000
-    tps: 80
-    capabilities:
-    - chat
-    - code
-    tier: free
-    notes: Starter plan (free)
-  - id: glm-4.7
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    tier: free
-    notes: Starter plan (free)
-  - id: kimi-k2.5
-    context: 262144
-    tps: 50
-    capabilities:
-    - chat
-    - code
-    - reasoning
-    tier: free
-    notes: Starter plan (free)
-  - id: command-r-plus-08-2024
-    context: 128000
-    tps: 80
-    capabilities:
-    - chat
-    - code
-    tier: paid
-    notes: Requires Pro/Max plan
-  - id: nemotron-nano-9b-v2
-    context: 128000
-    tps: 100
-    capabilities:
-    - chat
-    - fast
-    tier: free
-    notes: Starter plan (free)
-  - id: llama-3.3-nemotron-super-49b-v1.5
-    context: 128000
-    tps: 60
-    capabilities:
-    - chat
-    - code
-    - reasoning
-    tier: free
-    notes: Starter plan (free)
-  - id: gpt-oss-120b
-    context: 32000
-    tps: 40
-    capabilities:
-    - chat
-    - code
-    tier: free
-    notes: Starter plan (free)
-  - id: qwen3.5-397b
-    context: 40000
-    tps: 30
-    capabilities:
-    - chat
-    - code
-    - reasoning
-    tier: paid
-    notes: Requires Pro/Max plan
+  notes: 'Free starter plan: 41 models. Paid plans: Pro $10/mo, Max $20/mo. $20 signup credit.'
+  free_models: []
   last_verified: '2026-04-10'
   free_quota:
     free_type: unlimited_rate_limited
@@ -3245,6 +2602,7 @@ providers:
   free_models:
   - id: hy3-preview
     context: 256000
+    free: false
   notes: Discovered 2026-04-19
   free_quota:
     free_type: unlimited_rate_limited
@@ -3258,6 +2616,7 @@ providers:
   free_models:
   - id: hy3-preview
     context: 256000
+    free: false
   notes: Discovered 2026-04-19
   free_quota:
     free_type: unlimited_rate_limited
@@ -3271,6 +2630,7 @@ providers:
   free_models:
   - id: GLM-5.1
     context: 202752
+    free: false
   notes: Discovered 2026-04-20
   free_quota:
     free_type: unlimited_rate_limited
@@ -3284,22 +2644,31 @@ providers:
   free_models:
   - id: claude-opus-4.6
     context: 1000000
+    free: false
   - id: claude-opus-4.7
     context: 1000000
+    free: false
   - id: claude-sonnet-4
     context: 200000
+    free: false
   - id: deepseek-3.2
     context: 164000
+    free: false
   - id: claude-sonnet-4.5
     context: 200000
+    free: false
   - id: claude-opus-4.5
     context: 200000
+    free: false
   - id: qwen3-coder-next
     context: 256000
+    free: false
   - id: claude-haiku-4.5
     context: 200000
+    free: false
   - id: claude-sonnet-4.6
     context: 1000000
+    free: false
   notes: Discovered 2026-05-07
   free_quota:
     free_type: unlimited_rate_limited
@@ -3313,6 +2682,7 @@ providers:
   free_models:
   - id: accounts/fireworks/routers/kimi-k2p6-turbo
     context: 262000
+    free: false
   notes: Discovered 2026-05-10
   free_quota:
     free_type: unlimited_rate_limited
@@ -3326,14 +2696,19 @@ providers:
   free_models:
   - id: umans-qwen3.6-35b-a3b
     context: 262144
+    free: false
   - id: umans-glm-5.1
     context: 204800
+    free: false
   - id: umans-coder
     context: 262144
+    free: false
   - id: umans-flash
     context: 262144
+    free: false
   - id: umans-kimi-k2.6
     context: 262144
+    free: false
   notes: Discovered 2026-05-15
   free_quota:
     free_type: unlimited_rate_limited
@@ -3347,6 +2722,7 @@ providers:
   free_models:
   - id: orcarouter/auto
     context: 128000
+    free: false
   notes: Discovered 2026-05-16
   free_quota:
     free_type: unlimited_rate_limited
@@ -3360,8 +2736,10 @@ providers:
   free_models:
   - id: poolside/laguna-xs.2
     context: 131040
+    free: false
   - id: poolside/laguna-m.1
     context: 131040
+    free: false
   notes: Discovered 2026-05-25
   free_quota:
     free_type: unlimited_rate_limited
@@ -3375,18 +2753,25 @@ providers:
   free_models:
   - id: kimi-k2.6
     context: 262144
+    free: false
   - id: qwen3.7-max
     context: 1000000
+    free: false
   - id: qwen3.6-plus
     context: 1000000
+    free: false
   - id: qwen3.6-flash
     context: 1000000
+    free: false
   - id: deepseek-v4-flash
     context: 1000000
+    free: false
   - id: deepseek-v4-pro
     context: 1000000
+    free: false
   - id: glm-5.1
     context: 202752
+    free: false
   notes: Discovered 2026-06-03
   free_quota:
     free_type: unlimited_rate_limited
@@ -3400,10 +2785,13 @@ providers:
   free_models:
   - id: magibu-11b-v8
     context: 8192
+    free: false
   - id: trendyol-7b
     context: 32768
+    free: false
   - id: sincap
     context: 128000
+    free: false
   notes: Discovered 2026-06-11
   free_quota:
     free_type: unlimited_rate_limited
@@ -3417,20 +2805,28 @@ providers:
   free_models:
   - id: deepseek-v4-flash
     context: 1000000
+    free: false
   - id: qwen3.7-plus
     context: 1000000
+    free: false
   - id: qwen3.7-max
     context: 1000000
+    free: false
   - id: glm-5.1
     context: 202752
+    free: false
   - id: deepseek-v4-pro
     context: 1000000
+    free: false
   - id: qwen3.6-flash
     context: 1000000
+    free: false
   - id: kimi-k2.6
     context: 262144
+    free: false
   - id: qwen3.6-plus
     context: 1000000
+    free: false
   notes: Discovered 2026-06-12
   free_quota:
     free_type: unlimited_rate_limited
@@ -3444,6 +2840,7 @@ providers:
   free_models:
   - id: z-code
     context: 262144
+    free: false
   notes: Discovered 2026-06-12
   free_quota:
     free_type: unlimited_rate_limited
@@ -3457,6 +2854,7 @@ providers:
   free_models:
   - id: subconscious/tim-qwen3.6-27b
     context: 8192
+    free: false
   notes: Discovered 2026-06-30
 - id: kenari
   name: Kenari
@@ -3466,24 +2864,34 @@ providers:
   free_models:
   - id: deepseek-v4-flash
     context: 1000000
+    free: false
   - id: kimi-k2-6
     context: 262144
+    free: false
   - id: glm-5-1
     context: 200000
+    free: false
   - id: gemma-4-31b-it
     context: 262144
+    free: false
   - id: grok-4-3
     context: 1000000
+    free: false
   - id: qwen3-7-plus
     context: 1000000
+    free: false
   - id: kimi-k2-7-code
     context: 262144
+    free: false
   - id: deepseek-v4-pro
     context: 1000000
+    free: false
   - id: deepseek-v4-flash:free
     context: 1000000
+    free: false
   - id: minimax-m3
     context: 512000
+    free: false
   notes: Discovered 2026-07-03
 - id: unorouter
   name: UnoRouter
@@ -3493,24 +2901,34 @@ providers:
   free_models:
   - id: gpt-5.5:free
     context: 1050000
+    free: false
   - id: gpt-5.4:free
     context: 1050000
+    free: false
   - id: glm-4.5-flash:free
     context: 131072
+    free: false
   - id: minimax-m2.7:free
     context: 204800
+    free: false
   - id: step-3.7-flash:free
     context: 256000
+    free: false
   - id: qwen3.5-397b-a17b:free
     context: 262144
+    free: false
   - id: nemotron-3-ultra-550b-a55b:free
     context: 1000000
+    free: false
   - id: deepseek-v4-flash:free
     context: 1000000
+    free: false
   - id: glm-5.2:free
     context: 1000000
+    free: false
   - id: gemma-4-31b-it:free
     context: 262144
+    free: false
   notes: Discovered 2026-07-11
 - id: empiriolabs
   name: EmpirioLabs AI
@@ -3520,8 +2938,10 @@ providers:
   free_models:
   - id: glm-4-5-flash
     context: 200000
+    free: false
   - id: glm-4-7-flash
     context: 200000
+    free: false
   notes: Discovered 2026-07-11
 - id: inferx
   name: InferX
@@ -3531,16 +2951,22 @@ providers:
   free_models:
   - id: google/gemma-4-31b-it-fp8
     context: 262144
+    free: false
   - id: qwen/qwen3-coder-next-fp8-1m
     context: 1024000
+    free: false
   - id: qwen/qwen3.5-122b-a10b-nvfp4
     context: 256144
+    free: false
   - id: qwen/qwen3.6-35b-a3b-fp8
     context: 262000
+    free: false
   - id: qwen/qwen3-coder-next-fp8
     context: 256144
+    free: false
   - id: qwen/qwen3.6-27b-fp8
     context: 262144
+    free: false
   notes: Discovered 2026-07-12
 - id: redwakeai
   name: RedwakeAI (Vercel)
@@ -3552,37 +2978,43 @@ providers:
   capabilities:
   - chat
   - reasoning
-  notes: 429 limit_error during initial validation (transient); provider confirmed
-    alive
+  notes: 429 limit_error during initial validation (transient); provider confirmed alive
   free_models:
   - id: zxz/claude-opus-4-6
     capabilities:
     - chat
     - reasoning
+    free: true
   - id: zxz/claude-opus-4-7
     capabilities:
     - chat
     - reasoning
+    free: true
   - id: zxz/claude-opus-4-8
     capabilities:
     - chat
     - reasoning
+    free: true
   - id: fable-5
     capabilities:
     - chat
     - reasoning
+    free: true
   - id: zxz/gpt-5.5
     capabilities:
     - chat
     - reasoning
+    free: true
   - id: zxz/gpt-5.6-luna
     capabilities:
     - chat
     - reasoning
+    free: true
   - id: zxz/glm-5p2
     capabilities:
     - chat
     - reasoning
+    free: true
 - id: gcli
   name: GCLI (ggchan.dev)
   signup_url: https://gcli.ggchan.dev
@@ -3593,29 +3025,33 @@ providers:
   capabilities:
   - chat
   - reasoning
-  notes: "Gemini models; chat confirmed 200 on gemini-2.5-pro. pseudo-streaming variants\
-    \ (\u5047\u6D41\u5F0F-*) skipped."
+  notes: "Gemini models; chat confirmed 200 on gemini-2.5-pro. pseudo-streaming variants (\u5047\u6D41\u5F0F-*) skipped."
   free_models:
   - id: gemini-2.5-pro
     capabilities:
     - chat
     - reasoning
+    free: true
   - id: gemini-2.5-flash
     capabilities:
     - chat
     - reasoning
+    free: true
   - id: gemini-2.5-flash-lite
     capabilities:
     - chat
     - reasoning
+    free: true
   - id: gemini-3-flash-preview
     capabilities:
     - chat
     - reasoning
+    free: true
   - id: gemini-3.1-pro-preview
     capabilities:
     - chat
     - reasoning
+    free: true
 - id: agnes_ai
   name: Agnes-AI Hub
   signup_url: https://agnes-ai.com
@@ -3627,24 +3063,28 @@ providers:
   - chat
   - image
   - video
-  notes: Chat confirmed 200 on agnes-1.5-flash. agnes-image-* and agnes-video-* are
-    non-chat multimodal endpoints (not OpenAI chat compatible).
+  notes: Chat confirmed 200 on agnes-1.5-flash. agnes-image-* and agnes-video-* are non-chat multimodal endpoints (not OpenAI chat compatible).
   free_models:
   - id: agnes-1.5-flash
     capabilities:
     - chat
+    free: true
   - id: agnes-2.0-flash
     capabilities:
     - chat
+    free: true
   - id: agnes-image-2.0-flash
     capabilities:
     - image
+    free: true
   - id: agnes-image-2.1-flash
     capabilities:
     - image
+    free: true
   - id: agnes-video-v2.0
     capabilities:
     - video
+    free: true
 - id: yungnet
   name: YungNet (internal.model.yungnet.cn)
   signup_url: ''
@@ -3653,8 +3093,7 @@ providers:
   enabled: false
   free_tier: true
   capabilities: []
-  notes: "ARCHIVED 2026-07-13 \u2014 401 Invalid token on all auth variants. new_api\
-    \ framework."
+  notes: "ARCHIVED 2026-07-13 \u2014 401 Invalid token on all auth variants. new_api framework."
 - id: euromodels
   name: EuroModels (euromodels.xyz)
   signup_url: ''
@@ -3672,6 +3111,7 @@ providers:
   free_models:
   - id: qwen/qwen3.6-27b
     context: 262144
+    free: false
   notes: Discovered 2026-07-25
 - id: hetzner
   name: Hetzner
@@ -3681,6 +3121,7 @@ providers:
   free_models:
   - id: Qwen/Qwen3.6-35B-A3B-FP8
     context: 262144
+    free: false
   notes: Discovered 2026-07-25
 - id: infomaniak
   name: Infomaniak
@@ -3690,6 +3131,7 @@ providers:
   free_models:
   - id: mini_lm_l12_v2
     context: 128
+    free: false
   notes: Discovered 2026-08-05
 - id: regolo-ai
   name: Regolo AI
@@ -3699,8 +3141,10 @@ providers:
   free_models:
   - id: brick-v1-beta
     context: 100000
+    free: false
   - id: deepseek-ocr-2
     context: 4000
+    free: false
   notes: Discovered 2026-08-08
 - id: merge-gateway
   name: Merge Gateway
@@ -3710,6 +3154,7 @@ providers:
   free_models:
   - id: nvidia/nemotron-3.5-lightning-30b-a3b
     context: 1000000
+    free: false
   notes: Discovered 2026-08-13
 - id: edenai
   name: Eden AI
@@ -3719,6 +3164,7 @@ providers:
   free_models:
   - id: google/lyria-3-clip-preview
     context: 1048576
+    free: false
   notes: Discovered 2026-08-15
 - id: larprouter
   name: LarpRouter
@@ -3728,18 +3174,25 @@ providers:
   free_models:
   - id: qwen3.7-max
     context: 8192
+    free: true
   - id: qwen3.7-plus
     context: 8192
+    free: true
   - id: qwen3.8-max
     context: 8192
+    free: true
   - id: deepseek-v4-flash
     context: 8192
+    free: true
   - id: deepseek-v4-pro-0813
     context: 8192
+    free: true
   - id: gemma-4-26b-a4b-it
     context: 8192
+    free: true
   - id: step-3.7-flash
     context: 8192
+    free: true
   notes: Added 2026-08-17, free pool ($0), verified live
 - id: scnet-token-plan
   name: SCNet Token Plan
@@ -3749,10 +3202,13 @@ providers:
   free_models:
   - id: MiniMax-M3
     context: 512000
+    free: false
   - id: Kimi-K2.7-Code
     context: 262144
+    free: false
   - id: MiMo-V2.5-Pro
     context: 1048576
+    free: false
   notes: Discovered 2026-08-17
 - id: septorlabs
   name: SeptorLabs
@@ -3762,28 +3218,38 @@ providers:
   free_models:
   - id: qwen3-coder-free
     context: 131072
+    free: true
   - id: qwen3-next-80b-a3b-instruct-free
     context: 131072
+    free: true
   - id: glm-4.5-air-free
     context: 131072
+    free: true
   - id: minimax-m2.5-free
     context: 131072
+    free: true
   - id: step-3.5-flash-free
     context: 131072
+    free: true
   - id: llama-3.3-70b-instruct-free
     context: 131072
+    free: true
   - id: gemma-4-31b-it-free
     context: 131072
+    free: true
   - id: hermes-3-llama-3.1-405b-free
     context: 131072
+    free: true
   - id: nemotron-3-nano-30b-a3b-free
     context: 131072
+    free: true
   - id: dolphin-mistral-24b-venice-edition-free
     context: 131072
+    free: true
   - id: ling-2.6-flash-free
     context: 131072
-  notes: Discovered 2026-08-17, 17 free models (11 useful added), 50 rpd + 200K tok/day
-    cap
+    free: true
+  notes: Discovered 2026-08-17, 17 free models (11 useful added), 50 rpd + 200K tok/day cap
 - id: requesty
   name: Requesty
   enabled: false
@@ -3792,24 +3258,34 @@ providers:
   free_models:
   - id: nemotron-3.5-content-safety
     context: 131072
+    free: false
   - id: leanstral-1-5@eu
     context: 262144
+    free: false
   - id: nemotron-3-super-120b-a12b
     context: 1048576
+    free: false
   - id: laguna-m.1
     context: 32768
+    free: false
   - id: gemma-4-31b-it
     context: 262144
+    free: false
   - id: nemotron-3-nano-omni-30b-a3b-reasoning
     context: 131072
+    free: false
   - id: muse-glimmer-30b
     context: 131072
+    free: false
   - id: nemotron-3-ultra-550b-a55b
     context: 1048576
+    free: false
   - id: nemotron-3.5-lightning-30b-a3b
     context: 1048576
+    free: false
   - id: ling-3.0-tiny
     context: 262144
+    free: false
   notes: Discovered 2026-08-19
 - id: opencode-go
   name: OpenCode Go
@@ -3819,6 +3295,7 @@ providers:
   free_models:
   - id: ox-alpha-free
     context: 1000000
+    free: false
   notes: Discovered 2026-08-22
 - id: dlab-community
   name: Dlab Community (shared free key)
@@ -3832,86 +3309,21 @@ providers:
     - chat
     - reasoning
     - vision
+    free: true
   - id: glm-5-3-free
     capabilities:
     - chat
     - reasoning
     - vision
-  notes: Community shared key from dlabkeys Discord 2026-10-11; Kimi K3 + GLM 5.3
-    free tier
+    free: true
+  notes: Community shared key from dlabkeys Discord 2026-10-11; Kimi K3 + GLM 5.3 free tier
 - id: crowllm
   name: CrowLLM
   env_var: CROWLLM_API_KEY
   base_url: https://crowllm.com/v1
   enabled: true
   free_tier: true
-  free_models:
-  - id: agnes-2-0-flash:free
-  - id: agnes-2-5-flash:free
-  - id: agnes-3-0-flash:free
-  - id: deepseek-v4-flash-0731-thinking:free
-  - id: deepseek-v4-flash-0731:free
-  - id: deepseek-v4-flash:free
-  - id: gemini-2.0-flash:free
-  - id: gemini-2.5-pro:free
-  - id: gemini-3-flash:free
-  - id: gemini-3-pro:free
-  - id: gemini-3.1-pro:free
-  - id: gemini-3.5-flash:free
-  - id: gemini-3.7-flash:free
-  - id: gemini-3.8-flash:free
-  - id: gemma-4-26b-a4b-it-chimerax:free
-  - id: gemma-4-26b-a4b-it-darksoul:free
-  - id: gemma-4-26b-a4b-it-luminous:free
-  - id: gemma-4-26b-a4b-it-meromero:free
-  - id: gemma-4-26b-a4b-it-moonlight:free
-  - id: gemma-4-26b-a4b-it-musica:free
-  - id: gemma4:31b:free
-  - id: glm-5.3-flash-thinking:free
-  - id: glm-5.3-flash:free
-  - id: gpt-4.1-mini:free
-  - id: gpt-4.1:free
-  - id: gpt-4.5:free
-  - id: gpt-4o-mini:free
-  - id: gpt-4o:free
-  - id: gpt-5.3-instant:free
-  - id: gpt-5.3:free
-  - id: gpt-5.4-thinking:free
-  - id: gpt-5.5-instant:free
-  - id: gpt-5.6-sol:free
-  - id: gpt-5:free
-  - id: gpt-oss:120b:free
-  - id: gpt-oss:20b:free
-  - id: grok-4.7-fast:free
-  - id: grok-4.7:free
-  - id: hy3:free
-  - id: kimi-k2.6:free
-  - id: laguna-s-2-1:free
-  - id: laguna-xs-2-1:free
-  - id: mimo-v2-6-flash:free
-  - id: minimax-m2.5:free
-  - id: minimax-m2.7:free
-  - id: minimax-m2.7:free-thinking
-  - id: mistral-medium-3.5:free
-  - id: muse-glimmer-30b:free
-  - id: muse-glimmer-30b:free-thinking
-  - id: muse-spark-1-3-contributor:free
-  - id: muse-spark-1.1:free
-  - id: nemotron-3-nano:30b:free
-  - id: nemotron-3-super-120b-a12b:free
-  - id: nemotron-3-ultra-550b-a55b:free
-  - id: nemotron-3-ultra:free
-  - id: north-mini-code:free
-  - id: o3:free
-  - id: o4-mini:free
-  - id: openai/gpt-oss-20b:free
-  - id: openai/gpt-oss-safeguard-20b:free
-  - id: qwen-3.6-plus:free
-  - id: qwen-3.8-27b:free
-  - id: qwen-3.8-max:free
-  - id: runpod/kimi-k3
-  - id: space-bunny-alpha:free
-  - id: step-5-preview:free
+  free_models: []
   notes: Synced catalog 2026-10-11 (66 models incl step-5-preview:free)
 - id: kiosapi
   name: KiosAPI
@@ -3921,29 +3333,128 @@ providers:
   free_tier: true
   free_models:
   - id: agnes-2.5-flash
+    free: true
   - id: agnes-3.0-flash
+    free: true
   - id: apodex-1.1-mini
+    free: true
   - id: atria-dawn-preview
+    free: true
   - id: deepseek-v4-flash-free
+    free: true
   - id: deepseek-v4-flash-vision-exp-free
+    free: true
   - id: dots-3-note-preview
+    free: true
   - id: glm-4-9b-0414
+    free: true
   - id: glm-z1-9b-0414
+    free: true
   - id: glyph-cluster
+    free: true
   - id: hunyuan-mt-7b
+    free: true
   - id: laguna-s-2.1
+    free: true
   - id: laguna-xs-2.1
+    free: true
   - id: lfm-2.5-2.6b
+    free: true
   - id: ling-3.1-flash
+    free: true
   - id: nemotron-3-super-120b-a12b
+    free: true
   - id: nemotron-3-ultra-550b-a55b
+    free: true
   - id: nemotron-3.5-lightning
+    free: true
   - id: north-mini-code
+    free: true
   - id: openrouter/free
+    free: true
   - id: qwen2.5-7b-instruct
+    free: true
   - id: qwen3-8b
+    free: true
   - id: qwen3.8-27b-free
+    free: true
   - id: qwen3.8-flash-free
+    free: true
   - id: sensenova-6.8-flash-lite
+    free: true
   - id: step-5-preview-free
+    free: true
   notes: Synced catalog 2026-10-11 (26 models incl step-5-preview-free)
+- id: nous-inference
+  name: Nous Portal
+  env_var: NOUS_INFERENCE_API_KEY
+  base_url: https://inference-api.nousresearch.com/v1
+  enabled: true
+  free_tier: true
+  capabilities:
+    - chat
+    - code
+    - tools
+  free_models:
+    - id: poolside/laguna-s-2.1:free
+      context: 262144
+      capabilities:
+        - chat
+        - code
+        - tools
+      free: true
+    - id: poolside/laguna-xs-2.1:free
+      context: 262144
+      capabilities:
+        - chat
+        - code
+        - tools
+      free: true
+    - id: upstage/solar-mini4:free
+      context: 524288
+      capabilities:
+        - chat
+        - code
+        - tools
+        - reasoning
+      free: true
+    - id: stepfun/step-5-preview:free
+      context: 1048576
+      capabilities:
+        - chat
+        - code
+        - tools
+        - reasoning
+      free: true
+    - id: meituan/longcat-2.0:free
+      context: 1048756
+      capabilities:
+        - chat
+        - code
+        - tools
+      free: true
+    - id: stepfun/step-3.7-flash:free
+      context: 262144
+      capabilities:
+        - chat
+        - code
+        - tools
+        - reasoning
+      free: true
+    - id: meituan/longcat-2.5-preview:free
+      context: 1048576
+      capabilities:
+        - chat
+        - code
+        - tools
+      free: true
+    - id: stealth/missingno
+      context: 262144
+      capabilities:
+        - chat
+        - code
+        - tools
+        - reasoning
+      free: true
+  last_verified: +TS+
+  notes: Synced catalog 2026-10-16 (8 free models, pricing=0 via /v1/models)

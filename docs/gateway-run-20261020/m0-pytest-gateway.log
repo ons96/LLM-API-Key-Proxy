@@ -1,0 +1,89 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0
+rootdir: /home/osees/CodingProjects/LLM-API-Key-Proxy
+configfile: pytest.ini
+testpaths: tests
+plugins: asyncio-1.3.0, anyio-4.13.0, respx-0.23.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 634 items
+
+tests/test_active_days_window.py .............                           [  2%]
+tests/test_build_embedding_chain.py ...............                      [  4%]
+tests/test_chain_policy.py ............                                  [  6%]
+tests/test_chain_selector.py .......................                     [  9%]
+tests/test_chat_completions_serialize.py ...                             [ 10%]
+tests/test_cliproxyapi_provider.py .....................                 [ 13%]
+tests/test_concurrency.py .......                                        [ 14%]
+tests/test_configuration.py ..............                               [ 17%]
+tests/test_cooldown_policy.py ................................           [ 22%]
+tests/test_distributed_gate.py ................                          [ 24%]
+tests/test_dynamic_chain_wiring.py ................                      [ 27%]
+tests/test_fallback_logic.py .......                                     [ 28%]
+tests/test_free_baseline.py ............                                 [ 30%]
+tests/test_free_only_mode.py ..F.........                                [ 32%]
+tests/test_g4f_integration.py ......                                     [ 32%]
+tests/test_g4f_model_ids.py ............                                 [ 34%]
+tests/test_g4f_resilience.py ...                                         [ 35%]
+tests/test_integration_router.py ........                                [ 36%]
+tests/test_keys.py .........................                             [ 40%]
+tests/test_latency_predictor.py .................                        [ 43%]
+tests/test_litellm_fallback_kwargs.py ...........                        [ 44%]
+tests/test_llm_provider_credits.py .................                     [ 47%]
+tests/test_output_estimator.py ..........                                [ 49%]
+tests/test_penalty_store.py ..............................               [ 53%]
+tests/test_performance_tracking.py .............                         [ 55%]
+tests/test_phase_header.py .............                                 [ 58%]
+tests/test_probe_providers_332.py ......FF........                       [ 60%]
+tests/test_rank_models.py .................................              [ 65%]
+tests/test_regenerate_chains.py ...                                      [ 66%]
+tests/test_reorder_chains.py ......................                      [ 69%]
+tests/test_request_features.py ................................          [ 74%]
+tests/test_responses_vps.py .                                            [ 74%]
+tests/test_router_core.py .............................F...              [ 80%]
+tests/test_router_wiring_122.py ....                                     [ 80%]
+tests/test_scoring_engine_341.py ................                        [ 83%]
+tests/test_search_endpoint_261.py .....                                  [ 84%]
+tests/test_semantic_router.py .......................                    [ 87%]
+tests/test_static_injection.py ..                                        [ 88%]
+tests/test_strip_cache_control.py ......                                 [ 88%]
+tests/test_telemetry_logger.py ........                                  [ 90%]
+tests/test_tier_classifier.py ...............................            [ 95%]
+tests/test_virtual_models.py ................                            [ 97%]
+tests/test_workload_router_shadow.py ...............                     [100%]
+
+=================================== FAILURES ===================================
+_________ TestFreeOnlyMode.test_free_tier_models_defined_for_providers _________
+tests/test_free_only_mode.py:71: in test_free_tier_models_defined_for_providers
+    assert "free_tier_models" in provider_config, (
+E   AssertionError: Provider crax should have free_tier_models defined
+E   assert 'free_tier_models' in {'base_url': 'https://gpt.crax.lol/v1', 'enabled': True, 'env_var': 'CRAX_API_KEY'}
+______________________ TestSelectTargets.test_only_filter ______________________
+tests/test_probe_providers_332.py:135: in test_only_filter
+    assert pids == {"groq"}
+E   AssertionError: assert set() == {'groq'}
+E     
+E     Extra items in the right set:
+E     'groq'
+E     Use -v to get more diff
+------------------------------ Captured log call -------------------------------
+DEBUG    probe_providers:probe_providers.py:116 skip groq: no api key (GROQ_API_KEY)
+____________________ TestSelectTargets.test_max_models_cap _____________________
+tests/test_probe_providers_332.py:140: in test_max_models_cap
+    assert len(targets) == 1
+E   assert 0 == 1
+E    +  where 0 = len([])
+------------------------------ Captured log call -------------------------------
+DEBUG    probe_providers:probe_providers.py:116 skip groq: no api key (GROQ_API_KEY)
+________ TestDeadProviderFastSkip.test_repo_policy_keeps_gemini_blocked ________
+tests/test_router_core.py:579: in test_repo_policy_keeps_gemini_blocked
+    assert rc._is_dead_candidate("gemini", "gemini-3-flash") is True
+E   AssertionError: assert False is True
+E    +  where False = <function _is_dead_candidate at 0x76b4fdfd1120>('gemini', 'gemini-3-flash')
+E    +    where <function _is_dead_candidate at 0x76b4fdfd1120> = <module 'src.proxy_app.router_core' from '/home/osees/CodingProjects/LLM-API-Key-Proxy/src/proxy_app/router_core.py'>._is_dead_candidate
+=========================== short test summary info ============================
+FAILED tests/test_free_only_mode.py::TestFreeOnlyMode::test_free_tier_models_defined_for_providers
+FAILED tests/test_probe_providers_332.py::TestSelectTargets::test_only_filter
+FAILED tests/test_probe_providers_332.py::TestSelectTargets::test_max_models_cap
+FAILED tests/test_router_core.py::TestDeadProviderFastSkip::test_repo_policy_keeps_gemini_blocked
+============ 4 failed, 630 passed, 10 warnings in 155.26s (0:02:35) ============
+EXIT=1

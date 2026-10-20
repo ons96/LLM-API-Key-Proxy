@@ -65,9 +65,6 @@ blocked_providers:
   reason: BadGateway 502 - provider unreachable from VPS-40 (not the laptop :8400
     daemon)
   last_confirmed_dead: '2026-09-10'
-- provider: gemini
-  reason: Daily free quota 20 exhausted (429 RESOURCE_EXHAUSTED) - confirmed 2026-09-10
-  last_confirmed_dead: '2026-09-10'
 blocked_provider_prefixes:
 - prefix: g4f_
   reason: g4f provider variants are unreliable fallbacks

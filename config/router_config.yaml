@@ -2,6 +2,20 @@ free_only_mode: false
 proxy_api_keys:
 - ${PROXY_API_KEY}
 providers:
+  nous-inference:
+    enabled: true
+    env_var: NOUS_INFERENCE_API_KEY
+    base_url: https://inference-api.nousresearch.com/v1
+    free_tier: true
+    free_tier_models:
+    - poolside/laguna-s-2.1:free
+    - poolside/laguna-xs-2.1:free
+    - upstage/solar-mini4:free
+    - stepfun/step-5-preview:free
+    - meituan/longcat-2.0:free
+    - stepfun/step-3.7-flash:free
+    - meituan/longcat-2.5-preview:free
+    - stealth/missingno
   privaite:
     enabled: true
     env_var: PRIVAITE_API_KEY
@@ -507,11 +521,15 @@ providers:
     free_tier: true
     free_tier_models: []
   kilocode:
-    base_url: https://api.kilocloud.ai/v1
+    base_url: https://api.kilo.ai/api/gateway
     enabled: true
-    env_var: KILOCLOUD_API_KEY
+    env_var: null
     free_tier: true
-    free_tier_models: []
+    free_tier_models:
+    - minimax/minimax-m3.1-flash:free
+    no_api_key_required: true
+    extra_headers:
+      Authorization: ''
   koyeb-new:
     enabled: true
     env_var: KOYEB_API_KEY
@@ -671,8 +689,14 @@ providers:
     base_url: https://api.dlabkeys.com/v1
     free_tier: true
     free_tier_models:
-    - kimi-k3-free
-    - glm-5-3-free
+    - big-pickle
+    - deepseek-v4-1-flash-free
+    - glm-5-3-flash-free
+    - longcat-2-5-preview-free
+    - mimo-v2-6-flash-free
+    - minimax-m3-1-flash-free
+    - nemotron-3-5-super-vl-free
+    - nemotron-3-5-lightning-free
   crowllm:
     enabled: true
     env_var: CROWLLM_API_KEY
@@ -777,6 +801,22 @@ providers:
     - qwen3.8-flash-free
     - sensenova-6.8-flash-lite
     - step-5-preview-free
+  jasper:
+    enabled: true
+    env_var: VERIFIED_JASPER_API_KEY
+    base_url: https://api.yjs.im/v1
+    free_tier: true
+    free_tier_models:
+    - nemotron-3-super-120b-a12b
+    - deepseek-v4.1-flash
+  crax:
+    env_var: CRAX_API_KEY
+    base_url: https://gpt.crax.lol/v1
+    enabled: true
+    # Unverified as of 2026-10-20: no free model list captured. Empty list keeps
+    # free-only mode fail-closed instead of implicitly trusting the provider.
+    free_tier: true
+    free_tier_models: []
 search:
   default_enabled: true
   max_additional_searches: 2
