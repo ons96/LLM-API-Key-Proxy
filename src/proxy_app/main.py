@@ -1366,7 +1366,13 @@ async def list_models(
         from proxy_app.routing import free_policy as _free_policy
 
         _root = Path(__file__).resolve().parent.parent.parent
-        if _free_policy.free_only_from_disk(_root):
+        _free_on = _free_policy.free_only_from_disk(_root)
+        if not _free_on:
+            # Silent here is what hid a live leak: FREE_ONLY_MODE=false in the
+            # deployment .env disabled the filter and nothing said so. Always
+            # state the mode the listing is serving under.
+            logging.info("free_only: OFF — /v1/models is unfiltered")
+        if _free_on:
             _cache = _free_policy.load_tiers(_root)
             _before = len(model_ids)
             model_ids = _free_policy.filter_model_ids(model_ids, _cache, free_only=True)
