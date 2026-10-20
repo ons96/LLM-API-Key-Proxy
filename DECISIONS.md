@@ -111,3 +111,61 @@ flag is on but the code does not enforce it.
 **Evidence.** Live capture: `free_only_mode: false`. Turning it on alone is
 worse than useless: `_get_candidates` only filters on per-candidate
 `free_tier_only`, and `/v1/models` ignores the flag entirely.
+
+## D10. `FREE_ONLY_MODE` in the env beats the config, so the env had to change
+
+**Decision.** The invariant is armed by `FREE_ONLY_MODE=true` in the host `.env`,
+not by `free_only_mode: true` in `router_config.yaml`.
+
+**Why this mattered.** During cutover `/v1/models` returned 2888 ids with a paid
+provider still listed, even though the config said `free_only_mode: true` and the
+deployed code contained the filter. Root cause: `free_only_enabled()` reads the
+env var first, the host `.env` said `false`, so the filter returned early and
+logged nothing. The code was correct; the deployment disabled it.
+
+**Alternative rejected.** Changing precedence to config-first. The env override is
+how tests and hermetic harnesses force the mode, and reversing it would change
+behaviour for every existing caller.
+
+**Follow-on fix.** `/v1/models` now logs `free_only: OFF - /v1/models is unfiltered`
+whenever it serves unfiltered, so this class of misconfiguration can never be
+silent again.
+
+## D11. `cliproxyapi` is kept running
+
+**Decision.** Leave it alone. It is a separate gateway on loopback :8317.
+
+**Evidence.** 82 request lines in 24 h, the most recent a `POST
+/v1/chat/completions` returning 200 at 23:15. Stopping it would break a live
+client I did not create, and the brief's cleanup item is about gateways serving
+the same public surface -- `:8000` is served by llm-gateway alone.
+
+## D12. `zeroclaw` stopped, `new-api` restored
+
+**Decision.** `zeroclaw`: stop and disable. `new-api`: re-enable and start.
+
+**Evidence.** Both were enabled with 0 request lines in 24 h. The difference:
+`new-api` is covered by four timers (`new-api-healthcheck`, `new-api-watchdog`,
+`new-api-backup`, `new-api-discovery`), so a stop cannot hold without also
+disabling monitoring someone deliberately installed, and it would generate alerts.
+`zeroclaw` has no timer, no cron entry and no config reference, so its stop is
+clean and reversible with `systemctl enable --now zeroclaw`.
+
+## D13. Three bugs, one misconfiguration -- reported separately
+
+**Decision.** Only changes to code behaviour are called bugs. The live listing
+leak is recorded as a deployment misconfiguration (D10), because the shipped code
+behaved as written and its tests passed.
+
+**Bugs fixed:** transient connection errors written as day-long quota exhaustion;
+hyphen/underscore provider-id mismatch causing a silent fallback to "free"; tier 3
+excluded outright when the brief makes it a last resort.
+
+## D14. Alerts fall back locally; push needs an owner decision
+
+**Decision.** Do not invent an alert destination. The catalog alert path writes to
+the local digest when no channel is configured.
+
+**Evidence.** No `NTFY` entry in the host `.env` or the gateway env, so a push
+cannot be delivered or verified. Recorded as an open question rather than wired to
+a guessed topic, which would be a silent no-op.

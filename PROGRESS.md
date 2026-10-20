@@ -9,12 +9,12 @@ Mode: full (M0 through M6). Run date 2026-10-20.
 |---|---|---|
 | pre-flight | PASS | ssh, gh auth, backups, venv, clean tree all verified |
 | M0 | PASS | GATES.md M0.1-M0.4, INVESTIGATION.md |
-| M1 | in progress | catalog pipeline in llm-provider-manager |
-| M2 | not started | free-only invariant |
-| M3 | not started | quota ledger |
-| M4 | not started | ordering |
-| M5 | not started | serving end to end |
-| M6 | not started | cutover |
+| M1 | PASS | GATES.md M1.1-M1.2 (18 tests, 0.9 s build) |
+| M2 | PASS | GATES.md M2.1-M2.3 (live: 2888 -> 2116 ids, paid -> 402) |
+| M3 | PASS | GATES.md M3 (quota ledger tests, transient-error fix) |
+| M4 | PASS | GATES.md M4 (tier-3 last-resort fix) |
+| M5 | PASS | GATES.md M5 (725 passed / 2 known env failures) |
+| M6 | PASS | GATES.md M6.1-M6.6, deviation: new-api kept |
 
 ## Done (verified, and how)
 
@@ -35,8 +35,20 @@ Mode: full (M0 through M6). Run date 2026-10-20.
 - M0 drift: 5 live config files captured byte-for-byte; both HEADs in
   DECISIONS.md D1.
 
+## Shipped after M0 (all verified against the live host)
+
+- Catalog pipeline: `llm-provider-manager/gateway_catalog/` + script; 204
+  providers classified in 0.9 s, 18 tests green.
+- Free-only invariant live: `/v1/models` hides 792 of 2888 ids, `g4f` gone, a
+  paid model returns `402 paid_model_rejected`.
+- Quota ledger, chain ordering, decision header and mid-stream fallback: 94 tests
+  across the four new files, 725 in the full suite.
+- Rollback timed at 41.9 s; deploy is live; `/health` 200.
+- Workflow `scrape_leaderboards.yml` (229154715) re-enabled.
+- `zeroclaw` stopped and disabled (idle, unmonitored). `new-api` restored
+  (watchdog-managed) and `cliproxyapi` left alone (live traffic).
+
 ## Next
 
-M1: one command regenerates and validates `catalog.json` in
-llm-provider-manager, with real evidence URLs, daily diff, >50% hold, and a test
-proving no chat probe reaches a one-time-credit provider.
+Nothing blocking. `RESULT.md` records what a follow-up run should look at
+(alerts still only fall back locally because no `NTFY` topic is configured).
