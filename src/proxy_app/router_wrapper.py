@@ -117,7 +117,14 @@ class RouterWrapper:
         """Get health status."""
         return self.router_integration.get_health()
     
-    @property 
+    def get_decision(self, request_id: str):
+        """Routing decision for one request, or None (X-Gateway-Decision)."""
+        integration = getattr(self, "router_integration", None)
+        if integration is None or not hasattr(integration, "get_decision"):
+            return None
+        return integration.get_decision(request_id)
+
+    @property
     def free_only_mode(self) -> bool:
         """Get FREE_ONLY_MODE status."""
         return self.router_integration.free_only_mode

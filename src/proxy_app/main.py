@@ -1108,10 +1108,31 @@ async def chat_completions(
     # Use RouterWrapper to handle the request
     try:
         router = get_router()
+        # Hand the router a request id we already know, so we can attach
+        # X-Gateway-Decision once routing has picked a candidate.
+        gateway_request_id = f"req_{uuid.uuid4().hex[:16]}"
+        request_data["_gw_request_id"] = gateway_request_id
         result = await router.handle_chat_completions(request_data, request)
+
+        def _decision_headers() -> dict:
+            try:
+                decision = router.get_decision(gateway_request_id)
+            except Exception:
+                decision = None
+            if decision is None:
+                return {}
+            try:
+                from proxy_app.routing.decision import headers_for
+
+                return headers_for(decision)
+            except Exception:
+                return {}
+
+        _decision_headers_now = _decision_headers()
+
         # If streaming, wrap in StreamingResponse with proper SSE format
         if request_data.get("stream", False):
-            request_id = f"req_{uuid.uuid4().hex[:16]}"
+            request_id = gateway_request_id
             async def _sse_wrap(gen):
                 try:
                     async for chunk in gen:
@@ -1156,26 +1177,30 @@ async def chat_completions(
                     yield f"data: {json.dumps(error_chunk)}\n\n"
                     yield f"data: {json.dumps(final_chunk)}\n\n"
                     yield "data: [DONE]\n\n"
-            return StreamingResponse(_sse_wrap(result), media_type="text/event-stream")
+            return StreamingResponse(
+                _sse_wrap(result),
+                media_type="text/event-stream",
+                headers=_decision_headers_now,
+            )
         # ponytail: serialize litellm ModelResponse to dict before FastAPI return.
         # OpenAI SDK Message/Choices expect 10 fields but litellm returns 5 populated;
         # Pydantic UserWarning on serialize -> malformed JSON -> opencode UnknownError.
         # Stream path already dumps to dict in _sse_wrap.
         import warnings
         if isinstance(result, dict):
-            return JSONResponse(content=result)
+            return JSONResponse(content=result, headers=_decision_headers_now)
         if isinstance(result, JSONResponse):
             return result
         if hasattr(result, "model_dump"):
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=UserWarning)
                 dumped = result.model_dump(exclude_unset=True, exclude_none=True)
-            return JSONResponse(content=dumped)
+            return JSONResponse(content=dumped, headers=_decision_headers_now)
         if hasattr(result, "dict"):
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", category=UserWarning)
                 dumped = result.dict()
-            return JSONResponse(content=dumped)
+            return JSONResponse(content=dumped, headers=_decision_headers_now)
         logging.warning(f"chat_completions: unserializable result type {type(result)}")
         return result
     except Exception as e:
@@ -1330,6 +1355,28 @@ async def list_models(
                   If False, returns minimal OpenAI-compatible response.
     """
     model_ids = await client.get_all_available_models(grouped=False)
+
+    # Free-only mode must be visible in the listing, not just at routing time: a
+    # client that discovers a paid model here will try to use it. This reads the
+    # config and the catalog artifact directly, so it holds even when no
+    # RouterCore was constructed.
+    try:
+        # Absolute import: this module is also run as a script by the systemd
+        # unit, where a relative import has no parent package.
+        from proxy_app.routing import free_policy as _free_policy
+
+        _root = Path(__file__).resolve().parent.parent.parent
+        if _free_policy.free_only_from_disk(_root):
+            _cache = _free_policy.load_tiers(_root)
+            _before = len(model_ids)
+            model_ids = _free_policy.filter_model_ids(model_ids, _cache, free_only=True)
+            logging.info(
+                "free_only: /v1/models hides %d of %d model ids",
+                _before - len(model_ids),
+                _before,
+            )
+    except Exception as _exc:  # never break the listing
+        logging.error("free_only model filter failed: %s", _exc)
 
     # Get virtual models from router
     virtual_models = []

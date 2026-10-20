@@ -23,6 +23,13 @@ os.environ["SKIP_REAL_VIRTUAL_MODELS"] = "true"
 # silently dropped by the _is_dead_candidate fast-skip in _get_candidates).
 os.environ["SKIP_REAL_DEAD_PROVIDERS"] = "true"
 
+# Same reasoning for the free-tier gate: mock router configs name providers that
+# are not in config/catalog.json.gz, so every fixture candidate would be tier 4
+# and dropped before the test could assert anything. Tests that exercise the real
+# gate (tests/test_free_invariant.py) read the catalog directly and do not rely on
+# this flag.
+os.environ["SKIP_REAL_FREE_POLICY"] = "true"
+
 
 @pytest.fixture(autouse=True)
 def _isolated_telemetry(tmp_path):

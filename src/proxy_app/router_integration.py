@@ -178,7 +178,9 @@ class RouterIntegration:
         """Main chat completions endpoint integrated with router."""
 
         # Generate request ID
-        request_id = f"req_{uuid.uuid4().hex[:16]}"
+        # Honour an id supplied by the HTTP layer so it can read the routing
+        # decision back for the X-Gateway-Decision header.
+        request_id = request_data.get("_gw_request_id") or f"req_{uuid.uuid4().hex[:16]}"
 
         # Log request if enabled
         if enable_logging:
@@ -195,6 +197,16 @@ class RouterIntegration:
         except Exception as e:
             logger.error(f"[{request_id}] Router failed: {e}")
             raise HTTPException(status_code=500, detail=f"Router error: {str(e)}")
+
+    def get_decision(self, request_id: str):
+        """Routing decision for one request, or None. Observability only."""
+        router = getattr(self, "router", None)
+        if router is None or not hasattr(router, "get_decision"):
+            return None
+        try:
+            return router.get_decision(request_id)
+        except Exception:
+            return None
 
     async def _handle_with_router(
         self, request_data: Dict[str, Any], request_id: str

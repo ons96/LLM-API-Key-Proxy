@@ -1,0 +1,132 @@
+{
+  "base": "http://127.0.0.1:8024/v1",
+  "started_at": "2026-10-20T23:05:23Z",
+  "rss_kb_before": 1976,
+  "sequential": [
+    {
+      "alias": "chat-fast",
+      "status": 200,
+      "ttft_ms": 1482.7,
+      "elapsed_ms": 5283.5,
+      "chunks": 45,
+      "chars": 56,
+      "decision_header": "alias=chat-fast;provider=crowllm;model=gemini-3-flash:free;tier=3;attempt=0;fallbacks=0;wait_ms=0;reason=selected",
+      "error": null
+    }
+  ],
+  "concurrent": {
+    "alias": "chat-fast",
+    "count": 10,
+    "wall_ms": 10568.5,
+    "statuses": [
+      200
+    ],
+    "http_5xx": 0,
+    "errors": [],
+    "ttft_p50_ms": 10344.9,
+    "ttft_p95_ms": 10564.5,
+    "results": [
+      {
+        "alias": "chat-fast",
+        "status": 200,
+        "ttft_ms": 10497.8,
+        "elapsed_ms": 10497.9,
+        "chunks": 2,
+        "chars": 107,
+        "decision_header": "alias=chat-fast;provider=crowllm;model=gemini-3-flash:free;tier=3;attempt=0;fallbacks=0;wait_ms=0;reason=selected",
+        "error": null
+      },
+      {
+        "alias": "chat-fast",
+        "status": 200,
+        "ttft_ms": 10315.5,
+        "elapsed_ms": 10315.6,
+        "chunks": 2,
+        "chars": 107,
+        "decision_header": "alias=chat-fast;provider=crowllm;model=gemini-3-flash:free;tier=3;attempt=0;fallbacks=0;wait_ms=0;reason=selected",
+        "error": null
+      },
+      {
+        "alias": "chat-fast",
+        "status": 200,
+        "ttft_ms": 1539.6,
+        "elapsed_ms": 3116.1,
+        "chunks": 21,
+        "chars": 107,
+        "decision_header": "alias=chat-fast;provider=crowllm;model=gemini-3-flash:free;tier=3;attempt=0;fallbacks=0;wait_ms=0;reason=selected",
+        "error": null
+      },
+      {
+        "alias": "chat-fast",
+        "status": 200,
+        "ttft_ms": 10332.6,
+        "elapsed_ms": 10332.8,
+        "chunks": 2,
+        "chars": 107,
+        "decision_header": "alias=chat-fast;provider=crowllm;model=gemini-3-flash:free;tier=3;attempt=0;fallbacks=0;wait_ms=0;reason=selected",
+        "error": null
+      },
+      {
+        "alias": "chat-fast",
+        "status": 200,
+        "ttft_ms": 10379.8,
+        "elapsed_ms": 10379.9,
+        "chunks": 2,
+        "chars": 107,
+        "decision_header": "alias=chat-fast;provider=crowllm;model=gemini-3-flash:free;tier=3;attempt=0;fallbacks=0;wait_ms=0;reason=selected",
+        "error": null
+      },
+      {
+        "alias": "chat-fast",
+        "status": 200,
+        "ttft_ms": 10564.5,
+        "elapsed_ms": 10564.7,
+        "chunks": 2,
+        "chars": 107,
+        "decision_header": "alias=chat-fast;provider=crowllm;model=gemini-3-flash:free;tier=3;attempt=0;fallbacks=0;wait_ms=0;reason=selected",
+        "error": null
+      },
+      {
+        "alias": "chat-fast",
+        "status": 200,
+        "ttft_ms": 9760.3,
+        "elapsed_ms": 9760.4,
+        "chunks": 2,
+        "chars": 107,
+        "decision_header": "alias=chat-fast;provider=crowllm;model=gemini-3-flash:free;tier=3;attempt=0;fallbacks=0;wait_ms=0;reason=selected",
+        "error": null
+      },
+      {
+        "alias": "chat-fast",
+        "status": 200,
+        "ttft_ms": 10558.3,
+        "elapsed_ms": 10558.4,
+        "chunks": 2,
+        "chars": 107,
+        "decision_header": "alias=chat-fast;provider=crowllm;model=gemini-3-flash:free;tier=3;attempt=0;fallbacks=0;wait_ms=0;reason=selected",
+        "error": null
+      },
+      {
+        "alias": "chat-fast",
+        "status": 200,
+        "ttft_ms": 10357.2,
+        "elapsed_ms": 10357.3,
+        "chunks": 2,
+        "chars": 107,
+        "decision_header": "alias=chat-fast;provider=crowllm;model=gemini-3-flash:free;tier=3;attempt=0;fallbacks=0;wait_ms=0;reason=selected",
+        "error": null
+      },
+      {
+        "alias": "chat-fast",
+        "status": 200,
+        "ttft_ms": 10249.0,
+        "elapsed_ms": 10249.2,
+        "chunks": 2,
+        "chars": 107,
+        "decision_header": "alias=chat-fast;provider=crowllm;model=gemini-3-flash:free;tier=3;attempt=0;fallbacks=0;wait_ms=0;reason=selected",
+        "error": null
+      }
+    ]
+  },
+  "rss_kb_after": 1976
+}

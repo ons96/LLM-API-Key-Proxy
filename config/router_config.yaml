@@ -1,4 +1,4 @@
-free_only_mode: false
+free_only_mode: true
 proxy_api_keys:
 - ${PROXY_API_KEY}
 providers:

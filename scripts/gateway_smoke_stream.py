@@ -32,7 +32,7 @@ DEFAULT_PROMPT = "Reply with exactly one short sentence about tests."
 MIN_TOKENS = 16
 
 
-def rss_kb(pattern: str = "proxy_app.main") -> int | None:
+def rss_kb(pattern: str = "proxy_app/main.py") -> int | None:
     """RSS of the gateway process, read from ps. None when not found."""
     try:
         out = subprocess.run(
@@ -41,7 +41,7 @@ def rss_kb(pattern: str = "proxy_app.main") -> int | None:
     except Exception:
         return None
     for line in out.splitlines():
-        if pattern in line:
+        if pattern in line and "grep" not in line and not line.strip().startswith("timeout"):
             parts = line.split(None, 1)
             try:
                 return int(parts[0])

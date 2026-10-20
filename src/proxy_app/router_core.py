@@ -138,6 +138,10 @@ def _is_dead_candidate(provider: str, model: str) -> bool:
 logger = logging.getLogger(__name__)
 
 from .litellm_fallback import build_litellm_fallback_kwargs  # noqa: E402
+from .routing import free_policy  # noqa: E402
+from .routing import quota_ledger  # noqa: E402
+from .routing.decision import HEADER_NAME as _DECISION_HEADER  # noqa: E402
+from .routing.decision import Decision as _Decision  # noqa: E402
 
 
 def _strip_cache_control(obj: Any) -> Any:
@@ -790,6 +794,10 @@ class RouterCore:
         self.scoring_engine = get_scoring_engine(get_telemetry_manager())
         self.provider_configs = self.config.get("providers", {})
         self._providers_db_cache: Optional[dict] = None
+        self._free_policy_cache: Optional[dict] = None
+        # Bounded map request_id -> routing decision, drained by the endpoint
+        # that attaches X-Gateway-Decision. Observability only.
+        self._decisions: Dict[str, "_Decision"] = {}
         self.model_registry = ModelRegistry(self.config_path)
 
         self._initialize_components()
@@ -1372,6 +1380,73 @@ class RouterCore:
         self._load_new_virtual_models()  # NEW: Load from config/virtual_models.yaml
         self._load_aliases()  # NEW: Load aliases from config/aliases.yaml
         logger.info(f"Router initialized with FREE_ONLY_MODE={self.free_only_mode}")
+
+    def _free_tiers(self) -> dict:
+        """Quota-tier view of every provider, from the catalog artifact.
+
+        Cached; ``free_policy`` invalidates on the artifact's mtime, so a hot
+        reload of catalog.json is picked up without a restart.
+        """
+        root_dir = Path(__file__).resolve().parent.parent.parent
+        return free_policy.load_tiers(root_dir, self.config)
+
+    def _free_policy_verdict(self, provider: str, model: str, pinned: bool = False):
+        """(allowed, reason) for one candidate under the current free mode."""
+        if free_policy.policy_skipped():
+            return True, "free policy skipped by SKIP_REAL_FREE_POLICY"
+        return free_policy.allowed_in_free_mode(
+            self._free_tiers(),
+            provider,
+            model,
+            free_only=self.free_only_mode,
+            pinned=pinned,
+        )
+
+    def record_decision(
+        self,
+        request_id: str,
+        *,
+        alias: str = "",
+        provider: str = "",
+        model: str = "",
+        tier: Optional[int] = None,
+        attempt: int = 0,
+        fallbacks: int = 0,
+        wait_ms: int = 0,
+        reason: str = "selected",
+    ) -> None:
+        """Store the routing decision for one request (bounded, best effort)."""
+        try:
+            if len(self._decisions) > 512:
+                # Keep memory flat on a 1 GB host; oldest keys go first.
+                for key in list(self._decisions)[:256]:
+                    self._decisions.pop(key, None)
+            self._decisions[request_id] = _Decision(
+                alias=alias,
+                provider=provider,
+                model=model,
+                tier=tier,
+                attempt=attempt,
+                fallbacks=fallbacks,
+                wait_ms=wait_ms,
+                reason=reason,
+            )
+        except Exception as exc:  # observability must never break routing
+            logger.debug(f"record_decision failed: {exc}")
+
+    def get_decision(self, request_id: str) -> Optional["_Decision"]:
+        """Pop the decision for a request; None when routing never got that far."""
+        return self._decisions.pop(request_id, None)
+
+    def _tier_of(self, provider: str) -> Optional[int]:
+        try:
+            return free_policy.provider_tier(self._free_tiers(), provider)
+        except Exception:
+            return None
+
+    def _ledger(self):
+        """Process-wide quota ledger (lazy; degrades to a no-op if unusable)."""
+        return quota_ledger.get_ledger()
 
     def _load_new_virtual_models(self):
         """Load virtual models from config/virtual_models.yaml."""
@@ -2013,6 +2088,37 @@ class RouterCore:
                 ):
                     continue
 
+                # Tier gate: a tier-4 provider, a tier-3 provider without an
+                # explicit pin, or a model outside the provider's free set never
+                # enters a chain while free-only mode is on.
+                _allowed, _why = self._free_policy_verdict(
+                    candidate_cfg["provider"],
+                    candidate_cfg["model"],
+                    pinned=bool(candidate_cfg.get("pinned") or candidate_cfg.get("pin")),
+                )
+                if not _allowed:
+                    logger.debug(
+                        f"[{model_id}] tier gate skip "
+                        f"{candidate_cfg['provider']}/{candidate_cfg['model']}: {_why}"
+                    )
+                    continue
+
+                # Quota ledger: a long-window exhaustion means fall back now, not
+                # after a failed attempt. Short windows are handled at the 429.
+                try:
+                    _quota = self._ledger().decide(
+                        candidate_cfg["provider"], candidate_cfg["model"]
+                    )
+                    if _quota.should_fallback:
+                        logger.info(
+                            f"[{model_id}] quota skip "
+                            f"{candidate_cfg['provider']}/{candidate_cfg['model']}: "
+                            f"{_quota.reason}"
+                        )
+                        continue
+                except Exception as _ledger_exc:  # never break routing
+                    logger.debug(f"quota ledger skip failed: {_ledger_exc}")
+
                 # Check forbidden providers
                 forbidden = self.config.get("safety", {}).get(
                     "forbidden_providers_under_free_mode", []
@@ -2622,8 +2728,15 @@ class RouterCore:
         request: Dict[str, Any],
         request_id: str,
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        """Execute streaming with fallback logic."""
+        """Execute streaming with fallback logic.
+
+        A failure *after* the first chunk has reached the client is not retried on
+        another provider: the client already holds that text, so switching would
+        duplicate or splice it. Pre-content failures still fall back normally.
+        """
         last_error = None
+        emitted = False
+        _fallback_count = 0
 
         for candidate in candidates:
             try:
@@ -2653,6 +2766,7 @@ class RouterCore:
                 async for chunk in self._execute_single_candidate_stream(
                     candidate, request_to_use, request_id
                 ):
+                    emitted = True
                     yield chunk
 
                 return
@@ -2662,6 +2776,23 @@ class RouterCore:
                 error_category, retry_after = await self._classify_error(e)
                 error_str = str(e).lower()
 
+                # Teach the ledger what just happened so the next request does not
+                # have to relearn it by failing.
+                try:
+                    # Only a real rate limit teaches the quota ledger. A transient
+                    # connection blip is not quota pressure: recording it there
+                    # marked the provider exhausted for a day and emptied every
+                    # chain on the next request. Transients stay with the existing
+                    # cooldown manager.
+                    if error_category == ErrorCategory.RATE_LIMIT:
+                        self._ledger().record_429(
+                            candidate.provider,
+                            candidate.model,
+                            retry_after_s=retry_after,
+                        )
+                except Exception as _ledger_exc:
+                    logger.debug(f"quota ledger record failed: {_ledger_exc}")
+
                 await self._apply_error_cooldown(
                     candidate.provider,
                     candidate.model,
@@ -2670,16 +2801,51 @@ class RouterCore:
                     error_str,
                 )
 
+                if emitted:
+                    # Content is already on the wire. Retrying would duplicate it,
+                    # so end the stream cleanly and record why.
+                    logger.warning(
+                        f"[{request_id}] upstream died mid-stream after content was sent "
+                        f"({candidate.provider}/{candidate.model}); ending stream without retry"
+                    )
+                    self.record_decision(
+                        request_id,
+                        alias=request.get("model", "") if request.get("model") in self.virtual_models else "",
+                        provider=candidate.provider,
+                        model=candidate.model,
+                        tier=self._tier_of(candidate.provider),
+                        attempt=0,
+                        fallbacks=_fallback_count,
+                        reason="all_failed",
+                    )
+                    return
+
                 logger.warning(
                     f"[{request_id}] Stream candidate {candidate.provider}/{candidate.model} failed "
                     f"({error_category.value}), trying next..."
                 )
+                _fallback_count += 1
                 continue
 
         # All stream candidates failed. Retry-until-done logic happens in route_request wrapper.
         if last_error:
             raise last_error
         raise HTTPException(status_code=503, detail="All stream providers failed")
+
+    def _reject_paid_model(self, model_id: str) -> None:
+        """Raise PaidModelError when a named model resolves to a paid provider."""
+        if not self.free_only_mode or "/" not in model_id:
+            return
+        provider, model = model_id.split("/", 1)
+        tiers = self._free_tiers()
+        tier = free_policy.provider_tier(tiers, provider)
+        if tier >= free_policy.PAID_TIER:
+            raise free_policy.PaidModelError(
+                provider,
+                model,
+                tier,
+                f"provider_type={free_policy.provider_type(tiers, provider)}",
+            )
 
     async def route_request(
         self, request: Dict[str, Any], request_id: str
@@ -2689,9 +2855,16 @@ class RouterCore:
         If GATEWAY_RETRY_UNTIL_DONE=true and all candidates fail, retry the whole
         chain with exponential backoff (max 3 retries, 2s/4s/8s).
         """
-        if os.getenv("GATEWAY_RETRY_UNTIL_DONE", "false").lower() == "true":
-            return await self._route_with_retry(request, request_id, max_retries=3)
-        return await self._route_request_inner(request, request_id)
+        try:
+            if os.getenv("GATEWAY_RETRY_UNTIL_DONE", "false").lower() == "true":
+                return await self._route_with_retry(request, request_id, max_retries=3)
+            return await self._route_request_inner(request, request_id)
+        except free_policy.PaidModelError as exc:
+            # Typed rejection, never a silent fallback to a cheaper model.
+            logger.warning(f"[{request_id}] {exc}")
+            raise HTTPException(
+                status_code=exc.status_code, detail=exc.to_payload()["error"]
+            ) from exc
 
     async def _route_with_retry(
         self, request: Dict[str, Any], request_id: str, max_retries: int = 3
@@ -2721,6 +2894,7 @@ class RouterCore:
     ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
         """Main routing entry point (inner)."""
         model_id = request.get("model", "")
+        self._reject_paid_model(model_id)
 
         # --- NEW: Alias Resolution & Chain Fallback Logic ---
         alias_candidates = self._resolve_alias(model_id)
@@ -2925,11 +3099,26 @@ class RouterCore:
                     _smart_exc,
                 )
 
+        # Record the decision before dispatch so a streaming response can carry
+        # the header, and so a timeout still leaves a trace of what was chosen.
+        _first = available_candidates[0]
+        self.record_decision(
+            request_id,
+            alias=model_id if model_id in self.virtual_models else "",
+            provider=_first.provider,
+            model=_first.model,
+            tier=self._tier_of(_first.provider),
+            attempt=0,
+            fallbacks=0,
+            reason="selected",
+        )
+
         if requirements.streaming:
             return self._stream_with_fallback(available_candidates, request, request_id)
 
         # Try candidates in order
         last_error = None
+        _fallback_count = 0
         for i, candidate in enumerate(available_candidates):
             try:
                 # Check if search augmentation needed
@@ -2968,6 +3157,28 @@ class RouterCore:
                         response, request, request_id
                     )
 
+                try:
+                    headers = None
+                    if isinstance(response, dict):
+                        headers = response.get("_response_headers")
+                    self._ledger().observe_headers(
+                        candidate.provider, candidate.model, headers
+                    )
+                    self._ledger().record_ok(candidate.provider, candidate.model)
+                except Exception as _ledger_exc:
+                    logger.debug(f"quota ledger success record failed: {_ledger_exc}")
+
+                self.record_decision(
+                    request_id,
+                    alias=model_id if model_id in self.virtual_models else "",
+                    provider=candidate.provider,
+                    model=candidate.model,
+                    tier=self._tier_of(candidate.provider),
+                    attempt=0,
+                    fallbacks=_fallback_count,
+                    reason="ok" if _fallback_count == 0 else "fallback",
+                )
+
                 return response
 
             except Exception as e:
@@ -2991,6 +3202,7 @@ class RouterCore:
                     logger.warning(
                         f"[{request_id}] Auth error for {candidate.provider}/{candidate.model} - trying next provider"
                     )
+                    _fallback_count += 1
                     continue
 
                 if error_category == ErrorCategory.INVALID_REQUEST:
@@ -3101,8 +3313,12 @@ class RouterCore:
 
             free_models = provider_config.get("free_tier_models", [])
             for model in free_models:
-                if self.free_only_mode and model not in free_models:
-                    continue
+                # The previous guard compared ``model`` against the list it was
+                # iterated from, so it could never fail. Ask the tier policy.
+                if self.free_only_mode:
+                    allowed, _why = self._free_policy_verdict(provider_name, model)
+                    if not allowed:
+                        continue
 
                 models.append(
                     {

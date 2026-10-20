@@ -1,0 +1,35 @@
+{
+  "base": "http://127.0.0.1:8024/v1",
+  "model": "chat-fast",
+  "results": [
+    {
+      "client": "opencode-style (tools)",
+      "status": 200,
+      "ok": true,
+      "tool_calls": 1,
+      "chars": 27,
+      "decision": "alias=chat-fast;provider=crowllm;model=gemini-3-flash:free;tier=3;attempt=0;fallbacks=0;wait_ms=0;reason=ok",
+      "has_decision_header": true,
+      "body_head": null
+    },
+    {
+      "client": "openai-sdk",
+      "ok": true,
+      "status": 200,
+      "chars": 25,
+      "decision": "alias=chat-fast;provider=crowllm;model=gemini-3-flash:free;tier=3;attempt=0;fallbacks=0;wait_ms=0;reason=ok",
+      "has_decision_header": true
+    },
+    {
+      "client": "streaming",
+      "status": 200,
+      "ok": true,
+      "chunks": 2,
+      "chars": 107,
+      "ttft_ms": 10211.8,
+      "decision": "alias=chat-fast;provider=crowllm;model=gemini-3-flash:free;tier=3;attempt=0;fallbacks=0;wait_ms=0;reason=selected",
+      "has_decision_header": true,
+      "error": null
+    }
+  ]
+}
