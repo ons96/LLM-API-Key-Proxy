@@ -105,6 +105,12 @@ TAVILY_API_KEY=your_tavily_api_key_here
    ```bash
    pip install -r requirements.txt
    ```
+   Optional: embedding-based `model="auto"` routing needs the extra engine, which is
+   kept out of the default install because it adds ~200 MB of ONNX runtime:
+   ```bash
+   pip install -r requirements-optional.txt
+   ```
+   Without it, `model="auto"` falls back to the keyword intent detector (the default).
 2. **Configure (Optional):**
    - Copy `.env.example` to `.env` and add your API keys
    - Basic usage works with free providers (Groq, G4F, DuckDuckGo)
