@@ -17,7 +17,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "litellm",
+    "litellm>=1.105.1,!=1.82.7,!=1.82.8",
     "filelock",
     "httpx"
 ]
