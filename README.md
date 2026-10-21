@@ -104,6 +104,8 @@ TAVILY_API_KEY=your_tavily_api_key_here
 1. **Install Dependencies:**
    ```bash
    pip install -r requirements.txt
+   # or, much faster and the way CI installs:
+   # uv pip install --python .venv/bin/python -r requirements.lock   (hash-verified)
    ```
    Optional: embedding-based `model="auto"` routing needs the extra engine, which is
    kept out of the default install because it adds ~200 MB of ONNX runtime:
