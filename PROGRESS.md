@@ -50,7 +50,15 @@ Mode: full (M0 through M6). Run date 2026-10-20.
 - `zeroclaw` stopped and disabled (idle, unmonitored). `new-api` restored
   (watchdog-managed) and `cliproxyapi` left alone (live traffic).
 
+- Catalog now maintains itself: `gateway-catalog-apply.timer` runs
+  `llm-provider-manager/scripts/apply_catalog.py` daily at 04:15 UTC on the host,
+  installing only what passes a live `/health` + `/v1/models` check and restoring
+  the previous artifact otherwise (9 tests, run log at
+  `~/llm-provider-manager/catalog_state/runs.jsonl`).
+- No push notifications anywhere: catalogue deltas are logged, not sent.
+
 ## Next
 
-Nothing blocking. `RESULT.md` records what a follow-up run should look at
-(alerts still only fall back locally because no `NTFY` topic is configured).
+Nothing blocking. Two known limits, both written up in `RESULT.md`: the catalogue is
+only as fresh as the host's `llm_providers.db`, and `new-api` is still running with
+four timers attached.

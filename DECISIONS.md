@@ -173,11 +173,61 @@ behaved as written and its tests passed.
 hyphen/underscore provider-id mismatch causing a silent fallback to "free"; tier 3
 excluded outright when the brief makes it a last resort.
 
-## D14. Alerts fall back locally; push needs an owner decision
+## D14. No push notifications; the run log is the channel
 
-**Decision.** Do not invent an alert destination. The catalog alert path writes to
-the local digest when no channel is configured.
+**Decision.** Catalog changes are not pushed to a phone. The owner's call: an
+alert about a catalogue delta is noise, and the machine is read by agents, not by a
+person on call. `alerts.py` keeps a `send()` path for anyone who sets
+`NTFY_TOPIC`, but nothing sets it and nothing is expected to.
 
-**Evidence.** No `NTFY` entry in the host `.env` or the gateway env, so a push
-cannot be delivered or verified. Recorded as an open question rather than wired to
-a guessed topic, which would be a silent no-op.
+**Where the information goes instead.** `llm-provider-manager/catalog_state/runs.jsonl`
+-- one JSON line per run with status, counts, the health check result, and the
+revert reason when there was one. `alerts.jsonl` still gets the per-change records.
+
+## D15. The catalog applies itself, and undoes itself
+
+**Decision.** `scripts/apply_catalog.py`, run daily by
+`gateway-catalog-apply.timer` on the host (04:15 UTC, `Persistent=true`). It builds,
+installs, then measures the live gateway and keeps or undoes the result.
+
+**Order of operations, and why each step is there:**
+
+1. Probe `/health` **before** touching anything. Applying onto an already-broken
+gateway makes a later revert indistinguishable from the pre-existing failure.
+2. Build and validate. A catalog that fails schema validation, or one with no
+providers or no models, is never installed.
+3. Copy the live artifact aside.
+4. Install atomically (temp file + `os.replace`) and delete any stale plain
+   `catalog.json`, which would otherwise shadow the new `.gz` because
+   `free_policy` prefers the plain file.
+5. Re-probe `/health` and `/v1/models`. Failure, an empty list, or a model count
+   below half the baseline means the new catalog is worse.
+6. Put the previous artifact back and **prove** it recovered before reporting.
+   Status `revert-failed` exists for the one case the job cannot fix itself.
+
+No restart is needed at any point: `free_policy` reloads on file mtime.
+
+**Alternative rejected.** Cron + `git checkout` of the artifact. It has no
+verification step, so a bad catalog would sit there until someone noticed.
+
+**Evidence.** GATES.md M6.7: timer enabled, next run scheduled, unit executes with
+`Result=success`, and the 9 tests cover apply, revert, skip-on-broken, and the
+health thresholds.
+
+## D16. The catalog stopped publishing `key_env`
+
+**Decision.** Drop the `key_env` field from the catalog artifact.
+
+**Why.** The pre-push scanner reported the catalog itself as a leak on every
+rebuild: the field holds values like `G4F_GROQ_API_KEY`, and the default
+`generic-api-key` rule reads the trailing `_API_KEY` as a secret. They are
+identifiers, not credentials -- the file contains no `sk-`, `gsk_`, `xai-`, `AIza`
+or `ghp_` strings.
+
+**Alternative rejected.** An allowlist for the generated paths. Line-addressed
+fingerprints break on the next rebuild, and a path allowlist in this clone's
+gitleaks config would be silently ignored because a global config exists.
+
+**Evidence.** Nothing downstream reads the field (`free_policy` uses only
+`provider_id`, `provider_type`, `quota_tier`, `models[].is_free`). After the change
+the scanner reports 0 findings across the tree, where it previously reported 8.

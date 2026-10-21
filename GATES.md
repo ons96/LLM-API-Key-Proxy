@@ -312,4 +312,36 @@ Update fallback configs from leaderboard   active   229154715
 It had been `disabled_manually` while still completing daily scheduled runs
 successfully (last 2026-10-20T09:16Z, 8 s).
 
+### M6.7 the catalog refresh runs and undoes itself
+
+```
+sudo systemctl enable --now gateway-catalog-apply.timer
+systemctl list-timers gateway-catalog-apply.timer
+sudo systemctl start gateway-catalog-apply.service
+systemctl show gateway-catalog-apply.service -p Result -p ExecMainStatus
+```
+
+```
+Wed 2026-10-21 04:16:59 UTC  3h 45min  -  -  gateway-catalog-apply.timer
+Result=success
+ExecMainStatus=0
+
+{"status": "applied", "providers": 203, "models": 4592, "check": "2116 models",
+ "after": {"health": 200, "models": 200, "count": 2116}, "holds": [], "alerts": 0}
+```
+
+Revert path proven by test, not by hoping: `tests/test_apply_catalog.py` (9 tests)
+installs over a fake gateway, degrades it, and asserts the previous artifact bytes
+are back on disk and the restore was itself verified. The same suite proves the job
+does nothing when the gateway is already unhealthy -- which is what happened on the
+first live attempt, when the gateway was 5 s into a boot (`ExecMainStartTimestamp
+00:30:11`, `NRestarts=0`) and the run correctly refused with exit 3.
+
+```
+cd ~/CodingProjects/llm-provider-manager && python3 -m pytest tests/test_apply_catalog.py -q
+9 passed
+```
+
+**PASS**
+
 **PASS with one documented deviation** (new-api kept, see above).

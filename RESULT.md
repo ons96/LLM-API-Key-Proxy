@@ -32,7 +32,8 @@ restart.
 | Chain ordering | `src/proxy_app/routing/chain_order.py` -- tiers 0/1/2, then 3; never 4 |
 | Decision header + fallback | `src/proxy_app/routing/decision.py` |
 | Verification harness | `scripts/harness_check.py`, `scripts/gateway_smoke_stream.py`, `scripts/telemetry_report.py` |
-| Tests | 94 new across 4 files; 726 passing in the full gateway suite (2 pre-existing failures); 18 in the catalog package |
+| Auto-apply + auto-undo | `llm-provider-manager/scripts/apply_catalog.py`, `gateway-catalog-apply.timer` on the host (04:15 UTC daily) |
+| Tests | 94 new across 4 files; 726 passing in the full gateway suite (2 pre-existing failures); 18 in the catalog package; 9 for apply/revert |
 
 ## 3. Bugs found and fixed
 
@@ -58,16 +59,38 @@ serving unfiltered.
 
 | Item | State |
 |---|---|
-| Push alerts | Local digest only. No `NTFY` topic is configured, so nothing can be delivered or verified. Needs an owner decision on destination (DECISIONS D14). |
+| Push notifications | None, by design. Catalog changes are not pushed to a phone; the run log is the channel (DECISIONS D14). |
 | `new-api` | Left running. Zero requests in 24 h, but four watchdog/healthcheck/backup timers manage it, so stopping it means disabling monitoring too (DECISIONS D12). |
 | `cliproxyapi` | Left running on :8317. Carrying live traffic (DECISIONS D11). |
 | `zeroclaw` | Stopped and disabled. Reversible: `systemctl enable --now zeroclaw`. |
 | `test_probe_providers_332` | 2 failures (`TestSelectTargets`), reproduced identically at the branch base `e7f3917`. Pre-existing, untouched (DECISIONS D3). |
 
-## 5. Where to start next
+## 5. The refresh maintains itself
 
-1. Configure an alert destination, then exercise the catalog alert end to end.
-2. Run `scripts/harness_check.py` against the live host on a schedule and diff the
+`gateway-catalog-apply.timer` runs `scripts/apply_catalog.py` daily at 04:15 UTC on
+the host. Each run builds, validates, installs, probes `/health` and `/v1/models`,
+and either keeps the new catalog or puts the previous one back and proves it
+recovered. No restart is involved: the gateway reloads the catalog on file mtime.
+
+If the gateway is already unhealthy before a run, nothing is installed (exit 3).
+A catalog that halves the model count counts as unhealthy. The one state the job
+cannot fix by itself is written as `revert-failed` in the run log.
+
+Where to look after a run:
+
+```
+ssh ubuntu@40.233.101.233 'tail -1 ~/llm-provider-manager/catalog_state/runs.jsonl'
+ssh ubuntu@40.233.101.233 'tail -5 ~/llm-provider-manager/alerts.jsonl'
+```
+
+Known limit: the catalogue is only as fresh as `llm_providers.db` on the host. That
+file is not in git, so it is refreshed by the discovery pipeline, not by this timer.
+
+## 6. Where to start next
+
+1. Run `scripts/harness_check.py` against the live host on a schedule and diff the
    result, so a silent config regression like D10 is caught in minutes.
-3. Decide on `new-api`: either retire it and its four timers together, or accept
+2. Decide on `new-api`: either retire it and its four timers together, or accept
    it as a fallback and document the intent.
+3. Have the timer also refresh `llm_providers.db` (or run discovery on the host),
+   so an unattended catalogue does not go stale silently.
