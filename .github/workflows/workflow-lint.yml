@@ -1,0 +1,39 @@
+name: Workflow Lint
+
+# A workflow file that fails to parse is not inert: GitHub records a failed run on
+# every push (named after the file path), which is how four broken files went
+# unnoticed here. Lint the directory so the next typo fails in one place.
+on:
+  push:
+    paths:
+      - ".github/workflows/**"
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+
+      - name: Run actionlint
+        # Pinned by image digest: a mutable tag on a tool that parses repository
+        # content is not a surface worth leaving open.
+        #
+        # -ignore 'shellcheck reported issue': shellcheck ships in the image and
+        # reports 214 pre-existing style findings across 18 workflows. Those are
+        # shell hygiene, not the failure class this job exists for — a workflow
+        # that will not parse (bad permission scope, misplaced key) produces a
+        # failed run on every push, and that is what must fail here, once.
+        # Clean those separately; do not let them block this gate.
+        run: |
+          docker run --rm \
+            -v "$PWD:/repo" -w /repo \
+            rhysd/actionlint@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9 \
+            -no-color -ignore 'shellcheck reported issue'
