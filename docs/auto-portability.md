@@ -131,9 +131,10 @@ To add `auto` to the sync template:
   `requirements-optional.txt`; the code lazily imports it and falls back to `intent_detector.py`.
   Measured on 2026-10-21: `uv pip install fastembed` = **179 MB on disk**, and loading
   `BAAI/bge-small-en-v1.5` + embedding two strings peaks at **288 MB RSS** (23 s, first run
-  includes the model download). The gateway VPS has **954 MB total / 219 MB available** with
-  624 MB of swap already in use, so the encoder would push the process into swap on a box with a
-  documented OOM history. It is not a "maybe later" — it does not fit.
+  includes the model download; the encoder process alone, doing nothing else). The gateway VPS has
+  **954 MB total / ~220–290 MB available** (sampled; 624 MB of swap already in use), so the encoder
+  would consume essentially all headroom and push the gateway into swap on a box with a documented
+  OOM history. It is not a "maybe later" — it does not fit.
 - **If semantic routing is ever wanted here, use an API, not ONNX.** The gateway already serves
   `/v1/embeddings` (`src/proxy_app/main.py`), and `opencode-phase-router`'s Tier-2 already calls it
   for ambiguous prompts. That path costs ~0 RAM at the gateway and one network round trip; it is
