@@ -1,0 +1,11 @@
+# Optional extras that are deliberately NOT in requirements.txt.
+#
+# Install with:  pip install -r requirements-optional.txt   (or uv pip install -r ...)
+#
+# semantic-router[fastembed]
+#   Enables embedding-based `model="auto"` routing in src/proxy_app/semantic_router.py.
+#   Without it the gateway uses the keyword intent detector, which is the default in
+#   production and what the tests assume. Budget roughly 200 MB (onnxruntime +
+#   tokenizers) and meaningful start-up time; do not install it on a host with less
+#   than ~1 GB of free RAM.
+semantic-router[fastembed]
