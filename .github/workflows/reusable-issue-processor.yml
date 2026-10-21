@@ -42,11 +42,12 @@ on:
         required: false
       CEREBRAS_API_KEY:
         required: false
+    outputs:
+      issues_processed:
+        description: 'Number of issues processed'
+        value: ${{ jobs.discover.outputs.count }}
 
-outputs:
-  issues_processed:
-    description: 'Number of issues processed'
-    value: ${{ jobs.discover.outputs.count }}
+
 
 jobs:
   discover:

@@ -5,8 +5,31 @@ on:
     types: [created]
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    # Same credential gate as pr-review.yml: without a GitHub App there is no
+    # token, so report and skip rather than failing on every bot mention.
+    env:
+      BOT_APP_ID: ${{ secrets.BOT_APP_ID }}
+      BOT_PRIVATE_KEY: ${{ secrets.BOT_PRIVATE_KEY }}
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - name: Check bot credentials
+        id: check
+        run: |
+          if [ -n "$BOT_APP_ID" ] && [ -n "$BOT_PRIVATE_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Bot reply skipped::BOT_APP_ID/BOT_PRIVATE_KEY are not set; the auto-reply needs a GitHub App."
+          fi
+
   continuous-reply:
-    if: ${{ contains(github.event.comment.body, '@mirrobot') || contains(github.event.comment.body, '@mirrobot-agent') }}
+    needs: preflight
+    if: |
+      needs.preflight.outputs.configured == 'true' &&
+      (contains(github.event.comment.body, '@mirrobot') || contains(github.event.comment.body, '@mirrobot-agent'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -54,12 +77,16 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.token }}
           BOT_NAMES_JSON: ${{ env.BOT_NAMES_JSON }}
           IGNORE_BOT_NAMES_JSON: ${{ env.IGNORE_BOT_NAMES_JSON }}
+          # Comment fields are untrusted: pass them through env, never inline
+          # into the script (a body containing $(...) would execute).
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          COMMENT_BODY_RAW: ${{ github.event.comment.body }}
         run: |
           # Common Info
-          echo "NEW_COMMENT_AUTHOR=${{ github.event.comment.user.login }}" >> $GITHUB_ENV
+          echo "NEW_COMMENT_AUTHOR=$COMMENT_AUTHOR" >> "$GITHUB_ENV"
           # Use a unique delimiter for safety
           COMMENT_DELIMITER="GH_BODY_DELIMITER_$(openssl rand -hex 8)"
-          { echo "NEW_COMMENT_BODY<<$COMMENT_DELIMITER"; echo "${{ github.event.comment.body }}"; echo "$COMMENT_DELIMITER"; } >> "$GITHUB_ENV"
+          { echo "NEW_COMMENT_BODY<<$COMMENT_DELIMITER"; printf '%s\n' "$COMMENT_BODY_RAW"; echo "$COMMENT_DELIMITER"; } >> "$GITHUB_ENV"
           # Determine if PR or Issue
           if [ -n '${{ github.event.issue.pull_request }}' ]; then
             IS_PR="true"

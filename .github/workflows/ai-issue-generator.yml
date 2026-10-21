@@ -31,7 +31,7 @@ concurrency:
 permissions:
   contents: read
   issues: write
-  pull_requests: read
+  pull-requests: read
 
 env:
   OPENCODE_MODEL: openai/coding-elite

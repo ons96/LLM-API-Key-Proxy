@@ -1,6 +1,8 @@
 # 'auto' Virtual Model Portability Guide
 
-Status: **PARTIAL** — `auto` model shipped in PR #272 (branch `feat/auto-semantic-routing`), awaiting merge to `main` and gateway redeploy. This doc covers the config template that makes `auto` portable across opencode instances.
+Status: **SHIPPED, keyword-tier only.** `auto` is on `main`; the optional FastEmbed encoder is
+**not** installed on the gateway (`requirements-optional.txt`), so `auto` resolves through the
+keyword detector. Why, and what the alternatives cost — see "Encoder placement" below.
 
 Refs: task-board #203, #197 (PR #272), #194 (parent epic).
 
@@ -125,6 +127,19 @@ To add `auto` to the sync template:
 ## Limitations (current)
 
 - **`auto` not yet on `main`**: PR #272 open, awaiting review/merge. Once merged, redeploy gateway on VPS-40: `ssh ubuntu@40.233.101.233 'cd ~/LLM-API-Key-Proxy && git pull origin main && sudo systemctl restart llm-gateway'`.
-- **`semantic-router[local]` not yet in gateway `requirements.txt`**: PR #272 adds it. Without it, gateway falls back to keyword `intent_detector.py` — still works, just less accurate on ambiguous prompts.
+- **Encoder is opt-in, and stays off the gateway.** `semantic-router[fastembed]` lives in
+  `requirements-optional.txt`; the code lazily imports it and falls back to `intent_detector.py`.
+  Measured on 2026-10-21: `uv pip install fastembed` = **179 MB on disk**, and loading
+  `BAAI/bge-small-en-v1.5` + embedding two strings peaks at **288 MB RSS** (23 s, first run
+  includes the model download). The gateway VPS has **954 MB total / 219 MB available** with
+  624 MB of swap already in use, so the encoder would push the process into swap on a box with a
+  documented OOM history. It is not a "maybe later" — it does not fit.
+- **If semantic routing is ever wanted here, use an API, not ONNX.** The gateway already serves
+  `/v1/embeddings` (`src/proxy_app/main.py`), and `opencode-phase-router`'s Tier-2 already calls it
+  for ambiguous prompts. That path costs ~0 RAM at the gateway and one network round trip; it is
+  the option to extend, not a local encoder.
+- **Phase header beats both for opencode clients.** When a client sends
+  `X-Phase-Router-Phase`, `resolve_auto()` trusts that classification and skips local inference
+  entirely (`PHASE_CHAIN_MAP`), which is the cheapest accurate route available on this hardware.
 - **No per-machine telemetry yet**: gateway logs the auto-route decision, but opencode clients don't currently log which chain was picked. Future enhancement: have the gateway echo `X-Auto-Route-Chain` header.
 - **No opencode skill for `auto`**: users still need to manually select `auto` in the opencode model picker. Future: add a skill that defaults to `auto` for all prompts.
