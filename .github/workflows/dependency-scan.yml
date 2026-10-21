@@ -1,0 +1,74 @@
+name: dependency-scan
+
+# Runs the malware/CVE gate on GitHub's runners instead of on the 954 MB gateway
+# VPS. The VPS only needs to run the result; scanning happens here.
+#
+# Weekly it also asks: is there a newer litellm that has aged past the cooldown?
+
+on:
+  schedule:
+    - cron: "23 6 * * 1"   # Mondays 06:23 UTC
+  workflow_dispatch:
+  push:
+    paths:
+      - "requirements.txt"
+      - "requirements.lock"
+      - "scripts/dep-gate.py"
+      - ".github/workflows/dependency-scan.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+
+      - name: Install uv and guard tools
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          uv tool install guarddog
+          uv tool install pip-audit
+
+      - name: Read the pinned version
+        id: pin
+        run: |
+          pin=$(grep -hoE '^litellm==[0-9][^ ]*' requirements.txt | head -1 | cut -d= -f3)
+          echo "litellm=${pin:-none}" >> "$GITHUB_OUTPUT"
+          echo "pinned litellm: ${pin:-none}"
+
+      - name: Gate the pinned version (hashes, malware, CVEs, provenance)
+        if: steps.pin.outputs.litellm != 'none'
+        run: |
+          # Baseline against itself: we want the absolute checks (integrity, fatal
+          # rules, CVEs, provenance) without failing on a 10/10 heuristic score that
+          # every large framework earns. The delta check runs in the next step.
+          ./scripts/dep-gate.py "litellm==${{ steps.pin.outputs.litellm }}" \
+            --days 0 --baseline "litellm==${{ steps.pin.outputs.litellm }}" \
+            --report gate-report.json
+
+      - name: Gate the newest aged release against the pin
+        if: steps.pin.outputs.litellm != 'none'
+        run: |
+          # exit 4 means "review the indicator diff", which is information, not a
+          # broken build -- so record it and keep the job green.
+          set +e
+          ./scripts/dep-gate.py --newest-aged litellm --days 14 \
+            --baseline "litellm==${{ steps.pin.outputs.litellm }}" \
+            --report newer-release.json
+          rc=$?
+          echo "newer-release gate exit: $rc (0=admit, 2=cooldown, 4=review, 1=reject)" >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: dependency-reports
+          path: |
+            gate-report.json
+            newer-release.json
+          if-no-files-found: warn

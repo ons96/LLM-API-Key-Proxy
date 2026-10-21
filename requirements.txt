@@ -9,7 +9,7 @@ python-dotenv
 -e src/rotator_library
 
 # A library for calling LLM APIs with a consistent format
-litellm
+litellm==1.105.1
 
 filelock
 httpx
@@ -27,4 +27,6 @@ curl_cffi
 # Semantic auto-router (local embeddings via FastEmbed ONNX, no API key)
 # Used by src/proxy_app/semantic_router.py for `model="auto"` routing.
 # Optional: if absent, gateway falls back to keyword intent_detector.
-semantic-router[fastembed]
+# semantic-router[fastembed]  -- optional "model=auto" semantic encoder (~200 MB with ONNX).
+#   The gateway falls back to the keyword intent_detector when absent, which is
+#   how it has run in production. Uncomment only if you want embedding routing.
