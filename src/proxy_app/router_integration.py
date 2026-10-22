@@ -16,6 +16,7 @@ from fastapi import HTTPException, Request
 
 from .router_core import RouterCore, CapabilityRequirements
 from .provider_adapter import ProviderAdapterFactory
+from .safe_errors import safe_error_detail
 
 logger = logging.getLogger(__name__)
 
@@ -193,8 +194,13 @@ class RouterIntegration:
         except HTTPException:
             raise
         except Exception as e:
+            # Full message stays in the log; the client only ever sees
+            # exception metadata (upstream text can carry credentials/URLs).
             logger.error(f"[{request_id}] Router failed: {e}")
-            raise HTTPException(status_code=500, detail=f"Router error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=safe_error_detail(e, request_id=request_id),
+            )
 
     async def _handle_with_router(
         self, request_data: Dict[str, Any], request_id: str
@@ -228,7 +234,10 @@ class RouterIntegration:
             raise
         except Exception as e:
             logger.error(f"[{request_id}] Router request failed: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(
+                status_code=500,
+                detail=safe_error_detail(e, request_id=request_id),
+            )
 
     async def _wrap_streaming_response(
         self,
