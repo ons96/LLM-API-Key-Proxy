@@ -758,9 +758,11 @@ class ProviderStatusTracker:
                 previous_status = self._get_latest_status(provider)
                 consecutive_failures = 0
 
-                if previous_status and previous_status.status != "healthy":
+                if result["status"] == "healthy":
+                    consecutive_failures = 0
+                elif previous_status and previous_status.status != "healthy":
                     consecutive_failures = previous_status.consecutive_failures + 1
-                elif result["status"] != "healthy":
+                else:
                     consecutive_failures = 1
 
                 # Calculate uptime percentage
@@ -777,7 +779,10 @@ class ProviderStatusTracker:
                     final_status = "degraded"
 
                 # Apply down status if too many consecutive failures
-                if consecutive_failures >= self.max_consecutive_failures:
+                if (
+                    result["status"] != "healthy"
+                    and consecutive_failures >= self.max_consecutive_failures
+                ):
                     final_status = "down"
 
                 # Store the result
