@@ -2,31 +2,18 @@
 """Tests for DynamicScoringEngine #341 changes: 80/15/5 weights,
 SWE-bench threshold enforcement, and free-model baseline exclusion.
 
-Loads scoring_engine.py via importlib to avoid package-install deps,
-matching the test_rank_models.py pattern in this repo.
+Imported as a package module: `conftest.py` puts `src` on `sys.path`, and
+loading the file standalone breaks its relative imports (#1122 added
+`from .quality_scores import load_quality_scores`).
 """
 from __future__ import annotations
 
-import importlib.util
-import sys
 import tempfile
 from pathlib import Path
 
 import pytest
 
-_SRC_PATH = (
-    Path(__file__).resolve().parent.parent
-    / "src"
-    / "rotator_library"
-    / "scoring_engine.py"
-)
-spec = importlib.util.spec_from_file_location("scoring_engine", _SRC_PATH)
-mod = importlib.util.module_from_spec(spec)
-sys.modules["scoring_engine"] = mod
-spec.loader.exec_module(mod)
-
-DynamicScoringEngine = mod.DynamicScoringEngine
-ModelScore = mod.ModelScore
+from rotator_library.scoring_engine import DynamicScoringEngine, ModelScore
 
 
 # ---------------------------------------------------------------------------

@@ -2,14 +2,25 @@
 
 Calculates real-time scores for models based on agentic coding performance,
 tokens per second, and availability with configurable weights and thresholds.
+
+Quality sources, in order (#1122):
+  1. `config/model_rankings.yaml` row (agentic_coding, else swe_bench)
+  2. `config/quality_scores.json` -- the gateway catalog export, which scores
+     far more models than the rankings file has rows for
+  3. neutral prior -- the median of all known scores. Models with no benchmark
+     row are *unknown*, not worthless: they rank mid-pack instead of being
+     pinned to the bottom of every chain.
 """
 
+import os
 import time
 import sqlite3
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from pathlib import Path
 import logging
+
+from .quality_scores import load_quality_scores
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +36,9 @@ class ModelScore:
     web_search_capable: bool
     total_score: float
     meets_threshold: bool
+    # False when the quality figure is the neutral prior rather than a
+    # measured benchmark (no rankings row and no catalog score).
+    quality_known: bool = True
 
 
 class DynamicScoringEngine:
@@ -38,6 +52,13 @@ class DynamicScoringEngine:
     # ponytail: 80/15/5 per DESIGN.md #341 (agentic/tps/availability).
     # Hallucination is a subtractive penalty, NOT part of the 80/15/5 split,
     # so weight sums below exclude it. Availability IS now scored (5%).
+    # #1122: the blend differs by tier instead of being one 80/15/5 everywhere.
+    #   elite / smart -- quality first (80/15/5, per #341 / DESIGN.md)
+    #   fast          -- latency tier: speed rises to 40%, quality keeps the
+    #                    majority so a quick-but-weak model still cannot lead
+    #                    a coding chain
+    # Availability stays a constant 5% floor everywhere; hallucination is
+    # subtractive and sits outside the blend.
     CATEGORY_WEIGHTS = {
         "coding-elite": {
             "agentic": 0.80,
@@ -52,8 +73,8 @@ class DynamicScoringEngine:
             "hallucination_penalty": 0.15,
         },
         "coding-fast": {
-            "agentic": 0.80,
-            "tps": 0.15,
+            "agentic": 0.55,
+            "tps": 0.40,
             "availability": 0.05,
             "hallucination_penalty": 0.15,
         },
@@ -70,8 +91,8 @@ class DynamicScoringEngine:
             "hallucination_penalty": 0.20,
         },
         "chat-fast": {
-            "intelligence": 0.80,
-            "tps": 0.15,
+            "intelligence": 0.55,
+            "tps": 0.40,
             "availability": 0.05,
             "hallucination_penalty": 0.20,
         },
@@ -107,14 +128,26 @@ class DynamicScoringEngine:
     # Upgraded to per-tier if FREEDOT_BASELINES set, else computed at load.
     FREE_BASELINE_FLOOR = 30.0  # hard floor; computed baseline >= this
 
+    # #1122: neutral prior for models nobody has scored. The median of known
+    # scores, clamped so a degenerate export cannot move it out of band.
+    NEUTRAL_PRIOR_MIN = 30.0
+    NEUTRAL_PRIOR_MAX = 70.0
+    NEUTRAL_PRIOR_FALLBACK = 50.0
+
     def __init__(
         self,
         telemetry_manager=None,
         model_rankings_path: str = "config/model_rankings.yaml",
+        quality_scores_path: Optional[str] = None,
     ):
         self.telemetry = telemetry_manager
         self.model_rankings_path = Path(model_rankings_path)
+        self.quality_scores_path = quality_scores_path or os.environ.get(
+            "QUALITY_SCORES_PATH", "config/quality_scores.json"
+        )
         self._rankings_cache: Dict[str, Dict] = {}
+        self._catalog_quality: Dict[str, float] = {}
+        self._neutral_prior = self.NEUTRAL_PRIOR_FALLBACK
         self._last_refresh = 0
 
     def load_model_rankings(self) -> Dict[str, Dict]:
@@ -136,10 +169,16 @@ class DynamicScoringEngine:
             self._rankings_cache = rankings
             self._last_refresh = time.time()
             self._compute_free_baseline(rankings)
+            self._load_catalog_quality()
+            self._compute_neutral_prior()
             return rankings
 
         except Exception as e:
             logger.error(f"Failed to load model rankings: {e}")
+            # The catalog export can still score models without the rankings
+            # file, so load it either way (#1122).
+            self._load_catalog_quality()
+            self._compute_neutral_prior()
             return {}
 
     def _compute_free_baseline(self, rankings: Dict[str, Dict]) -> None:
@@ -168,6 +207,45 @@ class DynamicScoringEngine:
         else:
             self._free_baseline = self.FREE_BASELINE_FLOOR
 
+    def _load_catalog_quality(self) -> None:
+        """Catalog export -> {model id: 0..1}; {} when the file is absent."""
+        self._catalog_quality = load_quality_scores(self.quality_scores_path)
+
+    def _compute_neutral_prior(self) -> None:
+        """Median of every known quality score, clamped to a sane band."""
+        known = [
+            float(score)
+            for entry in self._rankings_cache.values()
+            for score in [
+                entry.get("scores", {}).get(
+                    "agentic_coding", entry.get("scores", {}).get("swe_bench")
+                )
+            ]
+            if isinstance(score, (int, float)) and score > 0
+        ]
+        known.extend(value * 100.0 for value in self._catalog_quality.values())
+
+        if not known:
+            self._neutral_prior = self.NEUTRAL_PRIOR_FALLBACK
+            return
+
+        known.sort()
+        mid = len(known) // 2
+        median = known[mid] if len(known) % 2 else (known[mid - 1] + known[mid]) / 2.0
+        self._neutral_prior = min(
+            max(median, self.NEUTRAL_PRIOR_MIN), self.NEUTRAL_PRIOR_MAX
+        )
+        logger.info(
+            "Neutral quality prior: %.1f (from %d scored models)",
+            self._neutral_prior,
+            len(known),
+        )
+
+    @property
+    def neutral_prior(self) -> float:
+        """Quality assumed for a model with no benchmark row at all."""
+        return self._neutral_prior
+
     def _below_free_baseline(self, agentic_score: float) -> bool:
         """True if model scores below the free-model baseline."""
         baseline = getattr(self, "_free_baseline", self.FREE_BASELINE_FLOOR)
@@ -190,11 +268,26 @@ class DynamicScoringEngine:
                     model_data = v
                     break
 
+        ranking_score = None
         if model_data:
             scores = model_data.get("scores", {})
-            return scores.get("agentic_coding", scores.get("swe_bench", 0.0))
+            ranking_score = scores.get("agentic_coding", scores.get("swe_bench"))
+        if isinstance(ranking_score, (int, float)) and ranking_score > 0:
+            return float(ranking_score)
 
-        return None
+        # No usable rankings row (279 of 4592 catalog models have one): fall
+        # back to the catalog export before giving up.
+        catalog = self._catalog_quality.get(key)
+        if catalog is None:
+            suffix = f"/{model.lower()}"
+            for candidate_key, value in self._catalog_quality.items():
+                if candidate_key.endswith(suffix):
+                    catalog = value
+                    break
+        if catalog is not None:
+            return catalog * 100.0
+
+        return None  # caller substitutes the neutral prior
 
     def get_hallucination_rate(self, provider: str, model: str) -> float:
         if time.time() - self._last_refresh > 3600:
@@ -304,7 +397,11 @@ class DynamicScoringEngine:
     def calculate_coding_score(
         self, provider: str, model: str, virtual_model_type: str = "coding-elite"
     ) -> ModelScore:
-        agentic_score = self.get_model_score(provider, model) or 0.0
+        measured = self.get_model_score(provider, model)
+        quality_known = measured is not None
+        # #1122: unknown != worthless. Unscored models rank at the neutral
+        # prior, so they neither lead a chain on faith nor sink to the bottom.
+        agentic_score = measured if quality_known else self.neutral_prior
         tps = self.get_tps_estimate(provider, model)
         availability = self.get_availability(provider, model)
         hallucination_rate = self.get_hallucination_rate(provider, model)
@@ -355,6 +452,7 @@ class DynamicScoringEngine:
             web_search_capable=web_search_capable,
             total_score=total_score,
             meets_threshold=meets_threshold,
+            quality_known=quality_known,
         )
 
     def rank_models_for_virtual(
