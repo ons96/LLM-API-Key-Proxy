@@ -14,6 +14,7 @@ Then in opencode.json, set freetheai baseURL to:
 
 import argparse
 import asyncio
+import json
 import logging
 import os
 import sys
@@ -21,6 +22,7 @@ import time
 from typing import Optional
 
 import aiohttp
+import aiohttp.web
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,6 +53,14 @@ if not API_KEY:
             API_KEY = f.read().strip()
     except FileNotFoundError:
         pass
+
+
+def _positive_int(value: str) -> int:
+    """Parse a retry count and reject values that would skip all attempts."""
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return parsed
 
 
 def _should_retry(status: int, body: bytes) -> bool:
@@ -143,6 +153,8 @@ async def health_check(request) -> aiohttp.web.Response:
 
 
 async def main():
+    global MAX_RETRIES
+
     parser = argparse.ArgumentParser(description="freetheai retry proxy")
     parser.add_argument(
         "--port",
@@ -155,9 +167,9 @@ async def main():
     )
     parser.add_argument(
         "--max-retries",
-        type=int,
+        type=_positive_int,
         default=MAX_RETRIES,
-        help=f"Max retries (default: {MAX_RETRIES})",
+        help=f"Max retries/attempts (default: {MAX_RETRIES}; must be >= 1)",
     )
     parser.add_argument("--verbose", action="store_true", help="Verbose logging")
     args = parser.parse_args()
@@ -165,7 +177,6 @@ async def main():
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    global MAX_RETRIES
     MAX_RETRIES = args.max_retries
 
     if not API_KEY:
@@ -199,6 +210,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    import json
-
     asyncio.run(main())
