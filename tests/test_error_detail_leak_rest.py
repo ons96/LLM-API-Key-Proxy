@@ -76,10 +76,17 @@ def open_auth(monkeypatch):
 
 @pytest.fixture(scope="module")
 def client():
+    """HTTP client without app lifespan.
+
+    `with TestClient(app)` runs the startup/shutdown hooks, and shutdown here
+    waits on the provider status tracker, which makes live calls to upstream
+    providers. Those calls fail in CI and in an offline checkout, turning a
+    passing test into a teardown error. None of these tests need startup state:
+    the handlers under test are patched directly.
+    """
     from fastapi.testclient import TestClient
 
-    with TestClient(enhanced_proxy.app) as test_client:
-        yield test_client
+    return TestClient(enhanced_proxy.app)
 
 
 def _assert_clean(text: str) -> None:
