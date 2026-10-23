@@ -1,0 +1,17 @@
+[Unit]
+Description=new-api LLM gateway (parallel build, task-board #862)
+After=network.target
+
+[Service]
+Type=simple
+User=newapi
+WorkingDirectory=/opt/new-api/data
+EnvironmentFile=/opt/new-api/new-api.env
+ExecStart=/opt/new-api/bin/new-api --port 8001 --log-dir /opt/new-api/logs
+Restart=always
+RestartSec=10
+StandardOutput=append:/opt/new-api/logs/new-api-stdout.log
+StandardError=append:/opt/new-api/logs/new-api-stderr.log
+
+[Install]
+WantedBy=multi-user.target
