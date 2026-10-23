@@ -23,8 +23,14 @@ from proxy_app import enhanced_proxy
 
 @pytest.fixture(scope="module")
 def client():
-    with TestClient(enhanced_proxy.app) as test_client:
-        yield test_client
+    """HTTP client without app lifespan.
+
+    Entering TestClient as a context manager runs startup/shutdown; shutdown
+    waits on the provider status tracker, which makes live upstream calls. Those
+    fail intermittently in CI and turn a passing test into a teardown error.
+    Routes are registered at import time, so the lifespan is not needed here.
+    """
+    return TestClient(enhanced_proxy.app)
 
 
 def test_empty_query_is_still_rejected(client):
