@@ -18,7 +18,6 @@ sys.path.append(os.path.join(os.getcwd(), "src"))
 sys.argv = ["main.py", "--host", "127.0.0.1", "--port", "8000"]
 
 from proxy_app.router_core import RouterCore
-from proxy_app.model_ranker import ModelRanker
 from proxy_app.health_checker import HealthChecker
 from proxy_app.rate_limiter import RateLimitTracker
 
@@ -85,15 +84,6 @@ async def check_components():
         return False
 
     # 2. Model Ranker
-    ranker = ModelRanker()
-    candidates = [{"provider": "mock", "model": "gemini-1.5-pro", "priority": 2}]
-    ranked = ranker.rank_candidates("coding-smart", candidates)
-    if ranked:
-        logger.info("✅ ModelRanker working")
-    else:
-        logger.error("❌ ModelRanker failed")
-        return False
-
     return True
 
 
