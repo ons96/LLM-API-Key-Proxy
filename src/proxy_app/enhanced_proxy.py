@@ -9,6 +9,7 @@ MoE support, web-search augmentation, and $0-only guarantees.
 import os
 import sys
 import asyncio
+import json
 import logging
 import time
 import uuid
@@ -30,11 +31,15 @@ from proxy_app.main import (
     ModelCard,
     ModelList,
 )
+from fastapi import Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
+
 from proxy_app.router_integration import RouterIntegration
 # FastAPI symbols used by the endpoints below but never imported, which made
 # this module fail at import time (NameError on `Request`).
 from fastapi import Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from proxy_app.safe_errors import safe_error_detail
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +147,7 @@ async def enhanced_health_check(request: Request) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Health check failed: {e}")
-        return {"status": "degraded", "error": str(e)}
+        return {"status": "degraded", "error": safe_error_detail(e)}
 
 
 # Enhanced chat completions endpoint
@@ -185,7 +190,11 @@ async def enhanced_chat_completions(
                 logger.error(f"[{request_id}] StreamingResponse construction failed: {stream_err}")
 
                 async def _error_stream():
-                    yield f"data: {{\"error\": \"{str(stream_err)}\"}}\n\n"
+                    # Client-visible SSE text: metadata only, full text is logged.
+                    err = safe_error_detail(
+                        stream_err, request_id=request_id, prefix="Gateway stream error"
+                    )
+                    yield f"data: {json.dumps({'error': err})}\n\n"
                     yield "data: [DONE]\n\n"
                 return StreamingResponse(_error_stream(), media_type="text/event-stream")
         else:
@@ -198,7 +207,9 @@ async def enhanced_chat_completions(
     except Exception as e:
         duration_ms = (time.time() - start_time) * 1000
         logger.error(f"[{request_id}] Request failed after {duration_ms:.1f}ms: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500, detail=safe_error_detail(e, request_id=request_id)
+        )
 
 
 async def _wrap_streaming_response(
@@ -254,7 +265,8 @@ async def _wrap_streaming_response(
     except Exception as e:
         duration_ms = (time.time() - start_time) * 1000
         logger.error(f"[{request_id}] Stream failed after {duration_ms:.1f}ms: {e}")
-        yield f'data: {{"error": "{str(e)}"}}\n\n'
+        err = safe_error_detail(e, request_id=request_id, prefix="Gateway stream error")
+        yield f"data: {json.dumps({'error': err})}\n\n"
         yield "data: [DONE]\n\n"
 
 
@@ -282,7 +294,7 @@ async def router_status(request: Request) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Router status failed: {e}")
-        return {"error": str(e)}
+        return {"error": safe_error_detail(e)}
 
 
 # Router metrics endpoint
@@ -325,7 +337,7 @@ async def router_metrics(request: Request) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Router metrics failed: {e}")
-        return {"error": str(e)}
+        return {"error": safe_error_detail(e)}
 
 
 # Configuration refresh endpoint
@@ -341,7 +353,7 @@ async def refresh_router_config(request: Request) -> Dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Router refresh failed: {e}")
-        return {"error": str(e)}
+        return {"error": safe_error_detail(e)}
 
 
 # Dynamic search endpoint for testing
@@ -364,7 +376,9 @@ async def perform_search(request: Request) -> Dict[str, Any]:
         raise
     except Exception as e:
         logger.error(f"Search failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Search error: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=safe_error_detail(e, prefix="Search error")
+        )
 
 
 def enhance_proxy() -> None:

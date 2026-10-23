@@ -16,6 +16,8 @@ import litellm
 from fastapi import HTTPException
 import httpx
 
+from .safe_errors import safe_error_detail
+
 logger = logging.getLogger(__name__)
 
 
@@ -865,7 +867,10 @@ class G4FAdapter(BaseProviderAdapter):
                 },
             }
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"G4F error: {str(e)}")
+            # Client-visible detail: metadata only (full text is logged upstream).
+            raise HTTPException(
+                status_code=500, detail=safe_error_detail(e, prefix="G4F error")
+            )
 
     async def _stream_g4f_completion(
         self, content: str, model: str
@@ -910,7 +915,7 @@ class G4FAdapter(BaseProviderAdapter):
             }
 
         except Exception as e:
-            yield {"error": f"G4F streaming error: {str(e)}"}
+            yield {"error": safe_error_detail(e, prefix="G4F streaming error")}
 
     def _convert_error(self, error: Exception) -> HTTPException:
         """Convert provider error to HTTPException."""
@@ -923,7 +928,10 @@ class G4FAdapter(BaseProviderAdapter):
         else:
             status_code = 500
 
-        return HTTPException(status_code=status_code, detail=f"G4F error: {str(error)}")
+        return HTTPException(
+            status_code=status_code,
+            detail=safe_error_detail(error, prefix="G4F error"),
+        )
 
 
 class TogetherAdapter(BaseProviderAdapter):
