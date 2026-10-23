@@ -138,6 +138,9 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         BRANCH_NAME=${{ github.ref_name }}
+        # Branch names may contain slashes; archive filenames must not create
+        # nested directories when the release assets are zipped.
+        SAFE_BRANCH_NAME=$(printf '%s' "$BRANCH_NAME" | sed 's/[^A-Za-z0-9._-]/-/g')
         DATE_STAMP_NEW=$(date +'%Y%m%d')
         DATE_STAMP_OLD=$(date +'%Y.%m.%d')
         
@@ -154,7 +157,7 @@ jobs:
         # Define all naming components
         echo "release_title=Build ($BRANCH_NAME): $VERSION" >> $GITHUB_OUTPUT
         echo "release_tag=$BRANCH_NAME/build-$VERSION" >> $GITHUB_OUTPUT
-        echo "archive_version_part=$BRANCH_NAME-$VERSION" >> $GITHUB_OUTPUT
+        echo "archive_version_part=$SAFE_BRANCH_NAME-$VERSION" >> $GITHUB_OUTPUT
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "timestamp=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
 
@@ -173,10 +176,9 @@ jobs:
             if [ -d "$dir" ]; then
                 os_name=$(basename "$dir" | cut -d'-' -f4)
                 archive_name="LLM-API-Key-Proxy-${os_name}-${{ steps.version.outputs.archive_version_part }}.zip"
-                archive_name="${archive_name//\//-}"
                 (
                     cd "$dir"
-                    zip -r "$GITHUB_WORKSPACE/$archive_name" .
+                    zip -r "../../$archive_name" .
                 )
                 if [ -z "$ASSET_PATHS" ]; then
                     ASSET_PATHS="$archive_name"
@@ -368,9 +370,9 @@ jobs:
         | \`proxy_app\` | Main application executable with built-in TUI launcher for **Linux** and **macOS**. |"
 
         # List archives
-        WINDOWS_ARCHIVE=$(echo "${{ steps.archive.outputs.ASSET_PATHS }}" | tr ' ' '\n' | { grep 'Windows' || true; })
-        LINUX_ARCHIVE=$(echo "${{ steps.archive.outputs.ASSET_PATHS }}" | tr ' ' '\n' | { grep 'Linux' || true; })
-        MACOS_ARCHIVE=$(echo "${{ steps.archive.outputs.ASSET_PATHS }}" | tr ' ' '\n' | { grep 'macOS' || true; })
+        WINDOWS_ARCHIVE=$(echo "${{ steps.archive.outputs.ASSET_PATHS }}" | tr ' ' '\n' | grep 'Windows')
+        LINUX_ARCHIVE=$(echo "${{ steps.archive.outputs.ASSET_PATHS }}" | tr ' ' '\n' | grep 'Linux')
+        MACOS_ARCHIVE=$(echo "${{ steps.archive.outputs.ASSET_PATHS }}" | tr ' ' '\n' | grep 'macOS')
         ARCHIVE_LIST="- **Windows**: \`$WINDOWS_ARCHIVE\`
         - **Linux**: \`$LINUX_ARCHIVE\`
         - **macOS**: \`$MACOS_ARCHIVE\`"
