@@ -14,6 +14,16 @@ from proxy_app.outcomes_api import router as outcomes_router
 
 
 @pytest.fixture(autouse=True)
+def open_outcome_api(monkeypatch):
+    """Drop PROXY_API_KEY: these tests exercise the endpoints, not auth.
+
+    A key picked up from the developer environment makes the bare test app
+    answer 401, so the suite passes in CI and fails on a configured machine.
+    """
+    monkeypatch.delenv("PROXY_API_KEY", raising=False)
+
+
+@pytest.fixture(autouse=True)
 def tmp_db(tmp_path, monkeypatch):
     db = tmp_path / "task_telemetry.db"
     monkeypatch.setattr(task_telemetry, "DB_PATH", str(db))
