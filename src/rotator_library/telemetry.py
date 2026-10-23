@@ -56,6 +56,11 @@ class TelemetryManager:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
+        # One transaction for the whole schema: with autocommit each CREATE
+        # fsyncs on its own, which made every TelemetryManager() ~400ms (and
+        # the test suite creates one per test).
+        cursor.execute("BEGIN")
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS api_calls (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
