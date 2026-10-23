@@ -136,16 +136,6 @@ def load_capabilities(
     except ImportError:
         return result
 
-    if overrides_path:
-        try:
-            with open(overrides_path, "r", encoding="utf-8") as fh:
-                overrides = yaml.safe_load(fh) or {}
-            for key, value in overrides.items():
-                if isinstance(value, list):
-                    result[str(key)] = _caps_from_keywords(value)
-        except (OSError, ValueError, AttributeError):
-            pass
-
     if providers_db_path:
         try:
             with open(providers_db_path, "r", encoding="utf-8") as fh:
@@ -163,6 +153,18 @@ def load_capabilities(
                     mid = f"{pid}/{fm['id']}"
                     caps = _caps_from_keywords(fm.get("capabilities", [])) | prov_caps
                     result[mid] = caps
+        except (OSError, ValueError, AttributeError):
+            pass
+
+    # Apply explicit model overrides last so they replace database metadata,
+    # including provider-level capability defaults.
+    if overrides_path:
+        try:
+            with open(overrides_path, "r", encoding="utf-8") as fh:
+                overrides = yaml.safe_load(fh) or {}
+            for key, value in overrides.items():
+                if isinstance(value, list):
+                    result[str(key)] = _caps_from_keywords(value)
         except (OSError, ValueError, AttributeError):
             pass
 
@@ -250,7 +252,12 @@ class ChainSelector:
 
         # 1. Expand input entries into candidates.
         entries: List[Dict] = []
+        seen_keys = set()
         for idx, entry in enumerate(candidates):
+            key = (entry["provider"], entry["model"])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
             entries.append(
                 {
                     "provider": entry["provider"],
@@ -397,12 +404,13 @@ class ChainSelector:
         return self._meets_floor(cand.provider, cand.model, tier)
 
     def _floor_above(self, cand: ChainCandidate, tier: Tier) -> bool:
-        """Candidate meets the next tier's floor but not the current one."""
+        """Candidate meets the next tier's floor."""
         if tier >= Tier.T4:
             return False
-        return self._meets_floor(cand.provider, cand.model, Tier(tier + 1)) and not self._floor_ok(
-            cand, tier
-        )
+        # Tier floors are monotonic, so meeting the next floor already implies
+        # meeting the current floor. The escalation pool is a stronger subset
+        # of the eligible chain, not a set excluded by the current floor.
+        return self._meets_floor(cand.provider, cand.model, Tier(tier + 1))
 
 
 # ---------------------------------------------------------------------------
