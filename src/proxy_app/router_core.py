@@ -2244,11 +2244,24 @@ class RouterCore:
         else:
             return "basic"
 
+    async def search(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
+        """Run a search through the configured providers (#1123).
+
+        Unlike the chat path this bypasses `_should_perform_search`: the caller
+        asked for a search explicitly, so the per-request opt-in gate does not
+        apply. Providers are still tried in priority order with cooldowns.
+        """
+        results = await self._perform_search(query, force=True)
+        return results[: max(0, max_results)]
+
     async def _perform_search(
-        self, query: str, messages: Optional[List[Dict[str, Any]]] = None
+        self,
+        query: str,
+        messages: Optional[List[Dict[str, Any]]] = None,
+        force: bool = False,
     ) -> List[Dict[str, Any]]:
         """Perform search using available providers with intelligent tier selection."""
-        if not self._should_perform_search(CapabilityRequirements()):
+        if not force and not self._should_perform_search(CapabilityRequirements()):
             return []
 
         # Determine search tier

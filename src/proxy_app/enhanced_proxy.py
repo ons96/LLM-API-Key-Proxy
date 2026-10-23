@@ -356,10 +356,26 @@ async def refresh_router_config(request: Request) -> Dict[str, Any]:
         return {"error": safe_error_detail(e)}
 
 
-# Dynamic search endpoint for testing
+def _router_search_core():
+    """The RouterCore that owns the search providers, or None.
+
+    Imported lazily: `router_wrapper` pulls in RouterCore, and enhanced_proxy is
+    imported before the router exists in the normal startup order.
+    """
+    try:
+        from .router_wrapper import get_router
+
+        return get_router().router_integration.router
+    except (ImportError, RuntimeError, AttributeError):
+        return None
+
+
+# Gateway-side web search (#1123). The chat path already injects results when a
+# chain entry sets `search_enabled`; this exposes the same provider ladder to
+# clients that cannot search for themselves.
 @app.post("/v1/search")
 async def perform_search(request: Request) -> Dict[str, Any]:
-    """Perform web search using configured search providers."""
+    """Search through the configured providers and return cited results."""
     try:
         request_data = await request.json()
         query = request_data.get("query", "")
@@ -368,9 +384,34 @@ async def perform_search(request: Request) -> Dict[str, Any]:
         if not query:
             raise HTTPException(status_code=400, detail="Query is required")
 
-        # Search is not implemented yet (#261). Report that honestly instead of
-        # returning a fabricated success payload that clients would trust.
-        raise HTTPException(status_code=501, detail="Search functionality is not implemented yet")
+        core = _router_search_core()
+        if core is None or not getattr(core, "search_providers", None):
+            # Not a fabricated success: with no provider there is nothing to
+            # return, and #261 exists precisely because that used to look real.
+            raise HTTPException(
+                status_code=503, detail="No search providers are configured"
+            )
+
+        try:
+            results = await core.search(query, max_results=max_results)
+        except Exception as e:
+            logger.error(f"Search failed: {e}")
+            raise HTTPException(
+                status_code=502, detail=safe_error_detail(e, prefix="Search error")
+            )
+
+        citations: List[str] = []
+        for result in results:
+            url = result.get("url")
+            if url and url not in citations:
+                citations.append(url)
+
+        return {
+            "query": query,
+            "results": results,
+            "citations": citations,
+            "degraded": not results,
+        }
 
     except HTTPException:
         raise
