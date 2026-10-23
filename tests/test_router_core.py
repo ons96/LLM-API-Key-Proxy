@@ -16,6 +16,7 @@ from src.proxy_app.router_core import (
     ProviderCandidate,
     ErrorCategory,
 )
+from src.proxy_app import router_core as router_core_module
 
 
 @pytest.fixture
@@ -93,6 +94,24 @@ class TestCapabilityRequirements:
         req = router._extract_requirements(request)
 
         assert req.needs_tools
+
+
+class TestRouterCutoverFlag:
+    def test_cutover_flag_enables_smart_reordering_without_legacy_flag(
+        self, mock_config_file, monkeypatch
+    ):
+        monkeypatch.delenv("ROUTER_ENABLED", raising=False)
+        monkeypatch.setenv("ROUTER_CUTOVER_ENABLED", "1")
+        router = RouterCore(mock_config_file)
+
+        assert router._router_enabled is True
+
+    def test_cutover_flag_defaults_off(self, mock_config_file, monkeypatch):
+        monkeypatch.delenv("ROUTER_ENABLED", raising=False)
+        monkeypatch.delenv("ROUTER_CUTOVER_ENABLED", raising=False)
+        router = RouterCore(mock_config_file)
+
+        assert router._router_enabled is False
 
 
 class TestProviderMetrics:
@@ -363,8 +382,15 @@ class TestModelResolution:
     """Test model resolution logic."""
 
     @pytest.fixture
-    def simple_router(self):
+    def simple_router(self, monkeypatch):
         """Router with simple configuration."""
+        # Model-resolution tests should exercise their local candidate config,
+        # not the repository's live dead-provider policy.
+        monkeypatch.setattr(
+            router_core_module,
+            "_dead_providers_cache",
+            (set(), [], set(), []),
+        )
         router = RouterCore()
         router.virtual_models = {
             "router/test": {
@@ -383,6 +409,7 @@ class TestModelResolution:
             "free_only_mode": True,
             "safety": {"forbidden_providers_under_free_mode": ["openai"]},
         }
+        router._check_conditions = AsyncMock(return_value=True)
         return router
 
     async def test_virtual_model_resolution(self, simple_router):

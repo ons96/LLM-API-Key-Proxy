@@ -290,6 +290,16 @@ Enabled via `auto_order: true` in virtual model config. The router dynamically r
 
 **Rankings Data:** `config/model_rankings.yaml`
 
+### 2a. Gated workload-router observation
+The vendored workload-router is integrated at the existing routing boundary as an
+observe-only layer. `ROUTER_DRY_RUN_LOG` controls redacted `router_decision`
+records, while `ROUTER_CUTOVER_ENABLED` remains explicitly default-off and is
+required before smart-chain ordering can affect live candidate order. Records
+contain bounded provider/model/priority/reason metadata and a session fingerprint;
+they do not contain prompts, tools, credentials, or raw session identifiers.
+The integration spec and reversible rollout criteria are in
+`docs/specs/post-merge-integration.md`.
+
 ### 3. Rate Limit Tracking
 A new `RateLimitTracker` monitors usage (RPM, Daily) and enforces limits defined in `virtual_models.yaml`. It prevents hitting provider 429s by proactively rotating or rejecting requests.
 
