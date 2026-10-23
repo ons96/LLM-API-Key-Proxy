@@ -3,6 +3,8 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Any
 
+from proxy_app.routing.yaml_cache import load_yaml_cached
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,10 +26,9 @@ class ModelRanker:
             return {}
 
         try:
-            with open(path, "r") as f:
-                data = yaml.safe_load(f)
-                # Index by model ID for fast lookup
-                return {m["id"]: m for m in data.get("models", [])}
+            data = load_yaml_cached(str(path), {}) or {}
+            # Index by model ID for fast lookup
+            return {m["id"]: m for m in data.get("models", [])}
         except Exception as e:
             logger.error(f"Failed to load model rankings: {e}")
             return {}

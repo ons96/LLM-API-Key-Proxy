@@ -15,6 +15,8 @@ from typing import Dict, List, Optional, Any, AsyncGenerator, Union, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 import yaml
+
+from proxy_app.routing.yaml_cache import load_yaml_cached
 from pathlib import Path
 import os
 
@@ -847,12 +849,9 @@ class RouterCore:
                 try:
                     import yaml
 
-                    with open(
-                        os.path.join(_base_dir, "chain_pins.yaml"),
-                        "r",
-                        encoding="utf-8",
-                    ) as _pf:
-                        _pins = yaml.safe_load(_pf) or {}
+                    _pins_path = os.path.join(_base_dir, "chain_pins.yaml")
+                    with open(_pins_path, "r", encoding="utf-8"):
+                        _pins = load_yaml_cached(_pins_path, {}) or {}
                 except Exception:
                     _pins = {}
                 for _vid, _pin_list in _pins.items():
@@ -1362,8 +1361,10 @@ class RouterCore:
     def _load_config(self, config_path: str) -> Dict[str, Any]:
         """Load configuration from YAML file."""
         try:
-            with open(config_path, "r") as f:
-                return yaml.safe_load(f)
+            data = load_yaml_cached(config_path, None)
+            if data is not None:
+                return data
+            raise ValueError("empty config")
         except Exception as e:
             logger.warning(f"Failed to load config from {config_path}: {e}")
             # Return default config - minimal cooldowns for instant fallback
@@ -1396,8 +1397,8 @@ class RouterCore:
 
         if vm_path.exists():
             try:
-                with open(vm_path, "r") as f:
-                    data = yaml.safe_load(f)
+                with open(vm_path, "r"):
+                    data = load_yaml_cached(str(vm_path), {}) or {}
                     new_models = data.get("virtual_models", {})
                     # Convert new format to internal format if needed, or just merge
                     # The internal format expects a dictionary of model_id -> config
@@ -1434,8 +1435,8 @@ class RouterCore:
         self.aliases = {}
         if alias_path.exists():
             try:
-                with open(alias_path, "r") as f:
-                    data = yaml.safe_load(f)
+                with open(alias_path, "r"):
+                    data = load_yaml_cached(str(alias_path), {}) or {}
                     self.aliases = data.get("aliases", {})
                 logger.info(f"Loaded {len(self.aliases)} aliases from {alias_path}")
             except Exception as e:

@@ -2,6 +2,8 @@ import yaml
 import logging
 from typing import Dict, List
 
+from proxy_app.routing.yaml_cache import load_yaml_cached
+
 logger = logging.getLogger(__name__)
 
 class ModelRegistry:
@@ -13,8 +15,7 @@ class ModelRegistry:
     def _build_registry(self):
         """Builds a reverse index mapping model names to a list of providers."""
         try:
-            with open(self.config_path, "r", encoding="utf-8") as f:
-                config = yaml.safe_load(f) or {}
+            config = load_yaml_cached(self.config_path, {}) or {}
             
             providers_config = config.get("providers", {})
             if isinstance(providers_config, dict):

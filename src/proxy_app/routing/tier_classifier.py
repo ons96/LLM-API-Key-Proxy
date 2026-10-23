@@ -21,6 +21,7 @@ never T0".
 
 from __future__ import annotations
 
+from .yaml_cache import load_yaml_cached
 import os
 from enum import IntEnum
 from typing import Any, Dict, Optional
@@ -144,14 +145,7 @@ def load_model_scores(rankings_path: Optional[str] = None) -> Dict[str, float]:
     normalized. Missing/unreadable file -> {} (callers treat as no floors).
     """
     path = rankings_path or _DEFAULT_RANKINGS_PATH
-    if not os.path.exists(path):
-        return {}
-    try:
-        import yaml  # runtime-only dep; kept out of the hot classify path
-    except ImportError:
-        return {}
-    with open(path, "r", encoding="utf-8") as fh:
-        data = yaml.safe_load(fh) or {}
+    data = load_yaml_cached(path, {}) or {}
     scores: Dict[str, float] = {}
     for entry in data.get("models", []) or []:
         mid = entry.get("id")

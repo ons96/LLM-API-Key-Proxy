@@ -23,6 +23,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from .yaml_cache import load_yaml_cached
+
 from .latency_predictor import LatencyPredictor, Prediction
 from .request_features import Capabilities, RequestFeatures
 from .tier_classifier import Tier, model_meets_floor
@@ -94,10 +96,7 @@ class SelectResult:
 def load_virtual_chain(virtual_models_path: str, virtual_model_id: str) -> List[Dict]:
     """Return fallback_chain entries for one virtual model (mirror reorder_chains)."""
     try:
-        import yaml
-
-        with open(virtual_models_path, "r", encoding="utf-8") as fh:
-            data = yaml.safe_load(fh) or {}
+        data = load_yaml_cached(virtual_models_path, {}) or {}
         chain = (
             data.get("virtual_models", {}).get(virtual_model_id, {}).get("fallback_chain", [])
         )
@@ -138,8 +137,7 @@ def load_capabilities(
 
     if providers_db_path:
         try:
-            with open(providers_db_path, "r", encoding="utf-8") as fh:
-                data = yaml.safe_load(fh) or {}
+            data = load_yaml_cached(providers_db_path, {}) or {}
             for prov in data.get("providers", []):
                 if not isinstance(prov, dict):
                     continue
@@ -160,8 +158,7 @@ def load_capabilities(
     # including provider-level capability defaults.
     if overrides_path:
         try:
-            with open(overrides_path, "r", encoding="utf-8") as fh:
-                overrides = yaml.safe_load(fh) or {}
+            overrides = load_yaml_cached(overrides_path, {}) or {}
             for key, value in overrides.items():
                 if isinstance(value, list):
                     result[str(key)] = _caps_from_keywords(value)
