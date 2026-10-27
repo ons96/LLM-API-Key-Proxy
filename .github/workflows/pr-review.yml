@@ -60,6 +60,7 @@ jobs:
         (
           github.event_name == 'issue_comment' &&
           github.event.issue.pull_request &&
+          contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
           (contains(github.event.comment.body, '/mirrobot-review') || contains(github.event.comment.body, '/mirrobot_review'))
         )
       )
@@ -81,6 +82,10 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Full history is needed for merge-base and PR diffs. This checks
+          # out the base ref only; PR code is never checked out or executed.
+          fetch-depth: 0
 
       - name: Bot Setup
         id: setup
@@ -500,12 +505,24 @@ jobs:
       - name: Save secure prompt from base branch
         run: cp .github/prompts/pr-review.md /tmp/pr-review.md
 
-      - name: Checkout PR head
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.PR_HEAD_SHA }}
-          token: ${{ steps.setup.outputs.token }}
-          fetch-depth: 0  # Full history needed for diff generation
+      - name: Fetch PR head (never check it out)
+        env:
+          PR_NUMBER: ${{ env.PR_NUMBER }}
+          PR_HEAD_SHA: ${{ env.PR_HEAD_SHA }}
+        run: |
+          # SECURITY: this job runs on pull_request_target and holds the bot
+          # token. Fetch the head commit so `git diff` can see it, but never
+          # check it out into the workspace where `opencode run` executes.
+          if git fetch --no-tags origin "pull/${PR_NUMBER}/head" 2>/dev/null; then
+            echo "Fetched pull/${PR_NUMBER}/head"
+          else
+            echo "::warning::Could not fetch pull/${PR_NUMBER}/head"
+          fi
+          if git cat-file -e "${PR_HEAD_SHA}^{commit}" 2>/dev/null; then
+            echo "PR head commit present: ${PR_HEAD_SHA}"
+          else
+            echo "::warning::PR head ${PR_HEAD_SHA} is not present; diffs will fall back to the changed-files list."
+          fi
 
       - name: Generate PR Diff for First Review
         if: steps.review_type.outputs.is_first_review == 'true'

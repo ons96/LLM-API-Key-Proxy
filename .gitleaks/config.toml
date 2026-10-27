@@ -24,4 +24,6 @@ paths = [
   '''ai_output_raw\.txt''',
   '''docs/iflow_auth_flow_extracted\.md''',
   '''src/tests/conftest\.py''',
+  # Test asserts that a fake sk-... key is redacted from an upstream error.
+  '''tests/test_search_endpoint_261\.py''',
 ]
