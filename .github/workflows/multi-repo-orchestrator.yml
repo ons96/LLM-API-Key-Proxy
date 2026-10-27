@@ -22,8 +22,14 @@ concurrency:
   group: multi-repo-orchestrator
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   discover-repos:
+    permissions:
+      contents: read
+
     runs-on: ubuntu-latest
     outputs:
       repos: ${{ steps.find.outputs.repos }}
@@ -50,6 +56,10 @@ jobs:
         GH_TOKEN: ${{ github.token }}
 
   process-repos:
+    permissions:
+      contents: write
+      issues: read
+
     needs: discover-repos
     strategy:
       max-parallel: 20

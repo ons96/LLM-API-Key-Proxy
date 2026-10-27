@@ -49,8 +49,14 @@ on:
 
 
 
+permissions:
+  contents: read
+
 jobs:
   discover:
+    permissions:
+      issues: read
+
     runs-on: ubuntu-latest
     outputs:
       issues: ${{ steps.find.outputs.issues }}
