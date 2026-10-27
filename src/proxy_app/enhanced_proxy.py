@@ -77,8 +77,10 @@ def preserve_original_endpoints() -> None:
     pass
 
 
-# Enhanced model list endpoint
-@app.get("/v1/models")
+# Enhanced model list helper (#329).
+# NOTE: /v1/models is owned by proxy_app.main; registering it here would add a
+# duplicate route to the shared app object where main.py's handler (registered
+# first) always wins. Keep the helper callable, but do not register the route.
 async def enhanced_models_list(request: Request) -> ModelList:
     """Enhanced models endpoint that includes virtual router models."""
     try:
@@ -127,8 +129,9 @@ async def enhanced_models_list(request: Request) -> ModelList:
         )
 
 
-# Enhanced health endpoint showing router status
-@app.get("/health")
+# Enhanced health endpoint showing router status.
+# NOTE: /health is owned by proxy_app.main (#329); only the unique /v1/health
+# alias is registered here.
 @app.get("/v1/health")
 async def enhanced_health_check(request: Request) -> Dict[str, Any]:
     """Enhanced health check showing router and provider status."""
@@ -150,10 +153,12 @@ async def enhanced_health_check(request: Request) -> Dict[str, Any]:
         return {"status": "degraded", "error": safe_error_detail(e)}
 
 
-# Enhanced chat completions endpoint
-# response_model=None: the handler returns either a dict or an async SSE
-# generator, which FastAPI refuses to build a response model from.
-@app.post("/v1/chat/completions", response_model=None)
+# Enhanced chat completions helper (#329).
+# NOTE: /v1/chat/completions is owned by proxy_app.main — its handler delegates
+# to the router and is the one the running server serves. Registering the route
+# here also added a second handler to the shared app object, but FastAPI matches
+# main.py's copy (registered first), so this route was dead at the HTTP layer.
+# The handler remains for direct use (tests call it) but must not be routed.
 async def enhanced_chat_completions(
     request: Request, auth: str = Depends(verify_api_key)
 ) -> Union[Dict[str, Any], AsyncGenerator[str, None]]:
@@ -433,9 +438,10 @@ def enhance_proxy() -> None:
     logger.info("  - router/best-coding-moe")
     logger.info(f"FREE_ONLY_MODE: {os.getenv('FREE_ONLY_MODE', 'true')}")
 
-    # Note: The actual endpoints are defined above with enhanced_* prefixes
-    # The existing main.py endpoints will co-exist with these enhanced versions
-    # The enhanced versions handle virtual models and fall back appropriately
+    # NOTE (#329): /v1/chat/completions, /v1/models, and /health are owned by
+    # proxy_app.main; this module only registers unique routes (/v1/health,
+    # /v1/router/*, /v1/search). The enhanced_* handlers remain callable for
+    # direct use, but are not separately routed on the shared app.
 
 
 if __name__ == "__main__":
