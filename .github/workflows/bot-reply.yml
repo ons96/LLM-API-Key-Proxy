@@ -4,8 +4,16 @@ on:
   issue_comment:
     types: [created]
 
+permissions:
+  contents: read
+
 jobs:
   preflight:
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+
     runs-on: ubuntu-latest
     # Same credential gate as pr-review.yml: without a GitHub App there is no
     # token, so report and skip rather than failing on every bot mention.

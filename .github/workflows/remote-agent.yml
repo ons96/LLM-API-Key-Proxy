@@ -12,6 +12,9 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   agent-task:
     runs-on: ubuntu-latest

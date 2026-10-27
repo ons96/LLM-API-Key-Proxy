@@ -4,6 +4,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.prNumber }}
   cancel-in-progress: false
 
+# SECURITY: pull_request_target grants this workflow repo secrets.
+# Never add `ref:` to actions/checkout here, and never run npm/pip/scripts
+# from the PR branch. If PR code must run, use pull_request + workflow_run.
 on:
   pull_request_target:
     types: [opened, synchronize, ready_for_review]
@@ -16,8 +19,16 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   preflight:
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+
     runs-on: ubuntu-latest
     # Secrets cannot be used in a job-level `if:`, so surface them as env and
     # publish the answer as an output. Without a GitHub App the reviewer has no

@@ -5,8 +5,14 @@ on:
     - cron: '0 2 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   discover-and-optimize:
+    permissions:
+      contents: write
+
     runs-on: ubuntu-latest
     timeout-minutes: 30
 

@@ -19,6 +19,9 @@ on:
       - '.github/workflows/build.yml'
       - 'cliff.toml'
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -30,7 +33,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up uv
-      uses: astral-sh/setup-uv@v4
+      uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
       with:
         enable-cache: true
         cache-dependency-glob: "requirements.txt"
