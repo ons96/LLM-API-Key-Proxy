@@ -214,7 +214,7 @@ f8eec52 fix(config): update remaining gemini-1.5 references to 2.5-flash
 ✅ API keys masked in logs
 ✅ All changes deployed
 
-Gateway: http://40.233.101.233:8000
+Gateway: http://<VPS40_IP>:8000
 API Key: CHANGE_ME_TO_A_STRONG_SECRET_KEY (masked in logs)
 
 Working Providers:

@@ -39,7 +39,7 @@ curl -X POST https://house-compressed-hist-extensions.trycloudflare.com/v1/chat/
 ## 📋 URLs Summary
 
 ### HTTP (works for most tools):
-- **URL:** `http://40.233.101.233:8000/v1`
+- **URL:** `http://<VPS40_IP>:8000/v1`
 - **Works with:** OpenCode, Python scripts, curl, most CLI tools
 - **Direct connection:** No tunnel, fastest speed
 
@@ -72,28 +72,28 @@ API Key: (leave empty)
 
 ### Check Tunnel Status:
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "ps aux | grep cloudflared"
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "ps aux | grep cloudflared"
 ```
 
 ### View Tunnel Logs:
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "cat ~/cloudflare-tunnel.log"
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "cat ~/cloudflare-tunnel.log"
 ```
 
 ### Get Current HTTPS URL:
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233\
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP>\
   "grep -o 'https://[^[:space:]]*trycloudflare.com' ~/cloudflare-tunnel.log | tail -1"
 ```
 
 ### Restart Tunnel (URL will change):
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233\
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP>\
   "pkill cloudflared && nohup cloudflared tunnel --url http://localhost:8000 > ~/cloudflare-tunnel.log 2>&1 &"
   
 # Wait 10 seconds, then get new URL
 sleep 10
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233\
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP>\
   "grep -o 'https://[^[:space:]]*trycloudflare.com' ~/cloudflare-tunnel.log | tail -1"
 ```
 
@@ -116,7 +116,7 @@ This is a **Quick Tunnel** URL that changes every time the tunnel restarts. This
 To make the tunnel start automatically on boot:
 
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP>
 
 # Create systemd service
 sudo tee /etc/systemd/system/cloudflare-tunnel.service > /dev/null << 'EOF'
@@ -179,7 +179,7 @@ No changes needed - it's already set up the way you requested!
 
 | URL | Protocol | Use For | Speed | Browser Required |
 |-----|----------|---------|-------|------------------|
-| `http://40.233.101.233:8000/v1` | HTTP | OpenCode, Python scripts, CLI tools | ⚡ Fastest (direct) | ❌ No |
+| `http://<VPS40_IP>:8000/v1` | HTTP | OpenCode, Python scripts, CLI tools | ⚡ Fastest (direct) | ❌ No |
 | `https://house-compressed-hist-extensions.trycloudflare.com/v1` | HTTPS | Kobold Lite, SillyTavern, browser tools | ✅ Fast (via Cloudflare) | ✅ Yes |
 
 **Both URLs work simultaneously!** Use whichever is appropriate for your tool.
@@ -188,7 +188,7 @@ No changes needed - it's already set up the way you requested!
 
 ## 🎯 Next Steps
 
-1. ✅ **HTTP Gateway** - Running at `http://40.233.101.233:8000/v1`
+1. ✅ **HTTP Gateway** - Running at `http://<VPS40_IP>:8000/v1`
 2. ✅ **HTTPS Tunnel** - Running at `https://house-compressed-hist-extensions.trycloudflare.com/v1`
 3. ✅ **Web Search Priority** - Tavily → Brave → DuckDuckGo (already configured)
 4. ✅ **OpenCode** - Configured with HTTP URL
@@ -202,7 +202,7 @@ No changes needed - it's already set up the way you requested!
 
 ### For OpenCode:
 ```
-baseURL: http://40.233.101.233:8000/v1
+baseURL: http://<VPS40_IP>:8000/v1
 model: coding-elite
 ```
 

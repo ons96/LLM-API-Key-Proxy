@@ -1,7 +1,7 @@
 # AI Workload Router
 
 This repository records the resource-light router work for the Oracle VPS at
-`40.233.101.233`. The current release is running as a side-by-side,
+`<VPS40_IP>`. The current release is running as a side-by-side,
 loopback-only canary; it has not replaced the existing gateway.
 
 ## Status: parallel and gated, not production-wired

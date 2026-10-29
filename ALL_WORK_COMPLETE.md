@@ -3,7 +3,7 @@
 **Date:** 2026-02-07  
 **Status:** ALL TASKS COMPLETED  
 **GitHub:** https://github.com/ons96/LLM-API-Key-Proxy  
-**VPS:** http://40.233.101.233:8000
+**VPS:** http://<VPS40_IP>:8000
 
 ---
 
@@ -100,7 +100,7 @@ f39a453 docs: add autonomous work completion summary
 ✅ API keys: Masked in logs
 ✅ All features deployed
 
-Gateway: http://40.233.101.233:8000
+Gateway: http://<VPS40_IP>:8000
 API Key: CHANGE_ME_TO_A_STRONG_SECRET_KEY
 
 Working Providers:

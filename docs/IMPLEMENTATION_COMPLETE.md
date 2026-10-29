@@ -119,7 +119,7 @@ git push
 
 ```bash
 # SSH into VPS
-ssh ubuntu@40.233.101.233
+ssh ubuntu@<VPS40_IP>
 
 # Pull changes
 cd ~/LLM-API-Key-Proxy

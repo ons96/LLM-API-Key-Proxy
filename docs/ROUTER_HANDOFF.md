@@ -4,7 +4,7 @@ Last updated: 2026-10-07
 
 ## Active repository
 
-- Host: Oracle VPS 40.233.101.233
+- Host: Oracle VPS <VPS40_IP>
 - Repository: `/home/ubuntu/LLM-API-Key-Proxy`
 - Branch: `main`
 - Remote: `origin/main`
@@ -96,7 +96,7 @@ Next telemetry work:
 ## Resume commands
 
 ```sh
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP>
 cd /home/ubuntu/LLM-API-Key-Proxy
 git status --short --branch
 git log --oneline -10

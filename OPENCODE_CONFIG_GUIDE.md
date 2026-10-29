@@ -9,7 +9,7 @@ Your OpenCode is now configured to use your **VPS LLM Gateway** with all 5 virtu
 **Location:** `~/.config/opencode/opencode.json`
 
 **Settings:**
-- **Base URL:** `http://40.233.101.233:8000/v1`
+- **Base URL:** `http://<VPS40_IP>:8000/v1`
 - **API Key:** `CHANGE_ME_TO_A_STRONG_SECRET_KEY`
 
 ### Available Models:
@@ -65,7 +65,7 @@ Run this test to verify everything works:
 
 ```bash
 # Test models endpoint
-curl -s http://40.233.101.233:8000/v1/models \
+curl -s http://<VPS40_IP>:8000/v1/models \
   -H "Authorization: Bearer CHANGE_ME_TO_A_STRONG_SECRET_KEY" \
   | jq '.data | length'
 

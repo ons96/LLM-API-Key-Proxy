@@ -2,16 +2,16 @@
 
 ## What's Been Done:
 
-✅ **Found your VPS IP**: 40.233.101.233 (from SSH history)
+✅ **Found your VPS IP**: <VPS40_IP> (from SSH history)
 ✅ **Created test scripts**:
    - test_vps_gateway.sh (comprehensive testing)
    - check_vps_status.sh (VPS status check)
    - run_tests.bat (Windows launcher)
-✅ **Updated VPS_HOST**: Changed from 10.1.0.1 → 40.233.101.233
+✅ **Updated VPS_HOST**: Changed from 10.1.0.1 → <VPS40_IP>
 
 ## Current Status:
 
-**Test Results**: Gateway at 40.233.101.233:9099 is OFFLINE
+**Test Results**: Gateway at <VPS40_IP>:9099 is OFFLINE
 **Possible Reasons**:
 1. Gateway isn't running on VPS (most likely)
 2. Different port number
@@ -38,7 +38,7 @@ This will:
 
 If gateway isn't running, SSH in and start it:
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP>
 
 # Once on VPS:
 cd ~/path/to/LLM-API-Key-Proxy
@@ -67,16 +67,16 @@ Once gateway is confirmed online, all these tests will PASS:
 
 ## VPS Connection Details:
 
-- **VPS IP**: 40.233.101.233
+- **VPS IP**: <VPS40_IP>
 - **Username**: ubuntu
 - **SSH Key**: ~/.ssh/oracle.key
 - **Gateway Port**: 9099
-- **Gateway URL**: http://40.233.101.233:9099
+- **Gateway URL**: http://<VPS40_IP>:9099
 
 ## OpenCode Configuration (After Gateway is Ready):
 
 ```yaml
-base_url: http://40.233.101.233:9099/v1
+base_url: http://<VPS40_IP>:9099/v1
 model: coding-elite
 api_key: test
 ```

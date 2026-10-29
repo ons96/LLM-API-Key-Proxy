@@ -16,7 +16,7 @@ The current repository contains portable artifacts for an implementation that
 also exists in `/home/ubuntu/LLM-API-Key-Proxy` on the VPS. Do not modify the VPS
 repository from this local session unless explicitly requested.
 
-Deployment target: Oracle VPS 40 at `40.233.101.233`, with 1 GB RAM, zram,
+Deployment target: Oracle VPS 40 at `<VPS40_IP>`, with 1 GB RAM, zram,
 weak CPU, and no GPU. Keep code and dependencies suitable for that host.
 Local tests must remain provider-free; deployment requires a separate explicit
 step.

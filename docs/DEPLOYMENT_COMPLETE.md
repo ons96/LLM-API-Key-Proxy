@@ -9,7 +9,7 @@
 - **URL**: https://github.com/ons96/LLM-API-Key-Proxy/tree/feat/virtual-model-fallback-reorder
 
 ### 2. ✅ VPS Deployment
-- **Server**: 40.233.101.233
+- **Server**: <VPS40_IP>
 - **Branch**: feat/virtual-model-fallback-reorder pulled
 - **Gateway**: Running and operational
 - **Telemetry DB**: Active (73KB)
@@ -97,13 +97,13 @@ For VPS telemetry fetching:
 1. Go to: https://github.com/ons96/LLM-API-Key-Proxy/settings/secrets/actions
 2. Add: `VPS_TELEMETRY_URL` (if hosting telemetry JSON externally)
 3. Add: `VPS_SSH_KEY` (for direct SSH access)
-4. Add: `VPS_HOST` (40.233.101.233)
+4. Add: `VPS_HOST` (<VPS40_IP>)
 
 ### 3. Test the System
 
 **Manual discovery run:**
 ```bash
-ssh ubuntu@40.233.101.233
+ssh ubuntu@<VPS40_IP>
 cd ~/LLM-API-Key-Proxy
 python3 scripts/run_discovery_pipeline.py --telemetry /tmp/llm_proxy_telemetry.db --output-dir config/
 cat config/discovery_report.json

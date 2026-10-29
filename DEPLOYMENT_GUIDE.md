@@ -31,9 +31,9 @@
 - ✅ **Access from anywhere** - Use from laptop, phone, or other devices
 
 **Your Setup:**
-- **VPS:** `ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233`
+- **VPS:** `ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP>`
 - **Gateway runs on VPS** → Listen on `0.0.0.0:8000`
-- **Laptop connects via** → `http://40.233.101.233:8000/v1`
+- **Laptop connects via** → `http://<VPS40_IP>:8000/v1`
 - **OpenCode, chatbots, Kobold, etc.** → All point to VPS
 
 ---
@@ -51,14 +51,14 @@
 │          │                │                  │             │
 │          └────────────────┴──────────────────┘             │
 │                           │                                │
-│          All connect to: http://40.233.101.233:8000/v1     │
+│          All connect to: http://<VPS40_IP>:8000/v1     │
 │                           │                                │
 └───────────────────────────┼────────────────────────────────┘
                             │
                             │ Internet
                             │
 ┌───────────────────────────▼────────────────────────────────┐
-│              Oracle Free VPS (40.233.101.233)              │
+│              Oracle Free VPS (<VPS40_IP>)              │
 ├────────────────────────────────────────────────────────────┤
 │                                                            │
 │  ┌──────────────────────────────────────────────────────┐ │
@@ -88,7 +88,7 @@
 ### Step 1: SSH into Your VPS
 
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP>
 ```
 
 ### Step 2: Navigate to Project Directory
@@ -201,7 +201,7 @@ sudo ufw status
 From WSL or Windows terminal:
 
 ```bash
-curl http://40.233.101.233:8000/v1/models
+curl http://<VPS40_IP>:8000/v1/models
 ```
 
 ---
@@ -457,7 +457,7 @@ Your `config/router_config.yaml` already has web search enabled:
     "openai": {
       "name": "My VPS LLM Gateway",
       "options": {
-        "baseURL": "http://40.233.101.233:8000/v1",
+        "baseURL": "http://<VPS40_IP>:8000/v1",
         "apiKey": "any-value"
       }
     }
@@ -476,7 +476,7 @@ Your `config/router_config.yaml` already has web search enabled:
 
 ```
 API Type: OpenAI
-API URL: http://40.233.101.233:8000/v1
+API URL: http://<VPS40_IP>:8000/v1
 Model: chat-smart (or chat-fast, coding-elite, etc.)
 API Key: any-value (or leave empty if auth disabled)
 ```
@@ -487,7 +487,7 @@ API Key: any-value (or leave empty if auth disabled)
 import openai
 
 client = openai.OpenAI(
-    base_url="http://40.233.101.233:8000/v1",
+    base_url="http://<VPS40_IP>:8000/v1",
     api_key="any-value"
 )
 
@@ -600,12 +600,12 @@ nohup python src/proxy_app/main.py --host 0.0.0.0 --port 8000 > ~/llm_proxy.log 
 ```
 ┌──────────────────────────────────────────────────┐
 │  1. Gateway runs on Oracle VPS (free forever)    │
-│     ssh ubuntu@40.233.101.233                    │
+│     ssh ubuntu@<VPS40_IP>                    │
 │     cd ~/LLM-API-Key-Proxy                       │
 │     systemctl start llm-gateway                  │
 │                                                  │
 │  2. Laptop connects to VPS gateway              │
-│     http://40.233.101.233:8000/v1               │
+│     http://<VPS40_IP>:8000/v1               │
 │                                                  │
 │  3. All tools point to VPS:                     │
 │     - OpenCode                                   │
@@ -629,5 +629,5 @@ nohup python src/proxy_app/main.py --host 0.0.0.0 --port 8000 > ~/llm_proxy.log 
 2. ✅ Pull latest code (`git pull`)
 3. ✅ Update `config/router_config.yaml` with new models
 4. ✅ Start gateway with systemd or nohup
-5. ✅ Point OpenCode to `http://40.233.101.233:8000/v1`
+5. ✅ Point OpenCode to `http://<VPS40_IP>:8000/v1`
 6. ✅ Start coding with free, auto-fallback LLMs!

@@ -95,7 +95,7 @@ The bot needs these permissions:
 
 ### LLM Proxy
 
-The workflows use the LLM proxy at `http://40.233.101.233:8000/v1` which provides:
+The workflows use the LLM proxy at `http://<VPS40_IP>:8000/v1` which provides:
 - **Groq**: llama-3.3-70b, llama-3.1-8b-instant
 - **Gemini**: gemini-2.5-pro, gemini-2.5-flash
 - **G4F**: Various free models

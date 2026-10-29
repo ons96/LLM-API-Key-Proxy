@@ -13,7 +13,7 @@ production traffic until its gate passes.
 - Non-destructive: `config/virtual_models.yaml`, the existing fallback chains,
   and client-visible behavior do not change unless a stage explicitly says so
   and its gate has passed.
-- 1 GB RAM budget on `40.233.101.233`; the shadow path must stay within it.
+- 1 GB RAM budget on `<VPS40_IP>`; the shadow path must stay within it.
 - Back up any gateway file before editing it on the VPS.
 - The legacy gateway on port 8000 remains the fallback for as long as any
   stage is active.

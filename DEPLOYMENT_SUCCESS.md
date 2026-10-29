@@ -18,7 +18,7 @@ Commits pushed to main branch:
 
 ### 2. **VPS Deployment Complete** ✅
 
-**Server:** `ubuntu@40.233.101.233`
+**Server:** `ubuntu@<VPS40_IP>`
 
 **Actions completed:**
 ```bash
@@ -45,13 +45,13 @@ Commits pushed to main branch:
 
 **Model List Test:**
 ```bash
-curl http://40.233.101.233:8000/v1/models
+curl http://<VPS40_IP>:8000/v1/models
 ✅ Returns 100+ models including new Groq and Cerebras models
 ```
 
 **Chat Completion Test:**
 ```bash
-curl -X POST http://40.233.101.233:8000/v1/chat/completions \
+curl -X POST http://<VPS40_IP>:8000/v1/chat/completions \
   -d '{"model": "groq/llama-3.3-70b-versatile", "messages": [...]}'
 
 Response: {
@@ -65,7 +65,7 @@ Response: {
 
 **Virtual Model Test:**
 ```bash
-curl -X POST http://40.233.101.233:8000/v1/chat/completions \
+curl -X POST http://<VPS40_IP>:8000/v1/chat/completions \
   -d '{"model": "coding-elite", "messages": [...]}'
 
 Response: {"content": "OK"}
@@ -84,7 +84,7 @@ Response: {"content": "OK"}
     "openai": {
       "name": "My VPS LLM Gateway",
       "options": {
-        "baseURL": "http://40.233.101.233:8000/v1",
+        "baseURL": "http://<VPS40_IP>:8000/v1",
         "apiKey": "not-needed-auth-disabled"  ← Updated!
       }
     }
@@ -100,7 +100,7 @@ Response: {"content": "OK"}
 
 ### **Free LLM Gateway Running 24/7**
 
-**Access URL:** `http://40.233.101.233:8000/v1`
+**Access URL:** `http://<VPS40_IP>:8000/v1`
 
 **Available Models:** 100+ free models including:
 
@@ -139,22 +139,22 @@ Response: {"content": "OK"}
 
 ### **Check Status:**
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "sudo systemctl status llm-gateway"
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "sudo systemctl status llm-gateway"
 ```
 
 ### **View Logs:**
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "tail -f ~/llm_proxy.log"
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "tail -f ~/llm_proxy.log"
 ```
 
 ### **Restart Gateway:**
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "sudo systemctl restart llm-gateway"
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "sudo systemctl restart llm-gateway"
 ```
 
 ### **Stop Gateway:**
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "sudo systemctl stop llm-gateway"
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "sudo systemctl stop llm-gateway"
 ```
 
 ### **Update Code:**
@@ -166,7 +166,7 @@ git commit -m "Update config"
 git push origin main
 
 # On VPS:
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 \
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> \
   "cd ~/LLM-API-Key-Proxy && git pull && sudo systemctl restart llm-gateway"
 ```
 
@@ -187,7 +187,7 @@ Just start coding! OpenCode is already pointing to your VPS gateway with model `
 
 ```
 API Type: OpenAI
-API URL: http://40.233.101.233:8000/v1
+API URL: http://<VPS40_IP>:8000/v1
 Model: chat-smart
 API Key: (leave empty)
 ```
@@ -197,7 +197,7 @@ API Key: (leave empty)
 ```
 API: OpenAI (Chat Completion)
 Chat Completion Source: OpenAI
-OpenAI Reverse Proxy: http://40.233.101.233:8000/v1
+OpenAI Reverse Proxy: http://<VPS40_IP>:8000/v1
 Model: chat-smart
 API Key: (leave empty or any value)
 ```
@@ -208,7 +208,7 @@ API Key: (leave empty or any value)
 import openai
 
 client = openai.OpenAI(
-    base_url="http://40.233.101.233:8000/v1",
+    base_url="http://<VPS40_IP>:8000/v1",
     api_key="not-needed"
 )
 
@@ -222,7 +222,7 @@ print(response.choices[0].message.content)
 ### **curl Commands**
 
 ```bash
-curl -X POST http://40.233.101.233:8000/v1/chat/completions \
+curl -X POST http://<VPS40_IP>:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "cerebras/qwen-3-235b-a22b-instruct-2507",
@@ -268,7 +268,7 @@ curl -X POST http://40.233.101.233:8000/v1/chat/completions \
 ✅ Any OpenAI-compatible client  
 
 ### **Access From:**
-✅ Your laptop (via 40.233.101.233:8000)  
+✅ Your laptop (via <VPS40_IP>:8000)  
 ✅ Your phone (same URL)  
 ✅ Any device on the internet  
 ✅ Even when your laptop is off!  

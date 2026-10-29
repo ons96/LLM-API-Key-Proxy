@@ -1,7 +1,7 @@
 # CORS Wildcard Warning - Explanation
 
 ## What is CORS?
-**CORS (Cross-Origin Resource Sharing)** is a browser security feature. When a web app (like Kobold Lite at https://lite.koboldai.net) tries to call your API (http://40.233.101.233:8000), the browser checks if your API allows requests from that website.
+**CORS (Cross-Origin Resource Sharing)** is a browser security feature. When a web app (like Kobold Lite at https://lite.koboldai.net) tries to call your API (http://<VPS40_IP>:8000), the browser checks if your API allows requests from that website.
 
 ## What is the Wildcard Issue?
 In your `.env` file, if someone sets:

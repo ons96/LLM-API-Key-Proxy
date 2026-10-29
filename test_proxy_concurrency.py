@@ -3,7 +3,7 @@ import aiohttp
 import time
 import json
 
-PROXY_URL = "http://40.233.101.233:8000/v1/chat/completions"
+PROXY_URL = "http://<VPS40_IP>:8000/v1/chat/completions"
 PROXY_KEY = "poop"
 
 MODELS_TO_TEST = [

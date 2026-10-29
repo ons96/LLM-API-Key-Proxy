@@ -4,7 +4,7 @@
 # Quick VPS Connection Script - Check Gateway Status
 # ============================================================================
 
-VPS_HOST="40.233.101.233"
+VPS_HOST="<VPS40_IP>"
 VPS_USER="ubuntu"
 SSH_KEY="~/.ssh/oracle.key"
 GATEWAY_PORT="9099"

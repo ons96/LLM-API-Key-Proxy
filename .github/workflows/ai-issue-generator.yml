@@ -62,7 +62,7 @@ jobs:
               "openai": {
                 "name": "LLM Gateway",
                 "options": {
-                  "baseURL": "${{ secrets.PROXY_URL || 'http://40.233.101.233:8000/v1' }}",
+                  "baseURL": "${{ secrets.PROXY_URL || 'http://<VPS40_IP>:8000/v1' }}",
                   "apiKey": "${{ secrets.PROXY_API_KEY }}"
                 }
               }
@@ -161,7 +161,7 @@ jobs:
               "openai": {
                 "name": "LLM Gateway",
                 "options": {
-                  "baseURL": "${{ secrets.PROXY_URL || 'http://40.233.101.233:8000/v1' }}",
+                  "baseURL": "${{ secrets.PROXY_URL || 'http://<VPS40_IP>:8000/v1' }}",
                   "apiKey": "${{ secrets.PROXY_API_KEY }}"
                 }
               }

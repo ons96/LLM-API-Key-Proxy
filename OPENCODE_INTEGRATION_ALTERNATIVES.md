@@ -18,7 +18,7 @@ Some versions of OpenCode support overriding the OpenAI endpoint via environment
 
 ```bash
 # Set environment variables before running opencode
-export OPENAI_BASE_URL="http://40.233.101.233:8000/v1"
+export OPENAI_BASE_URL="http://<VPS40_IP>:8000/v1"
 export OPENAI_API_KEY="CHANGE_ME_TO_A_STRONG_SECRET_KEY"
 
 # Then run opencode
@@ -54,7 +54,7 @@ const server = new Server({
 server.setRequestHandler('tools/call', async (request) => {
   if (request.params.name === 'chat_completion') {
     const response = await axios.post(
-      'http://40.233.101.233:8000/v1/chat/completions',
+      'http://<VPS40_IP>:8000/v1/chat/completions',
       request.params.arguments,
       {
         headers: {
@@ -109,12 +109,12 @@ model_list:
   - model_name: coding-elite
     litellm_params:
       model: openai/coding-elite
-      api_base: http://40.233.101.233:8000/v1
+      api_base: http://<VPS40_IP>:8000/v1
       api_key: CHANGE_ME_TO_A_STRONG_SECRET_KEY
   - model_name: coding-fast
     litellm_params:
       model: openai/coding-fast
-      api_base: http://40.233.101.233:8000/v1
+      api_base: http://<VPS40_IP>:8000/v1
       api_key: CHANGE_ME_TO_A_STRONG_SECRET_KEY
 ```
 
@@ -142,7 +142,7 @@ Create a wrapper script that calls your VPS gateway:
 # Wrapper that uses VPS gateway for all OpenAI calls
 
 # Set your VPS as the OpenAI endpoint
-export OPENAI_BASE_URL="http://40.233.101.233:8000/v1"
+export OPENAI_BASE_URL="http://<VPS40_IP>:8000/v1"
 export OPENAI_API_KEY="CHANGE_ME_TO_A_STRONG_SECRET_KEY"
 
 # Run opencode with these settings
@@ -164,7 +164,7 @@ Use curl or a script to call your VPS gateway directly:
 
 ```bash
 # Test coding-elite
-curl -s http://40.233.101.233:8000/v1/chat/completions \
+curl -s http://<VPS40_IP>:8000/v1/chat/completions \
   -X POST \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer CHANGE_ME_TO_A_STRONG_SECRET_KEY" \
@@ -200,7 +200,7 @@ Always verify your gateway works first:
 
 ```bash
 # Test from WSL
-curl -s http://40.233.101.233:8000/v1/models \
+curl -s http://<VPS40_IP>:8000/v1/models \
   -H "Authorization: Bearer CHANGE_ME_TO_A_STRONG_SECRET_KEY" \
   | jq '.data | length'
 

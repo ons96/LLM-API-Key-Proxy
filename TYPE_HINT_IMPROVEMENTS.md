@@ -110,7 +110,7 @@ All modified files verified with `python3 -m py_compile`:
 - ✅ New commit: ce40427
 
 **VPS Sync:**
-The VPS at http://40.233.101.233:8000 will automatically pull and restart:
+The VPS at http://<VPS40_IP>:8000 will automatically pull and restart:
 ```bash
 cd ~/LLM-API-Key-Proxy
 git pull origin main

@@ -2,7 +2,7 @@
 
 ## Intended runtime
 
-The router is intended to run on Oracle VPS 40 at `40.233.101.233`, with the
+The router is intended to run on Oracle VPS 40 at `<VPS40_IP>`, with the
 existing 1 GB RAM, zram, weak CPU, and no GPU constraints. This local repository
 is the development and test workspace. It does not deploy changes to the VPS
 repository automatically.

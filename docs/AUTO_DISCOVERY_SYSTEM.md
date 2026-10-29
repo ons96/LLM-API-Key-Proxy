@@ -77,7 +77,7 @@ Lightweight daemon that:
 **Install on VPS:**
 ```bash
 # Copy script to VPS
-scp scripts/vps_sync_daemon.sh ubuntu@40.233.101.233:~/
+scp scripts/vps_sync_daemon.sh ubuntu@<VPS40_IP>:~/
 
 # Add to crontab
 crontab -e
@@ -202,7 +202,7 @@ ls -la config/optimization_report.json
 
 ```bash
 # SSH into VPS
-ssh ubuntu@40.233.101.233
+ssh ubuntu@<VPS40_IP>
 
 # Run telemetry export
 cd ~/LLM-API-Key-Proxy

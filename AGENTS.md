@@ -149,11 +149,11 @@ python3 src/rotator_library/distributed_gate.py  # -> 'distributed_gate self-tes
 
 ```bash
 # Test gateway running
-curl http://40.233.101.233:8000/v1/models \
+curl http://<VPS40_IP>:8000/v1/models \
   -H "Authorization: Bearer $VPS_GATEWAY_API_KEY"
 
 # Test virtual model
-curl -X POST http://40.233.101.233:8000/v1/chat/completions \
+curl -X POST http://<VPS40_IP>:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $VPS_GATEWAY_API_KEY" \
   -d '{"model": "coding-elite", "messages": [{"role": "user", "content": "Hello"}], "max_tokens": 10}'
@@ -166,7 +166,7 @@ curl -X POST http://40.233.101.233:8000/v1/chat/completions \
 
 ```bash
 # On VPS-40
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP>
 cd ~/LLM-API-Key-Proxy
 git pull
 

@@ -9,7 +9,7 @@
 #   3. Run this script in WSL: ./test_vps_gateway.sh
 
 # Configuration
-VPS_HOST="40.233.101.233"  # VPS IP (found from SSH history)
+VPS_HOST="<VPS40_IP>"  # VPS IP (found from SSH history)
 VPS_USER="owens"       # Update if different
 GATEWAY_PORT="8000"
 API_KEY="test"

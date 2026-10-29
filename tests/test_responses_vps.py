@@ -4,7 +4,7 @@ import json
 
 
 async def test_responses_api():
-    url = "http://40.233.101.233:8000/v1/responses"
+    url = "http://<VPS40_IP>:8000/v1/responses"
     payload = {
         "model": "coding-elite",
         "input": [

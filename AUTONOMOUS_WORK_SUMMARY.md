@@ -3,7 +3,7 @@
 **Date:** 2026-02-07  
 **Status:** ✅ ALL POSSIBLE WORK COMPLETED  
 **GitHub:** https://github.com/ons96/LLM-API-Key-Proxy  
-**VPS:** http://40.233.101.233:8000
+**VPS:** http://<VPS40_IP>:8000
 
 ---
 
@@ -183,7 +183,7 @@ f8eec52 fix(config): update remaining gemini-1.5 references to 2.5-flash
 ## 🖥️ VPS STATUS
 
 ```
-Location: http://40.233.101.233:8000
+Location: http://<VPS40_IP>:8000
 Status: Synced with GitHub (04b2f51)
 CORS: Configured for Kobold Lite
 API Key: Masked in logs
@@ -234,7 +234,7 @@ Issues:
 4. **Better performance** - Caching and parallelization
 
 ### Ready for Testing
-1. **Kobold Lite connection** - Visit https://lite.koboldai.net and set endpoint to http://40.233.101.233:8000
+1. **Kobold Lite connection** - Visit https://lite.koboldai.net and set endpoint to http://<VPS40_IP>:8000
 2. **Concurrent requests** - Run `./test_concurrent_fallback.sh`
 3. **Model caching** - Request model list twice, second request should be faster
 

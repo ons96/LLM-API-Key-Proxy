@@ -9,7 +9,7 @@
 - **Workflow**: `.github/workflows/auto-discovery.yml` ✓ Pushed
 
 ### 2. ✅ VPS Deployment
-- **Server**: 40.233.101.233
+- **Server**: <VPS40_IP>
 - **Gateway**: Running (2 workers)
 - **Telemetry**: Active (73KB database)
 - **Branch**: Pulled and merged
@@ -35,7 +35,7 @@ All 6 agents configured with optimized weights:
 
 ```
 ┌─────────────────────────────────────────────┐
-│          VPS (40.233.101.233)               │
+│          VPS (<VPS40_IP>)               │
 │                                             │
 │  ✓ Gateway (2 workers)      Port 8000       │
 │  ✓ Telemetry DB             73KB active     │

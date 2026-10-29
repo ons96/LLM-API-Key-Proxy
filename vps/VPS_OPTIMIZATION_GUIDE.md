@@ -5,14 +5,14 @@ Generated: 2026-03-28
 
 | VPS | IP | Role | Spec |
 |---|---|---|---|
-| VPS1 | 40.233.101.233 | LLM Gateway (llm-api-key-proxy) | VM.Standard.E2.1.Micro: 1 OCPU AMD, 1GB RAM, 50GB disk |
+| VPS1 | <VPS40_IP> | LLM Gateway (llm-api-key-proxy) | VM.Standard.E2.1.Micro: 1 OCPU AMD, 1GB RAM, 50GB disk |
 | VPS2 | (check secrets) | ZeroClaw (live-swe-agent, opencode/omo) | Same spec |
 
 ## Quick Start (run on each VPS)
 
 ```bash
 # SSH into VPS1
-ssh -i ~/.ssh/oracle_key ubuntu@40.233.101.233
+ssh -i ~/.ssh/oracle_key ubuntu@<VPS40_IP>
 
 # Clone or pull latest
 git clone https://github.com/ons96/LLM-API-Key-Proxy /opt/llm-gateway

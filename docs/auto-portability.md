@@ -85,7 +85,7 @@ Once PR #272 merges to `main` and the gateway is redeployed on VPS-40:
 
 2. **VPS-155 smoke** (PC unavailable scenario):
    ```bash
-   ssh ubuntu@155.248.217.255
+   ssh ubuntu@<VPS155_IP>
    curl -s http://100.71.95.75:8000/v1/models | jq '.data[].id' | grep auto
    curl -s http://100.71.95.75:8000/v1/chat/completions \
      -H "Authorization: Bearer $VPS_GATEWAY_API_KEY" \
@@ -110,23 +110,23 @@ Once PR #272 merges to `main` and the gateway is redeployed on VPS-40:
 
 4. **Check gateway logs** for the auto-route decision:
    ```bash
-   ssh ubuntu@40.233.101.233 'journalctl -u llm-gateway -n 50 | grep -i "auto-route\|semantic_router"'
+   ssh ubuntu@<VPS40_IP> 'journalctl -u llm-gateway -n 50 | grep -i "auto-route\|semantic_router"'
    ```
    Expect: `auto-route source=semantic intent=CODING_COMPLEX chain=coding-elite` style log lines.
 
 ## Sync flow
 
-`~/CodingProjects/scripts/sync-opencode-config.sh --host ubuntu@155.248.217.255` merges the local `command.work` + `command.task` templates into VPS-155's `opencode.json`, preserving VPS-155 providers/models/permissions/MCPs/plugins. The gateway provider entry + `auto` model key should be added to the local template once, then synced.
+`~/CodingProjects/scripts/sync-opencode-config.sh --host ubuntu@<VPS155_IP>` merges the local `command.work` + `command.task` templates into VPS-155's `opencode.json`, preserving VPS-155 providers/models/permissions/MCPs/plugins. The gateway provider entry + `auto` model key should be added to the local template once, then synced.
 
 To add `auto` to the sync template:
 1. Edit local `~/.config/opencode/opencode.json` → `provider.vps-gateway.models` → add `"auto": {}`.
-2. Run `~/CodingProjects/scripts/sync-opencode-config.sh --host ubuntu@155.248.217.255 --dry-run` to preview.
+2. Run `~/CodingProjects/scripts/sync-opencode-config.sh --host ubuntu@<VPS155_IP> --dry-run` to preview.
 3. Run without `--dry-run` to push.
-4. Restart opencode on VPS-155: `ssh ubuntu@155.248.217.255 'systemctl --user restart opencode'` (or however opencode runs there).
+4. Restart opencode on VPS-155: `ssh ubuntu@<VPS155_IP> 'systemctl --user restart opencode'` (or however opencode runs there).
 
 ## Limitations (current)
 
-- **`auto` not yet on `main`**: PR #272 open, awaiting review/merge. Once merged, redeploy gateway on VPS-40: `ssh ubuntu@40.233.101.233 'cd ~/LLM-API-Key-Proxy && git pull origin main && sudo systemctl restart llm-gateway'`.
+- **`auto` not yet on `main`**: PR #272 open, awaiting review/merge. Once merged, redeploy gateway on VPS-40: `ssh ubuntu@<VPS40_IP> 'cd ~/LLM-API-Key-Proxy && git pull origin main && sudo systemctl restart llm-gateway'`.
 - **Encoder is opt-in, and stays off the gateway.** `semantic-router[fastembed]` lives in
   `requirements-optional.txt`; the code lazily imports it and falls back to `intent_detector.py`.
   Measured on 2026-10-21: `uv pip install fastembed` = **179 MB on disk**, and loading

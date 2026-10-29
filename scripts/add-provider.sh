@@ -6,8 +6,8 @@
 # Usage:
 #   add-provider.sh --providers ./providers.json
 #   add-provider.sh --dry-run --providers '[{"name":"ex","base_url":"https://x/v1","env_var":"X_KEY","models":["m1"]}]'
-#   add-provider.sh --apply --providers ./providers.json --sync-vps ubuntu@40.233.101.233
-#   add-provider.sh --sync-vps ubuntu@40.233.101.233 --providers ./providers.json
+#   add-provider.sh --apply --providers ./providers.json --sync-vps ubuntu@<VPS40_IP>
+#   add-provider.sh --sync-vps ubuntu@<VPS40_IP> --providers ./providers.json
 #
 # providers.json schema:
 #   [

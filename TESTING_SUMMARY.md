@@ -2,14 +2,14 @@
 
 ## What's Done:
 
-✅ **Found your correct VPS IP**: 40.233.101.233
+✅ **Found your correct VPS IP**: <VPS40_IP>
 ✅ **Updated all test scripts** with correct IP
 ✅ **Tested gateway connectivity**: Currently OFFLINE
 
 ## Current Status:
 
 **Gateway Status**: ❌ NOT RUNNING on VPS
-**Test Result**: Gateway at 40.233.101.233:9099 is offline
+**Test Result**: Gateway at <VPS40_IP>:9099 is offline
 
 ## What This Means:
 
@@ -37,7 +37,7 @@ This will SSH to your VPS and check:
 If Step 1 shows gateway is down, SSH to VPS:
 
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP>
 ```
 
 Then run:
@@ -60,11 +60,11 @@ All tests should pass with green ✓ marks!
 
 ## Connection Details:
 
-- **VPS IP**: 40.233.101.233
+- **VPS IP**: <VPS40_IP>
 - **VPS User**: ubuntu
 - **SSH Key**: ~/.ssh/oracle.key
 - **Gateway Port**: 9099
-- **Gateway URL**: http://40.233.101.233:9099
+- **Gateway URL**: http://<VPS40_IP>:9099
 
 ## Files Created:
 
@@ -76,7 +76,7 @@ All tests should pass with green ✓ marks!
 ## OpenCode Configuration (After Gateway is Ready):
 
 ```yaml
-base_url: http://40.233.101.233:9099/v1
+base_url: http://<VPS40_IP>:9099/v1
 model: coding-elite
 api_key: test
 ```

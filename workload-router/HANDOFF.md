@@ -2,7 +2,7 @@
 
 The implementation work was performed in the active VPS repository:
 
-- Host: `40.233.101.233`
+- Host: `<VPS40_IP>`
 - Repository: `/home/ubuntu/LLM-API-Key-Proxy`
 - Branch: `main`
 - Latest handoff commit: `e702b8d`

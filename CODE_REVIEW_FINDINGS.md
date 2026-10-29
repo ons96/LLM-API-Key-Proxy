@@ -9,7 +9,7 @@
 ## 🎯 EXECUTIVE SUMMARY
 
 ### Status Overview
-- **Gateway Status:** ✅ Operational on VPS (40.233.101.233:8000)
+- **Gateway Status:** ✅ Operational on VPS (<VPS40_IP>:8000)
 - **Kobold Lite Compatibility:** ⚠️ REQUIRES CORS CONFIGURATION
 - **Security Posture:** ✅ Generally good, minor improvements needed
 - **Code Quality:** ✅ Good, some refactoring opportunities

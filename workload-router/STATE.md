@@ -111,7 +111,7 @@ The current verified local baseline is 25 passing tests. Runnable commands are
 documented in `README.md`; no provider credentials or upstream service are
 needed for the test suite or route-inspection server.
 
-Deployment target is VPS 40 (`40.233.101.233`). This workspace remains the
+Deployment target is VPS 40 (`<VPS40_IP>`). This workspace remains the
 development/test location; no VPS deployment has been performed by this
 session. Resource decisions must remain suitable for 1 GB RAM, zram, weak CPU,
 and no GPU. See `docs/DEPLOYMENT.md`.
@@ -309,7 +309,7 @@ provided an explicit phase, so it selects the code implementation capability.
 
 ## VPS 40 canary checkpoint
 
-- SSH access to `ubuntu@40.233.101.233` was confirmed with the existing Oracle
+- SSH access to `ubuntu@<VPS40_IP>` was confirmed with the existing Oracle
   key. Existing gateway services and ports were inspected without stopping or
   modifying them.
 - The clean `cc65db6` release was copied to

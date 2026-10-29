@@ -9,12 +9,12 @@
 
 **Get your current URL anytime:**
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "cat ~/current-https-url.txt"
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "cat ~/current-https-url.txt"
 ```
 
 **Or via API:**
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 \
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> \
   'curl -s http://localhost:4040/api/tunnels | python3 -c "import sys, json; print(json.load(sys.stdin)[\"tunnels\"][0][\"public_url\"] + \"/v1\")"'
 ```
 
@@ -80,12 +80,12 @@ ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 \
 
 **Method 1: From file (fastest)**
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "cat ~/current-https-url.txt"
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "cat ~/current-https-url.txt"
 ```
 
 **Method 2: From ngrok API (most accurate)**
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 \
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> \
   'curl -s http://localhost:4040/api/tunnels | python3 -c "import sys, json; print(json.load(sys.stdin)[\"tunnels\"][0][\"public_url\"] + \"/v1\")"'
 ```
 
@@ -104,7 +104,7 @@ ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 \
 ### Check URL Change History
 
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "cat ~/https-url-history.txt"
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "cat ~/https-url-history.txt"
 ```
 
 ---
@@ -113,25 +113,25 @@ ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "cat ~/https-url-history.txt"
 
 ### Check Tunnel Status
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "sudo systemctl status https-tunnel"
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "sudo systemctl status https-tunnel"
 ```
 
 ### View Tunnel Logs
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "tail -f ~/https-tunnel.log"
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "tail -f ~/https-tunnel.log"
 ```
 
 ### Restart Tunnel (URL may change)
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "sudo systemctl restart https-tunnel"
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "sudo systemctl restart https-tunnel"
 # Wait 10 seconds, then get new URL
 sleep 10
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "cat ~/current-https-url.txt"
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "cat ~/current-https-url.txt"
 ```
 
 ### Stop Tunnel
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "sudo systemctl stop https-tunnel"
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "sudo systemctl stop https-tunnel"
 ```
 
 ---
@@ -210,7 +210,7 @@ ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "sudo systemctl stop https-tunnel
 
 ### URLs Available:
 ```
-HTTP:  http://40.233.101.233:8000/v1
+HTTP:  http://<VPS40_IP>:8000/v1
 HTTPS: <check ~/current-https-url.txt on VPS>
 ```
 
@@ -227,7 +227,7 @@ HTTPS: <check ~/current-https-url.txt on VPS>
 
 1. **Get your current HTTPS URL:**
    ```bash
-   ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233 "cat ~/current-https-url.txt"
+   ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP> "cat ~/current-https-url.txt"
    ```
 
 2. **Test it in Kobold Lite** with that URL

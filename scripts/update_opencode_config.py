@@ -45,7 +45,7 @@ def update_opencode_main_config() -> bool:
         config["provider"]["vps-gateway"] = {
             "name": "VPS LLM Gateway",
             "options": {
-                "baseURL": "http://40.233.101.233:8000/v1",
+                "baseURL": "http://<VPS40_IP>:8000/v1",
                 "apiKey": "CHANGE_ME_TO_A_STRONG_SECRET_KEY",
             },
         }

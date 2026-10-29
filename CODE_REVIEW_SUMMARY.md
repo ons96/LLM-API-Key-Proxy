@@ -33,7 +33,7 @@ CORS_ORIGINS=https://lite.koboldai.net,https://koboldai.net
 
 **Testing Required:**
 - Open https://lite.koboldai.net
-- Set endpoint to http://40.233.101.233:8000
+- Set endpoint to http://<VPS40_IP>:8000
 - Verify connection succeeds
 
 ---

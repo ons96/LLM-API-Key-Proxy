@@ -2,9 +2,9 @@
 
 Canonical specification for the LLM-API-Key-Proxy gateway. Status tags: `[built]` = live in production, `[partial]` = implemented with gaps, `[planned]` = not yet implemented.
 
-Truth source: live code in `src/proxy_app/` + `src/rotator_library/` + `config/` on VPS 40.233.101.233. This SPEC consolidates all subsystems (former DESIGN.md + INTEGRATION_ROADMAP.md content folded in 2026-07-10).
+Truth source: live code in `src/proxy_app/` + `src/rotator_library/` + `config/` on VPS <VPS40_IP>. This SPEC consolidates all subsystems (former DESIGN.md + INTEGRATION_ROADMAP.md content folded in 2026-07-10).
 
-**Repo:** `ons96/LLM-API-Key-Proxy` (private). **VPS:** 40.233.101.233 (Tailscale 100.71.95.75:8000, SSH-only firewall). **Task-board:** `ons96/task-board` (issues = tracker).
+**Repo:** `ons96/LLM-API-Key-Proxy` (private). **VPS:** <VPS40_IP> (Tailscale 100.71.95.75:8000, SSH-only firewall). **Task-board:** `ons96/task-board` (issues = tracker).
 
 ---
 
@@ -284,7 +284,7 @@ Endpoints exposing gateway state for monitoring + router consumption.
 
 ## Deployment
 
-**VPS-40** (40.233.101.233): gateway-only, ~954MB RAM, Tailscale firewall (port 8000 restricted to 100.64.0.0/10). SSH key `~/.ssh/oracle.key`, user `ubuntu`.
+**VPS-40** (<VPS40_IP>): gateway-only, ~954MB RAM, Tailscale firewall (port 8000 restricted to 100.64.0.0/10). SSH key `~/.ssh/oracle.key`, user `ubuntu`.
 
 **systemd unit:** `llm-gateway.service` (NOT PM2 -- #258 explicitly resolved). Manage: `sudo systemctl [start|stop|restart|status] llm-gateway.service`.
 

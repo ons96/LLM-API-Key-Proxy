@@ -4,7 +4,7 @@
 
 **Kobold Lite requires HTTPS** ❌ Your current HTTP URL won't work due to browser mixed-content security policies.
 
-- Current URL: `http://40.233.101.233:8000/v1` ❌
+- Current URL: `http://<VPS40_IP>:8000/v1` ❌
 - Needed: `https://your-domain.trycloudflare.com/v1` ✅
 
 ---
@@ -25,7 +25,7 @@
 ### Step 1: SSH into Your VPS
 
 ```bash
-ssh -i ~/.ssh/oracle.key ubuntu@40.233.101.233
+ssh -i ~/.ssh/oracle.key ubuntu@<VPS40_IP>
 ```
 
 ### Step 2: Create a Quick Tunnel (No Login Required)
