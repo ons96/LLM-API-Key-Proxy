@@ -1,0 +1,39 @@
+{"text":"def reverse(s): return s[::-1]","label":"code"}
+{"text":"Write a Python function to sort a list of dicts by a key","label":"code"}
+{"text":"```python\nprint('hi')\n``` explain this","label":"code"}
+{"text":"Fix the bug in my React component where state doesn't update","label":"code"}
+{"text":"hi","label":"chat"}
+{"text":"thanks!","label":"chat"}
+{"text":"what time is it?","label":"chat"}
+{"text":"ok sure","label":"chat"}
+{"text":"*walks into the tavern and orders a mead*","label":"rp"}
+{"text":"Continue the story where we left off","label":"rp"}
+{"text":"Let's roleplay a cyberpunk detective scene","label":"rp"}
+{"text":"Compare REST and gRPC for internal microservices","label":"reasoning"}
+{"text":"Explain the CAP theorem with examples","label":"reasoning"}
+{"text":"What are the tradeoffs of eventual consistency?","label":"reasoning"}
+{"text":"Plan a multi-step agent workflow to triage issues","label":"agentic"}
+{"text":"Execute the tool to list files in this directory","label":"agentic"}
+{"text":"what is the capital of France","label":"retrieval"}
+{"text":"who is the president of the US","label":"retrieval"}
+{"text":"find the definition of idempotent","label":"retrieval"}
+{"text":"Why does my pytest fixture run twice per test?","label":"code"}
+{"text":"Write a SQL query that returns the top 5 customers by revenue","label":"code"}
+{"text":"Refactor this function to use async/await","label":"code"}
+{"text":"TypeError: Cannot read properties of undefined (reading 'map')","label":"code"}
+{"text":"How do I set up a GitHub Actions workflow for a Node project?","label":"code"}
+{"text":"good morning","label":"chat"}
+{"text":"lol that's funny","label":"chat"}
+{"text":"how are you doing today?","label":"chat"}
+{"text":"*smiles and takes your hand* Shall we dance?","label":"rp"}
+{"text":"You are Captain Mira, a space pirate. Stay in character.","label":"rp"}
+{"text":"Write a short story about a dragon who is afraid of fire","label":"rp"}
+{"text":"Should a startup pick microservices or a monolith? Weigh the consequences.","label":"reasoning"}
+{"text":"Is it ethical to use AI for hiring decisions?","label":"reasoning"}
+{"text":"Think step by step: a bat and ball cost 1.10 total, the bat costs 1.00 more. What does the ball cost?","label":"reasoning"}
+{"text":"Clone the repo, run the test suite, and open a PR with the fixes","label":"agentic"}
+{"text":"Automate a nightly pipeline that backs up the database and reports failures","label":"agentic"}
+{"text":"Use the search tool to gather sources, then summarize them","label":"agentic"}
+{"text":"when is the next full moon","label":"retrieval"}
+{"text":"look up the population of Tokyo","label":"retrieval"}
+{"text":"what is the boiling point of water in Fahrenheit","label":"retrieval"}
