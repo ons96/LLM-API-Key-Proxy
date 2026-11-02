@@ -65,9 +65,6 @@ blocked_providers:
   reason: BadGateway 502 - provider unreachable from VPS-40 (not the laptop :8400
     daemon)
   last_confirmed_dead: '2026-09-10'
-- provider: gemini
-  reason: Daily free quota 20 exhausted (429 RESOURCE_EXHAUSTED) - confirmed 2026-09-10
-  last_confirmed_dead: '2026-09-10'
 blocked_provider_prefixes:
 - prefix: g4f_
   reason: g4f provider variants are unreliable fallbacks
@@ -239,6 +236,26 @@ blocked_models:
   model: gemini-2.0-flash
   reason: 404 use gemini-3.6-flash (probe 2026-09-10)
   last_confirmed_dead: '2026-09-10'
+- provider: gemini
+  model_prefix: gemini-2.5
+  reason: 404 "no longer available to new users" on every 2.5 id (probe 2026-11-02); still listed by /v1beta/models
+  last_confirmed_dead: '2026-11-02'
+- provider: gemini
+  model_prefix: gemini-2-5
+  reason: same 2.5 retirement, dashed spelling used by chain entries (probe 2026-11-02)
+  last_confirmed_dead: '2026-11-02'
+- provider: gemini
+  model_prefix: gemini-1.5
+  reason: absent from /v1beta/models (probe 2026-11-02)
+  last_confirmed_dead: '2026-11-02'
+- provider: gemini
+  model: gemma-3-27b-it
+  reason: absent from /v1beta/models (probe 2026-11-02)
+  last_confirmed_dead: '2026-11-02'
+- provider: gemini
+  model: gemini-3-pro-preview
+  reason: absent from /v1beta/models; gemini-3-pro-image exists but returns 429 quota (probe 2026-11-02)
+  last_confirmed_dead: '2026-11-02'
 - provider: iamhc
   model: Kimi-K2.6
   reason: no available channel (probe 2026-09-10)

@@ -613,13 +613,23 @@ class TestDeadProviderFastSkip:
         assert dead_policy._is_dead_candidate("groq", "dead-model") is True
         assert dead_policy._is_dead_candidate("cerebras", "legacy-8b") is True
 
-    def test_repo_policy_keeps_gemini_blocked(self, monkeypatch):
-        """Regression guard: the real config/dead_providers.yaml blocks gemini."""
+    def test_repo_policy_blocks_retired_gemini_models(self, monkeypatch):
+        """Regression guard: retired gemini ids stay blocked, verified live ones do not.
+
+        The provider-level gemini block was stale (probed 2026-11-02: 2.5/1.5
+        return 404 while gemini-3-flash-preview answers 200), so the policy now
+        blocks per-model instead of the whole provider.
+        """
         import src.proxy_app.router_core as rc
 
         monkeypatch.setattr(rc, "_dead_providers_cache", None)
         monkeypatch.delenv("SKIP_REAL_DEAD_PROVIDERS", raising=False)
-        assert rc._is_dead_candidate("gemini", "gemini-3-flash") is True
+        assert rc._is_dead_candidate("gemini", "gemini-2.5-flash") is True
+        assert rc._is_dead_candidate("gemini", "gemini-2-5-pro-preview-06-05") is True
+        assert rc._is_dead_candidate("gemini", "gemini-1.5-pro") is True
+        assert rc._is_dead_candidate("gemini", "gemini-3-flash-preview") is False
+        assert rc._is_dead_candidate("gemini", "gemini-3.1-flash-lite") is False
+
 
 
 # Integration Tests (require mocking)
