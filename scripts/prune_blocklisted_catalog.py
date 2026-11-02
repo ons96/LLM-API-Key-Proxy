@@ -27,16 +27,26 @@ import chain_policy  # noqa: E402
 CATALOG = REPO_ROOT / "config" / "providers_database.yaml"
 
 
-def offenders(database: dict, policy: dict) -> list[tuple[str, str, str]]:
-    out = []
+def offenders(database: dict, policy: dict) -> tuple[list, list]:
+    """Split catalog entries into (model-gone, blocked-for-other-reasons).
+
+    Only the first group is safe to prune: the second group is blocked by a
+    quota, missing key, IP block or credit gate, and those models still exist.
+    """
+    gone, limited = [], []
     for provider in database["providers"]:
         pid = provider.get("id")
         for model in provider.get("free_models") or []:
             mid = model.get("id")
             reason = chain_policy.blocked_reason(pid, mid, policy)
-            if reason:
-                out.append((pid, mid, reason))
-    return out
+            if not reason:
+                continue
+            scope = chain_policy.blocked_scope(pid, mid, policy)
+            if scope == "model" and chain_policy.is_model_gone_reason(reason):
+                gone.append((pid, mid, reason))
+            else:
+                limited.append((pid, mid, reason))
+    return gone, limited
 def prune_text(text: str, doomed: dict[str, set[str]], date: str) -> str:
     """Drop doomed model items and stamp last_verified on touched providers."""
     lines = text.splitlines()
@@ -103,14 +113,18 @@ def main() -> int:
     policy = chain_policy.load_policy()
     text = CATALOG.read_text()
     database = yaml.safe_load(text)
-    found = offenders(database, policy)
+    found, limited = offenders(database, policy)
     by_provider: dict[str, set[str]] = {}
     for pid, mid, _ in found:
         by_provider.setdefault(pid, set()).add(mid)
 
-    print(f"offenders: {len(found)} across {len(by_provider)} providers")
+    print(f"model-gone offenders: {len(found)} across {len(by_provider)} providers")
     for pid in sorted(by_provider):
         print(f"  {pid}: {len(by_provider[pid])}")
+    if limited:
+        print(f"kept: {len(limited)} blocked for quota/key/IP/tier, not pruned")
+        for pid in sorted({p for p, _, _ in limited}):
+            print(f"  {pid}: {sum(1 for x in limited if x[0] == pid)}")
     if not found:
         return 0
     if not args.apply:
@@ -119,7 +133,7 @@ def main() -> int:
     date = args.date or datetime.date.today().isoformat()
     CATALOG.write_text(prune_text(text, by_provider, date))
     after = yaml.safe_load(CATALOG.read_text())
-    remaining = offenders(after, policy)
+    remaining, _ = offenders(after, policy)
     if remaining:
         print(f"ERROR: {len(remaining)} offenders remain", file=sys.stderr)
         return 1

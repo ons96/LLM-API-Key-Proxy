@@ -209,3 +209,39 @@ def sanitize_chain(
         entry["priority"] = priority
     validate_chain(sanitized, policy)
     return sanitized
+
+
+# Reasons that mean the model itself is gone upstream. Anything else (quota
+# exhausted, missing key, datacenter IP blocked, subscription tier, credits
+# needed) blocks routing but says nothing about whether the model exists.
+MODEL_GONE_PATTERNS = (
+    "notfound",
+    "not found",
+    "does not exist",
+    "does not support",
+    "unavailable",
+    "model_not_found",
+    "no available channel",
+    "no channel",
+    "provider blocks requests for this model",
+)
+
+
+def is_model_gone_reason(reason: str | None) -> bool:
+    """True when a blocklist reason describes a missing model, not a limit."""
+    text = (reason or "").lower()
+    return any(pattern in text for pattern in MODEL_GONE_PATTERNS)
+
+
+def blocked_scope(provider: Any, model: Any, policy: Mapping[str, Any]) -> Optional[str]:
+    """Which rule blocks this candidate: 'provider', 'prefix', 'model' or None."""
+    normalized_provider = _normalized(provider)
+    for rule in policy.get("blocked_providers", []):
+        if _normalized(rule.get("provider", "")) == normalized_provider:
+            return "provider"
+    for rule in policy.get("blocked_provider_prefixes", []):
+        if normalized_provider.startswith(_normalized(rule.get("prefix", ""))):
+            return "prefix"
+    if blocked_reason(provider, model, policy):
+        return "model"
+    return None
