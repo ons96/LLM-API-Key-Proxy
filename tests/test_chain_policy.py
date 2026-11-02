@@ -273,5 +273,37 @@ class TestRebuildChains(unittest.TestCase):
             self.assertFalse(list(Path(directory).glob("*.bak-pre-rebuild")))
 
 
+class TestProviderCatalogMatchesBlocklist(unittest.TestCase):
+    """providers_database must never advertise a model the policy already blocks."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.policy = chain_policy.load_policy()
+        database = yaml.safe_load(
+            (REPO_ROOT / "config" / "providers_database.yaml").read_text()
+        )
+        cls.database = database
+
+    def test_catalog_entries_are_not_blocklisted(self) -> None:
+        # Scoped to cerebras: this catalog was re-verified on 2026-11-01, so any
+        # blocklisted id here means the refresh regressed. The other providers
+        # carry older drift tracked separately in task-board #1265.
+        offenders = []
+        cerebras = next(p for p in self.database["providers"] if p["id"] == "cerebras")
+        for model in cerebras.get("free_models") or []:
+            reason = chain_policy.blocked_reason("cerebras", model.get("id"), self.policy)
+            if reason:
+                offenders.append(f"cerebras/{model['id']}: {reason}")
+        self.assertEqual(offenders, [], "catalog advertises blocklisted models")
+
+    def test_cerebras_catalog_is_the_live_two(self) -> None:
+        # Live /v1/models on 2026-11-01 returned exactly these two ids.
+        cerebras = next(p for p in self.database["providers"] if p["id"] == "cerebras")
+        self.assertEqual(
+            sorted(m["id"] for m in cerebras["free_models"]),
+            ["gpt-oss-120b", "qwen-3.8-27b"],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
