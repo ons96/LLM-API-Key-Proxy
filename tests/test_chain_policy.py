@@ -285,17 +285,23 @@ class TestProviderCatalogMatchesBlocklist(unittest.TestCase):
         cls.database = database
 
     def test_catalog_entries_are_not_blocklisted(self) -> None:
-        # Whole-catalog assertion. 160 stale pairs were pruned on 2026-11-02
-        # (task-board #1265, scripts/prune_blocklisted_catalog.py), so any
-        # offender here means a catalog refresh re-added a blocked model.
+        # Only model-level "gone upstream" reasons belong in the catalog check.
+        # Quota, missing key, datacenter-IP and subscription blocks are routing
+        # policy, not proof a model disappeared: gemini-2.5-flash, kilo-auto/free
+        # and coding-glm-5-free were all live while blocked (2026-11-02).
         offenders = []
         for provider in self.database["providers"]:
             pid = provider.get("id")
             for model in provider.get("free_models") or []:
-                reason = chain_policy.blocked_reason(pid, model.get("id"), self.policy)
-                if reason:
-                    offenders.append(f"{pid}/{model['id']}: {reason}")
-        self.assertEqual(offenders, [], "catalog advertises blocklisted models")
+                mid = model.get("id")
+                reason = chain_policy.blocked_reason(pid, mid, self.policy)
+                if not reason:
+                    continue
+                if chain_policy.blocked_scope(pid, mid, self.policy) != "model":
+                    continue
+                if chain_policy.is_model_gone_reason(reason):
+                    offenders.append(f"{pid}/{mid}: {reason}")
+        self.assertEqual(offenders, [], "catalog advertises removed models")
 
     def test_cerebras_catalog_is_the_live_two(self) -> None:
         # Live /v1/models on 2026-11-01 returned exactly these two ids.
