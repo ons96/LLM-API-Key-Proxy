@@ -81,7 +81,7 @@ providers:
     free_tier: true
     no_api_key_required: true
   g4f:
-    enabled: true
+    enabled: false
     env_var: G4F_API_KEY
     base_url: https://g4f.space/v1
     free_tier: true
@@ -279,7 +279,7 @@ providers:
     free_tier: true
     no_api_key_required: true
   g4f_nvidia:
-    enabled: true
+    enabled: false
     env_var: G4F_NVIDIA_API_KEY
     base_url: https://g4f.space/api/nvidia
     free_tier: true
@@ -306,7 +306,7 @@ providers:
     - microsoft/phi-3.5-mini
     - moonshotai/kimi-k2-base
   g4f_groq:
-    enabled: true
+    enabled: false
     env_var: G4F_GROQ_API_KEY
     base_url: https://g4f.space/api/groq
     free_tier: true
@@ -318,7 +318,7 @@ providers:
     - mixtral-8x7b-32768
     - gemma2-9b-it
   g4f_gemini:
-    enabled: true
+    enabled: false
     env_var: G4F_GEMINI_API_KEY
     base_url: https://g4f.space/api/gemini
     free_tier: true
@@ -328,7 +328,7 @@ providers:
     - gemini-2.5-flash
     - gemini-2.5-pro
   g4f_ollama:
-    enabled: true
+    enabled: false
     env_var: G4F_OLLAMA_API_KEY
     base_url: https://g4f.space/api/ollama
     free_tier: true
@@ -345,7 +345,7 @@ providers:
     - minimax-m2.5
     - rnj-1:8b
   g4f_pollinations:
-    enabled: true
+    enabled: false
     env_var: G4F_POLLINATIONS_API_KEY
     base_url: https://g4f.space/api/pollinations
     free_tier: true
@@ -361,6 +361,14 @@ providers:
     - gemini-search
     - midijourney
     - claude-fast
+  g4fpool:
+    enabled: true
+    env_var: G4F_API_KEY
+    base_url: https://g4f.space/v1
+    free_tier: true
+    free_tier_models:
+    - poe/DeepSeek-V4.1-Flash-T
+    - poe/GLM-5.3-Flash-T
   pollinations:
     enabled: true
     env_var: POLLINATIONS_API_KEY
