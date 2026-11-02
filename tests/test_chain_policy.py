@@ -285,15 +285,16 @@ class TestProviderCatalogMatchesBlocklist(unittest.TestCase):
         cls.database = database
 
     def test_catalog_entries_are_not_blocklisted(self) -> None:
-        # Scoped to cerebras: this catalog was re-verified on 2026-11-01, so any
-        # blocklisted id here means the refresh regressed. The other providers
-        # carry older drift tracked separately in task-board #1265.
+        # Whole-catalog assertion. 160 stale pairs were pruned on 2026-11-02
+        # (task-board #1265, scripts/prune_blocklisted_catalog.py), so any
+        # offender here means a catalog refresh re-added a blocked model.
         offenders = []
-        cerebras = next(p for p in self.database["providers"] if p["id"] == "cerebras")
-        for model in cerebras.get("free_models") or []:
-            reason = chain_policy.blocked_reason("cerebras", model.get("id"), self.policy)
-            if reason:
-                offenders.append(f"cerebras/{model['id']}: {reason}")
+        for provider in self.database["providers"]:
+            pid = provider.get("id")
+            for model in provider.get("free_models") or []:
+                reason = chain_policy.blocked_reason(pid, model.get("id"), self.policy)
+                if reason:
+                    offenders.append(f"{pid}/{model['id']}: {reason}")
         self.assertEqual(offenders, [], "catalog advertises blocklisted models")
 
     def test_cerebras_catalog_is_the_live_two(self) -> None:
