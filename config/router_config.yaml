@@ -361,6 +361,14 @@ providers:
     - gemini-search
     - midijourney
     - claude-fast
+  pollinations:
+    enabled: true
+    env_var: POLLINATIONS_API_KEY
+    base_url: https://text.pollinations.ai/openai
+    free_tier: true
+    no_api_key_required: true
+    free_tier_models:
+    - openai-fast
   iflow:
     enabled: true
     env_var: IFLOW_API_KEY
