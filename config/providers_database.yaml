@@ -243,40 +243,12 @@ providers:
   rate_limits:
     rpm: 30
     daily_reset_utc: 00:00
+  # Catalog pruned to the two ids the live /v1/models endpoint advertised on
+  # 2026-11-01. Cerebras retired llama-3.3-70b, llama3.1-8b, qwen-3-235b,
+  # qwen-3-32b and zai-glm-4.7 (all 404, already blocklisted in
+  # config/dead_providers.yaml). No Cerebras model accepts image input, so this
+  # provider can never satisfy needs_vision routing.
   free_models:
-  - id: llama-3.3-70b
-    context: 128000
-    tps: 2100
-    capabilities:
-    - chat
-    - code
-    - tools
-    notes: Ultra-fast 70B inference
-  - id: llama3.1-8b
-    context: 8192
-    tps: 2600
-    capabilities:
-    - chat
-    - code
-    - tools
-    - fast
-    notes: Fastest free inference available
-  - id: qwen-3-235b-a22b-instruct-2507
-    context: 32768
-    tps: 500
-    capabilities:
-    - chat
-    - code
-    - tools
-    - reasoning
-  - id: qwen-3-32b
-    context: 32768
-    tps: 1200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - reasoning
   - id: gpt-oss-120b
     context: 131072
     tps: 800
@@ -284,14 +256,17 @@ providers:
     - chat
     - code
     - tools
-  - id: zai-glm-4.7
-    context: 32768
-    tps: 1000
+    notes: Live on 2026-11-01; context is the Cerebras documented ceiling (API does not report it)
+  - id: qwen-3.8-27b
+    context: 131072
+    tps: 1200
     capabilities:
     - chat
     - code
     - tools
-  last_verified: '2026-03-17'
+    - reasoning
+    notes: Live on 2026-11-01; context is the Cerebras documented ceiling (API does not report it)
+  last_verified: '2026-11-01'
   free_quota:
     free_type: unlimited_rate_limited
     initial_allowance: -1
