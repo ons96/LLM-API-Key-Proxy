@@ -1227,6 +1227,42 @@ providers:
     free_type: unlimited_rate_limited
     initial_allowance: -1
     reset_period: never
+- id: pollinations
+  name: Pollinations (anonymous legacy host)
+  signup_url: https://pollinations.ai
+  env_var: POLLINATIONS_API_KEY
+  base_url: https://text.pollinations.ai/openai
+  enabled: true
+  free_tier: true
+  no_api_key_required: true
+  capabilities:
+  - chat
+  rate_limits:
+    rpm: 0
+  notes: >-
+    Direct anonymous access to the legacy text.pollinations.ai host, bypassing
+    the g4f.space hop. Measured 2026-10-20 from laptop and VPS-155: 150 requests
+    in 4.3s all HTTP 200, no 429, no x-ratelimit headers. Only openai-fast
+    answers without a key; every other model id returns 402 FREE_LIMIT.
+    Deliberately NOT in any virtual-model chain: GPT-OSS 20B (AA ~12-15) is far
+    below the coding bar, and reorder_chains.py only permutes existing chains so
+    omission is durable. rpm 0 == no gateway-side cap (rate_limiter.py:406
+    treats 0 as falsy).
+  free_models:
+  - id: openai-fast
+    context: 131072
+    tps: 2550
+    capabilities:
+    - chat
+    - tools
+    - reasoning
+    notes: GPT-OSS 20B. Tools and reasoning verified 2026-10-20. Fallback only.
+    free: true
+  last_verified: '2026-10-20'
+  free_quota:
+    free_type: unlimited_rate_limited
+    initial_allowance: -1
+    reset_period: never
 - id: sambanova
   name: SambaNova Cloud
   signup_url: https://cloud.sambanova.ai
