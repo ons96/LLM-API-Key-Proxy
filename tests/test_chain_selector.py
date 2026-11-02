@@ -398,3 +398,57 @@ def test_perf_50_candidates():
     elapsed = (time.monotonic() - start) * 1000
     assert len(res.chain) == 50
     assert elapsed < 100.0
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_real_catalog_has_a_live_vision_candidate():
+    """A vision request must reach a model that accepts images (#486 AC1).
+
+    gemini free ids are dead/quota'd and cerebras has no vision model, so the
+    catalog has to carry at least one live vision path or case 3 of the smoke
+    matrix can only ever fail with no candidates.
+    """
+    import yaml
+
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import chain_policy
+
+    db_path = REPO_ROOT / "config" / "providers_database.yaml"
+    caps = load_capabilities(str(db_path), str(REPO_ROOT / "config" / "model_capabilities.yaml"))
+    policy = chain_policy.load_policy()
+    database = yaml.safe_load(db_path.read_text())
+
+    vision = []
+    for provider in database["providers"]:
+        if not provider.get("enabled", True):
+            continue
+        pid = provider["id"]
+        for model in provider.get("free_models") or []:
+            mid = model["id"]
+            key = f"{pid}/{mid}"
+            if not (caps.get(key, Capabilities.TEXT) & Capabilities.VISION):
+                continue
+            if chain_policy.blocked_reason(pid, mid, policy):
+                continue
+            vision.append((pid, mid))
+
+    assert ("nvidia", "nvidia/nemotron-3.5-super-vl-120b-a12b") in vision
+    assert ("mistral", "pixtral-12b-2409") in vision
+
+    sel = ChainSelector(
+        model_scores={f"{p}/{m}": 0.5 for p, m in vision},
+        capabilities=caps,
+        predictor=None,
+    )
+    candidates = [
+        {"provider": p, "model": m, "priority": i + 1} for i, (p, m) in enumerate(vision)
+    ]
+    res = sel.select(
+        _features(capabilities=Capabilities.TEXT | Capabilities.VISION),
+        Tier.T2,
+        candidates,
+    )
+    assert res.chain
+    assert all(c.capabilities & Capabilities.VISION for c in res.chain)
