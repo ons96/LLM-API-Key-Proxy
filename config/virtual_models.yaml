@@ -155,6 +155,9 @@ virtual_models:
     - provider: crowllm
       model: minimax-m2.5:free
       priority: 6
+    - provider: g4fpool
+      model: poe/GLM-5.3-Flash-T
+      priority: 7
     settings:
       timeout_ms: 300000
       retry_on_rate_limit: true
@@ -167,15 +170,18 @@ virtual_models:
     - provider: cliproxyapi
       model: gemini-2.5-flash
       priority: 2
-    - provider: jasper
-      model: nemotron-3-super-120b-a12b
+    - provider: g4fpool
+      model: poe/DeepSeek-V4.1-Flash-T
       priority: 3
     - provider: jasper
-      model: deepseek-v4.1-flash
+      model: nemotron-3-super-120b-a12b
       priority: 4
+    - provider: jasper
+      model: deepseek-v4.1-flash
+      priority: 5
     - provider: crowllm
       model: gemini-3-flash:free
-      priority: 5
+      priority: 6
     settings:
       timeout_ms: 120000
       retry_on_rate_limit: true
@@ -185,12 +191,15 @@ virtual_models:
     - provider: cliproxyapi
       model: gemini-2.5-flash
       priority: 1
+    - provider: g4fpool
+      model: poe/DeepSeek-V4.1-Flash-T
+      priority: 2
     - provider: jasper
       model: nemotron-3-super-120b-a12b
-      priority: 2
+      priority: 3
     - provider: crowllm
       model: gemini-3-flash:free
-      priority: 3
+      priority: 4
     settings:
       timeout_ms: 15000
       retry_on_rate_limit: true
