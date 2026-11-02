@@ -233,9 +233,11 @@ def resolve_auto(
        The opencode-phase-router plugin has already classified the prompt;
        re-running semantic/keyword here would be redundant work + risk
        divergence. Tool-capability guard still applies.
-    1. Try semantic-router (FastEmbed local). If confidence >= threshold, use it.
-    2. Else fall back to keyword intent_detector.
-    3. Apply tool-capability guard: if request has tools, force tool-capable chain.
+    1. If PROMPT_CLASSIFIER_ENABLED=1, run the bounded heuristic classifier;
+       a confident category picks the chain and short-circuits.
+    2. Try semantic-router (FastEmbed local). If confidence >= threshold, use it.
+    3. Else fall back to keyword intent_detector.
+    4. Apply tool-capability guard: if request has tools, force tool-capable chain.
     """
     threshold = float(os.getenv("AUTO_ROUTE_THRESHOLD", "0.30"))
     mode = os.getenv("AUTO_ROUTE_MODE", "all").lower()
@@ -264,7 +266,34 @@ def resolve_auto(
             phase_header,
         )
 
-    # Step 1: semantic-router
+    # Step 1: bounded heuristic classifier (#949). Opt-in via
+    # PROMPT_CLASSIFIER_ENABLED=1; when disabled or unsure this is a no-op and
+    # routing falls through to the semantic router unchanged.
+    if _classifier_enabled():
+        try:
+            from .prompt_classifier import classify as _classify_prompt
+
+            clf = _classify_prompt(request)
+            if not clf.fallback:
+                chain = _apply_tool_guard(clf.suggested_chain, needs_tools)
+                logger.info(
+                    "auto-router: classifier=%s conf=%.2f -> chain=%s (tool_guard=%s)",
+                    clf.category.value,
+                    clf.confidence,
+                    chain,
+                    needs_tools,
+                )
+                return AutoRouteResult(
+                    chain=chain,
+                    intent=_CATEGORY_INTENT.get(clf.category.value, MessageIntent.UNKNOWN),
+                    confidence=clf.confidence,
+                    source="classifier",
+                    reasoning=f"prompt_classifier category={clf.category.value} ({clf.reasoning})",
+                )
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("prompt_classifier failed: %r; falling through", exc)
+
+    # Step 2: semantic-router
     if mode == "all":
         sr = _load_semantic_router()
         if sr is not None:
@@ -303,7 +332,7 @@ def resolve_auto(
                         exc,
                     )
 
-    # Step 2: keyword fallback
+    # Step 3: keyword fallback
     messages = request.get("messages", [])
     kw_result: IntentResult = detect_intent(messages, current_model=current_model)
     chain = INTENT_CHAIN_MAP.get(kw_result.intent, DEFAULT_CHAIN)
@@ -315,6 +344,21 @@ def resolve_auto(
         source="keyword",
         reasoning=f"keyword fallback: {kw_result.reasoning}",
     )
+
+
+# Classifier category (string) -> intent, for logging/telemetry only.
+_CATEGORY_INTENT: Dict[str, MessageIntent] = {
+    "code": MessageIntent.CODING_FAST,
+    "agentic": MessageIntent.CODING_COMPLEX,
+    "reasoning": MessageIntent.COMPLEX_REASONING,
+    "chat": MessageIntent.FAST_CHAT,
+    "rp": MessageIntent.ROLEPLAY,
+    "retrieval": MessageIntent.FAST_CHAT,
+}
+
+
+def _classifier_enabled() -> bool:
+    return os.getenv("PROMPT_CLASSIFIER_ENABLED", "0").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _apply_tool_guard(chain: str, needs_tools: bool) -> str:
