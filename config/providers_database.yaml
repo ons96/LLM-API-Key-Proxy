@@ -95,7 +95,7 @@ providers:
     tps: 400
     capabilities:
     - chat
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: daily_renewable
     initial_allowance: 14400
@@ -119,71 +119,25 @@ providers:
     daily: 1500
     daily_reset_utc: 07:00
   free_models:
-  - id: gemini-2.5-flash
+  - id: gemini-3-flash-preview
     context: 1000000
-    tps: 100
     capabilities:
     - chat
     - code
     - tools
     - vision
     - fast
-    notes: Best free flash model, 1M context
-  - id: gemini-2.5-pro
-    context: 2000000
-    tps: 50
-    capabilities:
-    - chat
-    - code
-    - tools
-    - vision
-    - long_context
-    - reasoning
-    notes: Best free Gemini model, 2M context
-  - id: gemini-2.0-flash
+    notes: Verified 2026-11-02 (200 + image input). Free tier is small; 2.5 family returns 404 'no longer available to new users' on this key.
+  - id: gemini-3.1-flash-lite
     context: 1000000
-    tps: 150
     capabilities:
     - chat
     - code
     - tools
     - vision
     - fast
-  - id: gemini-3-pro-preview
-    context: 2000000
-    tps: 50
-    capabilities:
-    - chat
-    - code
-    - tools
-    - vision
-    - long_context
-    - reasoning
-  - id: gemma-3-27b-it
-    context: 131072
-    tps: 80
-    capabilities:
-    - chat
-    - code
-  - id: gemini-1.5-flash
-    context: 1000000
-    tps: 120
-    capabilities:
-    - chat
-    - code
-    - tools
-    - vision
-    - fast
-  - id: gemini-1.5-pro
-    context: 2000000
-    tps: 60
-    capabilities:
-    - chat
-    - code
-    - tools
-    - vision
-    - long_context
-  last_verified: '2026-03-17'
+    notes: Verified 2026-11-02 (200 + image input). Cheapest current Gemini flash-lite id.
+  last_verified: '2026-11-02'
   free_quota:
     free_type: daily_renewable
     initial_allowance: 1500
@@ -372,7 +326,7 @@ providers:
     - chat
     - code
     - tools
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: one_time_credit
     initial_allowance: 5.0
@@ -382,7 +336,7 @@ providers:
   name: Kilo AI
   signup_url: https://api.kilo.ai
   env_var: KILO_API_KEY
-  base_url: https://api.kilo.ai/v1
+  base_url: https://ai-gateway.kilo.ai/api/v1
   enabled: true
   free_tier: true
   capabilities:
@@ -522,7 +476,7 @@ providers:
     - tools
     - vision
     - fast
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: daily_renewable
     initial_allowance: 50
@@ -561,7 +515,7 @@ providers:
     - code
     - tools
     - fast
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: freemium
     initial_allowance: -1
@@ -616,7 +570,7 @@ providers:
     capabilities:
     - chat
     - code
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: unlimited_rate_limited
     initial_allowance: -1
@@ -773,7 +727,7 @@ providers:
     capabilities:
     - chat
     - code
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: unlimited_rate_limited
     initial_allowance: -1
@@ -826,7 +780,7 @@ providers:
     capabilities:
     - chat
     - code
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: unlimited_rate_limited
     initial_allowance: -1
@@ -872,7 +826,7 @@ providers:
     - vision
     - long_context
     - reasoning
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: unlimited_rate_limited
     initial_allowance: -1
@@ -955,7 +909,7 @@ providers:
     - chat
     - code
     - fast
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: unlimited_rate_limited
     initial_allowance: -1
@@ -1037,7 +991,7 @@ providers:
     capabilities:
     - chat
     - code
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: unlimited_rate_limited
     initial_allowance: -1
@@ -1114,7 +1068,7 @@ providers:
     capabilities:
     - chat
     - code
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: daily_renewable
     initial_allowance: 100
@@ -1189,7 +1143,7 @@ providers:
     - chat
     - code
     - tools
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: daily_renewable
     initial_allowance: 100
@@ -1247,7 +1201,7 @@ providers:
     capabilities:
     - chat
     - fast
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: daily_renewable
     initial_allowance: 10000
@@ -1304,7 +1258,7 @@ providers:
     capabilities:
     - chat
     - code
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: unlimited_rate_limited
     initial_allowance: -1
@@ -1405,7 +1359,7 @@ providers:
     - chat
     - code
     - tools
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: unlimited_rate_limited
     initial_allowance: -1
