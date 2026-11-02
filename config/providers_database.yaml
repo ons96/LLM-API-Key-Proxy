@@ -393,12 +393,6 @@ providers:
   rate_limits:
     rpm: 20
   free_models:
-  - id: openrouter/auto
-    context: 2000000
-    tps: 100
-    capabilities:
-    - chat
-    - code
   - id: openrouter/free
     context: 200000
     tps: 100
@@ -408,12 +402,6 @@ providers:
   - id: kilo-auto/free
     context: 256000
     tps: 150
-    capabilities:
-    - chat
-    - code
-  - id: openrouter/bodybuilder
-    context: 128000
-    tps: 100
     capabilities:
     - chat
     - code
