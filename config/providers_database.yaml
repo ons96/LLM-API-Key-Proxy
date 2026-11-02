@@ -393,115 +393,93 @@ providers:
   rate_limits:
     rpm: 20
   free_models:
-  - id: x-ai/grok-code-fast-1:optimized:free
-    context: 131072
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - tools
-    - fast
-  - id: arcee-ai/trinity-large-preview:free
-    context: 32768
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - tools
-  - id: minimax/minimax-m2.5:free
-    context: 32768
-    tps: 80
-    capabilities:
-    - chat
-    - code
-    - tools
-  - id: nvidia/nemotron-3-super-120b-a12b:free
-    context: 131072
-    tps: 50
-    capabilities:
-    - chat
-    - code
-    - tools
-  - id: stepfun/step-3.5-flash:free
-    context: 32768
-    tps: 200
-    capabilities:
-    - chat
-    - code
-    - fast
-  - id: corethink:free
-    context: 131072
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - reasoning
-  - id: kilo/auto-free
-    context: 131072
-    tps: 150
-    capabilities:
-    - chat
-    - code
-    - tools
-    notes: Auto-routes to best free model
-  - id: openrouter/auto
-    context: 131072
-    tps: 100
-    capabilities:
-    - chat
-    - code
   - id: openrouter/free
-    context: 131072
+    context: 200000
     tps: 100
     capabilities:
     - chat
     - code
-  - id: giga-potato
-    context: 131072
-    tps: 100
-    capabilities:
-    - chat
-    - code
-    - reasoning
-  - id: giga-potato-thinking
-    context: 131072
-    tps: 80
-    capabilities:
-    - chat
-    - code
-    - reasoning
   - id: kilo-auto/free
-    context: 131072
+    context: 256000
     tps: 150
     capabilities:
     - chat
     - code
-  - id: morph-warp-grep-v2
-    context: 131072
-    tps: 150
+  - id: cohere/north-mini-code:free
+    context: 256000
     capabilities:
     - chat
     - code
     - tools
-  - id: openrouter/healer-alpha
-    context: 131072
-    tps: 100
+    - reasoning
+    notes: Agentic coding model
+  - id: dots-studio/dots-3-note-preview:free
+    context: 512000
+    capabilities:
+    - chat
+    - tools
+    - reasoning
+    - vision
+    notes: Vision input (text+image); free endpoint expires 2026-12-31
+  - id: liquid/lfm-2.5-2.6b:free
+    context: 65536
+    capabilities:
+    - chat
+    - tools
+    - reasoning
+  - id: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+    context: 256000
     capabilities:
     - chat
     - code
-  - id: openrouter/hunter-alpha
-    context: 131072
-    tps: 100
+    - tools
+    - reasoning
+    - vision
+    notes: Omni input (text+image+audio+video)
+  - id: nvidia/nemotron-3-ultra-550b-a55b:free
+    context: 1000000
     capabilities:
     - chat
     - code
-  - id: openrouter/bodybuilder
-    context: 131072
-    tps: 100
+    - tools
+    - reasoning
+  - id: nvidia/nemotron-3.5-content-safety:free
+    context: 128000
+    capabilities:
+    - chat
+    - reasoning
+    - vision
+    notes: Guardrail/moderation model, not a general chat model
+  - id: nvidia/nemotron-3.5-lightning:free
+    context: 1000000
     capabilities:
     - chat
     - code
-  last_verified: '2026-03-17'
+    - tools
+    - reasoning
+  - id: nvidia/nemotron-3.5-super-vl:free
+    context: 1000000
+    capabilities:
+    - chat
+    - code
+    - tools
+    - reasoning
+    - vision
+  - id: recursive/flint-v1.0:free
+    context: 262144
+    capabilities:
+    - chat
+    - code
+    - tools
+    - reasoning
+  - id: xingchen-agi/xing4.0-29b-a4b:free
+    context: 262144
+    capabilities:
+    - chat
+    - code
+    - tools
+    - reasoning
+  last_verified: '2026-11-02'
   free_quota:
     free_type: freemium
     initial_allowance: -1
