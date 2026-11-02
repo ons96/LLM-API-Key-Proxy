@@ -267,7 +267,15 @@ providers:
     capabilities:
     - chat
     - code
-  last_verified: '2026-03-17'
+  - id: nvidia/nemotron-3.5-super-vl-120b-a12b
+    context: 1048576
+    tps: 60
+    capabilities:
+    - chat
+    - code
+    - vision
+    notes: Vision path re-verified 2026-11-02 (200 on a 1x1 data-URI); reasoning-first, needs max_tokens >= 300 for visible content
+  last_verified: '2026-11-02'
   free_quota:
     free_type: daily_renewable
     initial_allowance: 1000
@@ -301,13 +309,20 @@ providers:
     - code
     - tools
     notes: Best free code model from Mistral
+  - id: pixtral-12b-2409
+    context: 128000
+    tps: 60
+    capabilities:
+    - chat
+    - vision
+    notes: Vision path re-verified 2026-11-02 (200 on a 1x1 data-URI); API answers with model=ministral-14b-latest, the alias still accepts image input
   - id: mistral-nemo
     context: 128000
     tps: 150
     capabilities:
     - chat
     - code
-  last_verified: '2026-03-17'
+  last_verified: '2026-11-02'
   free_quota:
     free_type: daily_renewable
     initial_allowance: 500
