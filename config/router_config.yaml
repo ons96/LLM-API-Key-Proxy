@@ -85,7 +85,7 @@ providers:
     env_var: G4F_API_KEY
     base_url: https://g4f.space/v1
     free_tier: true
-    no_api_key_required: true
+    no_api_key_required: false
   gemini:
     enabled: true
     env_var: GEMINI_API_KEY
@@ -283,7 +283,7 @@ providers:
     env_var: G4F_NVIDIA_API_KEY
     base_url: https://g4f.space/api/nvidia
     free_tier: true
-    no_api_key_required: true
+    no_api_key_required: false
     free_tier_models:
     - meta/llama-3.1-405b-instruct
     - meta/llama-3.3-70b-instruct
@@ -310,7 +310,7 @@ providers:
     env_var: G4F_GROQ_API_KEY
     base_url: https://g4f.space/api/groq
     free_tier: true
-    no_api_key_required: true
+    no_api_key_required: false
     free_tier_models:
     - llama-3.3-70b-versatile
     - llama-3.1-8b-instant
@@ -322,7 +322,7 @@ providers:
     env_var: G4F_GEMINI_API_KEY
     base_url: https://g4f.space/api/gemini
     free_tier: true
-    no_api_key_required: true
+    no_api_key_required: false
     free_tier_models:
     - gemini-3-pro
     - gemini-2.5-flash
@@ -332,7 +332,7 @@ providers:
     env_var: G4F_OLLAMA_API_KEY
     base_url: https://g4f.space/api/ollama
     free_tier: true
-    no_api_key_required: true
+    no_api_key_required: false
     free_tier_models:
     - deepseek-v3.2
     - devstral-small-2:24b
@@ -349,7 +349,7 @@ providers:
     env_var: G4F_POLLINATIONS_API_KEY
     base_url: https://g4f.space/api/pollinations
     free_tier: true
-    no_api_key_required: true
+    no_api_key_required: false
     free_tier_models:
     - openai
     - openai-fast
