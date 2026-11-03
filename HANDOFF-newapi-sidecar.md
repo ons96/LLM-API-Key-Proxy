@@ -21,15 +21,28 @@ Snapshot: 2026-11-03. This file supersedes the stale conversation summaries abou
 an unapplied benchmark fix. The current verifier contains that fix, and a saved
 full local integration report passes. Production readiness is NOT established.
 
+## Current checkpoint
+
+- Branch `feat/newapi-sidecar` tracks `origin/feat/newapi-sidecar`.
+- Commits: `f00de12 feat: add New-API sidecar routing` and
+  `1777e36 docs: record sidecar verification`.
+- Worktree is clean.
+- Full provider-free suite: 231 passed, with the existing
+  `Unknown config option: asyncio_mode` warning.
+- Release, resource, and 50-request/8-worker concurrency smoke checks passed.
+- Targeted provider-fault, runtime, server, quota, adapter, streaming, and
+  benchmark tests passed: 77 + 25 tests.
+- No VPS deployment, live-provider test, OpenCode client test, credential
+  provisioning, merge, or traffic cutover has occurred.
+
 ## Resume prompt
 
 Read this handoff and continue the New-API sidecar in
 `/home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar/workload-router`.
-Use the isolated worktrees below, preserve their uncommitted work, and leave
-VPS-40 and the current gateway untouched. Start with the verification commands
-below. Resolve the production startup audit gap before real-provider validation.
-Do not commit, push, deploy, change credentials, or cut over traffic without
-explicit authorization.
+Preserve existing work and leave VPS-40 and the current gateway untouched until
+the canary stage is explicitly authorized. Start with the remaining external
+validation plan below. Do not merge, deploy, change credentials, or cut over
+traffic without explicit authorization.
 
 ## Goal and safety boundary
 
@@ -62,9 +75,9 @@ relabel it MIT.
 | Passing full local proof report | `/tmp/opencode/newapi-proof-7uclf86q/report.json` |
 | OmniRush launch directory | this worktree root: launch `omnirush` here |
 
-All new implementation work is uncommitted. No commits, pushes, PRs, production
-database writes or VPS deployment were performed by this workstream. Original
-checkouts can contain other intentional edits; do not switch to them to work.
+Implementation work is committed on the feature branch. No production database
+writes or VPS deployment were performed by this workstream. Original checkouts
+can contain other intentional edits; do not switch to them to work.
 
 Read `workload-router/AGENTS.md`, `STATE.md`, `README.md`,
 `docs/specs/p0-router.md`, and `docs/newapi-design.md`. The older `HANDOFF.md`
@@ -159,15 +172,13 @@ production maintenance path or weaken only-tighten learning to make a test pass.
 
 ## Outstanding gates and next work
 
-1. Run the current full suite and repeated isolated proofs. Add focused tests for
-   uncovered management-proof and startup paths; inspect the uncommitted diff.
-2. Fix production startup authorization. `newapi_server.serve()` constructs an
-   `AdminClient` without `key_proof`, while this binary hides channel keys.
-   Startup therefore correctly fails closed with
-   `authorized channel key verification required`. The verifier injects an
-   authorized callback programmatically; it does NOT prove the real entrypoint
-   boots. Provision supported authorization without bypassing step-up security
-   or embedding generated test enrollment into production.
+1. Run the real-binary verifier using the exact command below. The binary and
+   artifact parent must exist on the execution host. Inspect only redacted
+   report fields; do not print generated credentials or temporary logs.
+2. Provision the operator-controlled channel-key proof helper. It must receive
+   only a channel ID on stdin and print exactly one proof token. Configure
+   `NEWAPI_CHANNEL_KEY_PROOF_COMMAND` and verify valid startup plus fail-closed
+   behavior for missing or invalid proofs. Never store credentials in this repo.
 3. Finish catalog/benchmark operator orchestration and boot validation. Primitives
    exist, but real three-provider refreshes, current OpenCode boot checking,
    repeatable operator commands and end-to-end priority updates remain unverified.
@@ -223,5 +234,7 @@ Optional: `SIDECAR_HOST` (loopback), `SIDECAR_FREE_ONLY` (true),
 - Coverage, lint/typecheck/format and current full release checks are not claimed
   complete. Historical counts and model-fallback messages are not new evidence.
 
-First action: run the exact full-suite command above once and record its actual
-result, then address the production startup proof gap in the isolated worktree.
+First action: run the real-binary verifier if the binary and artifact paths exist;
+otherwise document that environment gap and proceed with proof-helper and
+operator-validation planning. Do not repeat passing local tests unless code
+changes.
