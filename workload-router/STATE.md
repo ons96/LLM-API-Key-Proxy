@@ -1105,11 +1105,13 @@ and add canonical model mappings where provider model ids differ.
 `/models` and got a 16-token chat. Only CrowLLM (`qwen-3.6-27b:free`) and
 KiosAPI (`agnes-3.0-flash`) returned 200. Everything else was quota-limited,
 out of credit, paused, or returned malformed upstream responses.
-- Created `gw:crowllm` (id 9, 80 free models), `gw:kiosapi` (id 10, 4 models),
-and `gw:crowllm-canonical` (id 11, priority 40) mapping `agnes-3.0-flash` to
-`agnes-3.0-flash:free`. All are enabled; channels 9/10 were verified through
-New-API relay token 21. The abilities table lists both channels 10 and 11 for
-`agnes-3.0-flash`. New-API now has 9 channels.
+- Created `gw:crowllm` (id 9, now 73 chat models), `gw:kiosapi` (id 10, 4
+models), and `gw:crowllm-canonical` (id 11, priority 40) mapping
+`agnes-3.0-flash` to `agnes-3.0-flash:free`. All are enabled; channels 9/10 were
+verified through New-API relay token 21. The abilities table lists both channels
+10 and 11 for `agnes-3.0-flash`. New-API now has 9 channels.
+- Removed the 7 embedding ids from channel 9; its chat model still returned 200,
+and the abilities table no longer contains those embeddings (73 abilities).
 - The canonical fallback test passed: with `gw:kiosapi` (id 10) disabled,
 `agnes-3.0-flash` still returned 200 with "ok" through
 `gw:crowllm-canonical` (id 11); channel 10 was re-enabled and confirmed

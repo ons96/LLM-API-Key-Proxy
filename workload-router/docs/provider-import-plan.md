@@ -72,7 +72,7 @@ Created through the admin API:
 | `gw:hcnsec` | 6 | `auto` | enabled |
 | `gw:iamhc` | 7 | `auto` | enabled |
 | `gw:bluesminds` | 8 | `nvidia/ising-calibration-1.5-31b` | enabled |
-| `gw:crowllm` | 9 | `qwen-3.6-27b:free` (+79 free models) | enabled |
+| `gw:crowllm` | 9 | `qwen-3.6-27b:free` (+72 chat models; 7 embedding ids removed) | enabled |
 | `gw:kiosapi` | 10 | `agnes-3.0-flash` (+3 models) | enabled |
 | `gw:crowllm-canonical` | 11 | `agnes-3.0-flash` -> `agnes-3.0-flash:free` | enabled |
 

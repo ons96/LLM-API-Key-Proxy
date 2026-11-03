@@ -61,10 +61,12 @@ full local integration report passes. Production readiness is NOT established.
   `POST /api/channel/6/status`; `auto` still returned 200 via `gw:iamhc`;
   re-enabled and confirmed `status: 1`. The generic channel update rejects a
   `status` field.
-- Added `gw:crowllm` (id 9, 80 free models), `gw:kiosapi` (id 10, 4 models) and
-  `gw:crowllm-canonical` (id 11, priority 40) mapping `agnes-3.0-flash` to
+- Added `gw:crowllm` (id 9, now 73 chat models), `gw:kiosapi` (id 10, 4 models)
+  and `gw:crowllm-canonical` (id 11, priority 40) mapping `agnes-3.0-flash` to
   `agnes-3.0-flash:free`. Channels 9/10 passed through New-API; both 10 and 11
-  are in the abilities table for that model. New-API has 9 channels.
+  are in the abilities table for that model. New-API has 9 channels. The 7
+  embedding ids were removed from channel 9; it still returned 200 and has 73
+  abilities.
 - Canonical failover test passed 2026-11-03: with `gw:kiosapi` (id 10)
   disabled, `agnes-3.0-flash` still returned 200 via `gw:crowllm-canonical`
   (id 11); channel 10 was re-enabled and confirmed `status: 1`.
