@@ -156,7 +156,7 @@ virtual_models:
       model: minimax-m2.5:free
       priority: 6
     - provider: g4fpool
-      model: poe/GLM-5.3-Flash-T
+      model: gemini-claude-opus-4-6-thinking
       priority: 7
     settings:
       timeout_ms: 300000
@@ -171,7 +171,7 @@ virtual_models:
       model: gemini-2.5-flash
       priority: 2
     - provider: g4fpool
-      model: poe/DeepSeek-V4.1-Flash-T
+      model: gemini-3.8-flash
       priority: 3
     - provider: jasper
       model: nemotron-3-super-120b-a12b
@@ -192,7 +192,7 @@ virtual_models:
       model: gemini-2.5-flash
       priority: 1
     - provider: g4fpool
-      model: poe/DeepSeek-V4.1-Flash-T
+      model: qwen/qwen3.8-27b
       priority: 2
     - provider: jasper
       model: nemotron-3-super-120b-a12b

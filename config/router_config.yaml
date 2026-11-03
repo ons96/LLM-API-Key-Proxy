@@ -367,8 +367,9 @@ providers:
     base_url: https://g4f.space/v1
     free_tier: true
     free_tier_models:
-    - poe/DeepSeek-V4.1-Flash-T
-    - poe/GLM-5.3-Flash-T
+    - gemini-3.8-flash
+    - qwen/qwen3.8-27b
+    - gemini-claude-opus-4-6-thinking
   pollinations:
     enabled: true
     env_var: POLLINATIONS_API_KEY
