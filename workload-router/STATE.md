@@ -405,6 +405,18 @@ pass.
 Next: exercise provider-specific error injection and quota behavior without
 cutting over traffic; keep the old gateway as fallback.
 
+## Local New-API sidecar release checkpoint
+
+- The pushed `feat/newapi-sidecar` branch remains clean and tracks its remote.
+- `python3 tools/verify_release.py` passed: 231 tests, session validation,
+  resource smoke (health/route 200, approximately 25 MiB RSS), and compilation.
+- `python3 tools/resource_smoke.py` passed: health 200, route 200, RSS 25568 KB.
+- A temporary local router passed
+  `python3 tools/concurrency_smoke.py --requests 50 --workers 8` with 50/50
+  successful requests.
+- `git diff --check` passed. No New-API binary, live provider, OpenCode client,
+  credentials, VPS, or cutover was exercised in this sandbox.
+
 ## Provider-failure hardening checkpoint
 
 - `ProviderError` now classifies HTTP 429, timeout, 4xx, 5xx, network, invalid
