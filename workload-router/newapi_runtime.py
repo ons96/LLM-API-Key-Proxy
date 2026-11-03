@@ -5,13 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import logging
+import math
 import time
 from typing import Callable, Iterator
+from urllib import error, request
 from urllib.parse import urlsplit
 
 from provider_adapter import (
     OpenAICompatibleAdapter, ProviderCompletion, ProviderError, ProviderRequest,
-    _normalize_adapter_exception, close_stream, validate_stream_payload,
+    _NoRedirect, _http_error_class, _normalize_adapter_exception, _retry_hints,
+    close_stream, validate_stream_payload,
 )
 from quota_ledger import QuotaLedger, Route, nonnegative, token_count
 from route_policy import STEPS, Scored, Weights, Work, compact_json_tools, rank_routes
@@ -21,6 +24,34 @@ from router_state import RouterState
 
 LOG = logging.getLogger(__name__)
 PROFILE_ALIASES = {"auto-coding": "auto-coding", "auto-code": "auto-coding", "auto-chat": "auto-chat"}
+
+# Legacy gateway aliases, kept so existing client configurations survive cutover.
+# Each entry is (profile, default step hint); an explicit X-Route-Step still wins.
+# This preserves request acceptance and capability intent, not the gateway's
+# fallback chains. See docs/alias-mapping-proposal.md.
+LEGACY_ALIASES = {
+    "auto": ("auto-chat", "chat"),
+    "title-fast": ("auto-chat", "chat"),
+    "chat-fast": ("auto-chat", "chat"),
+    "chat-smart": ("auto-chat", "chat"),
+    "chat-elite": ("auto-chat", "chat"),
+    "chat-rp": ("auto-chat", "chat"),
+    "coding-fast": ("auto-coding", "implement"),
+    "coding-smart": ("auto-coding", "implement"),
+    "coding-elite": ("auto-coding", "implement"),
+    "coding-free": ("auto-coding", "implement"),
+    "safe-coding": ("auto-coding", "implement"),
+    "glm5-elite": ("auto-coding", "implement"),
+    "p0-minimax-m3": ("auto-coding", "implement"),
+    "agent-build": ("auto-coding", "implement"),
+    "agent-explore": ("auto-coding", "explore"),
+    "agent-librarian": ("auto-coding", "explore"),
+    "agent-metis": ("auto-coding", "plan"),
+    "agent-oracle": ("auto-coding", "plan"),
+    "agent-momus": ("auto-coding", "final-review"),
+}
+MODEL_ALIASES = {**PROFILE_ALIASES,
+                 **{name: profile for name, (profile, _step) in LEGACY_ALIASES.items()}}
 
 
 def strict_json(raw: bytes) -> dict:
@@ -85,15 +116,17 @@ def prepare(payload: dict, session_id: str = "", step: str = "", *,
     """Reserve a conservative text bound, including tools, and forward the output cap."""
     ProviderRequest.from_payload(payload)
     model = payload.get("model")
-    if not isinstance(model, str) or model not in PROFILE_ALIASES:
-        raise ValueError("model must be auto-coding or auto-chat")
+    if not isinstance(model, str) or model not in MODEL_ALIASES:
+        raise ValueError("model must be one of: " + ", ".join(sorted(MODEL_ALIASES)))
     if (not isinstance(session_id, str) or len(session_id) > 256
             or any(ord(char) < 32 for char in session_id)):
         raise ValueError("invalid session id")
     if not isinstance(step, str):
         raise ValueError("invalid route step")
-    profile = PROFILE_ALIASES[model]
-    step = step.lower().replace("_", "-") or ("implement" if profile == "auto-coding" else "chat")
+    profile = MODEL_ALIASES[model]
+    default_step = LEGACY_ALIASES.get(model, (profile, ""))[1]
+    step = step.lower().replace("_", "-") or default_step or (
+        "implement" if profile == "auto-coding" else "chat")
     if step not in STEPS or not isinstance(payload.get("stream", False), bool):
         raise ValueError("invalid step or stream flag")
     for name in ("n", "best_of"):
@@ -125,6 +158,216 @@ def prepare(payload: dict, session_id: str = "", step: str = "", *,
     prefix = json.dumps({"messages": compacted["messages"]}, sort_keys=True, ensure_ascii=False)[:4096]
     prefix += json.dumps(tools, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return Prepared(work, ProviderRequest.from_payload(compacted), baseline, compact, prefix, model)
+
+
+EMBEDDING_MAX_BYTES = 8 * 1024 * 1024
+RESPONSES_ROLES = {"user", "assistant", "system", "developer"}
+RESPONSES_TOOL_CHOICES = {"auto", "none", "required"}
+
+
+def _responses_text(content: object) -> str:
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list) or not content:
+        raise ValueError("responses content must be text")
+    parts = []
+    for part in content:
+        if not isinstance(part, dict) or part.get("type") not in {"input_text", "output_text", "text"}:
+            raise ValueError("unsupported responses content part")
+        if not isinstance(part.get("text"), str):
+            raise ValueError("responses text part must be a string")
+        parts.append(part["text"])
+    return "".join(parts)
+
+
+def _responses_tool(tool: object) -> dict:
+    """Responses tools are flat; chat tools nest the function definition."""
+    if not isinstance(tool, dict) or tool.get("type") != "function":
+        raise ValueError("only function tools are supported")
+    name = tool.get("name")
+    if not isinstance(name, str) or not name:
+        raise ValueError("function tool requires a name")
+    function = {"name": name}
+    for key in ("description", "parameters", "strict"):
+        if key in tool:
+            function[key] = tool[key]
+    return {"type": "function", "function": function}
+
+
+def chat_payload_from_responses(payload: dict) -> dict:
+    """Translate the supported Responses subset into a chat-completions payload."""
+    if not isinstance(payload, dict):
+        raise ValueError("request body must be a JSON object")
+    if payload.get("previous_response_id") not in (None, ""):
+        raise ValueError("previous_response_id is not supported")
+    messages = []
+    instructions = payload.get("instructions")
+    if instructions is not None:
+        if not isinstance(instructions, str):
+            raise ValueError("instructions must be a string")
+        if instructions.strip():
+            messages.append({"role": "system", "content": instructions})
+    raw = payload.get("input")
+    if isinstance(raw, str):
+        if not raw.strip():
+            raise ValueError("input must not be empty")
+        messages.append({"role": "user", "content": raw})
+    elif isinstance(raw, list) and raw:
+        for item in raw:
+            if not isinstance(item, dict) or item.get("type") not in (None, "message"):
+                raise ValueError("unsupported responses input item")
+            role = item.get("role")
+            if role not in RESPONSES_ROLES:
+                raise ValueError("unsupported responses input role")
+            messages.append({"role": "system" if role == "developer" else role,
+                             "content": _responses_text(item.get("content"))})
+    else:
+        raise ValueError("input must be a string or a non-empty list")
+    chat = {"model": payload.get("model"), "messages": messages}
+    if "max_output_tokens" in payload:
+        chat["max_tokens"] = payload["max_output_tokens"]
+    for name in ("temperature", "top_p", "stream"):
+        if name in payload:
+            chat[name] = payload[name]
+    if payload.get("tools") is not None:
+        tools = payload["tools"]
+        if not isinstance(tools, list):
+            raise ValueError("tools must be a list")
+        chat["tools"] = [_responses_tool(tool) for tool in tools]
+    if payload.get("tool_choice") is not None:
+        choice = payload["tool_choice"]
+        if not isinstance(choice, str) or choice not in RESPONSES_TOOL_CHOICES:
+            raise ValueError("unsupported tool_choice")
+        chat["tool_choice"] = choice
+    text = payload.get("text")
+    if text is not None:
+        if not isinstance(text, dict) or not isinstance(text.get("format"), dict):
+            raise ValueError("text.format must be an object")
+        fmt = text["format"]
+        if fmt.get("type") == "json_object":
+            chat["response_format"] = {"type": "json_object"}
+        elif fmt.get("type") == "json_schema":
+            if not isinstance(fmt.get("name"), str) or not fmt["name"]:
+                raise ValueError("json_schema requires a name")
+            chat["response_format"] = {"type": "json_schema",
+                                       "json_schema": {key: fmt[key] for key in
+                                                        ("name", "schema", "strict") if key in fmt}}
+        elif fmt.get("type") != "text":
+            raise ValueError("unsupported text format")
+    return chat
+
+
+def responses_usage(usage: dict | None) -> dict | None:
+    if not isinstance(usage, dict):
+        return None
+    prompt, completion = usage.get("prompt_tokens"), usage.get("completion_tokens")
+    if type(prompt) is not int or type(completion) is not int or prompt < 0 or completion < 0:
+        return None
+    cached = 0
+    details = usage.get("prompt_tokens_details")
+    if isinstance(details, dict) and type(details.get("cached_tokens")) is int:
+        cached = max(0, min(details["cached_tokens"], prompt))
+    reasoning = 0
+    out_details = usage.get("completion_tokens_details")
+    if isinstance(out_details, dict) and type(out_details.get("reasoning_tokens")) is int:
+        reasoning = max(0, min(out_details["reasoning_tokens"], completion))
+    return {"input_tokens": prompt, "output_tokens": completion,
+            "total_tokens": prompt + completion,
+            "input_tokens_details": {"cached_tokens": cached},
+            "output_tokens_details": {"reasoning_tokens": reasoning}}
+
+
+def responses_object(identity: str, model: str, completion: ProviderCompletion, created: int) -> dict:
+    """Shape a chat completion as the non-streaming Responses API subset."""
+    output = []
+    text = completion.content
+    if isinstance(text, str) and text.strip():
+        output.append({"id": "msg_" + identity[:24], "type": "message", "status": "completed",
+                       "role": "assistant",
+                       "content": [{"type": "output_text", "text": text,
+                                    "annotations": [], "logprobs": []}]})
+    calls = completion.message.get("tool_calls")
+    if isinstance(calls, list):
+        for index, call in enumerate(calls):
+            function = call.get("function") if isinstance(call, dict) else None
+            if not isinstance(function, dict):
+                continue
+            output.append({"id": "fc_" + identity[:20] + str(index), "type": "function_call",
+                           "status": "completed",
+                           "call_id": str(call.get("id") or "call_" + identity[:20] + str(index)),
+                           "name": function.get("name"),
+                           "arguments": function.get("arguments", "{}")})
+    body = {"id": "resp_" + identity, "object": "response", "created_at": created,
+            "status": "completed", "model": model, "output": output, "output_text": ""}
+    body["output_text"] = "".join(part["text"] for item in output if item["type"] == "message"
+                                  for part in item["content"])
+    usage = responses_usage(completion.usage)
+    if usage is not None:
+        body["usage"] = usage
+    return body
+
+
+def embedding_inputs(payload: dict) -> list[str]:
+    """Accept text input only; token arrays and file inputs are not translated."""
+    raw = payload.get("input") if isinstance(payload, dict) else None
+    if isinstance(raw, str):
+        values = [raw]
+    elif isinstance(raw, list) and raw and all(isinstance(value, str) for value in raw):
+        values = list(raw)
+    else:
+        raise ValueError("embedding input must be a string or a non-empty list of strings")
+    if len(values) > 2048 or any(not value.strip() or len(value) > 32768 for value in values):
+        raise ValueError("invalid embedding input")
+    return values
+
+
+def _embedding_post(base_url: str, api_key: str, payload: dict, timeout: float) -> dict:
+    """Forward one batch to the audited relay; never follow redirects or echo bodies."""
+    body = json.dumps(payload, allow_nan=False).encode("utf-8")
+    req = request.Request(base_url.rstrip("/") + "/embeddings", data=body, method="POST",
+                          headers={"Content-Type": "application/json",
+                                   "Accept": "application/json",
+                                   "Authorization": "Bearer " + api_key})
+    try:
+        with request.build_opener(_NoRedirect()).open(req, timeout=timeout) as response:
+            raw = response.read(EMBEDDING_MAX_BYTES + 1)
+    except error.HTTPError as exc:
+        retry_after, quota_reset = _retry_hints(exc.headers)
+        failure = ProviderError("embedding request failed", error_class=_http_error_class(exc.code),
+                                status_code=exc.code, retry_after_seconds=retry_after,
+                                quota_reset_at=quota_reset)
+        close_stream(exc)
+        raise failure from None
+    except error.URLError as exc:
+        category = "timeout" if isinstance(exc.reason, TimeoutError) else "network_error"
+        raise ProviderError("embedding request failed", error_class=category) from None
+    except TimeoutError:
+        raise ProviderError("embedding request timed out", error_class="timeout") from None
+    except OSError:
+        raise ProviderError("embedding request failed", error_class="network_error") from None
+    if len(raw) > EMBEDDING_MAX_BYTES:
+        raise ProviderError("embedding response exceeds limit", error_class="invalid_response")
+    try:
+        body = strict_json(raw)
+    except (ValueError, TypeError, RecursionError):
+        raise ProviderError("embedding response is invalid", error_class="invalid_response") from None
+    data = body.get("data")
+    if not isinstance(data, list) or not data or len(data) > 2048:
+        raise ProviderError("embedding response is invalid", error_class="invalid_response")
+    for item in data:
+        vector = item.get("embedding") if isinstance(item, dict) else None
+        if (not isinstance(item, dict) or type(item.get("index")) is not int
+                or not isinstance(vector, list) or not vector or len(vector) > 32768
+                or any(isinstance(value, bool) or not isinstance(value, (int, float))
+                       or not math.isfinite(value) for value in vector)):
+            raise ProviderError("embedding response is invalid", error_class="invalid_response")
+    result = {"object": "list", "data": data,
+              "model": body.get("model") if isinstance(body.get("model"), str) else ""}
+    usage = body.get("usage")
+    if isinstance(usage, dict) and type(usage.get("prompt_tokens")) is int and usage["prompt_tokens"] >= 0:
+        result["usage"] = {"prompt_tokens": usage["prompt_tokens"],
+                           "total_tokens": usage["prompt_tokens"]}
+    return result
 
 
 def usable_completion(result: ProviderCompletion) -> bool:
@@ -330,6 +573,37 @@ class Runtime:
                 raise
         raise ProviderError("no feasible New-API stream completed", error_class=last.error_class,
                             retry_after_seconds=last.retry_after_seconds) from None
+
+    def embed(self, alias: str, values: list[str]) -> tuple[Route, str, dict]:
+        """Embeddings use one audited private alias and stay in the quota ledger."""
+        routes = [route for route in self.ledger.routes() if route.alias == alias]
+        if len(routes) != 1:
+            raise ValueError("unknown embedding alias")
+        route = routes[0]
+        if self.free_only and route.quota_type == "paid":
+            raise ValueError("embedding alias is not free")
+        estimated = sum(max(1, len(value) // 3 + 1) for value in values)
+        identity = self.ledger.reserve(route, estimated, 0, profile="auto-chat", step="chat")
+        if identity is None:
+            raise ProviderError("embedding route is unavailable", error_class="rate_limit")
+        self.ledger.start(identity)
+        started = time.monotonic()
+        try:
+            body = _embedding_post(self.base_url, self.api_key,
+                                   {"model": alias, "input": values}, self.timeout)
+        except Exception as exc:
+            failure = exc if isinstance(exc, ProviderError) else _normalize_adapter_exception(exc)
+            self.failed(identity, route, failure, started)
+            raise failure from None
+        except BaseException:
+            self.failed(identity, route, ProviderError("request cancelled"), started)
+            raise
+        reported = body.get("usage", {}).get("prompt_tokens") if isinstance(body.get("usage"), dict) else None
+        self.ledger.finish(identity, route, success=True,
+                           usage={"prompt_tokens": reported if type(reported) is int else estimated,
+                                  "completion_tokens": 0},
+                           latency_ms=(time.monotonic() - started) * 1000)
+        return route, identity, body
 
 
 class AccountedStream(Iterator[str]):

@@ -9,12 +9,15 @@ import logging
 import os
 from pathlib import Path
 import shlex
+import signal
 import sqlite3
 import subprocess
 import threading
 import time
 
-from newapi_runtime import PROFILE_ALIASES, Prepared, Runtime, prepare, strict_json, validate_key
+from newapi_runtime import (LEGACY_ALIASES, MODEL_ALIASES, Prepared, Runtime,
+                            chat_payload_from_responses, embedding_inputs, prepare,
+                            responses_object, responses_usage, strict_json, validate_key)
 from provider_adapter import ProviderError
 from quota_ledger import QuotaLedger, token_count
 from router_state import RouterState
@@ -30,7 +33,8 @@ class Server(ThreadingHTTPServer):
     request_queue_size = 16
 
     def __init__(self, address: tuple[str, int], runtime: Runtime, client_key: str, *,
-                 workers: int = 8, default_output: int = 2048, compress: bool = False) -> None:
+                 workers: int = 8, default_output: int = 2048, compress: bool = False,
+                 embedding_aliases: frozenset[str] = frozenset()) -> None:
         if address[0] not in {"127.0.0.1", "localhost"}:
             raise ValueError("sidecar must bind loopback; terminate TLS at a separate proxy")
         self.runtime, self.client_key = runtime, validate_key(client_key)
@@ -39,7 +43,11 @@ class Server(ThreadingHTTPServer):
         self.default_output = token_count(default_output, "default_output")
         if not 1 <= self.default_output <= 131072 or not isinstance(compress, bool):
             raise ValueError("invalid default output or compression flag")
-        self.compress = compress
+        if not isinstance(embedding_aliases, frozenset) or any(
+                not isinstance(name, str) or not name or len(name) > 512
+                for name in embedding_aliases):
+            raise ValueError("invalid embedding aliases")
+        self.compress, self.embedding_aliases = compress, embedding_aliases
         self.slots = threading.BoundedSemaphore(token_count(workers, "workers"))
         super().__init__(address, Handler)
 
@@ -75,10 +83,13 @@ class Handler(BaseHTTPRequestHandler):
 
     server: Server
     protocol_version = "HTTP/1.1"
+    server_version = "newapi-sidecar"
+    sys_version = ""
     max_body_bytes = 1024 * 1024
 
     def setup(self) -> None:
         super().setup()
+        self.response_committed = False
         self.connection.settimeout(30)
 
     def log_message(self, _format: str, *args: object) -> None:
@@ -95,6 +106,7 @@ class Handler(BaseHTTPRequestHandler):
         for name, value in (headers or {}).items():
             self.send_header(name, value)
         self.end_headers()
+        self.response_committed = True
         self.close_connection = True
         self.wfile.write(encoded)
 
@@ -114,15 +126,21 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path == "/v1/models":
             self.send_json(200, {"object": "list", "data": [
-                {"id": name, "object": "model", "created": 0, "owned_by": "sidecar"}
-                for name in PROFILE_ALIASES]})
+                {"id": name, "object": "model", "created": 0, "owned_by": "sidecar",
+                 **({"deprecated": True} if name in LEGACY_ALIASES else {})}
+                for name in MODEL_ALIASES]})
         elif self.path == "/v1/router/diagnostics":
             self.send_json(200, {**self.server.runtime.ledger.diagnostics(),
                                  "free_only": self.server.runtime.free_only})
         else:
             self.send_json(404, {"error": "not found"})
 
-    def read_request(self) -> Prepared | None:
+    def method_not_allowed(self) -> None:
+        self.send_json(405, {"error": "method not allowed"}, {"Allow": "GET, POST"})
+
+    do_PUT = do_PATCH = do_DELETE = method_not_allowed
+
+    def read_payload(self) -> dict | None:
         lengths = self.headers.get_all("Content-Length", [])
         if self.headers.get("Transfer-Encoding") or len(lengths) != 1 or not lengths[0].isdigit():
             raise ValueError("one Content-Length required")
@@ -135,24 +153,52 @@ class Handler(BaseHTTPRequestHandler):
         raw = self.rfile.read(size)
         if len(raw) != size:
             raise ValueError("truncated request body")
-        payload = strict_json(raw)
-        return prepare(payload, self.headers.get("X-Session-Id", ""),
-                       self.headers.get("X-Route-Step", ""),
-                       default_output=self.server.default_output, compress=self.server.compress)
+        return strict_json(raw)
 
     def do_POST(self) -> None:  # noqa: N802
         if not self.authorized():
             return
-        if self.path not in {"/v1/chat/completions", "/v1/router/route"}:
+        if self.path not in {"/v1/chat/completions", "/v1/router/route",
+                             "/v1/responses", "/v1/embeddings"}:
             self.send_json(404, {"error": "not found"})
             return
-        committed = False
         stream = None
         try:
-            prepared = self.read_request()
-            if prepared is None:
+            payload = self.read_payload()
+            if payload is None:
                 return
             runtime = self.server.runtime
+            if self.path == "/v1/embeddings":
+                alias = payload.get("model")
+                if not isinstance(alias, str) or alias not in self.server.embedding_aliases:
+                    raise ValueError("model is not a configured embedding alias")
+                route, decision, body = runtime.embed(alias, embedding_inputs(payload))
+                body["model"] = alias
+                self.send_json(200, body, {"X-Router-Deployment": route.route_id,
+                                           "X-Router-Decision": decision})
+                return
+            if self.path == "/v1/responses":
+                prepared = prepare(chat_payload_from_responses(payload),
+                                   self.headers.get("X-Session-Id", ""),
+                                   self.headers.get("X-Route-Step", ""),
+                                   default_output=self.server.default_output,
+                                   compress=self.server.compress)
+                if prepared.work.streaming and prepared.work.tools:
+                    raise ValueError("streaming tools are not supported by the responses shim")
+                if prepared.work.streaming:
+                    stream = runtime.open_stream(prepared)
+                    self.send_responses_stream(prepared, stream)
+                else:
+                    result = runtime.complete(prepared)
+                    self.send_json(200, responses_object(result.decision_id, prepared.model,
+                                                         result.completion, int(time.time())),
+                                   {"X-Router-Deployment": result.route.route_id,
+                                    "X-Router-Decision": result.decision_id})
+                return
+            prepared = prepare(payload, self.headers.get("X-Session-Id", ""),
+                               self.headers.get("X-Route-Step", ""),
+                               default_output=self.server.default_output,
+                               compress=self.server.compress)
             if self.path == "/v1/router/route":
                 candidates = runtime.ranked(prepared, explore=False)
                 self.send_json(200, {"profile": prepared.work.profile, "step": prepared.work.step,
@@ -171,7 +217,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("X-Router-Deployment", stream.route.route_id)
                 self.send_header("X-Router-Decision", stream.identity)
                 self.end_headers()
-                committed = True
+                self.response_committed = True
                 self.close_connection = True
                 for value in stream:
                     if value != "[DONE]":
@@ -191,16 +237,16 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(200, body, {"X-Router-Deployment": result.route.route_id,
                                            "X-Router-Decision": result.decision_id})
         except (ValueError, TypeError, UnicodeError, RecursionError):
-            if not committed:
+            if not self.response_committed:
                 self.send_json(400, {"error": "invalid JSON, model, step or request limits"})
         except ProviderError as exc:
-            if not committed:
+            if not self.response_committed:
                 headers = {"X-Router-Error-Class": exc.error_class}
                 if exc.retry_after_seconds:
                     headers["Retry-After"] = str(max(1, int(exc.retry_after_seconds)))
                 self.send_json(503, {"error": "no feasible upstream", "error_class": exc.error_class}, headers)
         except sqlite3.Error:
-            if not committed:
+            if not self.response_committed:
                 self.send_json(503, {"error": "sidecar state unavailable"})
         except OSError:
             self.close_connection = True
@@ -208,6 +254,72 @@ class Handler(BaseHTTPRequestHandler):
             self.close_connection = True
             if stream is not None:
                 stream.close()
+
+
+    def send_responses_stream(self, prepared: Prepared, stream) -> None:
+        """Translate the chat SSE stream into text-only Responses API events."""
+        identity, item_id = stream.identity, "msg_" + stream.identity[:24]
+        created, sequence = int(time.time()), 0
+        base = {"id": "resp_" + identity, "object": "response", "created_at": created,
+                "model": prepared.model}
+
+        def emit(event: str, data: dict) -> None:
+            nonlocal sequence
+            payload = {"type": event, "sequence_number": sequence, **data}
+            sequence += 1
+            self.wfile.write(("event: " + event + "\n").encode("ascii"))
+            self.wfile.write(("data: " + json.dumps(payload, allow_nan=False, separators=(",", ":"))
+                              + "\n\n").encode("utf-8"))
+            self.wfile.flush()
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Connection", "close")
+        self.send_header("X-Router-Deployment", stream.route.route_id)
+        self.send_header("X-Router-Decision", identity)
+        self.end_headers()
+        self.response_committed = True
+        self.close_connection = True
+        emit("response.created", {"response": {**base, "status": "in_progress", "output": []}})
+        emit("response.output_item.added", {"output_index": 0, "item": {
+            "id": item_id, "type": "message", "status": "in_progress",
+            "role": "assistant", "content": []}})
+        emit("response.content_part.added", {"item_id": item_id, "output_index": 0,
+                                              "content_index": 0,
+                                              "part": {"type": "output_text", "text": "",
+                                                       "annotations": []}})
+        parts: list[str] = []
+        try:
+            for value in stream:
+                if value == "[DONE]":
+                    continue
+                event = json.loads(value)
+                for choice in event.get("choices", []):
+                    delta = choice.get("delta") if isinstance(choice, dict) else None
+                    text = delta.get("content") if isinstance(delta, dict) else None
+                    if isinstance(text, str) and text:
+                        parts.append(text)
+                        emit("response.output_text.delta", {"item_id": item_id, "output_index": 0,
+                                                            "content_index": 0, "delta": text})
+        except (ProviderError, ValueError, TypeError):
+            emit("response.failed", {"response": {**base, "status": "failed", "output": [],
+                                                   "error": {"code": "upstream_error",
+                                                             "message": "no usable output"}}})
+            return
+        text = "".join(parts)
+        item = {"id": item_id, "type": "message", "status": "completed", "role": "assistant",
+                "content": [{"type": "output_text", "text": text,
+                              "annotations": [], "logprobs": []}]}
+        emit("response.output_text.done", {"item_id": item_id, "output_index": 0,
+                                           "content_index": 0, "text": text})
+        emit("response.content_part.done", {"item_id": item_id, "output_index": 0,
+                                            "content_index": 0, "part": item["content"][0]})
+        emit("response.output_item.done", {"output_index": 0, "item": item})
+        emit("response.completed", {"response": {**base, "status": "completed",
+                                                   "output": [item], "output_text": text,
+                                                   "usage": responses_usage(stream.usage) or {}}})
 
 
 def env_flag(name: str, default: bool) -> bool:
@@ -248,29 +360,69 @@ def channel_key_proof_from_command(command: str):
     return proof
 
 
+def _env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise SystemExit("missing environment variable: " + name)
+    return value
+
+
+def parse_embedding_aliases(value: str) -> frozenset[str]:
+    """Embedding aliases are explicit; a typo must fail startup, not embed silently."""
+    names = {part.strip() for part in value.split(",") if part.strip()}
+    if any(len(name) > 512 or any(ord(char) < 33 for char in name) for name in names):
+        raise ValueError("invalid embedding alias")
+    return frozenset(names)
+
+
+def _install_stop_handlers() -> None:
+    """systemd sends SIGTERM; exit through the server's own close path."""
+    if threading.current_thread() is not threading.main_thread():
+        return
+
+    def stop(_signum, _frame) -> None:
+        raise SystemExit(0)
+
+    for signum in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(signum, stop)
+
+
 def serve() -> None:
     """Require a fresh management audit before serving private-alias requests."""
     from newapi_catalog import AdminClient
 
-    path = Path(os.environ["SIDECAR_DB"]).expanduser().resolve()
+    path = Path(_env("SIDECAR_DB")).expanduser().resolve()
     ledger = QuotaLedger(path)
     state = None
     try:
-        base_url = os.environ["NEWAPI_BASE_URL"]
+        base_url = _env("NEWAPI_BASE_URL")
         proof_command = os.environ.get("NEWAPI_CHANNEL_KEY_PROOF_COMMAND")
         key_proof = (channel_key_proof_from_command(proof_command)
                      if proof_command else None)
-        admin = AdminClient(base_url, os.environ["NEWAPI_ADMIN_TOKEN"],
-                            int(os.environ["NEWAPI_ADMIN_USER_ID"]), key_proof=key_proof)
+        admin = AdminClient(base_url, _env("NEWAPI_ADMIN_TOKEN"),
+                            int(_env("NEWAPI_ADMIN_USER_ID")), key_proof=key_proof)
         admin.audit(ledger.routes())
-        admin.audit_relay(os.environ["NEWAPI_API_KEY"], int(os.environ["NEWAPI_RELAY_TOKEN_ID"]))
+        admin.audit_relay(_env("NEWAPI_API_KEY"), int(_env("NEWAPI_RELAY_TOKEN_ID")))
+        aliases = parse_embedding_aliases(os.environ.get("SIDECAR_EMBEDDING_ALIASES", ""))
+        unknown = aliases - {route.alias for route in ledger.routes()}
+        if unknown:
+            raise SystemExit("embedding aliases are not configured routes: "
+                             + ", ".join(sorted(unknown)))
+        collided = aliases & set(MODEL_ALIASES)
+        if collided:
+            raise SystemExit("embedding aliases collide with chat aliases: "
+                             + ", ".join(sorted(collided)))
         state = RouterState(path)
-        runtime = Runtime(ledger, state, base_url, os.environ["NEWAPI_API_KEY"],
+        runtime = Runtime(ledger, state, base_url, _env("NEWAPI_API_KEY"),
                           free_only=env_flag("SIDECAR_FREE_ONLY", True))
-        with Server((os.environ.get("SIDECAR_HOST", "127.0.0.1"), int(os.environ["SIDECAR_PORT"])),
-                    runtime, os.environ["SIDECAR_API_KEY"],
+        _install_stop_handlers()
+        with Server((os.environ.get("SIDECAR_HOST", "127.0.0.1"), int(_env("SIDECAR_PORT"))),
+                    runtime, _env("SIDECAR_API_KEY"), embedding_aliases=aliases,
                     compress=env_flag("SIDECAR_COMPRESS_JSON", False)) as server:
-            server.serve_forever()
+            try:
+                server.serve_forever()
+            except (KeyboardInterrupt, SystemExit):
+                LOG.info("sidecar stopping")
     finally:
         if state is not None:
             state.close()

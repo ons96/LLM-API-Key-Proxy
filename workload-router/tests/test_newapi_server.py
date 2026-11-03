@@ -36,11 +36,19 @@ def sidecar(monkeypatch):
                   quota_type="unlimited", context_window=262144, output_limit=32768,
                   input_price=0, output_price=0, stream=True, tool_call=True)
     ledger.configure(route)
+    ledger.configure(Route("local-embed", "fixture", "embed-model", "opaque", "sc.embed", 2,
+                           quota_type="unlimited", input_price=0, output_price=0))
     calls = []
     scripts = []
     class Adapter:
         def complete(self, deployment, data):
             calls.append(data.to_payload(deployment.model, False))
+            if "tool" in scripts:
+                return ProviderCompletion(
+                    {"role": "assistant", "content": None,
+                     "tool_calls": [{"id": "call_1", "type": "function",
+                                     "function": {"name": "lookup", "arguments": "{\"q\": \"x\"}"}}]},
+                    "tool_calls", {"prompt_tokens": 10, "completion_tokens": 2})
             return ProviderCompletion({"role": "assistant", "content": "ok"}, "stop",
                                       {"prompt_tokens": 10, "completion_tokens": 2})
 
@@ -53,7 +61,8 @@ def sidecar(monkeypatch):
             yield "[DONE]"
     monkeypatch.setattr(runtime, "adapter", lambda _remaining: Adapter())
     try:
-        with running(Server(("127.0.0.1", 0), runtime, "test-client")) as server:
+        with running(Server(("127.0.0.1", 0), runtime, "test-client",
+                            embedding_aliases=frozenset({"sc.embed"}))) as server:
             yield server, runtime, calls, scripts
     finally:
         state.close()
@@ -100,12 +109,28 @@ def test_channel_key_proof_helper_uses_stdin_and_validates_output(monkeypatch):
     assert seen["capture_output"] is True and seen["check"] is True
 
 
+@pytest.mark.parametrize("stdout", ["", "two\nlines\n", "bad\x00token"])
+def test_channel_key_proof_helper_rejects_invalid_output(monkeypatch, stdout):
+    class Result:
+        pass
+
+    Result.stdout = stdout
+    monkeypatch.setattr("newapi_server.subprocess.run", lambda *args, **kwargs: Result())
+    with pytest.raises((RuntimeError, ValueError), match="invalid"):
+        channel_key_proof_from_command("/usr/local/bin/proof-helper")(42)
+
+
 def test_auth_models_health_and_diagnostics(sidecar):
     server, runtime, calls, _ = sidecar
     assert call(server, "/healthz", method="GET", auth=False)[0] == 200
     assert call(server, "/v1/models", method="GET", auth=False)[0] == 401
     status, body, headers = call(server, "/v1/models", method="GET")
-    assert status == 200 and {item["id"] for item in json.loads(body)["data"]} == {"auto-chat", "auto-code", "auto-coding"}
+    models = json.loads(body)["data"]
+    ids = {item["id"] for item in models}
+    deprecated = {item["id"] for item in models if item.get("deprecated")}
+    assert status == 200 and {"auto-chat", "auto-code", "auto-coding"} <= ids
+    assert {"auto", "coding-elite", "agent-oracle"} <= ids
+    assert len(deprecated) == 19 and len(ids) == 22
     assert headers["Cache-Control"] == "no-store"
     assert call(server, "/v1/router/diagnostics", method="GET")[0] == 200
     assert not calls and not runtime.ledger.diagnostics()["attempts"]
@@ -162,6 +187,113 @@ def test_native_stream_complete_and_late_failure(sidecar):
     assert status == 200 and "ok" in body and "[DONE]" not in body and "private" not in body
     assert runtime.ledger.decision(headers["X-Router-Decision"])["status"] == "failure"
     assert len(calls) == 2
+
+
+def test_wrong_method_returns_json_405(sidecar):
+    server, _, calls, _ = sidecar
+    status, body, headers = call(server, method="PUT")
+    assert status == 405 and json.loads(body)["error"] == "method not allowed"
+    assert headers["Allow"] == "GET, POST" and not calls
+
+
+def responses_call(server, payload):
+    return call(server, "/v1/responses", raw=json.dumps(payload))
+
+
+def test_responses_non_streaming_translates_and_echoes(sidecar):
+    server, runtime, calls, _ = sidecar
+    status, body, headers = responses_call(server, {
+        "model": "auto-chat", "input": "hello", "instructions": "be terse",
+        "max_output_tokens": 16})
+    response = json.loads(body)
+    assert status == 200 and response["object"] == "response"
+    assert response["output_text"] == "ok" and response["model"] == "auto-chat"
+    assert response["usage"]["input_tokens"] == 10
+    assert response["usage"]["output_tokens"] == 2
+    assert calls[-1]["messages"] == [{"role": "system", "content": "be terse"},
+                                     {"role": "user", "content": "hello"}]
+    assert calls[-1]["max_tokens"] == 16
+    assert runtime.ledger.decision(headers["X-Router-Decision"])["status"] == "success"
+
+
+def test_responses_translates_function_tools(sidecar):
+    server, _, calls, scripts = sidecar
+    scripts.append("tool")
+    status, body, _ = responses_call(server, {
+        "model": "auto-chat", "input": "find x",
+        "tools": [{"type": "function", "name": "lookup",
+                   "description": "search", "parameters": {"type": "object"}}],
+        "tool_choice": "required"})
+    response = json.loads(body)
+    assert status == 200
+    assert calls[-1]["tools"] == [{"type": "function", "function": {
+        "name": "lookup", "description": "search", "parameters": {"type": "object"}}}]
+    assert calls[-1]["tool_choice"] == "required"
+    assert response["output"][0]["type"] == "function_call"
+    assert response["output"][0]["name"] == "lookup"
+    assert response["output_text"] == ""
+
+
+def test_responses_rejects_unsupported_shapes(sidecar):
+    server, _, calls, _ = sidecar
+    assert responses_call(server, {"model": "auto-chat", "input": "hi",
+                                   "previous_response_id": "resp_1"})[0] == 400
+    assert responses_call(server, {"model": "auto-chat", "input": "hi", "stream": True,
+                                   "tools": [{"type": "function", "name": "lookup"}]})[0] == 400
+    assert responses_call(server, {"model": "auto-chat", "input": [
+        {"type": "function_call_output", "call_id": "c1", "output": "x"}]})[0] == 400
+    assert not calls
+
+
+def test_responses_streaming_text_events(sidecar):
+    server, runtime, _, _ = sidecar
+    status, body, headers = responses_call(server, {"model": "auto-chat", "input": "hi",
+                                                   "stream": True})
+    assert status == 200
+    events = [json.loads(line[5:]) for line in body.splitlines() if line.startswith("data:")]
+    types = [event["type"] for event in events]
+    assert types[0] == "response.created" and types[-1] == "response.completed"
+    assert "response.output_text.delta" in types
+    assert "".join(event["delta"] for event in events
+                   if event["type"] == "response.output_text.delta") == "ok"
+    assert events[-1]["response"]["usage"]["output_tokens"] == 2
+    assert runtime.ledger.decision(headers["X-Router-Decision"])["status"] == "success"
+
+
+def test_embeddings_forward_and_account(sidecar, monkeypatch):
+    server, runtime, calls, _ = sidecar
+    seen = {}
+
+    def post(base_url, api_key, payload, timeout):
+        seen.update(base_url=base_url, api_key=api_key, payload=payload)
+        return {"object": "list", "data": [{"object": "embedding", "index": 0,
+                                             "embedding": [0.5, 0.25]}],
+                "model": "embed-model"}
+
+    monkeypatch.setattr("newapi_runtime._embedding_post", post)
+    status, body, headers = call(server, "/v1/embeddings",
+                                 raw=json.dumps({"model": "sc.embed", "input": ["a", "b"]}))
+    result = json.loads(body)
+    assert status == 200 and result["data"][0]["embedding"] == [0.5, 0.25]
+    assert result["model"] == "sc.embed"
+    assert seen["payload"] == {"model": "sc.embed", "input": ["a", "b"]}
+    assert seen["base_url"] == "http://127.0.0.1:8002/v1"
+    decision = runtime.ledger.decision(headers["X-Router-Decision"])
+    assert decision["status"] == "success" and decision["output_tokens"] == 0
+    assert not calls
+
+
+def test_embeddings_reject_unknown_alias_and_bad_input(sidecar, monkeypatch):
+    server, runtime, _, _ = sidecar
+    monkeypatch.setattr("newapi_runtime._embedding_post",
+                        lambda *args: pytest.fail("must not dispatch"))
+    assert call(server, "/v1/embeddings",
+                raw=json.dumps({"model": "auto-chat", "input": "a"}))[0] == 400
+    assert call(server, "/v1/embeddings",
+                raw=json.dumps({"model": "sc.embed", "input": []}))[0] == 400
+    assert call(server, "/v1/embeddings",
+                raw=json.dumps({"model": "sc.embed", "input": [1, 2]}))[0] == 400
+    assert not runtime.ledger.diagnostics()["attempts"]
 
 
 def test_request_threads_bounded_before_handler_creation():
