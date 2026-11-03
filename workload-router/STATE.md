@@ -682,3 +682,88 @@ validation remains blocked on legacy upstream availability.
 After every milestone, record changed files, exact commands and results,
 unresolved issues, and the next concrete action in this file. Keep checkpoints
 small enough that another agent can resume from this file alone.
+
+## New-API replacement target clarification
+
+The final goal is deployment on VPS-40 and replacement of the current LLM
+gateway, only after the new stack is tested and confirmed working. Parallel
+operation is the validation stage. Do not infer immediate deployment/cutover
+permission from this goal, and preserve the old gateway as rollback.
+
+The active implementation worktree is
+`LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar`, branch `feat/newapi-sidecar`.
+The quota ledger, scorer, accounted runtime and opt-in HTTP boundary are written.
+The admin/catalog module is in progress and not yet integration-verified.
+No production gateway or VPS files have been changed by this implementation.
+
+Verified commands:
+
+- `python3 -m pytest -q tests/test_newapi_runtime.py tests/test_quota_ledger.py tests/test_route_policy.py`
+  -> 46 passed.
+- `python3 -m pytest -q tests/test_newapi_server.py tests/test_newapi_runtime.py tests/test_provider_http_adapter.py`
+  -> 53 passed.
+- The broader suite found one upload/early-close race in the oversized-body test
+  (198 passed, 1 failed). The test was corrected to send headers only; the HTTP
+  suite then passed 15 tests. Re-run the full suite before claiming it passes.
+
+Next: finish and test the management/catalog preflight, then verify against a
+fresh isolated New-API instance. Real-provider/OpenCode and VPS-40 validation,
+client compatibility and tested rollback remain required before replacement.
+
+## New-API OmniRush handoff checkpoint - 2026-11-03
+
+The continuation handoff is now at:
+`/home/osees/CodingProjects/temp-omnirush/HANDOFF-newapi-sidecar.md`.
+Use it from OmniRush's launch directory, but run implementation commands in this
+isolated worktree's `workload-router/` directory. Preserve all uncommitted files.
+
+Implementation branch/base HEAD: `feat/newapi-sidecar`, `fde9784`.
+Migration docs branch/base HEAD: `work/newapi-sidecar`, `078ce55`.
+No commit, push, production deployment or VPS modification occurred.
+
+The catalog, benchmark, authorized management-proof flow and isolated verifier
+are written. A directly inspected report at
+`/tmp/opencode/newapi-proof-7uclf86q/report.json` records a passing real-binary
+local proof: chat/coding/SSE 200, exactly one 429 attempt then failover, three
+fixture catalogs, additive disposable OpenCode refresh, paid-route exclusion and
+all five rankings changed by grades. Scripted route one graded 0/5; route two
+graded 5/5. These are LOCAL FIXTURES, not live-provider validation.
+
+The benchmark-isolation fix is applied in the verifier. Its history resets are
+restricted to a fresh owned fixture database; do not weaken production accounting
+or copy these resets into production. Earlier conversation summaries saying this
+fix was unapplied are stale.
+
+Last recorded full suite before catalog/benchmark additions: 199 passed.
+Later focused benchmark/catalog suite: 31 passed. A new full-suite result is
+still needed; repeated `rtk pytest` runs collected no tests and prove nothing.
+`git diff --check` passed immediately before writing this handoff.
+
+Outstanding: intermittent early 503 proof runs are not causally resolved;
+production `serve()` supplies no channel-key proof callback and therefore fails
+closed when keys are hidden; real catalog/operator orchestration, OpenCode tool
+loops, client compatibility, lint/type checks and VPS resource/restart/rollback
+gates remain. The old gateway must stay live until replacement is confirmed.
+
+Next: run `python3 -m pytest tests -o addopts= --quiet` once in this directory;
+record the actual result, then fix the supported production startup proof path.
+
+## New-API startup authorization checkpoint - 2026-11-03
+
+- Ran the handoff's exact full suite: `230 passed, 1 warning in 11.54s`.
+- Ran the handoff's exact `git diff --check`: passed.
+- The exact isolated verifier was attempted twice. It first lacked `ip`; after
+  installing the free `iproute2` package, it stopped because this sandbox does
+  not mount `/home/osees/new-api/bin/new-api` or `/tmp/opencode`.
+- Added `NEWAPI_CHANNEL_KEY_PROOF_COMMAND` support to `newapi_server.py`.
+  The configured helper receives only a channel ID on stdin, returns one
+  authorized proof token on stdout, and is bounded by a 30-second subprocess
+  timeout. No password, backup code, enrollment secret, or proof is stored or
+  passed in argv. If unset, startup remains fail-closed.
+- Added `test_channel_key_proof_helper_uses_stdin_and_validates_output`.
+  Targeted server tests: `16 passed`; Python compilation passed.
+- No deployment, credential, gateway, VPS, commit, or push was performed.
+
+Next: document the operator proof-helper contract, run the full suite again,
+and rerun the exact isolated verifier in an environment containing its binary
+and artifact parent.
