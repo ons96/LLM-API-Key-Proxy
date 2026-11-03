@@ -26,14 +26,70 @@ full local integration report passes. Production readiness is NOT established.
 - Branch `feat/newapi-sidecar` tracks `origin/feat/newapi-sidecar`.
 - Commits: `f00de12 feat: add New-API sidecar routing` and
   `1777e36 docs: record sidecar verification`.
-- Worktree is clean.
+- Worktree has uncommitted sidecar/docs changes; nothing has been committed or
+  pushed.
 - Full provider-free suite: 231 passed, with the existing
   `Unknown config option: asyncio_mode` warning.
 - Release, resource, and 50-request/8-worker concurrency smoke checks passed.
 - Targeted provider-fault, runtime, server, quota, adapter, streaming, and
   benchmark tests passed: 77 + 25 tests.
-- No VPS deployment, live-provider test, OpenCode client test, credential
-  provisioning, merge, or traffic cutover has occurred.
+- No deployment of *this sidecar*, live-provider test, OpenCode client test,
+  credential provisioning, merge, or traffic cutover has occurred. VPS-40 does
+  already run an unrelated, separately authorized New-API build (below).
+
+### 2026-11-03 compatibility increment
+
+- Provider-free suite is now 300 passed (231 in the snapshot above).
+- Legacy gateway aliases are accepted and advertised as `deprecated`;
+  `/v1/responses` and `/v1/embeddings` serve the documented subsets. See
+  `workload-router/docs/responses-and-embeddings.md`.
+- Operator CLI and channel-proof helper exist but are not installed on VPS-40.
+- Review map and unverified list: `workload-router/docs/review-package.md`.
+- Later on 2026-11-03: real New-API relay calls to both usable providers (Groq,
+  OpenRouter) passed at `max_tokens=15`. Sidecar code is staged read-only at
+  `/opt/newapi-sidecar` but not running: strict audit is blocked on New-API
+  `RetryTimes=3`, forced-stream channel overrides, and disabled 2FA; the login
+  helper initially read the wrong env file (corrected below). See
+  `workload-router/STATE.md`.
+- Provider catalog located: 204 providers / 6,827 models, with 44 enabled in the
+  gateway config. Live probes found many stale entries; New-API now has
+  `gw:hcnsec`, `gw:iamhc` (`auto`) and `gw:bluesminds`, all 200. The earlier
+  "login limiter" was a wrong env-file read; login works. The goal is now
+  model-first routing through New-API channels, so the sidecar's strict audit
+  and 2FA remain parked. See `workload-router/docs/provider-import-plan.md`.
+- Failover proven 2026-11-03: disabled `gw:hcnsec` with
+  `POST /api/channel/6/status`; `auto` still returned 200 via `gw:iamhc`;
+  re-enabled and confirmed `status: 1`. The generic channel update rejects a
+  `status` field.
+- Added `gw:crowllm` (id 9, 80 free models), `gw:kiosapi` (id 10, 4 models) and
+  `gw:crowllm-canonical` (id 11, priority 40) mapping `agnes-3.0-flash` to
+  `agnes-3.0-flash:free`. Channels 9/10 passed through New-API; both 10 and 11
+  are in the abilities table for that model. New-API has 9 channels.
+- Canonical failover test passed 2026-11-03: with `gw:kiosapi` (id 10)
+  disabled, `agnes-3.0-flash` still returned 200 via `gw:crowllm-canonical`
+  (id 11); channel 10 was re-enabled and confirmed `status: 1`.
+
+### VPS-40 state as of 2026-11-03 (Stage 1 inventory, read-only)
+
+- Host: Ubuntu 24.04.4, amd64, 2 vCPU, 954 MiB RAM, 128 MiB available at sample,
+  5 GiB swap (2 GiB file + 3 GiB zram at ~494 MiB), 48 GiB disk at 31%.
+- `llm-gateway.service` active on `*:8000`, socket-activated, effective
+  `MemoryMax=512M` via drop-in `memory.conf`. `/health` returns 200.
+  Live traffic and rollback stay with this service.
+- **New-API already installed:** `new-api.service` on `*:8001` since 2026-10-20,
+  `/opt/new-api`, pinned `v1.0.0-rc.36` with sha256 matching
+  `5d9b2547...e957f3`, user `newapi`, SQLite `one-api.db` (41 MiB, 3 channels,
+  29 abilities, 1 user). Simplified deploy notes: `docs/new-api-deploy.md`
+  (task-board #862, EPIC #876). Support timers: healthcheck 5 min, watchdog
+  5 min, backup daily (all active); discovery daily is enabled but inactive.
+- Ports 8000/8001 are admitted only from loopback and Tailscale by iptables
+  (no `ufw`). The `*:8001` bind is deliberate: the dashboard is reached over
+  Tailscale, and the firewall, not the bind address, is the access control.
+- Existing `ai-workload-router-canary.service` on `127.0.0.1:8123` runs the older
+  router release, not this sidecar. No sidecar install, unit, or channel-key
+  proof helper exists on the host.
+- Effective pipeline: Stage 2 is gap-closing on this install, not a fresh
+  install. Stage 3 is blocked on the operator proof helper.
 
 ## Resume prompt
 
@@ -121,7 +177,10 @@ editing or staging; none of this may be discarded.
    truncated output without trustworthy final usage retains the full reservation.
    Crashed started reservations stay charged; do not silently refund them.
 4. Public profiles are `auto-coding`, compatibility alias `auto-code`, and
-   `auto-chat`. Step hints use `X-Route-Step`; sessions use `X-Session-Id`.
+   `auto-chat`. The 19 legacy gateway aliases are also accepted and mapped to a
+   profile plus a step hint (see
+   `workload-router/docs/alias-mapping-proposal.md`). Step hints use
+   `X-Route-Step`; sessions use `X-Session-Id`.
    `RouterState.set_preferred(session_id, "auto-coding", route_id)` is the correct
    argument order. Chat does not reuse coding preference/cache state.
 5. The default output cap is 2048 and is forwarded upstream. Multi-generation
@@ -147,10 +206,17 @@ this handoff. It contains `passed: true`, not merely a truncated success message
 - RSS sample: New-API 128900 KiB; Python fixture plus sidecar 42996 KiB. This is
   a local sample, not a VPS load or pure-sidecar memory guarantee.
 
-The last recorded full Python suite before the catalog/benchmark suites was
-199 passed. The later benchmark/catalog run was 31 passed (12 plus 19). A fresh
-full-suite result for the current tree still needs to be recorded. The existing
-warning is `Unknown config option: asyncio_mode`.
+The current full Python suite was rerun from `workload-router/` with
+`PYTHONPATH=.` and `uv run --with pytest`: **234 passed**. Pytest still emits the
+existing `Unknown config option: asyncio_mode` warning because the environment
+does not install `pytest-asyncio`; this is non-blocking for the current suite.
+
+The real-binary verifier also now passes using the documented pinned
+New-API `v1.0.0-rc.36` amd64 release (SHA-256 verified before execution).
+It exercised the disposable local New-API instance, scripted 429 failover,
+three-provider catalog refresh, additive OpenCode refresh, benchmark ranking
+changes, paid-route exclusion, and resource sampling. This remains local
+fixture evidence; no live provider, VPS, or traffic cutover was performed.
 
 Earlier isolated runs intermittently returned 503 before upstream dispatch.
 The cause was not established; a later passing run does not prove that flakiness
@@ -191,7 +257,13 @@ production maintenance path or weaken only-tighten learning to make a test pass.
 5. After separate authorization, validate side-by-side on VPS-40: resource/load,
    restart/persistence, strict quotas, compatibility and rollback. Confirm every
    gate before traffic cutover. Keep the old gateway intact afterward until its
-   retirement is separately approved.
+   retirement is separately approved. Note the inventory above: New-API already
+   runs on `:8001`, so this stage is gap-closing plus sidecar validation, not a
+   new install.
+
+The host-integrated execution plan and secret-free prompt for this stage are in
+`docs/VPS-CANARY-HANDOFF-PROMPT.md`. Use a host-integrated harness for SSH
+operations, then return here for local review before advancing stages.
 
 ## Exact local checks
 

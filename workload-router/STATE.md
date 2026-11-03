@@ -779,3 +779,342 @@ record the actual result, then fix the supported production startup proof path.
 Next: document the operator proof-helper contract, run the full suite again,
 and rerun the exact isolated verifier in an environment containing its binary
 and artifact parent.
+
+
+## 2026-11-03 resume verification
+
+- GitHub state and task-board discovery completed after authenticating `gh`; no lost sidecar work was found.
+- `PYTHONPATH=. uv run --with pytest pytest tests -o addopts= --quiet` passed: **231 tests**.
+- The existing `Unknown config option: asyncio_mode` warning remains because pytest-asyncio is not installed.
+- The real New-API verifier is blocked on this machine because `/home/osees/new-api/bin/new-api` is absent. No deployment, credential, or live-provider checks were performed.
+- Project instructions now prefer `uv` for Python tooling, with pip only as a documented fallback.
+- Exact pinned New-API `v1.0.0-rc.36` verifier passed.
+  The SHA-256 matched `5d9b254721c205f4f442848a4af5b58617a8c0ee090366732cfff90455e957f3`; local fixture checks covered chat, coding, SSE, 429 failover, catalog/OpenCode refresh, benchmark ranking changes, paid exclusion, and RSS.
+- The verifier used only disposable local state and scripted providers; VPS-40, LiteLLM, live providers, and credentials remain untouched.
+- Added the operator-facing channel proof-helper contract at `docs/channel-proof-helper.md` and malformed-output regression coverage.
+- Full provider-free suite after this milestone: `PYTHONPATH=. uv run --with pytest pytest tests -o addopts= --quiet` -> **234 passed**, one existing `asyncio_mode` warning.
+
+## VPS-40 Stage 1 read-only inventory - 2026-11-03
+
+- Host `ubuntu@40.233.101.233` (`llm-gateway`): Ubuntu 24.04.4 LTS, amd64, 2 vCPU,
+kernel 6.17.0-1018-oracle, uptime 104 days, load 0.22.
+- Resources: 954 MiB RAM (826 used, 128 available at sample), 5 GiB swap
+(2 GiB swapfile + 3 GiB zram at ~494 MiB used), 48 GiB disk at 31% (33 GiB
+free). Passwordless sudo available; python3.12; no `uv`.
+- `llm-gateway.service` active on `*:8000`, socket-activated via
+`llm-gateway.socket`. Effective `MemoryMax=512M` from drop-in `memory.conf`
+(base unit declares 400M). `MemoryCurrent` sampled 77-259 MiB, `NRestarts=0`,
+started 22:30:11 UTC roughly two minutes before this inventory.
+- Gateway drop-ins: `smart-router.conf` (`ROUTER_ENABLED=1`, `ROUTER_DRY_RUN=0`)
+and `workload-router-shadow.conf` (`WORKLOAD_ROUTER_DRY_RUN=1`). The VPS checkout
+contains `src/proxy_app/workload_router_shadow.py` and `router_wrapper.py`.
+- **Pre-existing New-API install, absent from the handoff:** `new-api.service`
+active since 2026-10-20 on `*:8001`, root-owned binary in `/opt/new-api`
+(536M total), pinned `v1.0.0-rc.36`, sha256 matches the documented
+`5d9b2547...e957f3`, user `newapi`, RSS ~58-64 MiB.
+`MemoryMax` was `infinity` at inventory time and was capped to 256M in the
+gap-closing step below.
+Documented in `docs/new-api-deploy.md` (task-board #862, EPIC #876).
+- New-API support units: healthcheck every 5 min (active; exit status 2 means
+unhealthy/deprioritized), watchdog every 5 min (active), backup daily (active,
+last run 22h ago, 347M of weekly databases), discovery daily (enabled but
+inactive).
+- `one-api.db` is 41 MiB. Read-only counts: 3 channels (all type 1, enabled,
+keyed), 29 abilities, 14,616 tokens, 1 user. Credential values were not read.
+- Existing loopback canary: user unit `ai-workload-router-canary.service` on
+`127.0.0.1:8123` from `releases/failures-20261008`, RSS 1.8 MiB,
+`MemoryMax=160M`. This is the older router, not this sidecar.
+- Other listeners: caddy `10.0.0.19:80/443` (reverse-proxies 8000 and 8080),
+ngrok `127.0.0.1:4040` tunnelling 8000, cliproxyapi 8317, zeroclaw 8080,
+docrender 8091, caddy admin 2019. Ports 8090, 8095 and 8081 bind `0.0.0.0`
+with no iptables rule.
+- Firewall: no `ufw` installed; iptables defaults to ACCEPT with explicit
+loopback/Tailscale-only admission for 8000 and 8001, an SSH allowlist
+(`BB-SSH`), and fail2ban running. No failed systemd units.
+- No sidecar install, no sidecar unit, and no `newapi-channel-proof` helper
+exist anywhere on the host.
+- VPS gateway checkout `/home/ubuntu/LLM-API-Key-Proxy` is on
+`work/gateway-catalog` (HEAD `22f96ad`) with four modified config files.
+- Rollback assets: `~/gateway-backup-2026-10-20-vps.tgz`, `~/gateway-backups/`,
+`~/backups/` (historical commit pins), `~/ai-workload-router/releases/` (four
+releases), `~/LLM-API-Key-Proxy-archive/`, `/opt/new-api/backups/`.
+- Nothing was installed, stopped, restarted, reconfigured, or cut over. Only
+reads, unauthenticated `GET`s, and read-only SQLite counts were used.
+- Stage 2 is therefore substantially implemented already, with two deviations
+from the staging spec: New-API binds all interfaces rather than loopback, and
+it has no memory bound. Stage 3 remains blocked on the proof helper.
+
+## VPS-40 Stage 2 gap-closing - 2026-11-03
+
+- Authorized next action executed against the pre-existing New-API install. No
+reinstall, no replacement, no credential change, and no traffic cutover.
+- Added `/etc/systemd/system/new-api.service.d/memory.conf` with
+`MemoryMax=256M`. Before: `MemoryMax=infinity`, `MemoryCurrent` sampled at
+101 MiB. `daemon-reload` and `systemctl restart new-api` both exited 0.
+- Post-restart: `is-active=active`, `Result=success`, `MemoryMax=268435456`,
+`MemoryCurrent` 45 MiB, new PID, `ActiveEnterTimestamp` 22:36:19 UTC,
+`is-enabled=enabled` (boot persistence unchanged).
+- `:8001/api/status` and `:8001/` returned 200 on the first probe; healthcheck,
+watchdog and backup timers all remained active; `one-api.db` plus WAL are
+intact and were checkpointed by the restart.
+- `llm-gateway.service` stayed `active` with `/health` 200 throughout. Its unit
+and drop-ins were not touched.
+- The bind deviation was closed by documentation, not rebinding: `*:8001` is
+intentional so the dashboard stays reachable over Tailscale, and iptables
+(not the bind address) is the access control. No `ufw` is installed.
+- Rollback for this change:
+`sudo rm /etc/systemd/system/new-api.service.d/memory.conf && sudo systemctl
+daemon-reload && sudo systemctl restart new-api`.
+- Admin-password state remains unverified. Confirming it would require
+handling credentials, so it stays an operator step; nothing was tested or
+printed.
+- Docs reconciled: `HANDOFF-newapi-sidecar.md` records the VPS-40 inventory and
+qualifies the "no VPS deployment" claim to this sidecar;
+`docs/VPS-CANARY-HANDOFF-PROMPT.md` now lists `docs/new-api-deploy.md`, states
+that Stage 2 is gap-closing, records the unverified admin password, and keeps
+Stage 3 blocked on the proof helper.
+
+## Gateway compatibility inventory - 2026-11-03
+
+- Added `docs/gateway-compatibility.md`. Read-only: the live gateway's
+`/openapi.json` answered unauthenticated with 30 paths, and virtual-model names
+came from `config/virtual_models.yaml` keys only.
+- HTTP surface: 2 exact matches (`/v1/chat/completions`, `/v1/models`), 1 renamed
+(`/health` -> `/healthz`), and 27 absent of 30. `/v1/models` is only partial:
+the sidecar returns its 3 profile aliases, not a model list.
+- Model aliases: zero overlap. The sidecar accepts only `auto-coding`,
+`auto-code` and `auto-chat` (`newapi_runtime.py:88`); the gateway serves 19
+virtual models (`auto`, `title-fast`, `safe-coding`, `coding-*`, `chat-*`,
+`glm5-elite`, `p0-minimax-m3`, six `agent-*`). Every client pinned to a gateway
+alias would receive HTTP 400 after a naive cutover.
+- Recorded three options without choosing: alias translation in the sidecar,
+permanent dual-path, or a Caddy front split. Alias translation is smallest but
+changes the documented public profile contract, so it needs a decision.
+- Client route *usage* is still unknown; no request log was reviewed. Only
+availability is established.
+- This closes the "inventory the old gateway's API routes and virtual aliases"
+half of gate 4. Real-provider validation, OpenCode tool loops and cutover remain
+after the sidecar can start.
+
+## Channel-key proof helper - 2026-11-03
+
+- Added `tools/newapi_channel_proof.py`, the operator-controlled helper the
+startup audit needs whenever New-API hides channel keys. Two credential modes:
+`interactive` (2FA or backup code at the controlling terminal) and `totp`
+(base32 seed in a 0600 operator-owned file). Choosing between them is
+configuration, not code.
+- Configuration is environment-only (`NEWAPI_PROOF_ADMIN_TOKEN`,
+`NEWAPI_PROOF_ADMIN_USER_ID`, `NEWAPI_PROOF_BASE_URL`,
+`NEWAPI_PROOF_TOTP_SECRET_FILE`); no credential ever appears in argv. Hardening:
+loopback-only base URL, redirects refused, 10-second HTTP timeout, exactly one
+stdin line, 0600 seed enforced, and diagnostics that never echo a code or proof.
+- The helper returns the proof without redeeming it. The sidecar redeems it
+against `POST /api/channel/<id>/key`, so consuming it in the helper would break
+that call.
+- Added `tests/test_channel_proof_helper.py` (16 tests) against a loopback fake
+New-API covering token shape, `scope=channel.key.read`, `context.channel_id`,
+header forwarding, invalid stdin, management rejection, malformed proof, shared
+seed file, missing admin token, remote base URL, interactive without a terminal,
+and an end-to-end call through `channel_key_proof_from_command`.
+- `PYTHONPATH=. uv run --with pytest pytest tests/test_channel_proof_helper.py
+-o addopts= --quiet` -> **16 passed**.
+- Full provider-free suite -> **250 passed**, one existing `asyncio_mode` warning.
+- `docs/channel-proof-helper.md` documents the reference implementation and an
+untested operational caveat: the audit runs once per boot and once per channel,
+while 2FA backup codes are single use. Whether one TOTP window authorizes
+several channels in one audit is not verified; the local real-binary verifier
+cannot answer it on this host because the pinned binary is absent.
+- Nothing was installed on the VPS, no credential was read or created, and no
+commit or push was performed.
+
+## Operator commands and alias proposal - 2026-11-03
+
+- Added `newapi_operator.py` at the package root (matching `newapi_catalog.py`
+and the other `newapi_*` modules) with four repeatable commands: `audit`,
+`catalog`, `priorities` and `boot-check`. Read-only by default; only
+`catalog --apply-opencode` and `priorities --apply` mutate anything.
+- `audit` runs the same strict checks as `serve()` and prints a 64-character
+digest; `catalog` refreshes provider `/models` into the ledger, resolves keys
+from the metadata `env_var` (never argv) and preserves the last-good catalog on
+an empty fetch; `priorities` validates an explicit best-first order and updates
+priorities only after re-auditing; `boot-check` validates an OpenCode config
+without writing.
+- Priority order stays explicit rather than derived. Automatic ordering from
+persisted grades or telemetry would encode a policy decision, so it remains open
+work rather than a CLI default.
+- Added `tests/test_newapi_operator.py` (17 tests): audit call ordering,
+preview/apply separation, full order validation, catalog refresh against a
+loopback `/models`, keyless versus keyed Authorization headers, empty-catalog
+rejection, boot-check acceptance and rejection paths, and CLI exit codes.
+- Targeted run -> **17 passed**. Full suite -> **267 passed**, one existing
+`asyncio_mode` warning. `git diff --check` clean, CLI `--help` exits 0, and no
+stale `tools/newapi_operator` references remain.
+- Added `docs/operator-commands.md` and `docs/alias-mapping-proposal.md`. The
+proposal maps all 19 legacy aliases onto the sidecar's profile/step vocabulary
+and states plainly that it preserves acceptance and step hints, not the
+gateway's fallback chains. It is NOT implemented and needs approval because it
+changes the documented public profile contract.
+- Initial placement in `tools/` failed pytest collection with
+`ModuleNotFoundError`; the module was moved to the package root and the test and
+documentation references were updated.
+- No VPS change, no credential access, no commit and no push.
+
+## Legacy alias compatibility - 2026-11-03
+
+- Operator approved the compatibility shim (option 1 in
+`docs/alias-mapping-proposal.md`).
+- Added `LEGACY_ALIASES` (19 gateway names mapped to a profile and a default step)
+and `MODEL_ALIASES` (the 22-name union) to `newapi_runtime.py`. `prepare()`
+resolves through the union, applies the legacy step hint, still lets an explicit
+`X-Route-Step` override it, and keeps the requested name in `Prepared.model` so
+responses echo what the client asked for. Unknown names still fail closed.
+- `/v1/models` now advertises all 22 names with the legacy ones marked
+`"deprecated": true`; the discovery test asserts 19 deprecated out of 22.
+- Added `tests/test_legacy_aliases.py`: every legacy alias accepted with its
+mapped profile/step, inventory sizes 19 and 22, explicit step override, public
+profile defaults and unknown-name rejection.
+- Targeted run (`test_legacy_aliases`, `test_newapi_runtime`,
+`test_newapi_server`) -> **71 passed**.
+- Recorded the approved 2FA source: an operator-owned `0600` TOTP seed used by
+`tools/newapi_channel_proof.py --mode=totp`. The single-use backup-code caveat in
+`docs/channel-proof-helper.md` still applies to restarts.
+- No VPS installation is planned until the replacement is demonstrably better
+than the live LiteLLM gateway. The operator's reason: cutover would otherwise
+interrupt the few clients that depend on the current gateway.
+- Still no VPS change, credential access, commit or push.
+
+## Compatibility routes and hardening - 2026-11-03
+
+- Operator approved building the remaining compatibility routes.
+- `POST /v1/responses` translates the text/function-tool subset of the Responses
+API into a chat payload, so routing, quota reservation and telemetry are
+unchanged. Supports string or message-list `input`, `instructions`, flat
+function `tools`, `tool_choice` strings, `text.format`, `max_output_tokens`,
+`temperature`, `top_p`, and text-only SSE streaming. `previous_response_id`,
+non-function tools, image/audio parts and streaming-with-tools return 400
+instead of degrading silently. The shim is stateless.
+- `POST /v1/embeddings` forwards one text batch to the audited New-API relay using
+an alias named in `SIDECAR_EMBEDDING_ALIASES`. Startup fails if the alias is not
+an audited route or collides with a chat alias. Batches reserve estimated prompt
+tokens and settle on upstream usage; responses are size- and type-validated.
+- Server hardening: JSON 405 with `Allow` for PUT/PATCH/DELETE, no Python version
+in the `Server` header, a single committed-response flag so a mid-stream failure
+cannot emit a second status line, missing env vars exit with the variable name,
+embedding aliases are validated before bind, and SIGTERM/SIGINT stop the server
+through its normal close path.
+- Docs: `docs/responses-and-embeddings.md` (contract and limits) and
+`docs/review-package.md` (change map, reproduce commands, verified versus
+unverified). `docs/gateway-compatibility.md` now records 25 of 30 gateway paths
+absent instead of 27.
+- Targeted run (`test_newapi_server`, `test_legacy_aliases`) -> 52 passed;
+`py_compile` clean. Full suite -> 300 passed, 1 pre-existing warning; `git
+diff --check` clean.
+- No VPS service install or start, credential access, commit or push at that
+time.
+
+## Real-provider validation and VPS staging - 2026-11-03
+
+- Read-only inventory of the existing New-API install: 3 channels
+(`groq-free` id 3, `openrouter-free` id 4, `badkey-test-865` id 5). Two are
+usable free providers (Groq, OpenRouter); the third is a deliberate broken-key
+test. The 22 names in `/v1/models` are client aliases, not providers.
+- Real calls through New-API with relay token id 21, `max_tokens=15`:
+`openai/gpt-oss-20b` (Groq) and `cohere/north-mini-code:free` (OpenRouter) both
+returned 200 in streaming and non-streaming mode. Groq reported 78 prompt / 15
+completion tokens; OpenRouter 7 / 15. Four calls total.
+- Non-streaming requests still returned `text/event-stream` because both live
+channels carry `param_override: {"stream": true}`. The sidecar's non-stream
+path expects JSON, so this must be cleared before a sidecar canary.
+- Strict startup audit cannot pass on the current New-API configuration:
+`RetryTimes=3` (must be 0), both live channels carry the stream override,
+channel keys are hidden from the admin API, and 2FA is disabled. The key
+endpoint returns 403 "security verification required".
+- 2FA enrollment is itself gated by `/api/verify` with method `password` and
+scope `2fa.setup`. That proof worked once, but repeated login attempts tripped
+New-API's login rate limiter (429), so enrollment was stopped rather than
+hammered. 2FA remains disabled; no seed or backup code was written.
+- Sidecar code was staged read-only at `/opt/newapi-sidecar` (root-owned,
+`lib/` modules and `bin/channel-proof`) and `/var/lib/newapi-sidecar`
+(newapi-owned, 0700). There is no unit, no process, and no listener on 8099.
+- Added the `routes` operator command (preview by default; `--apply` writes the
+ledger only) with four tests. Full provider-free suite -> **307 passed**, one
+pre-existing warning; `git diff --check` clean.
+- LiteLLM remained active and healthy (`/health` 200); New-API remained active
+and healthy (`/` 200). No traffic, credentials, channel settings, or service
+state were changed. No commit or push.
+- Recommendation: do not replace the LiteLLM gateway with this install. It
+fronts 2 usable providers versus the gateway's 33, and the sidecar's
+compatibility surface is still partial.
+
+## Provider catalog inventory and pilot plan - 2026-11-03
+
+- Located the gateway's provider store: `llm_providers.db` has 204 providers and
+6,827 models; `config/router_config.yaml` has 60 entries with 44 enabled; `.env`
+has 197 non-empty keys. The active gateway therefore uses far more than the 22
+sidecar aliases and the 2 usable New-API channels.
+- Rejected bulk import: many entries are internal, paid, dead, or share a base
+URL, and copying 197 keys would spread credentials well beyond the providers in
+use. New-API also stores channel keys in its SQLite file.
+- Wrote `docs/provider-import-plan.md` and a no-credential plan at
+`/home/ubuntu/newapi-import-plan.json`: pilot Cerebras, Mistral, NVIDIA and
+Together as `gw:*` type-1 channels, then test one 15-token chat per provider and
+expand in batches.
+- Hardened the New-API data directory to `0700` and `one-api.db` plus WAL/SHM to
+`0600`; healthcheck, watchdog and backup all run as `newapi`, and New-API stayed
+healthy. This is now the only live VPS permission change.
+- Restarted New-API to clear what looked like a login limiter (health 200), but
+login still failed. Later correction: the helper read `ROOT_PASSWORD` from the
+gateway `.env` (empty) instead of `/opt/new-api/new-api.env`; there was no
+limiter. See the model-first section below.
+- Recommendation on the security question: defer 2FA. It only unblocks the
+sidecar's channel-key audit, which is still blocked by `RetryTimes=3` and the
+forced-stream channel overrides.
+
+## Model-first pivot and live pilot - 2026-11-03
+
+- Corrected the earlier "login limiter" finding: the helper read
+`ROOT_PASSWORD` from the gateway `.env` (empty) instead of
+`/opt/new-api/new-api.env`. Login succeeds with the correct file; no limiter
+blocked the import, and the 2FA attempts changed nothing.
+- Live probes (15 output tokens) show the catalog is stale: Cerebras and Together
+return 403, Supacoder 403, FreeTheAI 530, GCLI 401, Gemini 2.5 Flash is retired
+(404; 3.8 Flash was 503 high-demand), Mistral chat was 429, and NVIDIA tested
+models returned 404/410. Bluesminds, HCNSEC, IAMHC, and the existing
+Groq/OpenRouter channels answered 200.
+- The operator's goal is model-first routing: select a model, try any provider
+that serves it, and fall back on failure. That is New-API's native channel
+behavior: several channels expose the same model, `RetryTimes` stays above zero,
+and priority/weight pick the order. The sidecar's strict one-alias-per-channel
+audit is the opposite design; do not set `RetryTimes=0` for this goal.
+- Seeded three live channels through the admin API: `gw:hcnsec` (id 6, `auto`),
+`gw:iamhc` (id 7, `auto`), and `gw:bluesminds` (id 8,
+`nvidia/ising-calibration-1.5-31b`). New-API served `auto` and the Bluesminds
+model with 200 through relay token 21. Both `auto` channels remain enabled.
+- Failover is proven: `POST /api/channel/6/status` `{"status":2}` disabled
+`gw:hcnsec`; `auto` still returned 200 with "ok" through `gw:iamhc`; channel 6
+was re-enabled and confirmed `status: 1`. The generic `PUT /api/channel/`
+rejects a `status` field; the dedicated route is `POST /api/channel/:id/status`.
+- Recommendation: park the sidecar strict deployment and 2FA. Use New-API as the
+router, expand only live-verified providers/models, keep dead entries disabled,
+and add canonical model mappings where provider model ids differ.
+- LiteLLM remains the production gateway; no traffic cutover.
+
+## Provider expansion - 2026-11-03
+
+- Probed `/models` for 36 enabled providers with a base URL and key. 15 passed
+`/models` and got a 16-token chat. Only CrowLLM (`qwen-3.6-27b:free`) and
+KiosAPI (`agnes-3.0-flash`) returned 200. Everything else was quota-limited,
+out of credit, paused, or returned malformed upstream responses.
+- Created `gw:crowllm` (id 9, 80 free models), `gw:kiosapi` (id 10, 4 models),
+and `gw:crowllm-canonical` (id 11, priority 40) mapping `agnes-3.0-flash` to
+`agnes-3.0-flash:free`. All are enabled; channels 9/10 were verified through
+New-API relay token 21. The abilities table lists both channels 10 and 11 for
+`agnes-3.0-flash`. New-API now has 9 channels.
+- The canonical fallback test passed: with `gw:kiosapi` (id 10) disabled,
+`agnes-3.0-flash` still returned 200 with "ok" through
+`gw:crowllm-canonical` (id 11); channel 10 was re-enabled and confirmed
+`status: 1`.
+- The status route is `POST /api/channel/:id/status` with `{"status": 1|2}`;
+`PUT /api/channel/` rejects any `status` field. Failover is proven above.
+- Re-probe the 429 providers after their daily reset; do not create channels for
+them until a chat succeeds. Keep dead catalog rows as disabled channels.
