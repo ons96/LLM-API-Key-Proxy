@@ -5,7 +5,8 @@
 The router is intended to run on Oracle VPS 40 at `<VPS40_IP>`, with the
 existing 1 GB RAM, zram, weak CPU, and no GPU constraints. This local repository
 is the development and test workspace. It does not deploy changes to the VPS
-repository automatically.
+repository automatically. See `docs/sidecar-language-decision.md` for the
+measured Python baseline and the decision not to rewrite the sidecar.
 
 ## Runtime requirements
 
@@ -18,6 +19,15 @@ repository automatically.
   configuration; never through the deployment catalog or source files.
 - Optional provider-manager SQLite metadata may supply ordered model groups and
   endpoint URLs; API-key values are never read from that database.
+
+## Sidecar language and resource decision
+
+Keep the sidecar on Python 3 and the standard library. A local measurement of
+the sidecar process was 26,984 KiB RSS after 50 authenticated `/v1/models`
+requests, against VPS-40's approximately 954 MiB total. Use a 128 MiB
+`MemoryMax` as a canary guardrail and measure the live stack under real streams
+before cutover. The full decision and its limits are in
+`docs/sidecar-language-decision.md`.
 
 ## Safe deployment sequence
 

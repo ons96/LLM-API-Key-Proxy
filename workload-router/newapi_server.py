@@ -260,7 +260,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path not in {"/v1/chat/completions", "/v1/router/route",
                              "/v1/responses", "/v1/embeddings",
-                             "/v1/model/parse-command"}:
+                             "/v1/model/parse-command", "/v1/cost-estimate"}:
             self.send_json(404, {"error": "not found"})
             return
         stream = None
@@ -272,6 +272,21 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(200, parse_model_command(payload.get("message", "")))
                 return
             runtime = self.server.runtime
+            if self.path == "/v1/cost-estimate":
+                model = payload.get("model")
+                if not isinstance(model, str) or not model:
+                    raise ValueError("'model' is required")
+                result = runtime.ledger.estimate_cost(
+                    model, payload.get("prompt_tokens", 0),
+                    payload.get("completion_tokens", 0),
+                    payload.get("cache_read_tokens", 0),
+                    payload.get("cache_creation_tokens", 0))
+                if result is None:
+                    result = {"model": model, "cost": None, "currency": "USD",
+                              "pricing": {}, "source": "unknown",
+                              "error": "Pricing data not available for this model"}
+                self.send_json(200, result)
+                return
             if self.path == "/v1/embeddings":
                 alias = payload.get("model")
                 if not isinstance(alias, str) or alias not in self.server.embedding_aliases:

@@ -555,6 +555,48 @@ class QuotaLedger:
             })
         return stats
 
+    def estimate_cost(self, model: str, prompt_tokens: int, completion_tokens: int,
+                      cache_read_tokens: int = 0,
+                      cache_creation_tokens: int = 0) -> dict | None:
+        """Return the cheapest known ledger price for a model or alias.
+
+        Prices are stored per million tokens; the response uses per-token
+        pricing to match the legacy cost-estimate contract. This never selects
+        or dispatches a route, and unknown pricing stays unknown.
+        """
+        if not isinstance(model, str) or not model or len(model) > 512:
+            raise ValueError("model must be a non-empty string")
+        prompt = token_count(prompt_tokens, "prompt_tokens")
+        completion = token_count(completion_tokens, "completion_tokens")
+        cached = token_count(cache_read_tokens, "cache_read_tokens")
+        cache_creation = token_count(cache_creation_tokens, "cache_creation_tokens")
+        routes = self.routes()
+        matching = [route for route in routes
+                    if route.alias == model or route.model_id == model]
+        if not matching:
+            matching = [route for route in routes if model in route.profiles]
+        priced = []
+        for route in matching:
+            if route.input_price is None or route.output_price is None:
+                continue
+            cache_price = (route.input_price if route.cached_input_price is None
+                           else route.cached_input_price)
+            used_cache = min(prompt, cached)
+            cost = ((prompt - used_cache) * route.input_price
+                    + used_cache * cache_price
+                    + cache_creation * route.input_price
+                    + completion * route.output_price) / 1_000_000
+            priced.append((cost, route))
+        if not priced:
+            return None
+        cost, route = min(priced, key=lambda item: item[0])
+        pricing = {"input_cost_per_token": route.input_price / 1_000_000,
+                   "output_cost_per_token": route.output_price / 1_000_000}
+        if route.cached_input_price is not None:
+            pricing["cache_read_input_token_cost"] = route.cached_input_price / 1_000_000
+        return {"model": model, "cost": cost, "currency": "USD",
+                "pricing": pricing, "source": "sidecar_ledger"}
+
     def close(self) -> None:
         with self.lock:
             self.db.close()

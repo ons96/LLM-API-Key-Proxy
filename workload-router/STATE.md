@@ -1225,3 +1225,22 @@ and the abilities table no longer contains those embeddings (73 abilities).
 - Compatibility surface is now 13 paths: 10 served at the same path (1 covered,
   9 partial), 1 renamed, and 19 of 30 gateway paths absent. No VPS change,
   deployment, credential access, or cutover.
+
+## V2 cost estimate and language decision - 2026-11-03
+
+- Added `QuotaLedger.estimate_cost()` and authenticated
+  `POST /v1/cost-estimate`. It returns the cheapest known configured route
+  price as per-token USD pricing, returns `cost:null`/`source:"unknown"` when no
+  price exists, and never selects or dispatches a route.
+- Kept Python for the sidecar. A local sidecar process using in-memory SQLite
+  and serving 50 authenticated `/v1/models` requests measured **26,984 KiB**
+  RSS. VPS-40 has approximately 954 MiB total and New-API used 58-64 MiB; a
+  128 MiB sidecar cap is the proposed canary guardrail. The local measurement is
+  not a concurrency or streaming benchmark.
+- Recorded the decision in `docs/sidecar-language-decision.md`: no Go or Node
+  rewrite without a measured resource or concurrency trigger.
+- Focused suites: **43 passed**. Full provider-free suite: **321 passed**, one
+  existing `asyncio_mode` warning; `git diff --check` clean.
+- Compatibility surface is now 14 paths: 11 same-path (1 covered, 10 partial),
+  1 renamed, and 18 of 30 gateway paths absent. No VPS change, deployment,
+  credential access, or cutover.

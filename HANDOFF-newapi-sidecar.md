@@ -24,7 +24,7 @@ full local integration report passes. Production readiness is NOT established.
   `workload-router/docs/newapi-v1-v2-roadmap.md`: v1 is a native New-API
   model-first prototype; v2 is the sidecar/full-parity path. No cutover has
   occurred.
-- Full provider-free suite: 320 passed (231 at the earlier checkpoint), with
+- Full provider-free suite: 321 passed (231 at the earlier checkpoint), with
   the existing `Unknown config option: asyncio_mode` warning.
 - Release, resource, and 50-request/8-worker concurrency smoke checks passed.
 - Targeted provider-fault, runtime, server, quota, adapter, streaming, and
@@ -51,7 +51,7 @@ mapped to New-API's literal `auto`.
 A v2 deterministic baseline now classifies the legacy `auto` alias from the
 latest user message (code/verify/debug vs chat), while explicit `X-Route-Step`
 and all other aliases keep their existing behavior. Targeted tests: 88; full
-provider-free suite: 320. This is not semantic-router parity and is not deployed.
+provider-free suite: 321. This is not semantic-router parity and is not deployed.
 
 ### 2026-11-03 compatibility increment
 
@@ -64,8 +64,12 @@ provider-free suite: 320. This is not semantic-router parity and is not deployed
   increment raised the surface to 9 paths.
 - Added ledger-backed `GET /v1/tps-stats` and the read-only model-management
   routes `GET /v1/model/list`, `GET /v1/model/status`, and
-  `POST /v1/model/parse-command`; the sidecar now exposes 13 paths, with 19
-  gateway paths absent. Full provider-free suite: 320 passed.
+  `POST /v1/model/parse-command`; the sidecar now exposes 14 paths, with 18
+  gateway paths absent. Full provider-free suite: 321 passed.
+- Added read-only `POST /v1/cost-estimate` from the cheapest configured ledger
+  price. Python remains the sidecar language after a measured 26,984 KiB RSS
+  baseline; see `workload-router/docs/sidecar-language-decision.md` for the
+  128 MiB canary guardrail and rewrite triggers.
 - Review map and unverified list: `workload-router/docs/review-package.md`.
 - Later on 2026-11-03: real New-API relay calls to both usable providers (Groq,
   OpenRouter) passed at `max_tokens=15`. Sidecar code is staged read-only at
@@ -215,9 +219,10 @@ editing or staging; none of this may be discarded.
 Endpoints currently exposed: `/healthz`, `/v1/models`, `/v1/models/{model_id}`,
 `/v1/providers`, `/v1/tps-stats`, `/v1/model/list`, `/v1/model/status`,
 `/v1/router/diagnostics`, `/v1/router/route`, `/v1/model/parse-command`,
-`/v1/chat/completions`, `/v1/responses`, `/v1/embeddings`. Model detail,
-provider list, TPS, and model management are read-only; TPS covers measured
-streaming ledger samples only, and command parsing never switches a session.
+`/v1/chat/completions`, `/v1/cost-estimate`, `/v1/responses`,
+`/v1/embeddings`. Model detail, provider list, TPS, cost estimation, and model
+management are read-only; TPS covers measured streaming ledger samples only,
+and command parsing never switches a session.
 Route preview performs no reservation or generation. Text-only conservative
 token accounting intentionally rejects multimodal payloads.
 

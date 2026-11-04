@@ -72,7 +72,8 @@ See "Live evidence" below.
 v2 is the full replacement path. The recommended architecture remains an
 unmodified New-API plus the quota-aware Python sidecar. A separate front
 classifier is possible but must be explicitly chosen; it is not the current
-design.
+design. The language/resource decision is recorded in
+`sidecar-language-decision.md`: Python stays, with a 128 MiB canary guardrail.
 
 v2 must deliver or explicitly document every one of these:
 
@@ -92,7 +93,7 @@ The sidecar cannot start against the current install until these are resolved:
 | Forced streaming | Channels 3 and 4 have `param_override={"stream":true}` | Clear before a non-stream sidecar canary |
 | Channel-key proof | Admin API hides keys; proof helper not installed | Operator-controlled `NEWAPI_CHANNEL_KEY_PROOF_COMMAND` |
 | 2FA | No enrollments (`two_fas` rows: 0) | Authorized proof path for channel audit |
-| Compatibility | Sidecar exposes 13 routes; 19 of the old 30 paths absent; model detail, provider list, TPS, and model management are partial | Route coverage or explicit exceptions |
+| Compatibility | Sidecar exposes 14 routes; 18 of the old 30 paths absent; model detail, provider list, TPS, cost estimation, and model management are partial | Route coverage or explicit exceptions |
 | Legacy aliases | Sidecar source accepts them; not running | Deployed sidecar and live validation |
 
 Changing `RetryTimes` to `0` and clearing the stream overrides are **v2
@@ -118,7 +119,12 @@ multi-channel behavior proved in v1, so they need explicit approval.
   plus `GET /v1/model/list`, `GET /v1/model/status`, and
   `POST /v1/model/parse-command`. The management routes use the 22 aliases and
   never switch a session; TPS rejects the gateway's `export` side effect.
-- Provider-free tests: **88 targeted**, **320 total**, one existing
+- Added `POST /v1/cost-estimate` using the cheapest known configured route
+  price. Unknown pricing stays unknown; no route is selected or dispatched.
+- Retained Python after measuring the sidecar at **26,984 KiB** RSS following
+  50 discovery requests. See `sidecar-language-decision.md`; the proposed
+  service cap is 128 MiB, pending live canary measurement.
+- Provider-free tests: **88 targeted**, **321 total**, one existing
   `asyncio_mode` warning. No VPS change, deployment, or cutover.
 
 ## Live snapshot (2026-11-03)
@@ -276,7 +282,7 @@ service change, no data deletion, no credential change.
    phase inference and running-sidecar validation remain open.
 6. [ ] Cover quota, cooldown, telemetry ordering, stream failure and free-only
    enforcement with provider-free tests.
-7. [ ] Close or explicitly document the remaining missing gateway paths (19 at
+7. [ ] Close or explicitly document the remaining missing gateway paths (18 at
    this checkpoint); update `gateway-compatibility.md`.
 8. [ ] Run bounded live provider tests, an OpenCode tool loop, restart and
    persistence checks, and a full rollback drill.
