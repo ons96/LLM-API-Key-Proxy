@@ -84,7 +84,7 @@ def score_route(route: Route, work: Work, ledger: QuotaLedger, *,
         reason = "schema_support"
     elif work.web_search and route.web_search is not True:
         reason = "web_search_support"
-    elif free_only and route.quota_type == "paid":
+    elif free_only and route.free_class == "paid":
         reason = "paid_excluded"
     elif route.quota_type in {"unlimited", "rate_limited"} and (route.input_price != 0 or route.output_price != 0):
         reason = "free_price_not_verified"
@@ -96,8 +96,12 @@ def score_route(route: Route, work: Work, ledger: QuotaLedger, *,
     cached = min(work.input_tokens, max(0, cached_tokens)) if work.profile == "auto-coding" else 0
     money = route.money(work.input_tokens, work.output_tokens, cached)
     if route.quota_type == "credit_based":
-        effective = money * route.shadow_price + weights.quota_lambda * capacity.pressure
-    elif route.quota_type == "unlimited":
+        # Free credits have a zero customer price. Their notional credit value
+        # is what makes one-time allowances deplete and rank below unlimited
+        # routes; the customer-facing cost estimate still uses `money`.
+        effective = (route.credit_money(work.input_tokens, work.output_tokens)
+                     * route.shadow_price + weights.quota_lambda * capacity.pressure)
+    elif route.free_class == "free_unlimited":
         effective = 0.0
     else:
         effective = money + weights.quota_lambda * capacity.pressure

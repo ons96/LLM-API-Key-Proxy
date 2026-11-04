@@ -25,6 +25,9 @@ Strict routes use one private model alias per provider/model/key, a single-key
 channel, and downstream RetryTimes=0. Otherwise retries or channel selection
 would hide quota-consuming attempts. Coding affinity and provider cache evidence
 are scoring hints; quota, price, context and capability filters take precedence.
+Free routes are classified as `free_unlimited`, `free_limited` or `free_credits`;
+actual prices stay zero, while one-time credits carry a separate notional tariff
+used only for depletion and ranking. See `docs/free-tier-classes.md`.
 Chat requests do not reuse coding session affinity.
 
 Production startup requires an authorized channel-key proof callback whenever

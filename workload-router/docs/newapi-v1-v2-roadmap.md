@@ -121,10 +121,15 @@ multi-channel behavior proved in v1, so they need explicit approval.
   never switch a session; TPS rejects the gateway's `export` side effect.
 - Added `POST /v1/cost-estimate` using the cheapest known configured route
   price. Unknown pricing stays unknown; no route is selected or dispatched.
+- Added explicit free classes (`free_unlimited`, `free_limited`, `free_credits`,
+  `paid`, `unknown`) and separate notional credit prices. Free routes keep zero
+  customer prices; one-time credits still deplete and rank below unlimited
+  routes. Diagnostics and operator previews expose the class. See
+  `free-tier-classes.md`.
 - Retained Python after measuring the sidecar at **26,984 KiB** RSS following
   50 discovery requests. See `sidecar-language-decision.md`; the proposed
   service cap is 128 MiB, pending live canary measurement.
-- Provider-free tests: **88 targeted**, **321 total**, one existing
+- Provider-free tests: **88 targeted**, **323 total**, one existing
   `asyncio_mode` warning. No VPS change, deployment, or cutover.
 
 ## Live snapshot (2026-11-03)

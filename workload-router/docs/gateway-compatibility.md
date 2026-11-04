@@ -40,7 +40,7 @@ Sidecar exposes fourteen paths: `GET /healthz` (unauthenticated), `GET /v1/model
 | `/v1/responses` | same path | **partial** — text/messages, function tools, text-only streaming; no `previous_response_id` or non-function tools |
 | `/v1/embeddings` | same path | **partial** — only aliases named in `SIDECAR_EMBEDDING_ALIASES`; text input only |
 | `/v1/token-count` | — | missing |
-| `/v1/cost-estimate` | same path | **partial** — cheapest known configured route price; unknown pricing returns `cost:null` and `source:"unknown"` |
+| `/v1/cost-estimate` | same path | **partial** — cheapest known configured route price with `free_class`/`free`; free routes return zero and `source:"free_tier"`; unknown pricing returns `cost:null` and `source:"unknown"` |
 | `/v1/providers` | same path | **partial** — sorted provider IDs referenced by the configured ledger routes, not the gateway's provider-plugin catalog |
 | `/v1/tps-stats` | same path | **partial** — aggregates measured successful streaming samples from the sidecar ledger; `export=true` is rejected |
 | `/v1/model-info/stats` | — | missing |

@@ -44,7 +44,14 @@ python3 newapi_operator.py routes --file /etc/newapi-sidecar/routes.json --apply
 Each list entry is a full `Route` definition (`route_id`, `provider_id`,
 `model_id`, `key_id`, `alias`, `channel_id`, prices, limits,
 `key_fingerprint`, `channel_base_url`). Unknown fields, duplicate ids and
-invalid values fail closed before any write.
+invalid values fail closed before any write. A `free_credits` route keeps
+`input_price` and `output_price` at zero and sets `credit_input_price`,
+`credit_output_price` and `credit_balance`; those credit prices are notional
+ranking inputs, not customer charges. See `free-tier-classes.md` for the full
+class mapping.
+
+The preview now includes each route's `free_class` and `quota_type`, so an
+operator can catch a paid-looking free route before applying it.
 
 ## `catalog`
 

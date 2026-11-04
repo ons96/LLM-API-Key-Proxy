@@ -24,6 +24,10 @@ import uuid
 
 AXES = {"rpm", "rpd", "tpm", "tpd", "credits", "money_day"}
 QUOTA_TYPES = {"unlimited", "rate_limited", "credit_based", "paid", "unknown"}
+# The canonical provider vocabulary also uses free_daily/free_one_time/no_key.
+# These are the sidecar's funding classes; quota_type remains the feasibility
+# mechanism and is deliberately not overloaded with price information.
+FREE_CLASSES = {"free_unlimited", "free_limited", "free_credits", "paid", "unknown"}
 STATUSES = {"reserved", "started", "success", "failure", "cancelled"}
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS providers (
@@ -128,6 +132,11 @@ class Route:
     input_price: float | None = None
     output_price: float | None = None
     cached_input_price: float | None = None
+    # Optional provider-credit tariff. This is used only for depletion and
+    # ranking, never for the customer-facing cost estimate. It lets a free
+    # one-time-credit route keep input/output_price=0.
+    credit_input_price: float | None = None
+    credit_output_price: float | None = None
     credit_balance: float | None = None
     daily_budget: float | None = None
     shadow_price: float = 1.0
@@ -160,7 +169,8 @@ class Route:
         for name in ("tool_call", "stream", "structured_output", "web_search"):
             if getattr(self, name) is not None and not isinstance(getattr(self, name), bool):
                 raise ValueError(f"{name} must be a boolean or unknown")
-        for name in ("input_price", "output_price", "cached_input_price", "credit_balance", "daily_budget"):
+        for name in ("input_price", "output_price", "cached_input_price",
+                     "credit_input_price", "credit_output_price", "credit_balance", "daily_budget"):
             if getattr(self, name) is not None:
                 nonnegative(getattr(self, name), name)
         for name in ("shadow_price", "latency_ms", "prior_success", "prior_failure", "cache_ttl_seconds", "prefill_ms_per_token", "handoff_ms"):
@@ -189,13 +199,44 @@ class Route:
             for axis, value in limits.items():
                 nonnegative(value, axis)
 
+    @property
+    def free_class(self) -> str:
+        """Classify who pays and what kind of free allowance this route uses.
+
+        An `unlimited` credit allowance can still have finite request/token
+        limits. Those limits make it a finite route, so it must not claim the
+        `free_unlimited` label or lose quota-pressure scoring.
+        """
+        if self.quota_type == "unlimited" and (self.limits or self.provider_limits):
+            return "free_limited"
+        return {"unlimited": "free_unlimited", "rate_limited": "free_limited",
+                "credit_based": "free_credits", "paid": "paid"}.get(self.quota_type, "unknown")
+
     def money(self, input_tokens: int, output_tokens: int, cached_tokens: int = 0) -> float:
-        """Prices are currency units per million tokens; unknown stays infeasible."""
+        """Actual customer price in currency units per million tokens.
+
+        A free route has zero prices here even when it has provider credits.
+        Unknown pricing remains infeasible.
+        """
         if self.input_price is None or self.output_price is None:
             return math.inf
         cached = min(input_tokens, max(0, cached_tokens))
         cache_price = self.input_price if self.cached_input_price is None else self.cached_input_price
         return ((input_tokens - cached) * self.input_price + cached * cache_price + output_tokens * self.output_price) / 1_000_000
+
+    def credit_money(self, input_tokens: int, output_tokens: int) -> float:
+        """Notional provider-credit value used for depletion and ranking only.
+
+        If no credit tariff is configured, the actual price is used for
+        compatibility with paid-style credit routes. Free credit routes must
+        set the separate tariff so their zero customer price does not make the
+        allowance look infinite.
+        """
+        input_price = self.credit_input_price if self.credit_input_price is not None else self.input_price
+        output_price = self.credit_output_price if self.credit_output_price is not None else self.output_price
+        if input_price is None or output_price is None:
+            return math.inf
+        return (input_tokens * input_price + output_tokens * output_price) / 1_000_000
 
 
 @dataclass(frozen=True)
@@ -318,6 +359,10 @@ class QuotaLedger:
             return Capacity(False, "unknown_pricing")
         if route.quota_type == "credit_based" and route.credit_balance is None:
             return Capacity(False, "unknown_credit_balance")
+        if (route.quota_type == "credit_based"
+                and route.credit_input_price is None and route.credit_output_price is None
+                and (route.input_price in (None, 0) or route.output_price in (None, 0))):
+            return Capacity(False, "unknown_credit_price")
         pressure = 0.0
         limits = self._limits(route)
         if route.quota_type == "rate_limited" and not any(
@@ -344,8 +389,9 @@ class QuotaLedger:
     @staticmethod
     def _amounts(route: Route, input_tokens: int, output_tokens: int) -> dict[str, float]:
         cost = route.money(input_tokens, output_tokens)
+        credit = route.credit_money(input_tokens, output_tokens)
         return {"rpm": 1.0, "rpd": 1.0, "tpm": input_tokens + output_tokens,
-                "tpd": input_tokens + output_tokens, "credits": cost, "money_day": cost}
+                "tpd": input_tokens + output_tokens, "credits": credit, "money_day": cost}
 
     def capacity(self, route: Route, input_tokens: int, output_tokens: int, now: float | None = None) -> Capacity:
         token_count(input_tokens, "input_tokens")
@@ -500,8 +546,12 @@ class QuotaLedger:
     def diagnostics(self) -> dict:
         with self.lock:
             counts = dict(self.db.execute("SELECT status, COUNT(*) FROM routing_decisions GROUP BY status"))
+            classes: dict[str, int] = {}
+            for route in self.routes():
+                classes[route.free_class] = classes.get(route.free_class, 0) + 1
             return {"attempts": counts, "catalog_models": self.db.execute("SELECT COUNT(*) FROM models WHERE active=1").fetchone()[0],
-                    "active_cooldowns": self.db.execute("SELECT COUNT(*) FROM cooldowns WHERE until_at>?", (time.time(),)).fetchone()[0]}
+                    "active_cooldowns": self.db.execute("SELECT COUNT(*) FROM cooldowns WHERE until_at>?", (time.time(),)).fetchone()[0],
+                    "free_classes": dict(sorted(classes.items()))}
 
     def tps_stats(self, days: float = 7, min_samples: int = 5) -> list[dict]:
         """Aggregate successful stream TPS by provider/model from local evidence.
@@ -594,8 +644,10 @@ class QuotaLedger:
                    "output_cost_per_token": route.output_price / 1_000_000}
         if route.cached_input_price is not None:
             pricing["cache_read_input_token_cost"] = route.cached_input_price / 1_000_000
+        free = route.free_class != "paid" and route.free_class != "unknown"
         return {"model": model, "cost": cost, "currency": "USD",
-                "pricing": pricing, "source": "sidecar_ledger"}
+                "pricing": pricing, "source": "free_tier" if free and cost == 0 else "sidecar_ledger",
+                "free_class": route.free_class, "free": free}
 
     def close(self) -> None:
         with self.lock:

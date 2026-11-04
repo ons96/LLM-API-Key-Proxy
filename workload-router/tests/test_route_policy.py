@@ -34,6 +34,29 @@ def test_credit_shadow_price_pressure_and_hard_gates():
     assert math.isinf(score_route(replace(candidate, context_window=15), work, ledger).score)
 
 
+def test_declared_free_classes_rank_by_scarcity_without_customer_cost():
+    ledger = QuotaLedger()
+    unlimited = route(route_id="unlimited", alias="sc.unlimited", channel_id=1,
+                      quota_type="unlimited", limits={}, latency_ms=1000)
+    credits = route(route_id="credits", alias="sc.credits", channel_id=2,
+                    quota_type="credit_based", credit_balance=100,
+                    credit_input_price=1_000_000, credit_output_price=1_000_000,
+                    limits={"rpm": 10}, latency_ms=100)
+    for candidate in (unlimited, credits):
+        ledger.configure(candidate)
+    work = Work("auto-chat", "chat", 10, 10)
+    ranked = rank_routes([credits, unlimited], work, ledger, explore=False)
+    assert [item.route.free_class for item in ranked] == ["free_unlimited", "free_credits"]
+    assert ranked[1].effective_money > ranked[0].effective_money
+    assert credits.money(10, 10) == 0
+    limited = replace(unlimited, route_id="limited", alias="sc.limited", channel_id=3,
+                      quota_type="unlimited", limits={"rpm": 1})
+    ledger.configure(limited)
+    limited_score = score_route(limited, work, ledger)
+    assert limited.free_class == "free_limited"
+    assert limited_score.effective_money == pytest.approx(0.01)
+
+
 def test_bandit_top_n_only_and_chat_has_no_affinity():
     ledger = QuotaLedger()
     routes = [route(route_id=str(i), alias=f"sc.{i}", channel_id=i + 1, quota_type="unlimited",

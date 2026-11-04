@@ -139,7 +139,8 @@ def load_routes(path: Path) -> list[Route]:
 
 def _route_rows(routes: list[Route]) -> list[dict]:
     return [{"route_id": route.route_id, "alias": route.alias,
-             "channel_id": route.channel_id, "model_id": route.model_id}
+             "channel_id": route.channel_id, "model_id": route.model_id,
+             "free_class": route.free_class, "quota_type": route.quota_type}
             for route in routes]
 
 

@@ -1244,3 +1244,20 @@ and the abilities table no longer contains those embeddings (73 abilities).
 - Compatibility surface is now 14 paths: 11 same-path (1 covered, 10 partial),
   1 renamed, and 18 of 30 gateway paths absent. No VPS change, deployment,
   credential access, or cutover.
+
+## V2 free-tier classification - 2026-11-03
+
+- Kept `quota_type` as the capacity mechanism and added derived `free_class`:
+  `unlimited -> free_unlimited`, `rate_limited -> free_limited`,
+  `credit_based -> free_credits`, `paid -> paid`, otherwise `unknown`.
+- Added optional `credit_input_price`/`credit_output_price`. Actual
+  `input_price`/`output_price` remain zero for free routes; the credit tariff is
+  notional and is used only to deplete `credit_balance` and rank the route.
+  A one-time-credit route with a balance but no credit tariff now fails capacity
+  as `unknown_credit_price` instead of looking unlimited.
+- Cost estimates now include `free_class` and `free`; zero-price free routes
+  report `cost:0`, `source:"free_tier"`. Diagnostics expose `free_classes`, and
+  the operator route preview includes class/quota metadata.
+- Focused suites: **76 passed**. Full provider-free suite: **323 passed**, one
+  existing `asyncio_mode` warning; `git diff --check` clean.
+- No VPS change, deployment, credential access, or cutover.

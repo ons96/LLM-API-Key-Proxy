@@ -24,7 +24,7 @@ full local integration report passes. Production readiness is NOT established.
   `workload-router/docs/newapi-v1-v2-roadmap.md`: v1 is a native New-API
   model-first prototype; v2 is the sidecar/full-parity path. No cutover has
   occurred.
-- Full provider-free suite: 321 passed (231 at the earlier checkpoint), with
+- Full provider-free suite: 323 passed (231 at the earlier checkpoint), with
   the existing `Unknown config option: asyncio_mode` warning.
 - Release, resource, and 50-request/8-worker concurrency smoke checks passed.
 - Targeted provider-fault, runtime, server, quota, adapter, streaming, and
@@ -51,7 +51,7 @@ mapped to New-API's literal `auto`.
 A v2 deterministic baseline now classifies the legacy `auto` alias from the
 latest user message (code/verify/debug vs chat), while explicit `X-Route-Step`
 and all other aliases keep their existing behavior. Targeted tests: 88; full
-provider-free suite: 321. This is not semantic-router parity and is not deployed.
+provider-free suite: 323. This is not semantic-router parity and is not deployed.
 
 ### 2026-11-03 compatibility increment
 
@@ -65,11 +65,16 @@ provider-free suite: 321. This is not semantic-router parity and is not deployed
 - Added ledger-backed `GET /v1/tps-stats` and the read-only model-management
   routes `GET /v1/model/list`, `GET /v1/model/status`, and
   `POST /v1/model/parse-command`; the sidecar now exposes 14 paths, with 18
-  gateway paths absent. Full provider-free suite: 321 passed.
+  gateway paths absent. Full provider-free suite: 323 passed.
 - Added read-only `POST /v1/cost-estimate` from the cheapest configured ledger
   price. Python remains the sidecar language after a measured 26,984 KiB RSS
   baseline; see `workload-router/docs/sidecar-language-decision.md` for the
   128 MiB canary guardrail and rewrite triggers.
+- Added free-tier classification: `free_unlimited`, `free_limited`,
+  `free_credits`, `paid`, `unknown`. Actual prices stay zero for free routes;
+  one-time credits use a separate notional credit tariff so they deplete and
+  rank below unlimited routes without appearing as real spend. See
+  `workload-router/docs/free-tier-classes.md`.
 - Review map and unverified list: `workload-router/docs/review-package.md`.
 - Later on 2026-11-03: real New-API relay calls to both usable providers (Groq,
   OpenRouter) passed at `max_tokens=15`. Sidecar code is staged read-only at

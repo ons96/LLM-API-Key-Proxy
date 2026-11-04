@@ -139,7 +139,11 @@ explicit `ROUTER_DEPLOYMENTS` catalog takes precedence. Use
 `GET /v1/router/groups` to inspect the resulting groups and chain order.
 
 Quota class and remaining quota are soft scoring inputs. An exhausted quota is
-penalized, but quota metadata never removes every candidate by itself.
+penalized, but quota metadata never removes every candidate by itself. The
+sidecar distinguishes `free_unlimited`, `free_limited`, `free_credits` and
+`paid`; one-time credit routes use a separate notional credit tariff so their
+customer price stays zero while the grant depletes. See
+`docs/free-tier-classes.md`.
 
 `stall_detector.py` tracks repeated bounded action identifiers and failed
 verification signals without retaining raw tool history. It supports one-way

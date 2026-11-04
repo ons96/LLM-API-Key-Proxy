@@ -110,11 +110,35 @@ def test_unknown_metadata_and_credit_budget():
     for candidate, reason in [(route(input_price=None), "unknown_pricing"),
                               (route(quota_type="unknown"), "unknown_quota_type"),
                               (route(limits={}), "unknown_limits"),
-                              (route(quota_type="credit_based"), "unknown_credit_balance")]:
+                              (route(quota_type="credit_based"), "unknown_credit_balance"),
+                              (route(quota_type="credit_based", credit_balance=100,
+                                     limits={"rpm": 10}), "unknown_credit_price")]:
         assert ledger.capacity(candidate, 1, 1).reason == reason
     candidate = route(quota_type="credit_based", credit_balance=0.001, input_price=10, output_price=10)
     ledger.configure(candidate)
     assert reserve(ledger, candidate) is None
+
+
+def test_free_classes_and_zero_customer_price_for_credits():
+    ledger = QuotaLedger()
+    unlimited = route(quota_type="unlimited", limits={})
+    limited = route(route_id="limited", alias="sc.limited", channel_id=2,
+                    quota_type="rate_limited", limits={"rpm": 5})
+    credits = route(route_id="credits", alias="sc.credits", channel_id=3,
+                    quota_type="credit_based", credit_balance=100,
+                    credit_input_price=1_000_000, credit_output_price=1_000_000,
+                    limits={"rpm": 10})
+    for candidate in (unlimited, limited, credits):
+        ledger.configure(candidate)
+    assert unlimited.free_class == "free_unlimited"
+    assert limited.free_class == "free_limited"
+    assert credits.free_class == "free_credits"
+    assert route(quota_type="unlimited", limits={"rpm": 5}).free_class == "free_limited"
+    assert credits.money(10, 10) == 0
+    assert credits.credit_money(10, 10) == 20
+    assert ledger.capacity(credits, 10, 10).feasible
+    assert ledger.estimate_cost("sc.credits", 10, 10)["cost"] == 0
+    assert ledger.estimate_cost("sc.credits", 10, 10)["source"] == "free_tier"
 
 
 @pytest.mark.parametrize("changes", [dict(stream=1), dict(input_price="0"), dict(limits={"rpm": float("nan")}),

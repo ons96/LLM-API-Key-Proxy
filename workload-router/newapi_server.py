@@ -284,6 +284,7 @@ class Handler(BaseHTTPRequestHandler):
                 if result is None:
                     result = {"model": model, "cost": None, "currency": "USD",
                               "pricing": {}, "source": "unknown",
+                              "free_class": "unknown", "free": False,
                               "error": "Pricing data not available for this model"}
                 self.send_json(200, result)
                 return

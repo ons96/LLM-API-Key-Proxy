@@ -218,7 +218,8 @@ def test_route_file_preview_does_not_write_the_ledger(tmp_path):
 
     assert result["apply"] is False
     assert result["routes"] == [{"route_id": "a", "alias": "sc.a",
-                                 "channel_id": 7, "model_id": "m"}]
+                                 "channel_id": 7, "model_id": "m",
+                                 "free_class": "free_unlimited", "quota_type": "unlimited"}]
     assert not (tmp_path / "ledger.db").exists()
 
 

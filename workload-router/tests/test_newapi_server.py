@@ -171,7 +171,7 @@ def test_cost_estimate_is_ledger_backed_and_read_only(sidecar):
     server, runtime, calls, _ = sidecar
     runtime.ledger.configure(Route(
         "paid", "fixture", "paid-model", "opaque", "sc.paid", 3,
-        quota_type="unlimited", input_price=1, output_price=2))
+        quota_type="paid", input_price=1, output_price=2))
     status, body, _ = call(server, "/v1/cost-estimate", raw=json.dumps({
         "model": "sc.paid", "prompt_tokens": 1_000_000, "completion_tokens": 500_000}))
     result = json.loads(body)
@@ -179,12 +179,23 @@ def test_cost_estimate_is_ledger_backed_and_read_only(sidecar):
     assert result["pricing"] == {"input_cost_per_token": 0.000001,
                                 "output_cost_per_token": 0.000002}
     assert result["source"] == "sidecar_ledger"
+    assert result["free_class"] == "paid" and result["free"] is False
+    status, body, _ = call(server, "/v1/cost-estimate", raw=json.dumps({
+        "model": "sc.local", "prompt_tokens": 1_000_000, "completion_tokens": 500_000}))
+    free = json.loads(body)
+    assert status == 200 and free["cost"] == 0.0
+    assert free["free_class"] == "free_unlimited" and free["free"] is True
+    assert free["source"] == "free_tier"
     status, body, _ = call(server, "/v1/cost-estimate", raw=json.dumps({
         "model": "missing", "prompt_tokens": 1, "completion_tokens": 1}))
-    assert status == 200 and json.loads(body)["cost"] is None
+    result = json.loads(body)
+    assert status == 200 and result["cost"] is None
+    assert result["free_class"] == "unknown" and result["free"] is False
     assert call(server, "/v1/cost-estimate", raw=json.dumps({
         "model": "sc.paid", "prompt_tokens": -1}))[0] == 400
     assert not calls and runtime.ledger.diagnostics()["attempts"] == {}
+    assert runtime.ledger.diagnostics()["free_classes"] == {
+        "free_unlimited": 2, "paid": 1}
 
 
 def test_model_management_list_status_and_command_parse(sidecar):
