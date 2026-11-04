@@ -1171,3 +1171,19 @@ and the abilities table no longer contains those embeddings (73 abilities).
   New-API `/` 200, and the temporary tunnel closed. No cutover or permanent
   service change occurred; the temporary channel status changes were restored.
   The narrow v1 route is `agnes-3.0-flash`, not the `router/*` aliases.
+
+## V2 deterministic auto classifier - 2026-11-03
+
+- Added `classify_auto()` to `newapi_runtime.py` for the legacy `auto` alias.
+  It inspects only the latest user message and maps code/verify/debug intent to
+  `auto-coding`, otherwise to `auto-chat`; an explicit `X-Route-Step` still
+  wins. Other aliases and public profiles are unchanged.
+- Code intent is checked before the tools bit, so an agent request such as
+  "Implement the parser" stays on the coding profile even when tool definitions
+  are present. `Work.tools` still carries the capability filter.
+- Tests added for chat, implementation, failing tests, debug, verification,
+  explicit steps, tool-bearing chat, and tools-enabled code intent. Targeted
+  run: **88 passed**. Full provider-free suite: **317 passed**, one existing
+  `asyncio_mode` warning; `git diff --check` clean.
+- No VPS change, deployment, or cutover. This is a deterministic baseline, not
+  the gateway's semantic-router parity.

@@ -18,7 +18,7 @@ from provider_adapter import (
 )
 from quota_ledger import QuotaLedger, Route, nonnegative, token_count
 from route_policy import STEPS, Scored, Weights, Work, compact_json_tools, rank_routes
-from router_core import Capability, Deployment
+from router_core import Capability, Deployment, RequestFeatures, classify
 from router_state import RouterState
 
 
@@ -27,6 +27,7 @@ PROFILE_ALIASES = {"auto-coding": "auto-coding", "auto-code": "auto-coding", "au
 
 # Legacy gateway aliases, kept so existing client configurations survive cutover.
 # Each entry is (profile, default step hint); an explicit X-Route-Step still wins.
+# Legacy `auto` is refined by classify_auto(); the other aliases keep this default.
 # This preserves request acceptance and capability intent, not the gateway's
 # fallback chains. See docs/alias-mapping-proposal.md.
 LEGACY_ALIASES = {
@@ -111,6 +112,56 @@ class Result:
     completion: ProviderCompletion
 
 
+AUTO_CODING_STEPS = STEPS - {"chat"}
+AUTO_CAPABILITY_STEPS = {
+    Capability.CODE_IMPLEMENT: "implement",
+    Capability.CODE_VERIFY: "verify",
+    Capability.CODE_DEBUG: "debug",
+}
+AUTO_DEBUG_SIGNALS = ("debug", "traceback", "stack trace")
+AUTO_VERIFY_SIGNALS = ("verify", "verification")
+
+
+def _last_user_text(payload: dict) -> str:
+    """Use the latest user message as the intent signal, not tool output."""
+    messages = payload.get("messages")
+    if not isinstance(messages, list):
+        return ""
+    for message in reversed(messages):
+        if isinstance(message, dict) and message.get("role") == "user":
+            content = message.get("content")
+            return content if isinstance(content, str) else ""
+    return ""
+
+
+def classify_auto(payload: dict, step: str = "") -> tuple[str, str]:
+    """Classify the legacy ``auto`` alias into the sidecar profile vocabulary.
+
+    This is a deterministic baseline, not the gateway's semantic router. An
+    explicit step is authoritative; otherwise only code/verify/debug lexical
+    signals move ``auto`` to the coding profile. Other aliases retain their
+    existing profile and step semantics.
+    """
+    if step:
+        return ("auto-coding" if step in AUTO_CODING_STEPS else "auto-chat"), step
+    prompt = _last_user_text(payload)
+    text = prompt.lower()
+    if any(word in text for word in AUTO_DEBUG_SIGNALS):
+        return "auto-coding", "debug"
+    if any(word in text for word in AUTO_VERIFY_SIGNALS):
+        return "auto-coding", "verify"
+    # Tools are a capability filter, not an intent signal. Checking code words
+    # without the tools bit prevents an agent request such as "implement this"
+    # from being flattened into chat merely because it carries tool definitions.
+    capability = classify(RequestFeatures(
+        prompt=prompt,
+        structured_output=payload.get("response_format") is not None,
+    ))
+    if capability in AUTO_CAPABILITY_STEPS:
+        return "auto-coding", AUTO_CAPABILITY_STEPS[capability]
+    return "auto-chat", "chat"
+
+
 def prepare(payload: dict, session_id: str = "", step: str = "", *,
             default_output: int = 2048, compress: bool = False) -> Prepared:
     """Reserve a conservative text bound, including tools, and forward the output cap."""
@@ -125,8 +176,14 @@ def prepare(payload: dict, session_id: str = "", step: str = "", *,
         raise ValueError("invalid route step")
     profile = MODEL_ALIASES[model]
     default_step = LEGACY_ALIASES.get(model, (profile, ""))[1]
-    step = step.lower().replace("_", "-") or default_step or (
-        "implement" if profile == "auto-coding" else "chat")
+    step = step.lower().replace("_", "-")
+    if step and step not in STEPS:
+        raise ValueError("invalid step")
+    if model == "auto":
+        profile, step = classify_auto(payload, step)
+    else:
+        step = step or default_step or (
+            "implement" if profile == "auto-coding" else "chat")
     if step not in STEPS or not isinstance(payload.get("stream", False), bool):
         raise ValueError("invalid step or stream flag")
     for name in ("n", "best_of"):

@@ -24,7 +24,7 @@ full local integration report passes. Production readiness is NOT established.
   `workload-router/docs/newapi-v1-v2-roadmap.md`: v1 is a native New-API
   model-first prototype; v2 is the sidecar/full-parity path. No cutover has
   occurred.
-- Full provider-free suite: 307 passed (231 at the earlier checkpoint), with
+- Full provider-free suite: 317 passed (231 at the earlier checkpoint), with
   the existing `Unknown config option: asyncio_mode` warning.
 - Release, resource, and 50-request/8-worker concurrency smoke checks passed.
 - Targeted provider-fault, runtime, server, quota, adapter, streaming, and
@@ -47,6 +47,11 @@ OpenCode 1.19.5 loop. `router/fast` and `router/balanced` are effectively
 Groq-only (OpenRouter returned 429/paid-only 404), so they are not fallback
 examples. The 19 legacy aliases remain v2 only, and legacy `auto` must not be
 mapped to New-API's literal `auto`.
+
+A v2 deterministic baseline now classifies the legacy `auto` alias from the
+latest user message (code/verify/debug vs chat), while explicit `X-Route-Step`
+and all other aliases keep their existing behavior. Targeted tests: 88; full
+provider-free suite: 317. This is not semantic-router parity and is not deployed.
 
 ### 2026-11-03 compatibility increment
 

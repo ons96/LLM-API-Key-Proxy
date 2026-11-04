@@ -99,6 +99,21 @@ Changing `RetryTimes` to `0` and clearing the stream overrides are **v2
 configuration changes**, not v1 cleanup. They would disable or alter the native
 multi-channel behavior proved in v1, so they need explicit approval.
 
+### V2 implementation checkpoint - 2026-11-03
+
+- Added deterministic classification for the legacy `auto` alias in
+  `newapi_runtime.py`. It inspects the latest user message; an explicit
+  `X-Route-Step` remains authoritative.
+- `implement` / `refactor` / code requests -> `auto-coding` / `implement`.
+- `debug` / `traceback` / failing tests -> `auto-coding` / `debug`.
+- `verify` / `verification` -> `auto-coding` / `verify`.
+- General and tool-bearing requests -> `auto-chat` / `chat`, preserving
+  `Work.tools`; an explicit code intent wins over the tools bit.
+- All other aliases and explicit profiles keep their existing profile/step
+  behavior. This is a deterministic baseline, **not** semantic-router parity.
+- Provider-free tests: **88 targeted**, **317 total**, one existing
+  `asyncio_mode` warning. No VPS change, deployment, or cutover.
+
 ## Live snapshot (2026-11-03)
 
 Read-only inventory of the VPS-40 install:
@@ -249,7 +264,9 @@ service change, no data deletion, no credential change.
 4. [ ] Pass the strict audit: unique private aliases, single-key channels, exact
    model mapping, credential fingerprint, endpoint identity, relay token.
 5. [ ] Serve the 19 legacy aliases and prompt/phase classification; verify that
-   aliases with the same profile/step are documented as equivalent.
+   aliases with the same profile/step are documented as equivalent. The
+   deterministic `auto` baseline is implemented; semantic-router parity, full
+   phase inference and running-sidecar validation remain open.
 6. [ ] Cover quota, cooldown, telemetry ordering, stream failure and free-only
    enforcement with provider-free tests.
 7. [ ] Close or explicitly document the 25 missing gateway paths; update

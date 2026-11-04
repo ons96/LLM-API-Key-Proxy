@@ -39,6 +39,12 @@ what they asked for.
 | `agent-oracle` | `auto-coding` | `plan` |
 | `auto-coding`, `auto-code`, `auto-chat` | unchanged | unchanged |
 
+For legacy `auto`, the v2 sidecar now applies a deterministic prompt classifier:
+code/verify/debug intent selects `auto-coding` with the matching step, while
+general and tool-bearing requests stay on `auto-chat` / `chat`. The table's
+`auto` row remains the fallback for general requests; explicit `X-Route-Step`
+still wins. See `newapi-v1-v2-roadmap.md`.
+
 `STEPS` already contains all of these (`route_policy.py:15`): `chat`, `explore`,
 `plan`, `implement`, `verify`, `debug`, `deep-debug`, `final-review`,
 `post-failure-debug`.
