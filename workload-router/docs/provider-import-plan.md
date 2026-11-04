@@ -95,6 +95,11 @@ disabled, `agnes-3.0-flash` still returned HTTP 200 with "ok" through
 `gw:crowllm-canonical` (id 11); channel 10 was then re-enabled and confirmed
 `status: 1`.
 
+Parsed v1 gates on 2026-11-03: `agnes-3.0-flash` passed both-direction
+KiosAPI/CrowLLM failover and a tool call; OpenCode 1.19.5 passed a tool loop.
+`router/fast` and `router/balanced` turned out to be Groq-only, so they are not
+fallback examples. See `newapi-v1-v2-roadmap.md`.
+
 ## Next
 
 - Follow the staged plan in `newapi-v1-v2-roadmap.md`. v1 is limited to verified

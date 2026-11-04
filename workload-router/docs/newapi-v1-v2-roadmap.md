@@ -2,7 +2,9 @@
 
 Date: 2026-11-03
 Branch: `feat/newapi-sidecar`
-Status: direction accepted; **v1 is not accepted yet**, and no cutover is authorized.
+Status: the narrow v1 functional gates passed on 2026-11-03 (direct
+`agnes-3.0-flash`), but v1 is **not a production replacement** and no cutover is
+authorized. LiteLLM remains the live gateway.
 
 This is the continuation point for a session started from another machine. Read
 this with `../../HANDOFF-newapi-sidecar.md`, `provider-import-plan.md`,
@@ -14,7 +16,7 @@ The replacement is staged deliberately:
 
 | Stage | Runtime | What it proves | What it deliberately does not do |
 | --- | --- | --- | --- |
-| **v1 prototype** | New-API native routing, `RetryTimes=3` | A small set of model-first aliases can chat, stream, call tools, and fail over across providers | Legacy 19-alias parity, semantic prompt classification, quota ledger, full gateway API |
+| **v1 prototype** | New-API native routing, `RetryTimes=3` | Direct `agnes-3.0-flash` can chat, stream, call tools, and fail over across KiosAPI/CrowLLM | Legacy 19-alias parity, semantic prompt classification, quota ledger, full gateway API |
 | **v2 parity** | New-API plus the Python sidecar/front classifier, likely `RetryTimes=0` | Prompt-aware routing, the 19 legacy aliases, quota/cooldown/telemetry, compatibility routes, rollback-tested replacement | Nothing may be cut over until every gate below passes |
 
 v1 is a **prototype namespace**, not a smaller version of the old gateway. A
@@ -30,7 +32,8 @@ not running and cannot pass its strict audit against the current New-API config.
 ### In scope
 
 - Native New-API model-first routing with the existing `RetryTimes=3`.
-- Existing, already-configured `router/*` aliases and verified direct models.
+- The verified direct model `agnes-3.0-flash`; `router/*` aliases remain useful
+  as single-provider smoke routes but are not reliable fallbacks.
 - Two-provider failover where the same alias exists on more than one channel.
 - Streaming, OpenAI tool calls, usage accounting, and an OpenCode tool loop.
 - Keeping LiteLLM on `:8000` untouched; v1 clients opt in by changing only their
@@ -49,17 +52,20 @@ not running and cannot pass its strict audit against the current New-API config.
 
 ### v1 acceptance gates
 
-- [ ] `router/fast` and `router/balanced` return a usable completion with
-  `stream:true`; status-only 200 is not enough.
-- [ ] A forced failover on each multi-provider alias returns 200 after disabling
-  one of its two channels, then both channels are re-enabled and `status:1`.
-- [ ] A tool-shaped request returns a valid `tool_calls` payload.
-- [ ] An OpenCode tool loop completes through New-API with tools and usage intact.
-- [ ] The old gateway remains healthy and unchanged throughout.
-- [ ] Rollback is only the client's base URL/model change back to the old gateway.
+- [x] `router/fast` and `router/balanced` return usable streamed completions
+  (`content:"ok"`, `finish_reason:"stop"`, usage present).
+- [x] `agnes-3.0-flash` returns 200 with either channel 10 (KiosAPI) or channel 11
+  (CrowLLM canonical) disabled; both channels were restored to `status:1`.
+- [x] A tool-shaped request returns a valid `tool_calls` payload (`router/tools`
+  and `agnes-3.0-flash`).
+- [x] An OpenCode 1.19.5 tool loop completes through New-API with `tool_use` and
+  the expected file content.
+- [x] The old gateway remains healthy and unchanged throughout.
+- [x] v1 rollback is client-only: point the client back at the old gateway.
 
-The first two live probes are already done at status level; content/tool/OpenCode
-gates are still open. See "Live evidence" below.
+The `router/*` aliases do **not** satisfy the failover gate; both are Groq-only
+in practice. The passing fallback route is the direct model `agnes-3.0-flash`.
+See "Live evidence" below.
 
 ## v2 scope and hard gates
 
@@ -123,13 +129,24 @@ Already proven:
 - `auto` returned 200 with `gw:hcnsec` disabled, via `gw:iamhc`; both re-enabled.
 - `agnes-3.0-flash` returned 200 with `gw:kiosapi` disabled, via
   `gw:crowllm-canonical`; both re-enabled.
-- Tiny streaming calls to `router/fast`, `router/balanced`, `router/tools` and
-  `router/code` all returned HTTP 200 through relay token 21. `router/reasoning`
-  returned 404 because its mapped model is paid-only:
+- Parsed streaming calls to `router/fast` and `router/balanced` returned
+  `content:"ok"`, `finish_reason:"stop"` and usage. `router/fast` used Groq
+  `openai/gpt-oss-20b`; `router/balanced` used Groq `openai/gpt-oss-120b`.
+- `router/tools` returned a valid `lookup_status` tool call with
+  `{"service":"gateway"}`, `finish_reason:"tool_calls"` and usage.
+- `router/reasoning` returned 404 because its mapped model is paid-only:
   `nemotron-3-super-120b-a12b`.
-- The five `router/*` probes used `max_tokens=15` and `stream:true`. The probe
-  recorded status/content-type but did not extract the SSE content, so it is
-  **not** evidence that the model text, tool calls or usage are correct.
+- The `router/fast`/`router/balanced` failover probe found both routes are
+  Groq-only: disabling Groq produced 429 (fast) and a paid-only 404 (balanced);
+  disabling OpenRouter still succeeded through Groq. Do not present them as
+  fallback routes.
+- `agnes-3.0-flash` succeeded in both directions: without channel 10 it used
+  CrowLLM canonical; without channel 11 it used KiosAPI. It also returned a
+  valid `lookup_status` tool call.
+- OpenCode 1.19.5 completed a local tool loop through a temporary SSH tunnel and
+  temporary config: exit 0, one `tool_use` event, output contained
+  `hello-newapi`. No permanent OpenCode config or key was written; the VPS does
+  not have OpenCode installed.
 
 Excluded from v1:
 
@@ -151,17 +168,18 @@ These are New-API route names, not legacy aliases.
 
 | New-API route | Channels | Providers | v1 role | Evidence |
 | --- | --- | --- | --- | --- |
-| `router/fast` | 3 + 4 | Groq + OpenRouter | **Primary fallback candidate** | 200, SSE; content/tool gate open |
-| `router/balanced` | 3 + 4 | Groq + OpenRouter | **Secondary fallback candidate** | 200, SSE; content/tool gate open |
-| `router/tools` | 3 | Groq | Tool-shaped smoke only; no fallback | 200, SSE; tool gate open |
-| `router/code` | 4 | OpenRouter | Coding-shaped smoke only; no fallback | 200, SSE; tool gate open |
+| `router/fast` | 3 + 4 | Groq + OpenRouter | Single-provider chat smoke; **not fallback** | Groq 200; Groq disabled -> 429 |
+| `router/balanced` | 3 + 4 | Groq + OpenRouter | Single-provider chat smoke; **not fallback** | Groq 200; Groq disabled -> paid-only 404 |
+| `router/tools` | 3 | Groq | Tool-call smoke; no fallback | 200 `tool_calls` |
+| `router/code` | 4 | OpenRouter | Single-provider code smoke; content untested | status-only 200 |
 | `router/reasoning` | 4 | OpenRouter | Excluded | 404, paid-only upstream |
+| `agnes-3.0-flash` | 10 + 11 | KiosAPI + CrowLLM | **Primary v1 fallback/model route** | both directions 200; tool call 200 |
 | `auto` | 6 + 7 | HCNSEC + IAMHC | Reserved; do **not** present as legacy `auto` | Failover proven, semantic mismatch |
-| `agnes-3.0-flash` | 10 + 11 | KiosAPI + CrowLLM | Direct model fallback proof, not a legacy alias | 200 and failover proven |
 
-The safest v1 demo is therefore: clients use `router/fast` or
-`router/balanced`; operators show the failover by disabling one of channels 3/4;
-tool tests use `router/tools` or `router/balanced`. No legacy alias is needed.
+The safest v1 demo is the direct model `agnes-3.0-flash`: it is the only route
+with a proven cross-provider fallback and a proven tool call. `router/tools` is a
+tool smoke for one provider; `router/fast` and `router/balanced` are not fallback
+examples. No legacy alias is needed for v1.
 
 ## Full legacy alias matrix
 
@@ -202,15 +220,19 @@ the place for semantic compatibility.
 
 1. [x] Inventory channels, abilities, aliases and current gates.
 2. [x] Status-test the five `router/*` aliases; exclude `router/reasoning`.
-3. [ ] Parse a real `router/fast` SSE completion and assert text plus usage.
-4. [ ] Run a tool-call request through `router/balanced` or `router/tools`.
-5. [ ] Disable one of channels 3/4, prove `router/fast` still completes, then
-   re-enable it and confirm `status:1`.
-6. [ ] Run one OpenCode tool loop against New-API; record client config and
-   failure mode.
-7. [ ] Record results here and in `../STATE.md`. Keep the old gateway untouched.
-8. [ ] Decide whether v1 is useful enough to keep as a permanent compatibility
-   tier or is only a stepping stone to v2.
+3. [x] Parse real `router/fast` and `router/balanced` SSE completions; content,
+   finish and usage were present.
+4. [x] Run a tool-call request through `router/tools` and `agnes-3.0-flash`;
+   both returned valid `tool_calls`.
+5. [x] Test channel 3/4 failover. Both `router/*` routes are Groq-only; record
+   the 429/paid-only-404 results and do not use them as fallbacks.
+6. [x] Test `agnes-3.0-flash` with channels 10 and 11 disabled in turn; both
+   directions returned 200 and were restored to `status:1`.
+7. [x] Run one OpenCode 1.19.5 tool loop against New-API; exit 0 and one
+   `tool_use` event. The temporary config/tunnel were removed.
+8. [x] Record results here and in `../STATE.md`. Keep the old gateway untouched.
+9. [ ] Decide whether the narrow v1 is useful enough as a permanent tier or is
+   only a stepping stone to v2.
 
 v1 rollback: change the client's base URL/model back to the old gateway. No
 service change, no data deletion, no credential change.

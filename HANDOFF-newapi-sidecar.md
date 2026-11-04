@@ -29,9 +29,10 @@ full local integration report passes. Production readiness is NOT established.
 - Release, resource, and 50-request/8-worker concurrency smoke checks passed.
 - Targeted provider-fault, runtime, server, quota, adapter, streaming, and
   benchmark tests passed: 77 + 25 tests.
-- No deployment of *this sidecar*, live-provider test, OpenCode client test,
-  credential provisioning, merge, or traffic cutover has occurred. VPS-40 does
-  already run an unrelated, separately authorized New-API build (below).
+- No deployment of *this sidecar*, credential provisioning, merge, or traffic
+  cutover has occurred. Bounded live New-API relay calls and a temporary local
+  OpenCode test were performed; VPS-40 also runs the separately authorized
+  New-API build described below.
 
 ### Staged v1/v2 direction - 2026-11-03
 
@@ -40,10 +41,12 @@ native New-API (`RetryTimes=3`) without prompt classification; v2 must add the
 old gateway behavior. The full scope, alias matrix and gates are in
 `workload-router/docs/newapi-v1-v2-roadmap.md`.
 
-Live status-only probes found `router/fast`, `router/balanced`, `router/tools`
-and `router/code` at HTTP 200; `router/reasoning` is paid-only (404). Content,
-tool-call and OpenCode gates are still open. The 19 legacy aliases remain v2
-only, and legacy `auto` must not be mapped to New-API's literal `auto`.
+Parsed v1 gates now pass for the direct model `agnes-3.0-flash`: streamed
+content and usage, both-direction KiosAPI/CrowLLM failover, a tool call, and an
+OpenCode 1.19.5 loop. `router/fast` and `router/balanced` are effectively
+Groq-only (OpenRouter returned 429/paid-only 404), so they are not fallback
+examples. The 19 legacy aliases remain v2 only, and legacy `auto` must not be
+mapped to New-API's literal `auto`.
 
 ### 2026-11-03 compatibility increment
 

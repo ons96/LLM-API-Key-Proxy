@@ -1138,11 +1138,36 @@ and the abilities table no longer contains those embeddings (73 abilities).
   returned 200; `router/reasoning` returned 404 because its mapped model is
   paid-only. These are status-only results; SSE content and tool calls were not
   asserted.
-- v1 candidates are `router/fast` and `router/balanced` because each exists on
-  both channels 3 and 4. `router/tools` and `router/code` are single-channel and
-  do not prove fallback. The literal New-API `auto` route stays reserved: it is
-  not the old semantic `auto` alias.
+- Initial v1 candidates were `router/fast` and `router/balanced` because each
+  exists on both channels 3 and 4. The live gate below found both are Groq-only;
+  `agnes-3.0-flash` is the actual fallback route. `router/tools` and
+  `router/code` are single-channel. The literal New-API `auto` route stays
+  reserved: it is not the old semantic `auto` alias.
 - No VPS configuration, channel state, credential, service or traffic was
-  changed for this checkpoint. The next gate is a parsed SSE completion plus a
-  tool/OpenCode test; v2 still requires `RetryTimes=0`, cleared stream overrides
-  and the channel-proof path.
+  changed for the initial checkpoint. v2 still requires `RetryTimes=0`, cleared
+  stream overrides and the channel-proof path.
+
+## v1 live gate execution - 2026-11-03
+
+- Parsed `router/fast` and `router/balanced` SSE: both returned `content:"ok"`,
+  `finish_reason:"stop"` and usage. The upstream models were Groq
+  `openai/gpt-oss-20b` and `openai/gpt-oss-120b` respectively.
+- `router/tools` returned a valid `lookup_status` tool call with
+  `{"service":"gateway"}`, `finish_reason:"tool_calls"` and usage.
+- Channel 3/4 failover exposed a real limitation: both `router/fast` and
+  `router/balanced` are Groq-only in practice. With Groq disabled, `router/fast`
+  returned 429 and `router/balanced` returned a paid-only 404. With OpenRouter
+  disabled, both still returned 200 via Groq. Do not present these as fallback
+  routes.
+- `agnes-3.0-flash` passed both directions: with channel 10 disabled it served
+  via CrowLLM canonical; with channel 11 disabled it served via KiosAPI. A
+  tool-shaped request also returned a valid `lookup_status` call. Both channels
+  were restored to `status:1`.
+- OpenCode 1.19.5 completed a local tool loop through a temporary SSH tunnel and
+  temporary `XDG_CONFIG_HOME`: exit 0, one `tool_use` event, and output contained
+  `hello-newapi`. No permanent OpenCode config or credential was written; the
+  VPS has no OpenCode binary.
+- Final live state: all 9 New-API channels `status:1`, LiteLLM `/health` 200,
+  New-API `/` 200, and the temporary tunnel closed. No cutover or permanent
+  service change occurred; the temporary channel status changes were restored.
+  The narrow v1 route is `agnes-3.0-flash`, not the `router/*` aliases.
