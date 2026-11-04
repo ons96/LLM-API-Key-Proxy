@@ -21,6 +21,7 @@ from newapi_runtime import (LEGACY_ALIASES, MODEL_ALIASES, Prepared, Runtime,
                             chat_payload_from_responses, embedding_inputs, prepare,
                             responses_object, responses_usage, strict_json, validate_key)
 from provider_adapter import ProviderError
+from provider_status import ProviderStatusError, ProviderStatusStore
 from quota_ledger import QuotaLedger, token_count
 from route_policy import input_token_bound
 from router_state import RouterState
@@ -100,7 +101,8 @@ class Server(ThreadingHTTPServer):
 
     def __init__(self, address: tuple[str, int], runtime: Runtime, client_key: str, *,
                  workers: int = 8, default_output: int = 2048, compress: bool = False,
-                 embedding_aliases: frozenset[str] = frozenset()) -> None:
+                 embedding_aliases: frozenset[str] = frozenset(),
+                 provider_status: ProviderStatusStore | None = None) -> None:
         if address[0] not in {"127.0.0.1", "localhost"}:
             raise ValueError("sidecar must bind loopback; terminate TLS at a separate proxy")
         self.runtime, self.client_key = runtime, validate_key(client_key)
@@ -114,6 +116,12 @@ class Server(ThreadingHTTPServer):
                 for name in embedding_aliases):
             raise ValueError("invalid embedding aliases")
         self.compress, self.embedding_aliases = compress, embedding_aliases
+        if (
+            provider_status is not None
+            and not isinstance(provider_status, ProviderStatusStore)
+        ):
+            raise ValueError("invalid provider status store")
+        self.provider_status = provider_status
         self.slots = threading.BoundedSemaphore(token_count(workers, "workers"))
         super().__init__(address, Handler)
 
@@ -176,6 +184,22 @@ class Handler(BaseHTTPRequestHandler):
         self.close_connection = True
         self.wfile.write(encoded)
 
+    def send_text(self, status: int, text: str, content_type: str,
+                  headers: dict[str, str] | None = None) -> None:
+        encoded = text.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.send_header("Connection", "close")
+        for name, value in (headers or {}).items():
+            self.send_header(name, value)
+        self.end_headers()
+        self.response_committed = True
+        self.close_connection = True
+        self.wfile.write(encoded)
+
     def authorized(self) -> bool:
         values = self.headers.get_all("Authorization", [])
         if len(values) != 1 or not hmac.compare_digest(values[0].encode("utf-8"),
@@ -193,6 +217,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(200, {"status": "ok", "service": "newapi-sidecar"})
             return
         if not self.authorized():
+            return
+        if path.startswith("/api/providers"):
+            self.provider_status_response(path)
             return
         if path == "/v1/models":
             self.send_json(200, {"object": "list", "data": [
@@ -238,6 +265,53 @@ class Handler(BaseHTTPRequestHandler):
                                  "free_only": self.server.runtime.free_only})
         else:
             self.send_json(404, {"error": "not found"})
+
+    def provider_status_response(self, path: str) -> None:
+        store = self.server.provider_status
+        if store is None:
+            self.send_json(503, {"error": "provider status database not configured"})
+            return
+        query = parse_qs(self.path.partition("?")[2], keep_blank_values=True)
+        try:
+            if path == "/api/providers/status":
+                self.send_json(200, store.current_status())
+            elif path.startswith("/api/providers/status/"):
+                name = unquote(path[len("/api/providers/status/"):])
+                result = store.single(name)
+                if result is None:
+                    self.send_json(404, {"error": "provider not found"})
+                else:
+                    self.send_json(200, result)
+            elif path == "/api/providers/best":
+                self.send_json(200, store.best())
+            elif path == "/api/providers/history":
+                hours = query_int(query, "hours", 24, 1, 168)
+                self.send_json(200, store.all_history(hours))
+            elif path.startswith("/api/providers/history/"):
+                name = unquote(path[len("/api/providers/history/"):])
+                hours = query_int(query, "hours", 24, 1, 168)
+                rows = store.history(name, hours)
+                if not rows:
+                    self.send_json(404, {"error": "provider history not found"})
+                else:
+                    self.send_json(200, rows)
+            elif path == "/api/providers/export/csv":
+                self.send_text(
+                    200,
+                    store.export_csv(),
+                    "text/csv; charset=utf-8",
+                    {"Content-Disposition": (
+                        "attachment; filename=provider_status.csv"
+                    )},
+                )
+            elif path == "/api/providers/health":
+                self.send_json(200, store.health())
+            else:
+                self.send_json(404, {"error": "not found"})
+        except ValueError as exc:
+            self.send_json(400, {"error": str(exc)})
+        except (ProviderStatusError, sqlite3.Error):
+            self.send_json(503, {"error": "provider status database unavailable"})
 
     def method_not_allowed(self) -> None:
         self.send_json(405, {"error": "method not allowed"}, {"Allow": "GET, POST"})
@@ -555,12 +629,21 @@ def serve() -> None:
             raise SystemExit("embedding aliases collide with chat aliases: "
                              + ", ".join(sorted(collided)))
         state = RouterState(path)
+        status_path = os.environ.get("SIDECAR_PROVIDER_STATUS_DB", "").strip()
+        provider_status = None
+        if status_path:
+            stale_seconds = token_count(
+                os.environ.get("SIDECAR_PROVIDER_STATUS_STALE_SECONDS", "900"),
+                "provider status stale seconds")
+            provider_status = ProviderStatusStore(status_path,
+                                                  stale_after_seconds=stale_seconds)
         runtime = Runtime(ledger, state, base_url, _env("NEWAPI_API_KEY"),
                           free_only=env_flag("SIDECAR_FREE_ONLY", True))
         _install_stop_handlers()
         with Server((os.environ.get("SIDECAR_HOST", "127.0.0.1"), int(_env("SIDECAR_PORT"))),
                     runtime, _env("SIDECAR_API_KEY"), embedding_aliases=aliases,
-                    compress=env_flag("SIDECAR_COMPRESS_JSON", False)) as server:
+                    compress=env_flag("SIDECAR_COMPRESS_JSON", False),
+                    provider_status=provider_status) as server:
             try:
                 server.serve_forever()
             except (KeyboardInterrupt, SystemExit):

@@ -22,10 +22,14 @@ recorded.
 
 ## HTTP surface
 
-Sidecar exposes sixteen paths: `GET /` and `GET /healthz`
+Sidecar exposes twenty-three paths: `GET /` and `GET /healthz`
 (unauthenticated), `GET /v1/models`, `GET /v1/models/{model_id}`,
 `GET /v1/providers`, `GET /v1/tps-stats`, `GET /v1/model/list`,
-`GET /v1/model/status`, `GET /v1/router/diagnostics`, `POST /v1/router/route`,
+`GET /v1/model/status`, `GET /v1/router/diagnostics`, `GET /api/providers/status`,
+`GET /api/providers/status/{provider_name}`, `GET /api/providers/best`,
+`GET /api/providers/health`, `GET /api/providers/history`,
+`GET /api/providers/history/{provider_name}`,
+`GET /api/providers/export/csv`, `POST /v1/router/route`,
 `POST /v1/model/parse-command`, `POST /v1/chat/completions`,
 `POST /v1/cost-estimate`, `POST /v1/token-count`, `POST /v1/responses` and
 `POST /v1/embeddings` (all except `/` and `/healthz` are Bearer-authenticated,
@@ -51,21 +55,21 @@ Sidecar exposes sixteen paths: `GET /` and `GET /healthz`
 | `/v1/model/detect-intent` | — | missing |
 | `/v1/model/parse-command` | same path | **partial** — validates sidecar aliases and parses `/model`, `/use`, and shortcuts; it never switches a session |
 | `/v1/model/session/{session_id}` | — | missing |
-| `/api/providers/best` | — | missing |
-| `/api/providers/health` | — | missing |
-| `/api/providers/status` | — | missing |
-| `/api/providers/status/{provider_name}` | — | missing |
-| `/api/providers/history` | — | missing |
-| `/api/providers/history/{provider_name}` | — | missing |
-| `/api/providers/export/csv` | — | missing |
+| `/api/providers/best` | same path | **partial** — read-only snapshot; can return a stale best with `stale:true` |
+| `/api/providers/health` | same path | **partial** — snapshot health; always `running:false`, not a live probe |
+| `/api/providers/status` | same path | **partial** — latest rows from `provider_status.db`; authenticated and stale-labelled |
+| `/api/providers/status/{provider_name}` | same path | **partial** — latest row for one provider; 404 when absent |
+| `/api/providers/history` | same path | **partial** — 1–168 hours from the read-only snapshot |
+| `/api/providers/history/{provider_name}` | same path | **partial** — 1–168 hours for one provider; 404 when absent |
+| `/api/providers/export/csv` | same path | **partial** — legacy health columns from the snapshot |
 | `/api/cliproxyapi/config` | — | missing |
 | `/api/cliproxyapi/health` | — | missing |
 | `/api/cliproxyapi/models` | — | missing |
 | `/api/cliproxyapi/status` | — | missing |
 | `/api/cliproxyapi/backend/{backend_name}` | — | missing |
 
-Totals: 13 gateway paths are served at the same path (1 covered, 12 partial),
-1 is renamed, and 16 of the 30 gateway paths are still absent.
+Totals: 20 gateway paths are served at the same path (1 covered, 19 partial),
+1 is renamed, and 9 of the 30 gateway paths are still absent.
 
 ## Model aliases
 
@@ -89,8 +93,10 @@ profile-and-step, not the gateway's exact chains; see
    streaming with tools still return a bounded 400.
 4. Embedding/RAG callers -> 404. Now served only when the operator lists an
    audited alias in `SIDECAR_EMBEDDING_ALIASES`; otherwise 400.
-5. Dashboards using `/api/providers/*` -> 404; `/v1/providers` returns only
-   route-provider IDs, and `/v1/tps-stats` has ledger samples only.
+5. Dashboards using `/api/providers/*` -> now served from a read-only
+   `provider_status.db` snapshot, authenticated, with `stale:true` once the
+   gateway stops updating it; `/v1/providers` still returns only route-provider
+   IDs, and `/v1/tps-stats` has ledger samples only.
 6. Uptime probes on `/health` -> 404 unless moved to `/healthz`.
 7. Token-counting tooling -> served as a conservative byte bound, not an exact
    provider tokenizer; cost estimation is available only from ledger pricing,
@@ -112,7 +118,7 @@ profile-and-step, not the gateway's exact chains; see
 
 ## Unknowns
 
-- Whether any live client actually calls the 16 absent routes.
+- Whether any live client actually calls the 9 absent routes.
 - Gateway `/v1/models` response shape versus the sidecar's 22-alias list.
 - Whether TPS consumers expect the gateway's `export=true` file side effect;
   the sidecar rejects it to remain read-only.

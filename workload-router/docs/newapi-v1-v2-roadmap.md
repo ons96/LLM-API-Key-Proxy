@@ -93,7 +93,7 @@ The sidecar cannot start against the current install until these are resolved:
 | Forced streaming | Channels 3 and 4 have `param_override={"stream":true}` | Clear before a non-stream sidecar canary |
 | Channel-key proof | Admin API hides keys; proof helper not installed | Operator-controlled `NEWAPI_CHANNEL_KEY_PROOF_COMMAND` |
 | 2FA | No enrollments (`two_fas` rows: 0) | Authorized proof path for channel audit |
-| Compatibility | Sidecar exposes 16 routes; 16 of the old 30 paths absent; model detail, provider list, TPS, cost estimation, token counting, root status, and model management are partial | Route coverage or explicit exceptions |
+| Compatibility | Sidecar exposes 23 routes; 9 of the old 30 paths absent; provider status, model detail, provider list, TPS, cost estimation, token counting, root status, and model management are partial | Route coverage or explicit exceptions |
 | Legacy aliases | Sidecar source accepts them; not running | Deployed sidecar and live validation |
 
 Changing `RetryTimes` to `0` and clearing the stream overrides are **v2
@@ -135,10 +135,14 @@ multi-channel behavior proved in v1, so they need explicit approval.
   `newapi_operator.py classify --provider-db`; existing `llm_providers.db`
   flags are the source, and route mismatches are previewed without rewriting.
   Also fixed catalog loading for the live `key_name` schema.
+- Added authenticated, read-only `/api/providers/*` compatibility routes over
+  `provider_status.db`, including status, per-provider status, best, health,
+  history, and CSV. Every row carries `stale`; the sidecar does not probe or
+  write the gateway database. See `provider-status.md`.
 - Retained Python after measuring the sidecar at **26,984 KiB** RSS following
   50 discovery requests. See `sidecar-language-decision.md`; the proposed
   service cap is 128 MiB, pending live canary measurement.
-- Provider-free tests: **94 targeted**, **329 total**, one existing
+- Provider-free tests: **98 targeted**, **333 total**, one existing
   `asyncio_mode` warning. No VPS change, deployment, or cutover.
 
 ## Live snapshot (2026-11-03)

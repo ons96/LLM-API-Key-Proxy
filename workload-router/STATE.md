@@ -1286,3 +1286,22 @@ and the abilities table no longer contains those embeddings (73 abilities).
 - Focused affected suites: **70 passed**. Full provider-free suite: **329
   passed**, one existing `asyncio_mode` warning.
 - No VPS change, deployment, credential access, or cutover.
+
+## V2 provider status snapshot routes - 2026-11-03
+
+- Added read-only `provider_status.py` over the gateway's existing
+  `provider_status.db`. It reads the latest row per provider and supports
+  bounded history, best-provider selection, health, and CSV export.
+- Added authenticated `/api/providers/status`, `/status/{provider_name}`,
+  `/best`, `/health`, `/history`, `/history/{provider_name}`, and
+  `/export/csv`. Every current row has `stale` and `age_seconds`; health reports
+  `running:false` because the sidecar does not probe providers.
+- Configured by `SIDECAR_PROVIDER_STATUS_DB` and
+  `SIDECAR_PROVIDER_STATUS_STALE_SECONDS` (default 900). Missing configuration
+  returns 503; a configured missing file fails startup rather than serving an
+  empty health picture.
+- Compatibility surface is now 23 paths: 20 same-path (1 covered, 19 partial),
+  1 renamed, and 9 of 30 gateway paths absent.
+- Focused status suites: **4 passed**. Full provider-free suite: **333 passed**,
+  one existing `asyncio_mode` warning.
+- No VPS change, deployment, credential access, database write, or cutover.

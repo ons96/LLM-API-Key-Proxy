@@ -24,7 +24,7 @@ full local integration report passes. Production readiness is NOT established.
   `workload-router/docs/newapi-v1-v2-roadmap.md`: v1 is a native New-API
   model-first prototype; v2 is the sidecar/full-parity path. No cutover has
   occurred.
-- Full provider-free suite: 329 passed (231 at the earlier checkpoint), with
+- Full provider-free suite: 333 passed (231 at the earlier checkpoint), with
   the existing `Unknown config option: asyncio_mode` warning.
 - Release, resource, and 50-request/8-worker concurrency smoke checks passed.
 - Targeted provider-fault, runtime, server, quota, adapter, streaming, and
@@ -51,7 +51,7 @@ mapped to New-API's literal `auto`.
 A v2 deterministic baseline now classifies the legacy `auto` alias from the
 latest user message (code/verify/debug vs chat), while explicit `X-Route-Step`
 and all other aliases keep their existing behavior. Targeted tests: 88; full
-provider-free suite: 329. This is not semantic-router parity and is not deployed.
+provider-free suite: 333. This is not semantic-router parity and is not deployed.
 
 ### 2026-11-03 compatibility increment
 
@@ -64,8 +64,8 @@ provider-free suite: 329. This is not semantic-router parity and is not deployed
   increment raised the surface to 9 paths.
 - Added ledger-backed `GET /v1/tps-stats` and the read-only model-management
   routes `GET /v1/model/list`, `GET /v1/model/status`, and
-  `POST /v1/model/parse-command`; the sidecar now exposes 16 paths, with 16
-  gateway paths absent. Full provider-free suite: 329 passed.
+  `POST /v1/model/parse-command`; the sidecar previously exposed 16 paths, with
+  16 gateway paths absent. Full provider-free suite: 333 passed.
 - Added read-only `POST /v1/cost-estimate` from the cheapest configured ledger
   price. Python remains the sidecar language after a measured 26,984 KiB RSS
   baseline; see `workload-router/docs/sidecar-language-decision.md` for the
@@ -82,6 +82,12 @@ provider-free suite: 329. This is not semantic-router parity and is not deployed
   `newapi_operator.py classify`, using `llm_providers.db` as the source for
   free-tier flags. The command reports route mismatches but never rewrites them.
   Also fixed catalog loading for the live `providers.key_name` schema.
+- Added authenticated read-only `/api/providers/*` compatibility routes backed
+  by the gateway's `provider_status.db`: status, single-provider status, best,
+  health, history, single-provider history, and CSV. Every row is marked
+  `stale` after the configured threshold; `health` is explicitly
+  `running:false`. The sidecar does not probe or write that database. See
+  `workload-router/docs/provider-status.md`.
 - Review map and unverified list: `workload-router/docs/review-package.md`.
 - Later on 2026-11-03: real New-API relay calls to both usable providers (Groq,
   OpenRouter) passed at `max_tokens=15`. Sidecar code is staged read-only at
