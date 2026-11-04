@@ -1320,3 +1320,104 @@ and the abilities table no longer contains those embeddings (73 abilities).
 - Focused model-management suites: **3 passed**. Full provider-free suite:
   **336 passed**, one existing `asyncio_mode` warning.
 - No VPS change, deployment, credential access, database write, or cutover.
+
+## Local remote reconciliation and startup proof - 2026-11-04
+
+### Remote work preserved
+
+- Started at `5863e02`, not stale base `fde9784`. Tracked files were clean;
+  existing untracked `.serena/` was preserved.
+- Fetched/pruned both project remotes. Implementation was 16 commits behind;
+  fast-forwarded to `origin/feat/newapi-sidecar` at `546952e`. Reused its helper,
+  operator CLI and compatibility work. `origin/main` is `76cd928` (one unrelated
+  provider-policy commit outside this branch). Migration `origin/main` is
+  `e983169`; its worktree/untracked decisions doc were not changed.
+- Inspected GitHub PR refs via Git: none points at the current sidecar tip;
+  latest exposed PR number 358. PR state/reviews/checks could not be queried
+  without an approved fine-grained PAT. Stored gh auth was not used for API
+  calls; deferred questions are in `QUESTIONS.md`.
+- Before edits: exact full suite **336 passed**; three fresh isolated proofs
+  passed with one 429 attempt then failover. This does not causally resolve
+  historical intermittent early-503 reports.
+
+### Focused change
+
+- `tools/newapi_channel_proof.py`: the real pinned binary's 579-byte signed
+  proofs exceeded the helper's old 512-byte limit. It now matches the sidecar's
+  4096-byte printable-ASCII header bound; invalid shapes still fail closed.
+- `tools/verify_newapi.py`: launches the actual `newapi_server.py` subprocess
+  with a TOTP helper and `0600` seed from its freshly enrolled disposable
+  account. Missing/invalid proofs fail before listener/upstream dispatch.
+  Valid startup/restart audit three channels, serve chat/coding/SSE, require
+  auth, exit cleanly on SIGTERM and preserve decisions/quota windows/cooldowns.
+  Generated credentials/seed are checked absent from sidecar logs. Failure
+  reports retain `passed:false`, bounded error and artifact location.
+- Repeated audits hit verification HTTP 429 after enrollment. No same-provider
+  retry was performed. Only the fresh fixture receives `CRITICAL_RATE_LIMIT=32`;
+  limiting stays enabled. Never copy this test budget into production.
+- Added malformed/579/4096-byte proof regressions to
+  `tests/test_channel_proof_helper.py` and startup-probe false-pass/deadline
+  checks in `tests/test_verify_newapi.py`. Updated README, proof docs, staged
+  roadmap, root handoff and QUESTIONS. All changes remain uncommitted.
+
+### Actual validation
+
+- Binary SHA-256 matches pinned `v1.0.0-rc.36`:
+  `5d9b254721c205f4f442848a4af5b58617a8c0ee090366732cfff90455e957f3`.
+- `python3 -m pytest tests -o addopts= --quiet` -> **350 passed, 1 warning in
+  26.58s** (existing `Unknown config option: asyncio_mode`).
+- `python3 tools/verify_release.py` -> **350 passed**, session validation OK,
+  health/route 200, RSS 26260 KB, compilation passed. Changed modules/tests
+  also passed `python3 -m py_compile`.
+- Exact `python3 tools/verify_newapi.py --binary /home/osees/new-api/bin/new-api
+  --artifacts /tmp/opencode` passed on two final fresh instances:
+  `/tmp/opencode/newapi-proof-mgfxu60y/report.json` and
+  `/tmp/opencode/newapi-proof-hsj9s35w/report.json`. Read both directly:
+  fail-closed helpers, zero unauthorized dispatches, same-window TOTP audits,
+  clean SIGTERM, persisted accounting/quota/cooldowns, credentials absent from
+  sidecar logs, original `one-model,two-model` 429 order, paid exclusion and
+  five grade-driven ranking changes all passed. Dirs `0700`; reports/seeds `0600`.
+- Fixture RSS: New-API 154536/154332 KiB; Python fixture plus in-process sidecar
+  41260/41240 KiB. Not a VPS-load or pure-entrypoint memory guarantee.
+- Cached offline uv Black changed-line check, flake8 and mypy passed on four
+  changed/new Python files. Flake8 ignores the existing verifier E402 bootstrap;
+  mypy skips imports. Whole-repo format/type compliance is not claimed.
+- Real-namespace plus focused-test coverage: verifier **82%** combined
+  line/branch; `wait_entrypoint` 18/18 lines, 10/10 branches; `request_proof`
+  12/12 lines, 8/8 branches. Evidence:
+  `/tmp/opencode/newapi-combined-coverage.json`. Initial coverage module selector
+  collected nothing; corrected to file inclusion before reporting results.
+- `git diff --check` and added-text ASCII/credential scan passed. No listeners
+  remain on 8002, 8003 or 8099. No logs, seed or real key was dumped.
+
+### Reuse and next move
+
+- User confirmed existing free accounts/catalogs. Read-only local inventory:
+  canonical DB 204 providers / 6827 models (137 enabled); OpenCode 117 provider
+  entries / 1214 models. `~/.secrets` exists and was not opened. Reuse canonical
+  metadata/approved credentials, not new signups or a bulk key import.
+- Recheck remote/PR state before further edits. Next bounded milestone: verify
+  catalog/operator/priority and actual OpenCode boot orchestration in a disposable
+  instance, then plan a small already-owned free-provider validation subset.
+- VPS v2 still needs explicit approval for zero retries, cleared overrides and
+  authorized proof provisioning; review repeated-audit rate-limit budgets first.
+  Keep native v1 and the legacy gateway unchanged. Live OpenCode tool-loop,
+  compatibility exceptions, resource/load and rollback gates remain.
+- No commit, push, PR, VPS SSH, deployment, live-provider call, production DB
+  write, credential-store change or traffic cutover occurred during that
+  validation pass.
+
+## Authorized feature-branch backup - 2026-11-04
+
+- User authorized commit/push to save the verified startup milestone.
+- Re-fetched origin: `feat/newapi-sidecar` remains `546952e`, no newer changes.
+  Keep this existing feature branch; do not merge main or trigger deployment.
+  Oracle deployment workflow is main-only. A PR is for later review, not needed
+  for backup, and approved GitHub API auth is still unavailable.
+- Commit only the ten reviewed startup-proof/test/doc files. Preserve untracked
+  `.serena/` and private `/tmp/opencode` reports. Use normal secret-scan hooks,
+  no force push or hook bypass. Previous full/release checks passed 350 tests.
+- Next: compose operator catalog/audit/priority commands and actual OpenCode
+  1.19.5 boot/tool-loop checks against disposable New-API and scripted providers.
+  Recommend no VPS mutation, real-account quota use or traffic switch for this
+  milestone.

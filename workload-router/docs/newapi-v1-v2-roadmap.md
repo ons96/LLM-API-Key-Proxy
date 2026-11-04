@@ -100,6 +100,13 @@ Changing `RetryTimes` to `0` and clearing the stream overrides are **v2
 configuration changes**, not v1 cleanup. They would disable or alter the native
 multi-channel behavior proved in v1, so they need explicit approval.
 
+Local continuation on 2026-11-04 verified the actual sidecar entrypoint against
+the pinned binary in a disposable namespace. Missing/invalid proofs fail before
+bind, TOTP proofs boot three channels, and quota/cooldown state survives SIGTERM
+and restart. The helper now accepts the binary's 579-byte signed proofs within
+the sidecar's 4096-byte limit. This closes the local boot-proof gap only; all VPS
+configuration/provisioning and live-provider/client gates above remain.
+
 ### V2 implementation checkpoint - 2026-11-03
 
 - Added deterministic classification for the legacy `auto` alias in

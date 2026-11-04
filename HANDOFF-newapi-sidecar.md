@@ -1,7 +1,11 @@
 # New-API sidecar handoff for OmniRush
 
-> **Resume from GitHub (2026-11-03).** The saved continuation point is
-> `origin/feat/newapi-sidecar`; the worktree is clean. Read
+**Saved local continuation (2026-11-04):** focused startup-proof changes are on
+`feat/newapi-sidecar`, based on remote `546952e`. Read the local continuation
+section below and `workload-router/STATE.md` first; preserve any newer work.
+
+> **Historical GitHub checkpoint (2026-11-03).** The saved continuation point is
+> `origin/feat/newapi-sidecar`; it was clean at that checkpoint. Read
 > `workload-router/docs/newapi-v1-v2-roadmap.md` first. The old sandbox paths
 > below are historical and may not exist on another machine.
 >
@@ -13,6 +17,29 @@
 Snapshot: 2026-11-03. This file supersedes the stale conversation summaries about
 an unapplied benchmark fix. The current verifier contains that fix, and a saved
 full local integration report passes. Production readiness is NOT established.
+
+## Local continuation - 2026-11-04
+
+Read `workload-router/STATE.md`'s 2026-11-04 checkpoint first. The older
+`temp-omnirush` handoff is historical: this session fetched the remote and
+fast-forwarded the clean tracked worktree from `5863e02` to `546952e`, preserving
+`.serena/`. Startup/helper/operator and compatibility work already exists on the
+remote; do not recreate it or reset this worktree to `fde9784`.
+
+This continuation saves focused startup-proof changes on the feature branch.
+The real binary's 579-byte proof exceeded the helper's old 512-byte bound; it now
+matches the sidecar's 4096-byte printable-ASCII limit. The isolated verifier
+launches the actual entrypoint and checks fail-closed proofs, TOTP-authorized
+boot, chat/coding/SSE, SIGTERM and durable restart. See
+`workload-router/docs/channel-proof-helper.md`. No VPS, provider account,
+credential store, production data or cutover was touched. The user subsequently
+authorized committing/pushing this milestone as a backup, without merging or
+deploying it.
+
+Git fetch and PR refs were checked. PR state/reviews were not queried through
+the API because no approved fine-grained PAT was available; stored OAuth/classic
+authentication was not used for API access. Recheck remote freshness before
+continuing. Real-provider/OpenCode and VPS approval gates still apply.
 
 ## Current checkpoint
 

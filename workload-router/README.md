@@ -23,6 +23,30 @@ the live request path:
 
 Design: `docs/workload-router-architecture.md`. Session checkpoints: `STATE.md`.
 
+## New-API sidecar local verification
+
+The separate `newapi_server.py` entrypoint is opt-in and requires a strict
+management audit plus authorized channel-key proofs. It does not change the
+legacy gateway or the native New-API v1 prototype. See
+`docs/newapi-v1-v2-roadmap.md` for the staged boundaries and
+`docs/channel-proof-helper.md` for the operator contract.
+
+From this directory, run the provider-free suite and disposable integration:
+
+```sh
+python3 -m pytest tests -o addopts= --quiet
+python3 tools/verify_newapi.py --binary /home/osees/new-api/bin/new-api --artifacts /tmp/opencode
+```
+
+The verifier requires Linux `unshare` and `ip`, an unmodified pinned binary,
+and an existing artifact parent. It creates a private network namespace and
+fresh databases with scripted local providers. It checks the actual entrypoint's
+missing/invalid-proof rejection, TOTP-authorized boot, chat/coding/SSE, graceful
+stop and durable restart, in addition to quota failover and catalog/benchmark
+checks. Reports and generated test credentials remain in owner-only artifacts;
+inspect public report fields, not logs or seeds. This is not live-provider or
+VPS deployment evidence.
+
 The gateway changes currently deployed are:
 
 - runtime enforcement of the mapping-based dead-provider policy;

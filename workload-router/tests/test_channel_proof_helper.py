@@ -134,13 +134,51 @@ def test_management_rejection_fails_closed(secret_file):
     assert len(api.requests) == 1
 
 
-@pytest.mark.parametrize("proof", ["", "two\nlines", "bad\x00token"])
-def test_malformed_proof_is_rejected(secret_file, proof):
+@pytest.mark.parametrize(
+    "proof",
+    [
+        None,
+        "",
+        "two\nlines",
+        "bad\x00token",
+        "bad token",
+        "bad\ttoken",
+        "bad\x7ftoken",
+        "bad\u00e9token",
+        "x" * 4097,
+    ],
+)
+def test_malformed_proof_is_rejected(secret_file, proof, monkeypatch):
+    from tools import newapi_channel_proof as helper
+
+    monkeypatch.setattr(helper, "_post", lambda *_args: {"proof_token": proof})
+    with pytest.raises(helper.ProofError):
+        helper.request_proof("http://127.0.0.1:8001", "admin-token", 1, 7, "123456")
     with FakeNewAPI(proof=proof) as api:
         result = run_helper(totp_args(api, secret_file))
 
     assert result.returncode == 1
     assert result.stdout == b""
+
+
+@pytest.mark.parametrize("length", [579, 4096])
+def test_signed_proof_tokens_fit_the_sidecar_header_bound(
+    secret_file, monkeypatch, length
+):
+    from newapi_server import channel_key_proof_from_command
+    from tools import newapi_channel_proof as helper
+
+    proof = "p" * length
+    monkeypatch.setattr(helper, "_post", lambda *_args: {"proof_token": proof})
+    assert (
+        helper.request_proof("http://127.0.0.1:8001", "admin-token", 1, 7, "123456")
+        == proof
+    )
+    monkeypatch.setenv("NEWAPI_PROOF_ADMIN_TOKEN", "admin-token")
+    with FakeNewAPI(proof=proof) as api:
+        command = " ".join([sys.executable, str(HELPER), *totp_args(api, secret_file)])
+        assert channel_key_proof_from_command(command)(7) == proof
+        assert len(api.requests) == 1
 
 
 def test_shared_seed_file_is_refused(fake_api, secret_file):

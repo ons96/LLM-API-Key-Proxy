@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+from collections.abc import Iterator
 from contextlib import contextmanager
 from http.client import HTTPConnection
 from http.cookiejar import CookieJar
@@ -19,6 +20,7 @@ import hmac
 import os
 from pathlib import Path
 import secrets
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -100,8 +102,8 @@ def totp(secret: str, timestamp: int, digits: int = 6) -> str:
     return str(number % (10 ** digits)).zfill(digits)
 
 
-def enroll_local_proof(admin: AdminClient, password: str):
-    """Use the installed account's authorized password->2FA enrollment flow."""
+def enroll_local_proof(admin: AdminClient, password: str) -> str:
+    """Enroll the disposable account and return its seed only to the fixture."""
     proof = admin.call("POST", "/api/verify", {"method": "password", "scope": "2fa.setup", "password": password})
     if not isinstance(proof, dict) or not isinstance(proof.get("proof_token"), str):
         raise CatalogError("local enrollment proof missing")
@@ -117,24 +119,221 @@ def enroll_local_proof(admin: AdminClient, password: str):
     # Backup codes are issued by the enrollment API and can be consumed once.
     # They avoid OTP reuse in the same time step while auditing several channels.
     codes = iter(setup.get("backup_codes", []))
+
     def channel_proof(channel_id):
         try:
             code = next(codes)
         except StopIteration:
             raise CatalogError("local proof codes exhausted") from None
-        proof = admin.call("POST", "/api/verify", {"method": "2fa", "scope": "channel.key.read",
-                                                  "context": {"channel_id": channel_id}, "code": code})
+        proof = admin.call(
+            "POST",
+            "/api/verify",
+            {
+                "method": "2fa",
+                "scope": "channel.key.read",
+                "context": {"channel_id": channel_id},
+                "code": code,
+            },
+        )
         if not isinstance(proof, dict) or not isinstance(proof.get("proof_token"), str):
             raise CatalogError("local channel verification proof missing")
         return proof["proof_token"]
     admin.key_proof = channel_proof
+    return secret
+
+
+@contextmanager
+def entrypoint_process(
+    directory: Path, env: dict[str, str], name: str
+) -> Iterator[subprocess.Popen[bytes]]:
+    """Run the unchanged production entrypoint; keep all diagnostics private."""
+    entrypoint = Path(__file__).resolve().parents[1] / "newapi_server.py"
+    with (directory / (name + ".log")).open("xb") as log:
+        process = subprocess.Popen(
+            [sys.executable, str(entrypoint)],
+            cwd=directory,
+            env=env,
+            stdout=log,
+            stderr=log,
+            umask=0o077,
+        )
+        try:
+            yield process
+        finally:
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=3)
+
+
+def get_json(address: tuple[str, int], path: str, key: str = "") -> tuple[int, dict]:
+    """Read a bounded, prompt-free fixture endpoint without logging its body."""
+    connection = HTTPConnection(*address, timeout=0.2)
+    try:
+        headers = {"Authorization": "Bearer " + key} if key else {}
+        connection.request("GET", path, headers=headers)
+        response = connection.getresponse()
+        raw = response.read(65537)
+        if len(raw) > 65536:
+            raise CatalogError("sidecar probe response exceeds limit")
+        body = json.loads(raw)
+        if not isinstance(body, dict):
+            raise CatalogError("sidecar probe response must be an object")
+        return response.status, body
+    finally:
+        connection.close()
+
+
+def wait_entrypoint(
+    process: subprocess.Popen[bytes], address: tuple[str, int], *, fail_closed: bool
+) -> None:
+    """Reject any listening socket before a failed audit, and bound boot time."""
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        try:
+            status, body = get_json(address, "/healthz")
+        except OSError:
+            pass
+        else:
+            if fail_closed:
+                raise CatalogError("sidecar listened before successful authorization")
+            if status != 200 or body.get("service") != "newapi-sidecar":
+                raise CatalogError("unexpected sidecar health response")
+            return
+        result = process.poll()
+        if result is not None:
+            if fail_closed and result != 0:
+                return
+            raise CatalogError("sidecar entrypoint exited unexpectedly")
+        time.sleep(0.05)
+    raise CatalogError("sidecar entrypoint startup timed out")
+
+
+def verify_entrypoint(
+    directory: Path, env: dict[str, str], calls: list[str], ledger: QuotaLedger
+) -> dict:
+    """Prove helper authorization, actual boot, graceful stop and durable restart."""
+    address = ("127.0.0.1", int(env["SIDECAR_PORT"]))
+    before = len(calls)
+    result: dict = {}
+    missing = {
+        name: value
+        for name, value in env.items()
+        if name != "NEWAPI_CHANNEL_KEY_PROOF_COMMAND"
+    }
+    invalid = {
+        **env,
+        "NEWAPI_CHANNEL_KEY_PROOF_COMMAND": shlex.join(
+            [sys.executable, "-c", "print('invalid-proof')"]
+        ),
+    }
+    for name, environment in (("missing-helper", missing), ("invalid-helper", invalid)):
+        with entrypoint_process(directory, environment, name) as process:
+            wait_entrypoint(process, address, fail_closed=True)
+        failure = (directory / (name + ".log")).read_text()
+        expected = (
+            "authorized channel key verification required"
+            if name == "missing-helper"
+            else "catalog HTTP status 403"
+        )
+        if expected not in failure:
+            raise CatalogError("entrypoint failed for an unexpected reason")
+        result[name.replace("-", "_") + "_fail_closed"] = True
+    if len(calls) != before:
+        raise CatalogError("upstream dispatch occurred before authorization")
+    result["unauthorized_upstream_calls"] = 0
+
+    persisted = None
+    quota_snapshot = None
+    for name in ("startup", "restart"):
+        window = int(time.time()) // 30
+        with entrypoint_process(directory, env, name) as process:
+            wait_entrypoint(process, address, fail_closed=False)
+            same_window = window == int(time.time()) // 30
+            if get_json(address, "/v1/models")[0] != 401:
+                raise CatalogError("entrypoint did not require client authentication")
+            status, diagnostics = get_json(
+                address, "/v1/router/diagnostics", env["SIDECAR_API_KEY"]
+            )
+            if status != 200:
+                raise CatalogError("entrypoint diagnostics unavailable")
+            if persisted is not None and diagnostics != persisted:
+                raise CatalogError(
+                    "accounting or cooldown state did not survive restart"
+                )
+            current_quota = list(
+                ledger.db.execute(
+                    "SELECT window_type, COUNT(*), SUM(amount) FROM quota_windows "
+                    "GROUP BY window_type ORDER BY window_type"
+                )
+            )
+            if quota_snapshot is not None and current_quota != quota_snapshot:
+                raise CatalogError("quota reservations did not survive restart")
+            checks: dict = {
+                "health": 200,
+                "unauthenticated_models": 401,
+                "totp_channels": 3,
+                "same_totp_window": same_window,
+            }
+            checks["chat"] = chat(address, env["SIDECAR_API_KEY"])
+            if name == "startup":
+                checks["coding"] = chat(
+                    address, env["SIDECAR_API_KEY"], model="auto-coding"
+                )
+                checks["stream"] = chat(address, env["SIDECAR_API_KEY"], stream=True)
+            status, persisted = get_json(
+                address, "/v1/router/diagnostics", env["SIDECAR_API_KEY"]
+            )
+            if status != 200 or sum(persisted["attempts"].values()) <= sum(
+                diagnostics["attempts"].values()
+            ):
+                raise CatalogError("entrypoint completion was not accounted")
+            checks["accounting"] = persisted["attempts"]
+            checks["active_cooldowns"] = persisted["active_cooldowns"]
+            quota_snapshot = list(
+                ledger.db.execute(
+                    "SELECT window_type, COUNT(*), SUM(amount) FROM quota_windows "
+                    "GROUP BY window_type ORDER BY window_type"
+                )
+            )
+        if process.returncode != 0:
+            raise CatalogError("sidecar did not shut down cleanly on SIGTERM")
+        checks["sigterm_exit"] = process.returncode
+        result[name] = checks
+    sensitive = [
+        env[name]
+        for name in ("SIDECAR_API_KEY", "NEWAPI_API_KEY", "NEWAPI_ADMIN_TOKEN")
+    ]
+    sensitive.append(Path(env["NEWAPI_PROOF_TOTP_SECRET_FILE"]).read_text().strip())
+    for name in ("missing-helper", "invalid-helper", "startup", "restart"):
+        log = (directory / (name + ".log")).read_text()
+        if any(value in log for value in sensitive):
+            raise CatalogError("sidecar entrypoint logged a generated credential")
+    result["credentials_absent_from_logs"] = True
+    result["quota_windows_persisted"] = True
+    result["restart_persisted"] = True
+    return result
 
 
 def relay_token(admin: AdminClient, aliases: list[str]) -> tuple[int, str]:
     name = "proof-" + secrets.token_hex(4)
-    admin.call("POST", "/api/token/", {"name": name, "remain_quota": 1000000,
-                "expired_time": -1, "unlimited_quota": True, "model_limits_enabled": True,
-                "model_limits": ",".join(aliases), "group": "default", "cross_group_retry": False})
+    admin.call(
+        "POST",
+        "/api/token/",
+        {
+            "name": name,
+            "remain_quota": 1000000,
+            "expired_time": -1,
+            "unlimited_quota": True,
+            "model_limits_enabled": True,
+            "model_limits": ",".join(aliases),
+            "group": "default",
+            "cross_group_retry": False,
+        },
+    )
     matches = [row for row in items(admin.call("GET", "/api/token/?p=1&page_size=100")) if row.get("name") == name]
     if len(matches) != 1:
         raise CatalogError("created relay token cannot be identified")
@@ -148,8 +347,14 @@ def relay_token(admin: AdminClient, aliases: list[str]) -> tuple[int, str]:
     return token["id"], key
 
 
-def chat(server: Server, key: str, *, model: str = "auto-chat", stream: bool = False) -> dict:
-    connection = HTTPConnection(*server.server_address, timeout=5)
+def chat(
+    address: tuple[str, int],
+    key: str,
+    *,
+    model: str = "auto-chat",
+    stream: bool = False,
+) -> dict:
+    connection = HTTPConnection(*address, timeout=5)
     payload = {"model": model, "messages": [{"role": "user", "content": "Reply with exactly ok."}],
                "max_tokens": 32, "stream": stream}
     try:
@@ -176,7 +381,12 @@ def verify(binary: Path, parent: Path, parent_inode: int) -> dict:
     if not binary.is_file() or not os.access(binary, os.X_OK) or not parent.is_dir():
         raise ValueError("executable binary and existing artifact parent required")
     directory = Path(tempfile.mkdtemp(prefix="newapi-proof-", dir=parent))
-    report = {"artifact_dir": str(directory), "upstreams": "scripted-local-only", "live_provider_test": False}
+    report: dict = {
+        "artifact_dir": str(directory),
+        "upstreams": "scripted-local-only",
+        "live_provider_test": False,
+        "passed": False,
+    }
     calls = []
     faults = set()
     grading = [False]
@@ -231,18 +441,36 @@ def verify(binary: Path, parent: Path, parent_inode: int) -> dict:
                          "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}], "usage": usage}
                 self.wfile.write(("data: " + json.dumps(event) + "\n\ndata: [DONE]\n\n").encode())
                 return
-            self.send_json(200, {"id": "proof", "object": "chat.completion", "model": model,
-                                  "choices": [{"index": 0, "message": message,
-                                               "finish_reason": "stop"}], "usage": usage})
+            self.send_json(
+                200,
+                {
+                    "id": "proof",
+                    "object": "chat.completion",
+                    "model": model,
+                    "choices": [
+                        {"index": 0, "message": message, "finish_reason": "stop"}
+                    ],
+                    "usage": usage,
+                },
+            )
 
         def log_message(self, *_args):
             return
 
     base = "http://127.0.0.1:8002"
-    env = {"PATH": os.environ["PATH"], "HOME": str(directory), "LANG": "C.UTF-8",
-           "SQLITE_PATH": str(directory / "one-api.db"), "PORT": "8002",
-           "SESSION_SECRET": secrets.token_urlsafe(32), "CRYPTO_SECRET": secrets.token_urlsafe(32),
-           "GOMEMLIMIT": "160MiB", "GOMAXPROCS": "2"}
+    env = {
+        "PATH": os.environ["PATH"],
+        "HOME": str(directory),
+        "LANG": "C.UTF-8",
+        "SQLITE_PATH": str(directory / "one-api.db"),
+        "PORT": "8002",
+        "SESSION_SECRET": secrets.token_urlsafe(32),
+        "CRYPTO_SECRET": secrets.token_urlsafe(32),
+        "GOMEMLIMIT": "160MiB",
+        "GOMAXPROCS": "2",
+        # Fixture-only budget for enrollment and three complete startup audits.
+        "CRITICAL_RATE_LIMIT": "32",
+    }
     process = None
     ledger = state = None
     try:
@@ -260,13 +488,17 @@ def verify(binary: Path, parent: Path, parent_inode: int) -> dict:
             else:
                 raise CatalogError("local New-API startup timed out")
             admin, password = bootstrap(base)
-            enroll_local_proof(admin, password)
+            seed = enroll_local_proof(admin, password)
             admin.call("PUT", "/api/option/", {"key": "RetryTimes", "value": "0"})
             ledger = QuotaLedger(directory / "sidecar.db")
             routes = []
             catalogs = {}
-            configuration = {"provider": {name: {"models": {"curated": {"tool_call": False}}}
-                                           for name in ("one", "two", "three")}}
+            configuration = {
+                "provider": {
+                    name: {"models": {"curated": {"tool_call": False}}}
+                    for name in ("one", "two", "three")
+                }
+            }
             target = directory / "opencode.stock.json"
             target.write_text(json.dumps(configuration))
             config_link = directory / "opencode.json"
@@ -293,16 +525,45 @@ def verify(binary: Path, parent: Path, parent_inode: int) -> dict:
             runtime = Runtime(ledger, state, base + "/v1", relay, explore=False)
             client_key = secrets.token_urlsafe(24)
             with running(Server(("127.0.0.1", 0), runtime, client_key)) as server:
-                report["chat"] = chat(server, client_key)
-                report["coding"] = chat(server, client_key, model="auto-coding")
-                report["stream"] = chat(server, client_key, stream=True)
+                report["chat"] = chat(server.server_address, client_key)
+                report["coding"] = chat(
+                    server.server_address, client_key, model="auto-coding"
+                )
+                report["stream"] = chat(server.server_address, client_key, stream=True)
                 faults.add("one-model")
                 before = len(calls)
-                report["failover"] = chat(server, client_key)
+                report["failover"] = chat(server.server_address, client_key)
                 report["fault_attempts"] = calls[before:]
                 if report["fault_attempts"] != ["one-model", "two-model"]:
                     raise CatalogError("hidden retry or incorrect fallback order detected")
             faults.clear()
+            # This seed belongs only to the newly enrolled, disposable account.
+            seed_file = directory / "totp.seed"
+            seed_file.write_text(seed + "\n")
+            seed_file.chmod(0o600)
+            helper = Path(__file__).resolve().with_name("newapi_channel_proof.py")
+            entry_env = {
+                **env,
+                "SIDECAR_DB": str(directory / "sidecar.db"),
+                "SIDECAR_HOST": "127.0.0.1",
+                "SIDECAR_PORT": "8003",
+                "SIDECAR_API_KEY": client_key,
+                "NEWAPI_BASE_URL": base + "/v1",
+                "NEWAPI_ADMIN_TOKEN": admin.token,
+                "NEWAPI_ADMIN_USER_ID": str(admin.user_id),
+                "NEWAPI_API_KEY": relay,
+                "NEWAPI_RELAY_TOKEN_ID": str(token_id),
+                "NEWAPI_CHANNEL_KEY_PROOF_COMMAND": shlex.join(
+                    [sys.executable, str(helper), "--mode=totp"]
+                ),
+                "NEWAPI_PROOF_BASE_URL": base,
+                "NEWAPI_PROOF_ADMIN_TOKEN": admin.token,
+                "NEWAPI_PROOF_ADMIN_USER_ID": str(admin.user_id),
+                "NEWAPI_PROOF_TOTP_SECRET_FILE": str(seed_file),
+            }
+            report["entrypoint"] = verify_entrypoint(
+                directory, entry_env, calls, ledger
+            )
             # Fresh graded phase in the owned fixture DB: clear decisions, cooldowns
             # and quota usage so before/after ranking shows grade-driven reordering.
             # Route config and learned limits remain. Do NOT do this in production.
@@ -328,6 +589,8 @@ def verify(binary: Path, parent: Path, parent_inode: int) -> dict:
                 if line.startswith("VmRSS:"):
                     report["python_fixture_and_sidecar_rss_kib"] = int(line.split()[1])
             report["passed"] = True
+    except (CatalogError, ValueError) as exc:
+        report["error"] = str(exc)
     finally:
         if state is not None:
             state.close()
@@ -356,7 +619,11 @@ if __name__ == "__main__":
         sys.exit(subprocess.call(["unshare", "--user", "--map-root-user", "--net",
                                   sys.executable, *sys.argv, "--namespace-parent-inode", str(inode)]))
     try:
-        print(json.dumps(verify(args.binary.resolve(), args.artifacts.resolve(), args.namespace_parent_inode), indent=2))
+        report = verify(
+            args.binary.resolve(), args.artifacts.resolve(), args.namespace_parent_inode
+        )
+        print(json.dumps(report, indent=2))
+        sys.exit(0 if report["passed"] else 1)
     except (CatalogError, ValueError) as exc:
         print(json.dumps({"passed": False, "error": str(exc)}))
         sys.exit(1)

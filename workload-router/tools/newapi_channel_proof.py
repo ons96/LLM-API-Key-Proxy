@@ -162,9 +162,10 @@ def request_proof(base_url: str, token: str, user_id: int, channel_id: int, code
     proof = proof.strip()
     if not proof:
         raise ProofError("verification returned an empty proof token")
-    if "\n" in proof or "\r" in proof or "\x00" in proof:
+    if any(not 33 <= ord(char) <= 126 for char in proof):
         raise ProofError("proof token contains an invalid character")
-    if len(proof) > 512:
+    # Signed New-API proofs exceed 512 bytes; match the sidecar header bound.
+    if len(proof) > 4096:
         raise ProofError("proof token is implausibly long")
     return proof
 
