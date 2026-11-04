@@ -22,20 +22,21 @@ recorded.
 
 ## HTTP surface
 
-Sidecar exposes fifteen paths: `GET /healthz` (unauthenticated), `GET /v1/models`,
-`GET /v1/models/{model_id}`, `GET /v1/providers`, `GET /v1/tps-stats`,
-`GET /v1/model/list`, `GET /v1/model/status`,
-`GET /v1/router/diagnostics`, `POST /v1/router/route`,
+Sidecar exposes sixteen paths: `GET /` and `GET /healthz`
+(unauthenticated), `GET /v1/models`, `GET /v1/models/{model_id}`,
+`GET /v1/providers`, `GET /v1/tps-stats`, `GET /v1/model/list`,
+`GET /v1/model/status`, `GET /v1/router/diagnostics`, `POST /v1/router/route`,
 `POST /v1/model/parse-command`, `POST /v1/chat/completions`,
 `POST /v1/cost-estimate`, `POST /v1/token-count`, `POST /v1/responses` and
-`POST /v1/embeddings` (all Bearer-authenticated, 1 MiB body cap).
+`POST /v1/embeddings` (all except `/` and `/healthz` are Bearer-authenticated,
+1 MiB body cap).
 
 | Gateway path | Sidecar | Status |
 | --- | --- | --- |
 | `/v1/chat/completions` | same path | **covered** (plus SSE, `X-Session-Id`, `X-Route-Step`) |
 | `/v1/models` | same path | **partial** — returns the 22 accepted aliases, not the gateway's upstream model list |
 | `/health` | `/healthz` | **renamed** — monitors must change path |
-| `/` | — | missing |
+| `/` | same path | **partial** — unauthenticated status object; not the gateway's exact body |
 | `/v1/models/{model_id}` | same path | **partial** — returns the old basic `{id, object, created, owned_by}` envelope for any non-empty id; known aliases carry `deprecated`; no upstream model-info stats |
 | `/v1/responses` | same path | **partial** — text/messages, function tools, text-only streaming; no `previous_response_id` or non-function tools |
 | `/v1/embeddings` | same path | **partial** — only aliases named in `SIDECAR_EMBEDDING_ALIASES`; text input only |
@@ -63,8 +64,8 @@ Sidecar exposes fifteen paths: `GET /healthz` (unauthenticated), `GET /v1/models
 | `/api/cliproxyapi/status` | — | missing |
 | `/api/cliproxyapi/backend/{backend_name}` | — | missing |
 
-Totals: 12 gateway paths are served at the same path (1 covered, 11 partial),
-1 is renamed, and 17 of the 30 gateway paths are still absent.
+Totals: 13 gateway paths are served at the same path (1 covered, 12 partial),
+1 is renamed, and 16 of the 30 gateway paths are still absent.
 
 ## Model aliases
 
@@ -111,7 +112,7 @@ profile-and-step, not the gateway's exact chains; see
 
 ## Unknowns
 
-- Whether any live client actually calls the 17 absent routes.
+- Whether any live client actually calls the 16 absent routes.
 - Gateway `/v1/models` response shape versus the sidecar's 22-alias list.
 - Whether TPS consumers expect the gateway's `export=true` file side effect;
   the sidecar rejects it to remain read-only.

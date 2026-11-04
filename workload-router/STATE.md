@@ -1263,6 +1263,8 @@ and the abilities table no longer contains those embeddings (73 abilities).
 - Added `POST /v1/token-count` as a conservative UTF-8 byte upper bound with
   `estimated:true` and `method:"utf8_byte_upper_bound"`. It never dispatches and
   is not an exact cross-provider tokenizer.
-- Compatibility surface is now 15 paths: 12 same-path (1 covered, 11 partial),
-  1 renamed, and 17 of 30 gateway paths absent.
+- Compatibility surface is now 16 paths: 13 same-path (1 covered, 12 partial),
+  1 renamed, and 16 of 30 gateway paths absent.
+- Added unauthenticated `GET /` returning `{"Status": "New-API sidecar is
+  running"}`; it is a probe-only compatibility shim.
 - No VPS change, deployment, credential access, or cutover.

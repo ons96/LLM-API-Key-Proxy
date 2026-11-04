@@ -123,6 +123,8 @@ def test_channel_key_proof_helper_rejects_invalid_output(monkeypatch, stdout):
 
 def test_auth_models_health_and_diagnostics(sidecar):
     server, runtime, calls, _ = sidecar
+    status, body, _ = call(server, "/", method="GET", auth=False)
+    assert status == 200 and json.loads(body)["Status"] == "New-API sidecar is running"
     assert call(server, "/healthz", method="GET", auth=False)[0] == 200
     assert call(server, "/v1/models", method="GET", auth=False)[0] == 401
     status, body, headers = call(server, "/v1/models", method="GET")

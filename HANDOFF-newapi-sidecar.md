@@ -64,7 +64,7 @@ provider-free suite: 324. This is not semantic-router parity and is not deployed
   increment raised the surface to 9 paths.
 - Added ledger-backed `GET /v1/tps-stats` and the read-only model-management
   routes `GET /v1/model/list`, `GET /v1/model/status`, and
-  `POST /v1/model/parse-command`; the sidecar now exposes 15 paths, with 17
+  `POST /v1/model/parse-command`; the sidecar now exposes 16 paths, with 16
   gateway paths absent. Full provider-free suite: 324 passed.
 - Added read-only `POST /v1/cost-estimate` from the cheapest configured ledger
   price. Python remains the sidecar language after a measured 26,984 KiB RSS
@@ -77,6 +77,7 @@ provider-free suite: 324. This is not semantic-router parity and is not deployed
   `workload-router/docs/free-tier-classes.md`.
 - Added conservative `POST /v1/token-count`; it returns a UTF-8 byte upper bound
   with `estimated:true`, not an exact provider tokenizer count.
+- Added unauthenticated `GET /` with the legacy `Status` field for probes.
 - Review map and unverified list: `workload-router/docs/review-package.md`.
 - Later on 2026-11-03: real New-API relay calls to both usable providers (Groq,
   OpenRouter) passed at `max_tokens=15`. Sidecar code is staged read-only at

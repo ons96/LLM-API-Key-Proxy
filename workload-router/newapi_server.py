@@ -186,6 +186,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
+        if path == "/":
+            self.send_json(200, {"Status": "New-API sidecar is running"})
+            return
         if path == "/healthz":
             self.send_json(200, {"status": "ok", "service": "newapi-sidecar"})
             return
