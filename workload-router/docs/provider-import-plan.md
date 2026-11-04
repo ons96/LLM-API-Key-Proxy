@@ -61,7 +61,9 @@ Use New-API as the router, not the sidecar.
 - Import dead or unverified providers as disabled channels (`status: 2`) so the
   catalog is retained without being used. Do not delete catalog rows.
 - The sidecar's strict one-alias-per-channel audit is incompatible with
-  multi-provider fallback. Park the strict deployment and defer 2FA.
+  multi-provider fallback. This is the v1 native design only; v2 would require
+  `RetryTimes=0` and is not active. See `newapi-v1-v2-roadmap.md` for the staged
+  scope and gates.
 
 ## Pilot applied
 
@@ -95,6 +97,8 @@ disabled, `agnes-3.0-flash` still returned HTTP 200 with "ok" through
 
 ## Next
 
+- Follow the staged plan in `newapi-v1-v2-roadmap.md`. v1 is limited to verified
+  native routes; the 19 legacy aliases and prompt classification are v2.
 - Probe each remaining provider's `/models`, then one 15-token chat per candidate
   model before enabling its channel.
 - Add verified providers in small batches; keep the rest disabled.

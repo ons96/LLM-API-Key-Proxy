@@ -1,21 +1,14 @@
 # New-API sidecar handoff for OmniRush
 
-> **OmniRush sandbox note (2026-11-03).** This session's folder is
-> `/home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar`,
-> and the sandbox mounts exactly that folder. The `workload-router` paths in
-> this handoff are therefore valid. `/home/osees/CodingProjects/temp-omnirush`
-> and the main `LLM-API-Key-Proxy` checkout are NOT visible from here.
+> **Resume from GitHub (2026-11-03).** The saved continuation point is
+> `origin/feat/newapi-sidecar`; the worktree is clean. Read
+> `workload-router/docs/newapi-v1-v2-roadmap.md` first. The old sandbox paths
+> below are historical and may not exist on another machine.
 >
-> The base image is Debian 12 with python3.11 but no pytest, and its Python is
-> marked externally managed. If `python3 -m pytest` reports `No module named
-> pytest`, install it once in this folder's box (installed packages persist):
->
-> ```sh
-> python3 -m pip install --user --quiet --break-system-packages pytest
-> ```
->
-> Safety boundary unchanged: no commit, push, deploy, credential change or
-> traffic cutover.
+> Safety boundary: the user has authorized commits, pushes, VPS file placement,
+> temporary service stops and bounded test calls. Do not stop, replace or delete
+> the LiteLLM gateway, cut over traffic, rotate credentials or delete data
+> without explicit approval.
 
 Snapshot: 2026-11-03. This file supersedes the stale conversation summaries about
 an unapplied benchmark fix. The current verifier contains that fix, and a saved
@@ -24,18 +17,33 @@ full local integration report passes. Production readiness is NOT established.
 ## Current checkpoint
 
 - Branch `feat/newapi-sidecar` tracks `origin/feat/newapi-sidecar`.
-- Commits: `f00de12 feat: add New-API sidecar routing` and
-  `1777e36 docs: record sidecar verification`.
-- Worktree has uncommitted sidecar/docs changes; nothing has been committed or
-  pushed.
-- Full provider-free suite: 231 passed, with the existing
-  `Unknown config option: asyncio_mode` warning.
+- The branch contains the sidecar, compatibility/tooling, pilot/failover and
+  staged-roadmap docs. Run `git log --oneline` for the exact HEAD; no local-only
+  work is required to resume.
+- The staged decision is recorded in
+  `workload-router/docs/newapi-v1-v2-roadmap.md`: v1 is a native New-API
+  model-first prototype; v2 is the sidecar/full-parity path. No cutover has
+  occurred.
+- Full provider-free suite: 307 passed (231 at the earlier checkpoint), with
+  the existing `Unknown config option: asyncio_mode` warning.
 - Release, resource, and 50-request/8-worker concurrency smoke checks passed.
 - Targeted provider-fault, runtime, server, quota, adapter, streaming, and
   benchmark tests passed: 77 + 25 tests.
 - No deployment of *this sidecar*, live-provider test, OpenCode client test,
   credential provisioning, merge, or traffic cutover has occurred. VPS-40 does
   already run an unrelated, separately authorized New-API build (below).
+
+### Staged v1/v2 direction - 2026-11-03
+
+The user accepted a staged path: v1 may prove basic model-first fallback with
+native New-API (`RetryTimes=3`) without prompt classification; v2 must add the
+old gateway behavior. The full scope, alias matrix and gates are in
+`workload-router/docs/newapi-v1-v2-roadmap.md`.
+
+Live status-only probes found `router/fast`, `router/balanced`, `router/tools`
+and `router/code` at HTTP 200; `router/reasoning` is paid-only (404). Content,
+tool-call and OpenCode gates are still open. The 19 legacy aliases remain v2
+only, and legacy `auto` must not be mapped to New-API's literal `auto`.
 
 ### 2026-11-03 compatibility increment
 
@@ -95,8 +103,8 @@ full local integration report passes. Production readiness is NOT established.
 
 ## Resume prompt
 
-Read this handoff and continue the New-API sidecar in
-`/home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar/workload-router`.
+Read this handoff and `workload-router/docs/newapi-v1-v2-roadmap.md`, then
+continue the New-API work from the GitHub branch `feat/newapi-sidecar`.
 Preserve existing work and leave VPS-40 and the current gateway untouched until
 the canary stage is explicitly authorized. Start with the remaining external
 validation plan below. Do not merge, deploy, change credentials, or cut over
@@ -137,8 +145,9 @@ Implementation work is committed on the feature branch. No production database
 writes or VPS deployment were performed by this workstream. Original checkouts
 can contain other intentional edits; do not switch to them to work.
 
-Read `workload-router/AGENTS.md`, `STATE.md`, `README.md`,
-`docs/specs/p0-router.md`, and `docs/newapi-design.md`. The older `HANDOFF.md`
+Read `workload-router/AGENTS.md`, `workload-router/STATE.md`,
+`workload-router/README.md`, `workload-router/docs/specs/p0-router.md`, and
+`workload-router/docs/newapi-design.md`. The older `HANDOFF.md`
 describes a different VPS task; do not treat its "next task" as this assignment.
 Read the migration worktree's `docs/sidecar-decisions.md` for the accepted
 reuse/build decisions and licensing gates.

@@ -21,8 +21,13 @@ ps -o pid,rss -C new-api   # RSS must stay < 200MB idle
 
 ## First login
 
-Default admin `root` / `123456` — change immediately in the console.
-Covers hardening task #873; do not paste credentials anywhere.
+Default admin `root` / `123456` — the live credential is operator-managed in
+`/opt/new-api/new-api.env`; do not assume the default is still active. Confirm
+it has been changed before exposing the dashboard, and never paste credentials
+in docs or chat. 2FA is still disabled on the live install (2026-11-03).
+Covers hardening task #873.
+
+Staged replacement plan: `../workload-router/docs/newapi-v1-v2-roadmap.md`.
 
 ## Rollback
 

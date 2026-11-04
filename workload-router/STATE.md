@@ -1119,4 +1119,30 @@ and the abilities table no longer contains those embeddings (73 abilities).
 - The status route is `POST /api/channel/:id/status` with `{"status": 1|2}`;
 `PUT /api/channel/` rejects any `status` field. Failover is proven above.
 - Re-probe the 429 providers after their daily reset; do not create channels for
-them until a chat succeeds. Keep dead catalog rows as disabled channels.
+  them until a chat succeeds. Keep dead catalog rows as disabled channels.
+
+## Staged v1/v2 roadmap - 2026-11-03
+
+- User accepted the staging: v1 is a native New-API model-first prototype
+  (`RetryTimes=3`) for basic fallback; v2 is the sidecar/full-parity path with
+  prompt classification, legacy aliases and quota/telemetry routing. No cutover
+  is authorized by this decision.
+- Added `docs/newapi-v1-v2-roadmap.md` with the v1 scope, the full 19-alias gap
+  matrix, v2 blockers, migration checklist and rollback boundaries. Linked from
+  `HANDOFF-newapi-sidecar.md`, `provider-import-plan.md` and
+  `alias-mapping-proposal.md`.
+- Read-only live inventory confirmed 9 channels, 110 abilities,
+  `RetryTimes=3`, channels 3/4 `param_override={"stream":true}`, and 0 2FA rows.
+  The five pre-existing `router/*` aliases were called at `max_tokens=15` with
+  streaming: `router/fast`, `router/balanced`, `router/tools` and `router/code`
+  returned 200; `router/reasoning` returned 404 because its mapped model is
+  paid-only. These are status-only results; SSE content and tool calls were not
+  asserted.
+- v1 candidates are `router/fast` and `router/balanced` because each exists on
+  both channels 3 and 4. `router/tools` and `router/code` are single-channel and
+  do not prove fallback. The literal New-API `auto` route stays reserved: it is
+  not the old semantic `auto` alias.
+- No VPS configuration, channel state, credential, service or traffic was
+  changed for this checkpoint. The next gate is a parsed SSE completion plus a
+  tool/OpenCode test; v2 still requires `RetryTimes=0`, cleared stream overrides
+  and the channel-proof path.

@@ -4,6 +4,9 @@ Status: **implemented 2026-11-03** (approved option 1). The table below is live
 as `LEGACY_ALIASES` in `newapi_runtime.py`, and `/v1/models` lists all 22 names
 with the legacy ones marked `"deprecated": true`.
 
+Scope: this is the **v2** sidecar contract. The v1 native New-API prototype does
+not expose these legacy names; see `newapi-v1-v2-roadmap.md`.
+
 It exists because the compatibility inventory found a hard cutover blocker: the
 sidecar accepted three model names and the live gateway serves nineteen, with
 zero overlap. See `gateway-compatibility.md`.
