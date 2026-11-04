@@ -8,13 +8,14 @@ import json
 import logging
 import os
 from pathlib import Path
+import re
 import shlex
 import signal
 import sqlite3
 import subprocess
 import threading
 import time
-from urllib.parse import unquote
+from urllib.parse import parse_qs, unquote
 
 from newapi_runtime import (LEGACY_ALIASES, MODEL_ALIASES, Prepared, Runtime,
                             chat_payload_from_responses, embedding_inputs, prepare,
@@ -25,6 +26,69 @@ from router_state import RouterState
 
 
 LOG = logging.getLogger(__name__)
+
+MODEL_DESCRIPTIONS = {
+    "auto-coding": "Coding and agentic tasks",
+    "auto-code": "Compatibility alias for auto-coding",
+    "auto-chat": "General chat and tool-bearing requests",
+}
+COMMAND_PATTERNS = (
+    r"^[/!](?:model|switch)\s+(\S+)",
+    r"^[/!](?:use)\s+(\S+)",
+)
+COMMAND_SHORTCUTS = {
+    "/uncensored": "uncensored-chat", "/coding": "coding-elite",
+    "/fast": "chat-fast", "/smart": "chat-smart", "/rp": "chat-rp",
+    "!uncensored": "uncensored-chat", "!coding": "coding-elite",
+    "!fast": "chat-fast", "!smart": "chat-smart", "!rp": "chat-rp",
+}
+
+
+def model_listing() -> dict:
+    descriptions = dict(MODEL_DESCRIPTIONS)
+    for name, (profile, step) in LEGACY_ALIASES.items():
+        descriptions[name] = f"Legacy gateway alias; routes as {profile} / {step}"
+    return {"models": list(MODEL_ALIASES), "descriptions": descriptions}
+
+
+def command_response(requested: str, remaining: str, original: str) -> dict:
+    if requested in MODEL_ALIASES:
+        return {"command_found": True, "requested_model": requested,
+                "canonical_model": requested, "remaining_message": remaining,
+                "valid": True}
+    return {"command_found": True, "requested_model": requested, "valid": False,
+            "error": "Invalid model. Available: " + ", ".join(MODEL_ALIASES),
+            "remaining_message": original}
+
+
+def parse_model_command(message: object) -> dict:
+    """Parse the legacy `/model` and shortcut forms without mutating a session."""
+    if not isinstance(message, str) or len(message) > 8192:
+        raise ValueError("message must be a string of at most 8192 characters")
+    stripped = message.strip()
+    for pattern in COMMAND_PATTERNS:
+        match = re.match(pattern, stripped, re.IGNORECASE)
+        if match:
+            return command_response(match.group(1).lower(),
+                                    stripped[match.end():].strip(), stripped)
+    lower = stripped.lower()
+    for shortcut, model in COMMAND_SHORTCUTS.items():
+        if lower.startswith(shortcut):
+            return command_response(model, stripped[len(shortcut):].strip(), stripped)
+    return {"command_found": False, "remaining_message": stripped}
+
+
+def query_int(query: dict[str, list[str]], name: str, default: int,
+              minimum: int, maximum: int) -> int:
+    values = query.get(name)
+    if values is None:
+        return default
+    if len(values) != 1 or not values[0].isdigit():
+        raise ValueError(f"{name} must be one integer")
+    value = int(values[0])
+    if not minimum <= value <= maximum:
+        raise ValueError(f"{name} must be between {minimum} and {maximum}")
+    return value
 
 
 class Server(ThreadingHTTPServer):
@@ -147,6 +211,24 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/v1/providers":
             self.send_json(200, sorted({route.provider_id
                                         for route in self.server.runtime.ledger.routes()}))
+        elif path == "/v1/tps-stats":
+            try:
+                query = parse_qs(self.path.partition("?")[2], keep_blank_values=True)
+                days = query_int(query, "days", 7, 1, 365)
+                min_samples = query_int(query, "min_samples", 5, 1, 10000)
+                export = query.get("export")
+                if export not in (None, ["false"], ["0"]):
+                    raise ValueError("export is not supported")
+                stats = self.server.runtime.ledger.tps_stats(days, min_samples)
+                self.send_json(200, {"object": "list", "data": stats, "count": len(stats)})
+            except ValueError as exc:
+                self.send_json(400, {"error": str(exc)})
+        elif path == "/v1/model/list":
+            self.send_json(200, model_listing())
+        elif path == "/v1/model/status":
+            self.send_json(200, {"current_model": "auto-chat",
+                                 "available_models": list(MODEL_ALIASES),
+                                 "auto_routing_enabled": True})
         elif path == "/v1/router/diagnostics":
             self.send_json(200, {**self.server.runtime.ledger.diagnostics(),
                                  "free_only": self.server.runtime.free_only})
@@ -177,13 +259,17 @@ class Handler(BaseHTTPRequestHandler):
         if not self.authorized():
             return
         if self.path not in {"/v1/chat/completions", "/v1/router/route",
-                             "/v1/responses", "/v1/embeddings"}:
+                             "/v1/responses", "/v1/embeddings",
+                             "/v1/model/parse-command"}:
             self.send_json(404, {"error": "not found"})
             return
         stream = None
         try:
             payload = self.read_payload()
             if payload is None:
+                return
+            if self.path == "/v1/model/parse-command":
+                self.send_json(200, parse_model_command(payload.get("message", "")))
                 return
             runtime = self.server.runtime
             if self.path == "/v1/embeddings":

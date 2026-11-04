@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler
 import json
 import socket
 import threading
+import time
 
 import pytest
 
@@ -141,6 +142,60 @@ def test_route_preview_does_not_reserve_or_dispatch(sidecar):
     status, body, _ = call(server, "/v1/router/route")
     assert status == 200 and json.loads(body)["candidates"][0]["route_id"] == "local"
     assert not calls and not runtime.ledger.diagnostics()["attempts"]
+
+
+def test_tps_stats_are_ledger_backed_and_bounded(sidecar):
+    server, runtime, calls, _ = sidecar
+    route = next(row for row in runtime.ledger.routes() if row.route_id == "local")
+    for _ in range(2):
+        identity = runtime.ledger.reserve(
+            route, 10, 100, profile="auto-chat", step="chat", streaming=True, now=time.time())
+        runtime.ledger.start(identity, now=time.time())
+        runtime.ledger.finish(
+            identity, route, success=True,
+            usage={"prompt_tokens": 10, "completion_tokens": 100},
+            latency_ms=1100, ttft_ms=100, now=time.time())
+    status, body, _ = call(server, "/v1/tps-stats?days=1&min_samples=1", method="GET")
+    result = json.loads(body)
+    assert status == 200 and result["count"] == 1
+    entry = result["data"][0]
+    assert entry["provider_name"] == "fixture" and entry["model"] == "local-model"
+    assert entry["sample_count"] == 2 and entry["median_tps"] == 100.0
+    assert entry["avg_ttft_ms"] == 100.0
+    assert call(server, "/v1/tps-stats?days=0", method="GET")[0] == 400
+    assert call(server, "/v1/tps-stats?export=true", method="GET")[0] == 400
+    assert not calls
+
+
+def test_model_management_list_status_and_command_parse(sidecar):
+    server, runtime, calls, _ = sidecar
+    status, body, _ = call(server, "/v1/model/list", method="GET")
+    listing = json.loads(body)
+    assert status == 200 and len(listing["models"]) == 22
+    assert "auto" in listing["descriptions"]
+
+    status, body, _ = call(server, "/v1/model/status", method="GET")
+    model_status = json.loads(body)
+    assert status == 200 and model_status["current_model"] == "auto-chat"
+    assert len(model_status["available_models"]) == 22
+    assert model_status["auto_routing_enabled"] is True
+
+    status, body, _ = call(server, "/v1/model/parse-command",
+                           raw=json.dumps({"message": "/model coding-elite please"}))
+    parsed = json.loads(body)
+    assert status == 200 and parsed == {
+        "command_found": True, "requested_model": "coding-elite",
+        "canonical_model": "coding-elite", "remaining_message": "please", "valid": True}
+    status, body, _ = call(server, "/v1/model/parse-command",
+                           raw=json.dumps({"message": "/model not-real"}))
+    assert status == 200 and json.loads(body)["valid"] is False
+    status, body, _ = call(server, "/v1/model/parse-command",
+                           raw=json.dumps({"message": "/coding"}))
+    assert status == 200 and json.loads(body)["canonical_model"] == "coding-elite"
+    assert call(server, "/v1/model/parse-command", raw=json.dumps({"message": "hello"}))[0] == 200
+    assert call(server, "/v1/model/parse-command", auth=False,
+                raw=json.dumps({"message": "/coding"}))[0] == 401
+    assert not calls and runtime.ledger.diagnostics()["attempts"] == {}
 
 
 def test_model_detail_and_provider_list_are_read_only(sidecar):

@@ -1206,3 +1206,22 @@ and the abilities table no longer contains those embeddings (73 abilities).
 - Updated compatibility accounting to 9 exposed paths, 23 of 30 gateway paths
   absent, and 5 partially covered same-path routes. No VPS change, deployment,
   credential access, or cutover.
+
+## V2 TPS and model-management compatibility - 2026-11-03
+
+- Added `QuotaLedger.tps_stats()` and authenticated `GET /v1/tps-stats`. It
+  aggregates only successful, measured streaming attempts by provider/model,
+  matching the gateway's median/avg/p95/avg-TTFT/sample-count shape. Query
+  bounds are 1-365 days and 1-10,000 samples; `export=true` is rejected so the
+  endpoint cannot write files. No prompt or credential data is returned.
+- Added `GET /v1/model/list`, `GET /v1/model/status`, and
+  `POST /v1/model/parse-command`. They expose the 22 sidecar aliases, a default
+  `auto-chat` status, and the legacy command forms (`/model`, `/switch`, `/use`,
+  and shortcuts). Parsing never mutates session state; `/uncensored` remains
+  invalid because the sidecar has no `uncensored-chat` profile.
+- Targeted suites (`test_newapi_server`, `test_quota_ledger`): **42 passed**.
+  Full provider-free suite: **320 passed**, one existing `asyncio_mode`
+  warning; `git diff --check` clean.
+- Compatibility surface is now 13 paths: 10 served at the same path (1 covered,
+  9 partial), 1 renamed, and 19 of 30 gateway paths absent. No VPS change,
+  deployment, credential access, or cutover.

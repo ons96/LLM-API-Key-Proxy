@@ -92,7 +92,7 @@ The sidecar cannot start against the current install until these are resolved:
 | Forced streaming | Channels 3 and 4 have `param_override={"stream":true}` | Clear before a non-stream sidecar canary |
 | Channel-key proof | Admin API hides keys; proof helper not installed | Operator-controlled `NEWAPI_CHANNEL_KEY_PROOF_COMMAND` |
 | 2FA | No enrollments (`two_fas` rows: 0) | Authorized proof path for channel audit |
-| Compatibility | Sidecar exposes 9 routes; 23 of the old 30 paths absent; model detail and provider list are partial | Route coverage or explicit exceptions |
+| Compatibility | Sidecar exposes 13 routes; 19 of the old 30 paths absent; model detail, provider list, TPS, and model management are partial | Route coverage or explicit exceptions |
 | Legacy aliases | Sidecar source accepts them; not running | Deployed sidecar and live validation |
 
 Changing `RetryTimes` to `0` and clearing the stream overrides are **v2
@@ -114,7 +114,11 @@ multi-channel behavior proved in v1, so they need explicit approval.
 - Added read-only `GET /v1/models/{model_id}` (old basic envelope for any
   non-empty id, aliases marked `deprecated`) and `GET /v1/providers` (sorted
   configured route-provider IDs). Neither reserves quota or dispatches.
-- Provider-free tests: **88 targeted**, **318 total**, one existing
+- Added `GET /v1/tps-stats` over measured successful streaming ledger samples,
+  plus `GET /v1/model/list`, `GET /v1/model/status`, and
+  `POST /v1/model/parse-command`. The management routes use the 22 aliases and
+  never switch a session; TPS rejects the gateway's `export` side effect.
+- Provider-free tests: **88 targeted**, **320 total**, one existing
   `asyncio_mode` warning. No VPS change, deployment, or cutover.
 
 ## Live snapshot (2026-11-03)
@@ -272,7 +276,7 @@ service change, no data deletion, no credential change.
    phase inference and running-sidecar validation remain open.
 6. [ ] Cover quota, cooldown, telemetry ordering, stream failure and free-only
    enforcement with provider-free tests.
-7. [ ] Close or explicitly document the remaining missing gateway paths (23 at
+7. [ ] Close or explicitly document the remaining missing gateway paths (19 at
    this checkpoint); update `gateway-compatibility.md`.
 8. [ ] Run bounded live provider tests, an OpenCode tool loop, restart and
    persistence checks, and a full rollback drill.

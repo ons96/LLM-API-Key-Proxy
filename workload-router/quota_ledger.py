@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 import hashlib
 import json
 import math
@@ -95,6 +96,16 @@ def token_count(value: object, name: str) -> int:
     if number != int(number):
         raise ValueError(f"{name} must be an integer")
     return int(number)
+
+
+def _percentile(values: list[float], fraction: float) -> float:
+    """Linear-interpolated percentile, matching the gateway's TPS export."""
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    index = (len(ordered) - 1) * fraction
+    lower, upper = math.floor(index), math.ceil(index)
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * (index - lower)
 
 
 @dataclass(frozen=True)
@@ -491,6 +502,58 @@ class QuotaLedger:
             counts = dict(self.db.execute("SELECT status, COUNT(*) FROM routing_decisions GROUP BY status"))
             return {"attempts": counts, "catalog_models": self.db.execute("SELECT COUNT(*) FROM models WHERE active=1").fetchone()[0],
                     "active_cooldowns": self.db.execute("SELECT COUNT(*) FROM cooldowns WHERE until_at>?", (time.time(),)).fetchone()[0]}
+
+    def tps_stats(self, days: float = 7, min_samples: int = 5) -> list[dict]:
+        """Aggregate successful stream TPS by provider/model from local evidence.
+
+        The query returns prompt-free timing samples only. Non-streaming and
+        estimated-usage attempts are excluded because they have no measured TPS.
+        """
+        if (isinstance(days, bool) or not isinstance(days, (int, float))
+                or not math.isfinite(days) or not 1 <= days <= 365):
+            raise ValueError("days must be a finite number between 1 and 365")
+        sample_floor = token_count(min_samples, "min_samples")
+        if not 1 <= sample_floor <= 10000:
+            raise ValueError("min_samples must be between 1 and 10000")
+        cutoff = time.time() - days * 86400
+        with self.lock:
+            rows = self.db.execute(
+                """SELECT provider_id, model_id, tokens_per_second, ttft_ms
+                   FROM routing_decisions
+                   WHERE status='success' AND streaming=1
+                     AND tokens_per_second IS NOT NULL AND tokens_per_second > 0
+                     AND completed_at >= ?
+                   ORDER BY provider_id, model_id""",
+                (cutoff,),
+            ).fetchall()
+        groups: dict[tuple[str, str], dict[str, list[float]]] = {}
+        for row in rows:
+            tps = row["tokens_per_second"]
+            if not isinstance(tps, (int, float)) or not math.isfinite(tps) or tps <= 0:
+                continue
+            key = (row["provider_id"], row["model_id"])
+            group = groups.setdefault(key, {"tps": [], "ttft": []})
+            group["tps"].append(float(tps))
+            ttft = row["ttft_ms"]
+            if isinstance(ttft, (int, float)) and math.isfinite(ttft) and ttft >= 0:
+                group["ttft"].append(float(ttft))
+        updated = datetime.now(timezone.utc).isoformat()
+        stats = []
+        for (provider, model), group in sorted(groups.items()):
+            if len(group["tps"]) < sample_floor:
+                continue
+            stats.append({
+                "provider_name": provider,
+                "model": model,
+                "median_tps": round(_percentile(group["tps"], 0.5), 1),
+                "avg_tps": round(sum(group["tps"]) / len(group["tps"]), 1),
+                "p95_tps": round(_percentile(group["tps"], 0.95), 1),
+                "avg_ttft_ms": (round(sum(group["ttft"]) / len(group["ttft"]), 1)
+                                if group["ttft"] else None),
+                "sample_count": len(group["tps"]),
+                "last_updated": updated,
+            })
+        return stats
 
     def close(self) -> None:
         with self.lock:
