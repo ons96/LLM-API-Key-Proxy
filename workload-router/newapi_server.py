@@ -22,6 +22,7 @@ from newapi_runtime import (LEGACY_ALIASES, MODEL_ALIASES, Prepared, Runtime,
                             responses_object, responses_usage, strict_json, validate_key)
 from provider_adapter import ProviderError
 from quota_ledger import QuotaLedger, token_count
+from route_policy import input_token_bound
 from router_state import RouterState
 
 
@@ -260,7 +261,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path not in {"/v1/chat/completions", "/v1/router/route",
                              "/v1/responses", "/v1/embeddings",
-                             "/v1/model/parse-command", "/v1/cost-estimate"}:
+                             "/v1/model/parse-command", "/v1/cost-estimate",
+                             "/v1/token-count"}:
             self.send_json(404, {"error": "not found"})
             return
         stream = None
@@ -270,6 +272,23 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if self.path == "/v1/model/parse-command":
                 self.send_json(200, parse_model_command(payload.get("message", "")))
+                return
+            if self.path == "/v1/token-count":
+                model = payload.get("model")
+                messages = payload.get("messages")
+                if (not isinstance(model, str) or not model or len(model) > 512
+                        or any(ord(char) < 32 for char in model)):
+                    raise ValueError("model must be a non-empty string")
+                if not isinstance(messages, list) or not messages:
+                    raise ValueError("messages must be a non-empty list")
+                # This is deliberately an upper bound, not a model tokenizer.
+                # It is safe for budgeting and cannot undercount a text request.
+                self.send_json(200, {
+                    "model": model,
+                    "token_count": input_token_bound(payload),
+                    "estimated": True,
+                    "method": "utf8_byte_upper_bound",
+                })
                 return
             runtime = self.server.runtime
             if self.path == "/v1/cost-estimate":

@@ -1258,6 +1258,11 @@ and the abilities table no longer contains those embeddings (73 abilities).
 - Cost estimates now include `free_class` and `free`; zero-price free routes
   report `cost:0`, `source:"free_tier"`. Diagnostics expose `free_classes`, and
   the operator route preview includes class/quota metadata.
-- Focused suites: **76 passed**. Full provider-free suite: **323 passed**, one
+- Focused suites: **77 passed**. Full provider-free suite: **324 passed**, one
   existing `asyncio_mode` warning; `git diff --check` clean.
+- Added `POST /v1/token-count` as a conservative UTF-8 byte upper bound with
+  `estimated:true` and `method:"utf8_byte_upper_bound"`. It never dispatches and
+  is not an exact cross-provider tokenizer.
+- Compatibility surface is now 15 paths: 12 same-path (1 covered, 11 partial),
+  1 renamed, and 17 of 30 gateway paths absent.
 - No VPS change, deployment, credential access, or cutover.

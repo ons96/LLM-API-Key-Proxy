@@ -22,13 +22,13 @@ recorded.
 
 ## HTTP surface
 
-Sidecar exposes fourteen paths: `GET /healthz` (unauthenticated), `GET /v1/models`,
+Sidecar exposes fifteen paths: `GET /healthz` (unauthenticated), `GET /v1/models`,
 `GET /v1/models/{model_id}`, `GET /v1/providers`, `GET /v1/tps-stats`,
 `GET /v1/model/list`, `GET /v1/model/status`,
 `GET /v1/router/diagnostics`, `POST /v1/router/route`,
 `POST /v1/model/parse-command`, `POST /v1/chat/completions`,
-`POST /v1/cost-estimate`, `POST /v1/responses` and `POST /v1/embeddings`
-(all Bearer-authenticated, 1 MiB body cap).
+`POST /v1/cost-estimate`, `POST /v1/token-count`, `POST /v1/responses` and
+`POST /v1/embeddings` (all Bearer-authenticated, 1 MiB body cap).
 
 | Gateway path | Sidecar | Status |
 | --- | --- | --- |
@@ -39,7 +39,7 @@ Sidecar exposes fourteen paths: `GET /healthz` (unauthenticated), `GET /v1/model
 | `/v1/models/{model_id}` | same path | **partial** — returns the old basic `{id, object, created, owned_by}` envelope for any non-empty id; known aliases carry `deprecated`; no upstream model-info stats |
 | `/v1/responses` | same path | **partial** — text/messages, function tools, text-only streaming; no `previous_response_id` or non-function tools |
 | `/v1/embeddings` | same path | **partial** — only aliases named in `SIDECAR_EMBEDDING_ALIASES`; text input only |
-| `/v1/token-count` | — | missing |
+| `/v1/token-count` | same path | **partial** — returns a conservative UTF-8 byte upper bound with `estimated:true` and `method:"utf8_byte_upper_bound"`; not an exact provider tokenizer count |
 | `/v1/cost-estimate` | same path | **partial** — cheapest known configured route price with `free_class`/`free`; free routes return zero and `source:"free_tier"`; unknown pricing returns `cost:null` and `source:"unknown"` |
 | `/v1/providers` | same path | **partial** — sorted provider IDs referenced by the configured ledger routes, not the gateway's provider-plugin catalog |
 | `/v1/tps-stats` | same path | **partial** — aggregates measured successful streaming samples from the sidecar ledger; `export=true` is rejected |
@@ -63,8 +63,8 @@ Sidecar exposes fourteen paths: `GET /healthz` (unauthenticated), `GET /v1/model
 | `/api/cliproxyapi/status` | — | missing |
 | `/api/cliproxyapi/backend/{backend_name}` | — | missing |
 
-Totals: 11 gateway paths are served at the same path (1 covered, 10 partial),
-1 is renamed, and 18 of the 30 gateway paths are still absent.
+Totals: 12 gateway paths are served at the same path (1 covered, 11 partial),
+1 is renamed, and 17 of the 30 gateway paths are still absent.
 
 ## Model aliases
 
@@ -91,8 +91,9 @@ profile-and-step, not the gateway's exact chains; see
 5. Dashboards using `/api/providers/*` -> 404; `/v1/providers` returns only
    route-provider IDs, and `/v1/tps-stats` has ledger samples only.
 6. Uptime probes on `/health` -> 404 unless moved to `/healthz`.
-7. Token-counting tooling -> 404; cost estimation is available only from
-   ledger pricing, not the gateway's model-info service.
+7. Token-counting tooling -> served as a conservative byte bound, not an exact
+   provider tokenizer; cost estimation is available only from ledger pricing,
+   not the gateway's model-info service.
 
 ## Options (recorded, not decided)
 
@@ -110,7 +111,7 @@ profile-and-step, not the gateway's exact chains; see
 
 ## Unknowns
 
-- Whether any live client actually calls the 18 absent routes.
+- Whether any live client actually calls the 17 absent routes.
 - Gateway `/v1/models` response shape versus the sidecar's 22-alias list.
 - Whether TPS consumers expect the gateway's `export=true` file side effect;
   the sidecar rejects it to remain read-only.

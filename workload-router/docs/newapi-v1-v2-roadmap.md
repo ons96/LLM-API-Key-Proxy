@@ -93,7 +93,7 @@ The sidecar cannot start against the current install until these are resolved:
 | Forced streaming | Channels 3 and 4 have `param_override={"stream":true}` | Clear before a non-stream sidecar canary |
 | Channel-key proof | Admin API hides keys; proof helper not installed | Operator-controlled `NEWAPI_CHANNEL_KEY_PROOF_COMMAND` |
 | 2FA | No enrollments (`two_fas` rows: 0) | Authorized proof path for channel audit |
-| Compatibility | Sidecar exposes 14 routes; 18 of the old 30 paths absent; model detail, provider list, TPS, cost estimation, and model management are partial | Route coverage or explicit exceptions |
+| Compatibility | Sidecar exposes 15 routes; 17 of the old 30 paths absent; model detail, provider list, TPS, cost estimation, token counting, and model management are partial | Route coverage or explicit exceptions |
 | Legacy aliases | Sidecar source accepts them; not running | Deployed sidecar and live validation |
 
 Changing `RetryTimes` to `0` and clearing the stream overrides are **v2
@@ -126,10 +126,13 @@ multi-channel behavior proved in v1, so they need explicit approval.
   customer prices; one-time credits still deplete and rank below unlimited
   routes. Diagnostics and operator previews expose the class. See
   `free-tier-classes.md`.
+- Added `POST /v1/token-count` as a conservative UTF-8 byte upper bound with
+  `estimated:true` and `method:"utf8_byte_upper_bound"`; no model tokenizer is
+  bundled. It never dispatches.
 - Retained Python after measuring the sidecar at **26,984 KiB** RSS following
   50 discovery requests. See `sidecar-language-decision.md`; the proposed
   service cap is 128 MiB, pending live canary measurement.
-- Provider-free tests: **88 targeted**, **323 total**, one existing
+- Provider-free tests: **89 targeted**, **324 total**, one existing
   `asyncio_mode` warning. No VPS change, deployment, or cutover.
 
 ## Live snapshot (2026-11-03)
@@ -287,7 +290,7 @@ service change, no data deletion, no credential change.
    phase inference and running-sidecar validation remain open.
 6. [ ] Cover quota, cooldown, telemetry ordering, stream failure and free-only
    enforcement with provider-free tests.
-7. [ ] Close or explicitly document the remaining missing gateway paths (18 at
+7. [ ] Close or explicitly document the remaining missing gateway paths (17 at
    this checkpoint); update `gateway-compatibility.md`.
 8. [ ] Run bounded live provider tests, an OpenCode tool loop, restart and
    persistence checks, and a full rollback drill.

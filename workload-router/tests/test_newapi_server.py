@@ -198,6 +198,24 @@ def test_cost_estimate_is_ledger_backed_and_read_only(sidecar):
         "free_unlimited": 2, "paid": 1}
 
 
+def test_token_count_is_a_labeled_upper_bound_and_never_dispatches(sidecar):
+    server, runtime, calls, _ = sidecar
+    status, body, _ = call(server, "/v1/token-count", raw=json.dumps({
+        "model": "auto-chat",
+        "messages": [{"role": "user", "content": "hello tokenizer"}],
+        "tools": [{"type": "function", "function": {"name": "x", "parameters": {"type": "object"}}}],
+    }))
+    result = json.loads(body)
+    assert status == 200 and result["token_count"] > 0
+    assert result["estimated"] is True
+    assert result["method"] == "utf8_byte_upper_bound"
+    assert call(server, "/v1/token-count", raw=json.dumps({
+        "model": "auto-chat", "messages": []}))[0] == 400
+    assert call(server, "/v1/token-count", raw=json.dumps({
+        "model": "auto-chat", "messages": [{"role": "user", "content": [{"type": "image_url"}]}]}))[0] == 400
+    assert not calls and runtime.ledger.diagnostics()["attempts"] == {}
+
+
 def test_model_management_list_status_and_command_parse(sidecar):
     server, runtime, calls, _ = sidecar
     status, body, _ = call(server, "/v1/model/list", method="GET")
