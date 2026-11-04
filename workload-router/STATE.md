@@ -1187,3 +1187,22 @@ and the abilities table no longer contains those embeddings (73 abilities).
   `asyncio_mode` warning; `git diff --check` clean.
 - No VPS change, deployment, or cutover. This is a deterministic baseline, not
   the gateway's semantic-router parity.
+
+## V2 read-only compatibility routes - 2026-11-03
+
+- Added authenticated `GET /v1/models/{model_id}` and `GET /v1/providers` to
+  `newapi_server.py`. Both are read-only: no quota reservation, dispatch, or
+  ledger write.
+- Model detail returns the old basic `{id, object, created, owned_by}` envelope
+  for any non-empty id. Known aliases use `owned_by: sidecar` and carry
+  `deprecated`; unknown ids use the first path segment as owner, or `unknown`.
+  It deliberately does not claim upstream model-info statistics.
+- Provider list returns sorted provider IDs referenced by configured ledger
+  routes, not the gateway's provider-plugin catalog.
+- GET routing now ignores query strings. Added an HTTP boundary test covering
+  alias detail, unknown-id detail, provider list, and authentication. Targeted
+  suite: **27 passed**. Full provider-free suite: **318 passed**, one existing
+  `asyncio_mode` warning; `git diff --check` clean.
+- Updated compatibility accounting to 9 exposed paths, 23 of 30 gateway paths
+  absent, and 5 partially covered same-path routes. No VPS change, deployment,
+  credential access, or cutover.

@@ -14,6 +14,7 @@ import sqlite3
 import subprocess
 import threading
 import time
+from urllib.parse import unquote
 
 from newapi_runtime import (LEGACY_ALIASES, MODEL_ALIASES, Prepared, Runtime,
                             chat_payload_from_responses, embedding_inputs, prepare,
@@ -119,17 +120,34 @@ class Handler(BaseHTTPRequestHandler):
         return True
 
     def do_GET(self) -> None:  # noqa: N802
-        if self.path == "/healthz":
+        path = self.path.split("?", 1)[0]
+        if path == "/healthz":
             self.send_json(200, {"status": "ok", "service": "newapi-sidecar"})
             return
         if not self.authorized():
             return
-        if self.path == "/v1/models":
+        if path == "/v1/models":
             self.send_json(200, {"object": "list", "data": [
                 {"id": name, "object": "model", "created": 0, "owned_by": "sidecar",
                  **({"deprecated": True} if name in LEGACY_ALIASES else {})}
                 for name in MODEL_ALIASES]})
-        elif self.path == "/v1/router/diagnostics":
+        elif path.startswith("/v1/models/"):
+            model_id = unquote(path[len("/v1/models/"):])
+            if not model_id or len(model_id) > 512:
+                self.send_json(404, {"error": "not found"})
+                return
+            known = model_id in MODEL_ALIASES
+            owner = "sidecar" if known else (
+                model_id.split("/", 1)[0] if "/" in model_id else "unknown")
+            self.send_json(200, {
+                "id": model_id, "object": "model", "created": int(time.time()),
+                "owned_by": owner,
+                **({"deprecated": True} if model_id in LEGACY_ALIASES else {}),
+            })
+        elif path == "/v1/providers":
+            self.send_json(200, sorted({route.provider_id
+                                        for route in self.server.runtime.ledger.routes()}))
+        elif path == "/v1/router/diagnostics":
             self.send_json(200, {**self.server.runtime.ledger.diagnostics(),
                                  "free_only": self.server.runtime.free_only})
         else:

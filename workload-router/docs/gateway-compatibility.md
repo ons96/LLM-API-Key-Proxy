@@ -22,23 +22,24 @@ recorded.
 
 ## HTTP surface
 
-Sidecar exposes seven paths: `GET /healthz` (unauthenticated), `GET /v1/models`,
-`GET /v1/router/diagnostics`, `POST /v1/router/route`, `POST /v1/chat/completions`,
-`POST /v1/responses` and `POST /v1/embeddings` (all Bearer-authenticated,
-1 MiB body cap).
+Sidecar exposes nine paths: `GET /healthz` (unauthenticated), `GET /v1/models`,
+`GET /v1/models/{model_id}`, `GET /v1/providers`,
+`GET /v1/router/diagnostics`, `POST /v1/router/route`,
+`POST /v1/chat/completions`, `POST /v1/responses` and `POST /v1/embeddings`
+(all Bearer-authenticated, 1 MiB body cap).
 
 | Gateway path | Sidecar | Status |
 | --- | --- | --- |
 | `/v1/chat/completions` | same path | **covered** (plus SSE, `X-Session-Id`, `X-Route-Step`) |
-| `/v1/models` | same path | **partial** — returns only the 3 profile aliases, not models |
+| `/v1/models` | same path | **partial** — returns the 22 accepted aliases, not the gateway's upstream model list |
 | `/health` | `/healthz` | **renamed** — monitors must change path |
 | `/` | — | missing |
-| `/v1/models/{model_id}` | — | missing |
+| `/v1/models/{model_id}` | same path | **partial** — returns the old basic `{id, object, created, owned_by}` envelope for any non-empty id; known aliases carry `deprecated`; no upstream model-info stats |
 | `/v1/responses` | same path | **partial** — text/messages, function tools, text-only streaming; no `previous_response_id` or non-function tools |
 | `/v1/embeddings` | same path | **partial** — only aliases named in `SIDECAR_EMBEDDING_ALIASES`; text input only |
 | `/v1/token-count` | — | missing |
 | `/v1/cost-estimate` | — | missing |
-| `/v1/providers` | — | missing |
+| `/v1/providers` | same path | **partial** — sorted provider IDs referenced by the configured ledger routes, not the gateway's provider-plugin catalog |
 | `/v1/tps-stats` | — | missing |
 | `/v1/model-info/stats` | — | missing |
 | `/v1/model/list` | — | missing |
@@ -60,8 +61,8 @@ Sidecar exposes seven paths: `GET /healthz` (unauthenticated), `GET /v1/models`,
 | `/api/cliproxyapi/status` | — | missing |
 | `/api/cliproxyapi/backend/{backend_name}` | — | missing |
 
-Totals: 2 exact path matches, 1 renamed, 2 partially covered new routes;
-25 of the 30 gateway paths are still absent.
+Totals: 6 gateway paths are served at the same path (1 covered, 5 partial),
+1 is renamed, and 23 of the 30 gateway paths are still absent.
 
 ## Model aliases
 
@@ -73,18 +74,19 @@ ones with `"deprecated": true`, and still rejects unknown names. Mapping is
 profile-and-step, not the gateway's exact chains; see
 `docs/alias-mapping-proposal.md` for what is and is not preserved.
 
-## What a naive cutover would break
+## What still differs at cutover
 
 1. OpenCode profiles or scripts pinned to `coding-smart`, `coding-elite`, `auto`
-   and the other 16 aliases -> 400 on every request.
-2. Model discovery UIs -> 3 profile names only, no model list.
+   and the other 16 aliases are accepted, but resolve to a profile/step
+   equivalent rather than the gateway's exact chain.
+2. Model discovery UIs -> 22 aliases only, no upstream model list.
 3. Responses API clients (`/v1/responses`) -> 404. Now served for the text and
    function-tool subset; `previous_response_id`, image/audio input and
    streaming with tools still return a bounded 400.
 4. Embedding/RAG callers -> 404. Now served only when the operator lists an
    audited alias in `SIDECAR_EMBEDDING_ALIASES`; otherwise 400.
-5. Dashboards and monitors using `/v1/providers`, `/api/providers/*`,
-   `/v1/tps-stats` -> 404.
+5. Dashboards and monitors using `/api/providers/*` or `/v1/tps-stats` -> 404;
+   `/v1/providers` returns only route-provider IDs.
 6. Uptime probes on `/health` -> 404 unless moved to `/healthz`.
 7. Token counting and cost estimation tooling -> 404.
 
@@ -104,8 +106,10 @@ profile-and-step, not the gateway's exact chains; see
 
 ## Unknowns
 
-- Whether any live client actually calls the 27 absent routes.
-- Gateway `/v1/models` response shape versus the sidecar's 3-item list.
+- Whether any live client actually calls the 23 absent routes.
+- Gateway `/v1/models` response shape versus the sidecar's 22-alias list.
+- Whether model-detail or provider-list clients depend on upstream metadata; the
+  sidecar returns only the basic alias envelope and configured route providers.
 - Whether gateway auth and sidecar Bearer auth ever differ in practice (gateway
   `/v1/models` returns 401 unauthenticated; `/health` and `/docs` are open).
 - Route-level client usage requires a request log review, which has not been

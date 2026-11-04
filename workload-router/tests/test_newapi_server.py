@@ -143,6 +143,25 @@ def test_route_preview_does_not_reserve_or_dispatch(sidecar):
     assert not calls and not runtime.ledger.diagnostics()["attempts"]
 
 
+def test_model_detail_and_provider_list_are_read_only(sidecar):
+    server, _, calls, _ = sidecar
+    status, body, _ = call(server, "/v1/models/auto", method="GET")
+    model = json.loads(body)
+    assert status == 200 and model["id"] == "auto"
+    assert model["object"] == "model" and model["owned_by"] == "sidecar"
+    assert model["deprecated"] is True and isinstance(model["created"], int)
+
+    status, body, _ = call(server, "/v1/models/openrouter/some-model", method="GET")
+    unknown = json.loads(body)
+    assert status == 200 and unknown["owned_by"] == "openrouter"
+    assert "deprecated" not in unknown
+
+    status, body, _ = call(server, "/v1/providers", method="GET")
+    assert status == 200 and json.loads(body) == ["fixture"]
+    assert call(server, "/v1/models/auto", method="GET", auth=False)[0] == 401
+    assert not calls
+
+
 @pytest.mark.parametrize("raw", ["[]", '{"model":"auto-chat","model":"auto-code"}',
                                   '{"model":"auto-chat","messages":[{"content":"x"}],"temperature":NaN}'])
 def test_invalid_http_json_never_dispatches(sidecar, raw):
