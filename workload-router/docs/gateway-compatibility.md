@@ -22,15 +22,17 @@ recorded.
 
 ## HTTP surface
 
-Sidecar exposes twenty-three paths: `GET /` and `GET /healthz`
+Sidecar exposes twenty-seven paths: `GET /` and `GET /healthz`
 (unauthenticated), `GET /v1/models`, `GET /v1/models/{model_id}`,
 `GET /v1/providers`, `GET /v1/tps-stats`, `GET /v1/model/list`,
-`GET /v1/model/status`, `GET /v1/router/diagnostics`, `GET /api/providers/status`,
-`GET /api/providers/status/{provider_name}`, `GET /api/providers/best`,
-`GET /api/providers/health`, `GET /api/providers/history`,
-`GET /api/providers/history/{provider_name}`,
+`GET /v1/model/status`, `GET /v1/model-info/stats`,
+`GET /v1/model/session/{session_id}`, `GET /v1/router/diagnostics`,
+`GET /api/providers/status`, `GET /api/providers/status/{provider_name}`,
+`GET /api/providers/best`, `GET /api/providers/health`,
+`GET /api/providers/history`, `GET /api/providers/history/{provider_name}`,
 `GET /api/providers/export/csv`, `POST /v1/router/route`,
-`POST /v1/model/parse-command`, `POST /v1/chat/completions`,
+`POST /v1/model/parse-command`, `POST /v1/model/switch`,
+`POST /v1/model/detect-intent`, `POST /v1/chat/completions`,
 `POST /v1/cost-estimate`, `POST /v1/token-count`, `POST /v1/responses` and
 `POST /v1/embeddings` (all except `/` and `/healthz` are Bearer-authenticated,
 1 MiB body cap).
@@ -48,13 +50,13 @@ Sidecar exposes twenty-three paths: `GET /` and `GET /healthz`
 | `/v1/cost-estimate` | same path | **partial** — cheapest known configured route price with `free_class`/`free`; free routes return zero and `source:"free_tier"`; unknown pricing returns `cost:null` and `source:"unknown"` |
 | `/v1/providers` | same path | **partial** — sorted provider IDs referenced by the configured ledger routes, not the gateway's provider-plugin catalog |
 | `/v1/tps-stats` | same path | **partial** — aggregates measured successful streaming samples from the sidecar ledger; `export=true` is rejected |
-| `/v1/model-info/stats` | — | missing |
+| `/v1/model-info/stats` | same path | **partial** — ledger summary with `ready:false`; no upstream model-info registry |
 | `/v1/model/list` | same path | **partial** — 22 sidecar aliases and generated descriptions, not the gateway's exact model catalog |
-| `/v1/model/status` | same path | **partial** — reports `auto-chat` as the default and the 22 aliases; no per-session current model |
-| `/v1/model/switch` | — | missing |
-| `/v1/model/detect-intent` | — | missing |
+| `/v1/model/status` | same path | **partial** — reports `auto-chat` as the default and the 22 aliases; per-session lookup is separate |
+| `/v1/model/switch` | same path | **partial** — process-local bounded session state; not shared across workers or restarts |
+| `/v1/model/detect-intent` | same path | **partial** — deterministic regex heuristic; suggests sidecar aliases, not semantic-router parity |
 | `/v1/model/parse-command` | same path | **partial** — validates sidecar aliases and parses `/model`, `/use`, and shortcuts; it never switches a session |
-| `/v1/model/session/{session_id}` | — | missing |
+| `/v1/model/session/{session_id}` | same path | **partial** — process-local current alias with a 24-hour TTL |
 | `/api/providers/best` | same path | **partial** — read-only snapshot; can return a stale best with `stale:true` |
 | `/api/providers/health` | same path | **partial** — snapshot health; always `running:false`, not a live probe |
 | `/api/providers/status` | same path | **partial** — latest rows from `provider_status.db`; authenticated and stale-labelled |
@@ -68,8 +70,8 @@ Sidecar exposes twenty-three paths: `GET /` and `GET /healthz`
 | `/api/cliproxyapi/status` | — | missing |
 | `/api/cliproxyapi/backend/{backend_name}` | — | missing |
 
-Totals: 20 gateway paths are served at the same path (1 covered, 19 partial),
-1 is renamed, and 9 of the 30 gateway paths are still absent.
+Totals: 24 gateway paths are served at the same path (1 covered, 23 partial),
+1 is renamed, and 5 of the 30 gateway paths are still absent.
 
 ## Model aliases
 
@@ -101,6 +103,11 @@ profile-and-step, not the gateway's exact chains; see
 7. Token-counting tooling -> served as a conservative byte bound, not an exact
    provider tokenizer; cost estimation is available only from ledger pricing,
    not the gateway's model-info service.
+8. Model-info stats -> a ledger summary, not the old upstream metadata registry;
+   `ready` and `upstream_model_info` are false.
+9. Session switches and intent -> process-local bounded state and a regex
+   heuristic, not shared session state or a semantic router. The five
+   CLIProxyAPI routes remain absent until that external service is configured.
 
 ## Options (recorded, not decided)
 
@@ -118,7 +125,7 @@ profile-and-step, not the gateway's exact chains; see
 
 ## Unknowns
 
-- Whether any live client actually calls the 9 absent routes.
+- Whether any live client actually calls the 5 absent CLIProxyAPI routes.
 - Gateway `/v1/models` response shape versus the sidecar's 22-alias list.
 - Whether TPS consumers expect the gateway's `export=true` file side effect;
   the sidecar rejects it to remain read-only.

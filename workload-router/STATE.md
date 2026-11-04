@@ -1305,3 +1305,18 @@ and the abilities table no longer contains those embeddings (73 abilities).
 - Focused status suites: **4 passed**. Full provider-free suite: **333 passed**,
   one existing `asyncio_mode` warning.
 - No VPS change, deployment, credential access, database write, or cutover.
+
+## V2 model-management compatibility - 2026-11-03
+
+- Added `model_management.py` with a bounded, expiring process-local session
+  store (1,024 sessions, 24-hour TTL) and the legacy regex intent heuristic,
+  constrained to the sidecar's 22 accepted aliases.
+- Added `GET /v1/model-info/stats` (ledger summary, `ready:false`, no upstream
+  metadata), `GET /v1/model/session/{session_id}`, `POST /v1/model/switch`, and
+  `POST /v1/model/detect-intent`. No route dispatches a provider call.
+- Compatibility surface is now 27 paths: 24 same-path (1 covered, 23 partial),
+  1 renamed, and 5 of 30 gateway paths absent. The remaining five are all
+  CLIProxyAPI routes requiring an external service and credentials.
+- Focused model-management suites: **3 passed**. Full provider-free suite:
+  **336 passed**, one existing `asyncio_mode` warning.
+- No VPS change, deployment, credential access, database write, or cutover.

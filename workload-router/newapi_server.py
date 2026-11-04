@@ -20,6 +20,9 @@ from urllib.parse import parse_qs, unquote
 from newapi_runtime import (LEGACY_ALIASES, MODEL_ALIASES, Prepared, Runtime,
                             chat_payload_from_responses, embedding_inputs, prepare,
                             responses_object, responses_usage, strict_json, validate_key)
+from model_management import (
+    DEFAULT_MODEL, ModelSessionStore, detect_intent, valid_session_id,
+)
 from provider_adapter import ProviderError
 from provider_status import ProviderStatusError, ProviderStatusStore
 from quota_ledger import QuotaLedger, token_count
@@ -122,6 +125,7 @@ class Server(ThreadingHTTPServer):
         ):
             raise ValueError("invalid provider status store")
         self.provider_status = provider_status
+        self.model_sessions = ModelSessionStore(MODEL_ALIASES)
         self.slots = threading.BoundedSemaphore(token_count(workers, "workers"))
         super().__init__(address, Handler)
 
@@ -257,9 +261,34 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/v1/model/list":
             self.send_json(200, model_listing())
         elif path == "/v1/model/status":
-            self.send_json(200, {"current_model": "auto-chat",
+            self.send_json(200, {"current_model": DEFAULT_MODEL,
                                  "available_models": list(MODEL_ALIASES),
                                  "auto_routing_enabled": True})
+        elif path == "/v1/model-info/stats":
+            self.send_json(200, {
+                "ready": False,
+                "service": "not_configured",
+                "source": "sidecar_ledger",
+                "last_refresh": None,
+                "openrouter_count": 0,
+                "modelsdev_count": 0,
+                "cached_lookups": 0,
+                "index_entries": 0,
+                "refresh_interval": None,
+                "alias_count": len(MODEL_ALIASES),
+                "configured_route_count": len(self.server.runtime.ledger.routes()),
+                "upstream_model_info": False,
+            })
+        elif path.startswith("/v1/model/session/"):
+            session_id = unquote(path[len("/v1/model/session/"):])
+            if not valid_session_id(session_id):
+                self.send_json(400, {"error": "invalid session_id"})
+                return
+            self.send_json(200, {
+                "session_id": session_id,
+                "current_model": self.server.model_sessions.get(session_id),
+                "available_models": list(MODEL_ALIASES),
+            })
         elif path == "/v1/router/diagnostics":
             self.send_json(200, {**self.server.runtime.ledger.diagnostics(),
                                  "free_only": self.server.runtime.free_only})
@@ -339,7 +368,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path not in {"/v1/chat/completions", "/v1/router/route",
                              "/v1/responses", "/v1/embeddings",
                              "/v1/model/parse-command", "/v1/cost-estimate",
-                             "/v1/token-count"}:
+                             "/v1/token-count", "/v1/model/switch",
+                             "/v1/model/detect-intent"}:
             self.send_json(404, {"error": "not found"})
             return
         stream = None
@@ -349,6 +379,37 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if self.path == "/v1/model/parse-command":
                 self.send_json(200, parse_model_command(payload.get("message", "")))
+                return
+            if self.path == "/v1/model/switch":
+                model = payload.get("model")
+                if not isinstance(model, str):
+                    raise ValueError("invalid model")
+                model = model.strip().lower()
+                if model not in MODEL_ALIASES:
+                    raise ValueError("invalid model")
+                session_id = payload.get("session_id") or "default"
+                if not valid_session_id(session_id):
+                    raise ValueError("invalid session_id")
+                previous = self.server.model_sessions.get(session_id)
+                self.server.model_sessions.set(session_id, model)
+                self.send_json(200, {
+                    "success": True,
+                    "session_id": session_id,
+                    "previous_model": previous,
+                    "current_model": model,
+                    "message": f"Model switched to {model}",
+                })
+                return
+            if self.path == "/v1/model/detect-intent":
+                current_model = payload.get("current_model")
+                if current_model is not None:
+                    if not isinstance(current_model, str):
+                        raise ValueError("invalid current_model")
+                    current_model = current_model.strip().lower()
+                    if current_model not in MODEL_ALIASES:
+                        raise ValueError("invalid current_model")
+                self.send_json(200, detect_intent(
+                    payload.get("messages"), current_model).as_dict())
                 return
             if self.path == "/v1/token-count":
                 model = payload.get("model")
