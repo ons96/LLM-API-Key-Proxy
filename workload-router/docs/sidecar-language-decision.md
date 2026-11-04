@@ -8,7 +8,7 @@ was performed.
 
 The sidecar stays on Python 3 and the standard library. Its measured idle RSS is
 small enough for VPS-40, and the existing implementation already contains the
-quota ledger, SSE handling, alias mapping, audit checks and 324 provider-free
+quota ledger, SSE handling, alias mapping, audit checks and 329 provider-free
 tests. A Go or Node rewrite would add a second implementation and a second
 security/accounting review without solving a demonstrated resource problem.
 

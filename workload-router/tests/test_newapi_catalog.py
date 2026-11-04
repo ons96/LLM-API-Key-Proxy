@@ -126,6 +126,19 @@ def test_provider_database_is_read_only(tmp_path):
     assert path.read_bytes() == before
 
 
+def test_provider_database_accepts_live_key_name_schema(tmp_path):
+    path = tmp_path / "live.db"
+    with sqlite3.connect(path) as db:
+        db.execute("CREATE TABLE providers (key_name, base_url, env_var, no_api_key_required)")
+        db.execute("INSERT INTO providers VALUES (?, ?, ?, ?)",
+                   ("groq", "https://provider.invalid/v1", "GROQ_API_KEY", 0))
+    before = path.read_bytes()
+    data = load_provider_metadata(path, ["groq"])
+    assert data == [{"name": "groq", "base_url": "https://provider.invalid/v1",
+                     "env_var": "GROQ_API_KEY", "no_api_key_required": 0}]
+    assert path.read_bytes() == before
+
+
 def test_three_provider_opencode_refresh_is_additive_and_symlink_safe(tmp_path):
     target = tmp_path / "opencode.stock.json"
     config = {"provider": {name: {"options": {"apiKey": "{env:TEST_KEY}"}, "models": {

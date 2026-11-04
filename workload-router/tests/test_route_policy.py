@@ -53,7 +53,7 @@ def test_declared_free_classes_rank_by_scarcity_without_customer_cost():
                       quota_type="unlimited", limits={"rpm": 1})
     ledger.configure(limited)
     limited_score = score_route(limited, work, ledger)
-    assert limited.free_class == "free_limited"
+    assert limited.free_class == "free_unlimited"
     assert limited_score.effective_money == pytest.approx(0.01)
 
 

@@ -131,10 +131,14 @@ multi-channel behavior proved in v1, so they need explicit approval.
   bundled. It never dispatches.
 - Added unauthenticated `GET /` with a compatible status field; both root and
   health are probe-only and expose no routing data.
+- Added a read-only provider-classification adapter and
+  `newapi_operator.py classify --provider-db`; existing `llm_providers.db`
+  flags are the source, and route mismatches are previewed without rewriting.
+  Also fixed catalog loading for the live `key_name` schema.
 - Retained Python after measuring the sidecar at **26,984 KiB** RSS following
   50 discovery requests. See `sidecar-language-decision.md`; the proposed
   service cap is 128 MiB, pending live canary measurement.
-- Provider-free tests: **89 targeted**, **324 total**, one existing
+- Provider-free tests: **94 targeted**, **329 total**, one existing
   `asyncio_mode` warning. No VPS change, deployment, or cutover.
 
 ## Live snapshot (2026-11-03)

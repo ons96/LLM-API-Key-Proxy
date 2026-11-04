@@ -101,7 +101,7 @@ def score_route(route: Route, work: Work, ledger: QuotaLedger, *,
         # routes; the customer-facing cost estimate still uses `money`.
         effective = (route.credit_money(work.input_tokens, work.output_tokens)
                      * route.shadow_price + weights.quota_lambda * capacity.pressure)
-    elif route.free_class == "free_unlimited":
+    elif route.quota_type == "unlimited" and not (route.limits or route.provider_limits):
         effective = 0.0
     else:
         effective = money + weights.quota_lambda * capacity.pressure

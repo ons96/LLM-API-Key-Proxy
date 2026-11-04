@@ -275,4 +275,5 @@ def test_cli_help_succeeds():
                             capture_output=True, text=True, timeout=30)
 
     assert result.returncode == 0
-    assert "audit" in result.stdout and "boot-check" in result.stdout
+    assert "audit" in result.stdout and "classify" in result.stdout
+    assert "boot-check" in result.stdout

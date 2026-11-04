@@ -133,7 +133,7 @@ def test_free_classes_and_zero_customer_price_for_credits():
     assert unlimited.free_class == "free_unlimited"
     assert limited.free_class == "free_limited"
     assert credits.free_class == "free_credits"
-    assert route(quota_type="unlimited", limits={"rpm": 5}).free_class == "free_limited"
+    assert route(quota_type="unlimited", limits={"rpm": 5}).free_class == "free_unlimited"
     assert credits.money(10, 10) == 0
     assert credits.credit_money(10, 10) == 20
     assert ledger.capacity(credits, 10, 10).feasible

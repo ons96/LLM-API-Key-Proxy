@@ -8,6 +8,7 @@ environment of an operator-owned env file, never from argv.
     newapi_operator.py audit
     newapi_operator.py catalog --providers groq,cerebras --opencode-config PATH
     newapi_operator.py priorities --order route-a,route-b
+    newapi_operator.py classify --provider-db PATH
     newapi_operator.py boot-check --opencode-config PATH --providers groq
 
 See docs/operator-commands.md.
@@ -24,6 +25,7 @@ from pathlib import Path
 from newapi_catalog import (AdminClient, CatalogError, load_provider_metadata,
                             refresh_opencode, refresh_provider)
 from newapi_server import channel_key_proof_from_command
+from provider_classification import audit_routes, load_provider_classifications
 from quota_ledger import QuotaLedger, Route
 
 MAX_CONFIG_BYTES = 2 * 1024 * 1024
@@ -156,6 +158,19 @@ def apply_routes(ledger, routes: list[Route]) -> dict:
     return {"apply": True, "routes": _route_rows(routes), "configured": len(routes)}
 
 
+def classify_routes(ledger, provider_db: Path) -> dict:
+    """Preview classification consistency against the existing provider DB."""
+    routes = ledger.routes()
+    if not routes:
+        raise OperatorError("no configured strict routes")
+    classifications = load_provider_classifications(provider_db)
+    return {
+        "apply": False,
+        "providers_in_metadata": len(classifications),
+        "routes": audit_routes(routes, classifications),
+    }
+
+
 def boot_check(path: Path, providers: list[str]) -> dict:
     """Validate an OpenCode configuration without writing to it."""
     target = path.expanduser()
@@ -218,6 +233,9 @@ def main(argv: list[str] | None = None) -> int:
     priorities.add_argument("--order", required=True, help="comma-separated route ids, best first")
     priorities.add_argument("--apply", action="store_true")
 
+    classify = commands.add_parser("classify", help="preview provider-classification consistency")
+    classify.add_argument("--provider-db", default=os.environ.get("NEWAPI_PROVIDER_DB", ""))
+
     boot = commands.add_parser("boot-check", help="validate an OpenCode configuration")
     boot.add_argument("--opencode-config", required=True)
     boot.add_argument("--providers", default="", help="comma-separated provider names")
@@ -268,6 +286,14 @@ def main(argv: list[str] | None = None) -> int:
                     result = apply_priorities(_admin_from_env(), ledger, order)
                 else:
                     result = preview_priorities(ledger, order)
+            finally:
+                ledger.close()
+        elif args.command == "classify":
+            if not args.provider_db:
+                raise OperatorError("--provider-db or NEWAPI_PROVIDER_DB is required")
+            ledger = QuotaLedger(Path(_require("SIDECAR_DB")))
+            try:
+                result = classify_routes(ledger, Path(args.provider_db))
             finally:
                 ledger.close()
         else:

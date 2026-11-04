@@ -1268,3 +1268,21 @@ and the abilities table no longer contains those embeddings (73 abilities).
 - Added unauthenticated `GET /` returning `{"Status": "New-API sidecar is
   running"}`; it is a probe-only compatibility shim.
 - No VPS change, deployment, credential access, or cutover.
+
+## V2 provider-classification adapter - 2026-11-03
+
+- Added read-only `provider_classification.py`, which reads the existing
+  `llm_providers.db` provider flags and maps them to sidecar quota/free classes:
+  one-time credit, daily/limited, unlimited, paid, or unknown. It never copies
+  credentials or writes the provider database.
+- Added `newapi_operator.py classify --provider-db PATH`. It compares ledger
+  routes with the provider metadata, preserves explicit route values, and
+  reports `match`, `mismatch`, `unclassified`, or `missing_provider_metadata`.
+- Fixed `newapi_catalog.load_provider_metadata` to support the live
+  `providers.key_name` schema as well as the older `name` test schema.
+- VPS-40 read-only inventory: 204 providers, 6,827 models, 18 virtual models,
+  23,074 provider-health rows. Provider classifications are `legacy-audit`
+  with `human_confirmed`; many quota amount/unit/reset fields are null.
+- Focused affected suites: **70 passed**. Full provider-free suite: **329
+  passed**, one existing `asyncio_mode` warning.
+- No VPS change, deployment, credential access, or cutover.

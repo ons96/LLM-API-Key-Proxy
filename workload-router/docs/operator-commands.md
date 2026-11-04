@@ -1,7 +1,7 @@
 # Sidecar operator commands
 
 `newapi_operator.py` composes the existing catalog, ledger and audit
-primitives into five repeatable commands. Read-only by default; the mutating
+primitives into six repeatable commands. Read-only by default; the mutating
 paths require an explicit flag. No credential ever appears in argv.
 
 ```sh
@@ -52,6 +52,27 @@ class mapping.
 
 The preview now includes each route's `free_class` and `quota_type`, so an
 operator can catch a paid-looking free route before applying it.
+
+## `classify`
+
+Compares the sidecar ledger with the provider classifications already stored in
+`llm_providers.db`. It is read-only and never rewrites a route, because an
+explicit route may intentionally narrow or override the provider default.
+
+```sh
+python3 newapi_operator.py classify \
+    --provider-db /home/ubuntu/llm-provider-manager/llm_providers.db
+```
+
+The provider DB is the source for `free_one_time`, `free_daily`,
+`free_unlimited`, `checkin_*`, and `provider_type`. Each route result reports
+`match`, `mismatch`, `unclassified`, or `missing_provider_metadata`, plus the
+current/suggested quota type and free class. Credit routes also report missing
+balances or notional credit tariffs. A mismatch is a review item, not an
+automatic migration; use the route JSON (`routes --apply`) after deciding.
+
+`quota_amount`, `quota_unit`, and `quota_reset` are often absent in the live DB.
+Do not infer a credit balance that is not present.
 
 ## `catalog`
 

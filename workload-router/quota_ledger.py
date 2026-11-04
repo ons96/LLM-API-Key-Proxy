@@ -203,12 +203,10 @@ class Route:
     def free_class(self) -> str:
         """Classify who pays and what kind of free allowance this route uses.
 
-        An `unlimited` credit allowance can still have finite request/token
-        limits. Those limits make it a finite route, so it must not claim the
-        `free_unlimited` label or lose quota-pressure scoring.
+        `unlimited` means no finite credit allowance; it does not mean no rate
+        limit. Fixed request/token limits still contribute quota pressure in
+        scoring, without changing the funding class.
         """
-        if self.quota_type == "unlimited" and (self.limits or self.provider_limits):
-            return "free_limited"
         return {"unlimited": "free_unlimited", "rate_limited": "free_limited",
                 "credit_based": "free_credits", "paid": "paid"}.get(self.quota_type, "unknown")
 

@@ -243,10 +243,19 @@ def load_provider_metadata(database: Path, names: list[str]) -> list[dict]:
     connection.row_factory = sqlite3.Row
     try:
         connection.execute("PRAGMA query_only=ON")
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(providers)")}
+        name_column = "key_name" if "key_name" in columns else (
+            "name" if "name" in columns else None
+        )
+        if name_column is None:
+            raise CatalogError("provider metadata has no key_name or name column")
         result = []
         for name in names:
-            row = connection.execute("SELECT name, base_url, env_var, no_api_key_required FROM providers WHERE name=?",
-                                     (name,)).fetchone()
+            row = connection.execute(
+                f"SELECT {name_column} AS name, base_url, env_var, no_api_key_required "
+                f"FROM providers WHERE {name_column}=?",
+                (name,),
+            ).fetchone()
             if row is None:
                 raise CatalogError("provider metadata missing")
             data = dict(row)

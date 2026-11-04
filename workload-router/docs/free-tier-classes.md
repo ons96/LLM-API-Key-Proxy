@@ -11,8 +11,8 @@ operator-facing funding label derived from it.
 
 | Funding class | `quota_type` | Meaning | Required route data | Score effect |
 | --- | --- | --- | --- | --- |
-| `free_unlimited` | `unlimited` | No finite credit or usage allowance. | `input_price=0`, `output_price=0`. Do not add finite `limits`. | Effective cost 0; latency and success evidence decide. |
-| `free_limited` | `rate_limited` | Free but capped, usually renewable daily. | Zero actual prices plus at least one configured or learned `rpm`/`rpd`/`tpm`/`tpd` limit. | Zero money plus quota pressure, then latency/success. |
+| `free_unlimited` | `unlimited` | No finite credit balance. Rate limits may still apply. | `input_price=0`, `output_price=0`; optional `rpm`/`rpd`/`tpm`/`tpd` limits. | Zero money; finite limits still add quota pressure. |
+| `free_limited` | `rate_limited` | Free but capped by a renewable quota window. | Zero actual prices plus at least one configured or learned `rpm`/`rpd`/`tpm`/`tpd` limit. | Zero money plus quota pressure, then latency/success. |
 | `free_credits` | `credit_based` | One-time or finite provider credits. | Zero actual prices, `credit_balance`, and `credit_input_price` / `credit_output_price`. | Notional credit consumption plus quota pressure. |
 | `paid` | `paid` | Real money would be charged. | Normal prices and limits. | Excluded when free-only is on. |
 | `unknown` | `unknown` | Not enough metadata to route safely. | None. | Hard-infeasible, not silently treated as free. |
@@ -20,6 +20,27 @@ operator-facing funding label derived from it.
 `free_limited` covers daily-renewable free tiers and other finite windows.
 `free_credits` covers one-time credit grants. A trial grant is a finite credit
 unless it renews; if it renews, use `rate_limited` with a daily window instead.
+
+## Existing provider metadata is the source
+
+The sidecar should not make operators re-tag providers that the gateway already
+classifies. The read-only source of truth is
+`/home/ubuntu/llm-provider-manager/llm_providers.db`; its `providers` table has
+`free_one_time`, `free_daily`, `free_unlimited`, `checkin_required`,
+`checkin_unlimited`, `provider_type`, `classification_source`, and
+`human_confirmed`. `providers_database.yaml` is the human-maintained fallback.
+
+Use the operator preview:
+
+```sh
+python3 newapi_operator.py classify \
+    --provider-db /home/ubuntu/llm-provider-manager/llm_providers.db
+```
+
+The adapter preserves explicit route metadata and reports mismatches for review.
+It does not copy credentials or write the provider database. `quota_amount`,
+`quota_unit`, and `quota_reset` are frequently `NULL`; a credit balance or
+tariff is not inferred from a missing value.
 
 ## Zero customer price, non-zero credit cost
 
@@ -47,15 +68,17 @@ when seeding a sidecar route:
 
 | Existing signal | Sidecar `quota_type` | Sidecar `free_class` |
 | --- | --- | --- |
-| `free_unlimited`, `no_api_key_required` with no finite cap | `unlimited` | `free_unlimited` |
-| `free_daily`, `daily_renewable`, `unlimited_rate_limited` with a finite rate cap | `rate_limited` | `free_limited` |
+| `free_unlimited`, `no_api_key_required`, `fully_free`, `unlimited_rate_limited` | `unlimited` | `free_unlimited` |
+| `free_daily`, `daily_renewable`, `free_tier_limited` | `rate_limited` | `free_limited` |
 | `free_one_time`, `one_time_credit` | `credit_based` | `free_credits` |
 | `freemium` with a free allowance | `rate_limited` or `credit_based`, according to whether the allowance renews | `free_limited` or `free_credits` |
 | paid/unknown | `paid` or `unknown` | `paid` or `unknown` |
 
-`unlimited_rate_limited` is not automatically `free_unlimited`: the provider has
-no credit balance, but it still has request or token limits. Use `rate_limited`
-when those limits are known. `free_unlimited` means no finite allowance.
+`unlimited_rate_limited` and `fully_free` mean no finite credit balance, even
+when the provider has RPM or daily request limits. Keep those routes as
+`unlimited`; the limits still feed quota pressure in scoring. Use
+`rate_limited` for a genuinely capped free allowance such as a daily renewable
+tier.
 
 ## Examples
 
@@ -103,7 +126,8 @@ consumed.
 
 ## Ranking and visibility
 
-- `free_unlimited` has zero effective money.
+- `free_unlimited` has zero effective money; if finite rate limits are present,
+  it still adds `quota_lambda * pressure`.
 - `free_limited` adds `quota_lambda * pressure`; it moves down as its window
   fills.
 - `free_credits` adds `credit_cost * shadow_price` plus quota pressure; it moves
