@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from newapi_runtime import Runtime, prepare, validate_endpoint
+from newapi_runtime import Runtime, prepare, usable_completion, validate_endpoint
 from provider_adapter import ProviderCompletion, ProviderError
 from quota_ledger import QuotaLedger, Route
 from router_state import RouterState
@@ -100,6 +100,15 @@ def test_invalid_request_limits(options):
 def test_endpoint_boundary(endpoint):
     with pytest.raises(ValueError):
         validate_endpoint(endpoint)
+
+
+def test_empty_tool_calls_list_falls_back_to_text():
+    result = ProviderCompletion({"role": "assistant", "content": "ok", "tool_calls": []}, "stop")
+    assert usable_completion(result)
+    assert not usable_completion(ProviderCompletion(
+        {"role": "assistant", "content": " ", "tool_calls": []}, "stop"))
+    assert not usable_completion(ProviderCompletion(
+        {"role": "assistant", "content": "ok", "tool_calls": {}}, "stop"))
 
 
 def test_prepare_bounds_tools_and_preserves_output_cap():

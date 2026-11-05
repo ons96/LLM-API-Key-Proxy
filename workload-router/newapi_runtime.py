@@ -433,22 +433,23 @@ def usable_completion(result: ProviderCompletion) -> bool:
         return False
     calls = result.message.get("tool_calls")
     if calls is not None:
-        if not isinstance(calls, list) or not calls:
+        if not isinstance(calls, list):
             return False
-        for call in calls:
-            if not isinstance(call, dict) or call.get("type") != "function":
-                return False
-            function = call.get("function")
-            if not isinstance(function, dict) or not isinstance(function.get("name"), str) or not function["name"]:
-                return False
-            try:
-                arguments = json.loads(function.get("arguments", ""))
-                if not isinstance(arguments, dict):
+        if calls:
+            for call in calls:
+                if not isinstance(call, dict) or call.get("type") != "function":
                     return False
-                json.dumps(arguments, allow_nan=False)
-            except (ValueError, TypeError, RecursionError):
-                return False
-        return True
+                function = call.get("function")
+                if not isinstance(function, dict) or not isinstance(function.get("name"), str) or not function["name"]:
+                    return False
+                try:
+                    arguments = json.loads(function.get("arguments", ""))
+                    if not isinstance(arguments, dict):
+                        return False
+                    json.dumps(arguments, allow_nan=False)
+                except (ValueError, TypeError, RecursionError):
+                    return False
+            return True
     return isinstance(result.content, str) and bool(result.content.strip())
 
 
