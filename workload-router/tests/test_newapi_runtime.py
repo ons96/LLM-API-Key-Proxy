@@ -218,3 +218,14 @@ def test_coding_affinity_not_applied_to_chat(runtime, monkeypatch):
     monkeypatch.setattr(runtime.state, "preferred", lambda *_: pytest.fail("chat used affinity"))
     monkeypatch.setattr(runtime.state, "cache_hints", lambda *_: pytest.fail("chat used cache"))
     assert runtime.ranked(chat)
+
+
+def test_exhausted_quota_becomes_rate_limit(runtime, monkeypatch):
+    limited = route("a", limits={"rpm": 1})
+    runtime.ledger.configure(limited)
+    install(runtime, monkeypatch, {"sc.a": ProviderCompletion({"content": "ok"})}, [])
+    runtime.complete(request(), routes=[limited])
+    with pytest.raises(ProviderError) as caught:
+        runtime.complete(request(), routes=[limited])
+    assert caught.value.error_class == "rate_limit"
+    assert caught.value.retry_after_seconds == 60

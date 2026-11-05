@@ -521,7 +521,10 @@ class Handler(BaseHTTPRequestHandler):
                 headers = {"X-Router-Error-Class": exc.error_class}
                 if exc.retry_after_seconds:
                     headers["Retry-After"] = str(max(1, int(exc.retry_after_seconds)))
-                self.send_json(503, {"error": "no feasible upstream", "error_class": exc.error_class}, headers)
+                status = (429 if exc.status_code == 429 or exc.error_class == "rate_limit"
+                          else 503)
+                error = "rate limited" if status == 429 else "no feasible upstream"
+                self.send_json(status, {"error": error, "error_class": exc.error_class}, headers)
         except sqlite3.Error:
             if not self.response_committed:
                 self.send_json(503, {"error": "sidecar state unavailable"})

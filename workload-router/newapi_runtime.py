@@ -120,6 +120,10 @@ AUTO_CAPABILITY_STEPS = {
 }
 AUTO_DEBUG_SIGNALS = ("debug", "traceback", "stack trace")
 AUTO_VERIFY_SIGNALS = ("verify", "verification")
+QUOTA_REASONS = frozenset({
+    "cooldown", "exhausted_rpm", "exhausted_rpd", "exhausted_tpm",
+    "exhausted_tpd", "exhausted_credits", "exhausted_money_day",
+})
 
 
 def _last_user_text(payload: dict) -> str:
@@ -478,7 +482,7 @@ class Runtime:
         return adapter
 
     def ranked(self, prepared: Prepared, *, routes: list[Route] | None = None,
-               explore: bool | None = None) -> list[Scored]:
+               explore: bool | None = None, include_infeasible: bool = False) -> list[Scored]:
         coding = prepared.work.profile == "auto-coding" and bool(prepared.work.session_id)
         preferred = self.state.preferred(prepared.work.session_id, "auto-coding") if coding else None
         hints = self.state.cache_hints(prepared.work.session_id, prepared.prefix) if coding else {}
@@ -486,7 +490,8 @@ class Runtime:
         ranked = rank_routes(self.ledger.routes() if routes is None else routes, prepared.work,
                              self.ledger, free_only=self.free_only, weights=self.weights,
                              preferred_id=preferred, cache_tokens=cached,
-                             explore=self.explore if explore is None else explore)
+                             explore=self.explore if explore is None else explore,
+                             include_infeasible=include_infeasible)
         seen: set[tuple[str, str, str]] = set()
         unique = []
         for item in ranked:
@@ -565,6 +570,18 @@ class Runtime:
             self.ledger.start(identity)
             yield item.route, identity, adapter, time.monotonic()
 
+    def _unavailable(self, prepared: Prepared, routes: list[Route] | None,
+                     last: ProviderError, message: str) -> ProviderError:
+        """A quota-only dead end is a 429, not an unknown routing failure."""
+        candidates = self.ranked(prepared, routes=routes, include_infeasible=True)
+        reasons = {item.reason for item in candidates
+                   if prepared.work.profile in item.route.profiles}
+        if reasons and reasons <= QUOTA_REASONS:
+            return ProviderError(message, error_class="rate_limit",
+                                 retry_after_seconds=60)
+        return ProviderError(message, error_class=last.error_class,
+                             retry_after_seconds=last.retry_after_seconds)
+
     def complete(self, prepared: Prepared, *, routes: list[Route] | None = None,
                  grader: Callable[[ProviderCompletion], bool] | None = None,
                  benchmark_id: str | None = None) -> Result:
@@ -599,8 +616,9 @@ class Runtime:
                     continue
             self.remembered(prepared, route, result.usage)
             return Result(route, identity, tuple(identities), result)
-        raise ProviderError("no feasible New-API route completed", error_class=last.error_class,
-                            retry_after_seconds=last.retry_after_seconds) from None
+        raise self._unavailable(
+            prepared, routes, last, "no feasible New-API route completed"
+        ) from None
 
     def open_stream(self, prepared: Prepared, *, routes: list[Route] | None = None,
                     benchmark_id: str | None = None) -> AccountedStream:
@@ -628,8 +646,9 @@ class Runtime:
                 else:
                     self.failed(identity, route, ProviderError("request cancelled"), started)
                 raise
-        raise ProviderError("no feasible New-API stream completed", error_class=last.error_class,
-                            retry_after_seconds=last.retry_after_seconds) from None
+        raise self._unavailable(
+            prepared, routes, last, "no feasible New-API stream completed"
+        ) from None
 
     def embed(self, alias: str, values: list[str]) -> tuple[Route, str, dict]:
         """Embeddings use one audited private alias and stay in the quota ledger."""

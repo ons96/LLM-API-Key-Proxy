@@ -117,12 +117,15 @@ def score_route(route: Route, work: Work, ledger: QuotaLedger, *,
 def rank_routes(routes: list[Route], work: Work, ledger: QuotaLedger, *,
                 free_only: bool = True, weights: Weights = Weights(),
                 preferred_id: str | None = None, cache_tokens: dict[str, int] | None = None,
-                explore: bool = True, rng: random.Random | None = None) -> list[Scored]:
+                explore: bool = True, rng: random.Random | None = None,
+                include_infeasible: bool = False) -> list[Scored]:
     """Choose a sampled winner only from the top-N feasible cost candidates."""
     cache = cache_tokens or {}
     scored = [score_route(route, work, ledger, free_only=free_only, weights=weights,
                           preferred_id=preferred_id, cached_tokens=cache.get(route.route_id, 0),
                           lost_cached_tokens=cache.get(preferred_id or "", 0)) for route in routes]
+    if include_infeasible:
+        return sorted(scored, key=lambda item: (item.score, item.route.route_id))
     ordered = sorted((item for item in scored if math.isfinite(item.score)),
                      key=lambda item: (item.score, item.route.route_id))
     if explore and len(ordered) > 1:

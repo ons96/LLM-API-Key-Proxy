@@ -455,3 +455,18 @@ def test_request_threads_bounded_before_handler_creation():
         release.set()
         state.close()
         ledger.close()
+
+
+def test_rate_limit_provider_error_returns_429(sidecar, monkeypatch):
+    server, runtime, _, _ = sidecar
+
+    def limited(*_args, **_kwargs):
+        raise ProviderError("limited", error_class="rate_limit",
+                            retry_after_seconds=60)
+
+    monkeypatch.setattr(runtime, "complete", limited)
+    status, body, headers = call(server)
+    assert status == 429
+    assert headers["Retry-After"] == "60"
+    payload = json.loads(body)
+    assert payload == {"error": "rate limited", "error_class": "rate_limit"}
