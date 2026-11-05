@@ -1,6 +1,6 @@
 # Current New-API sidecar handoff
 
-Snapshot: 2026-11-05 UTC. Implementation checkpoint: `ef6b803`.
+Snapshot: 2026-11-05 UTC. Implementation checkpoint: `41d2b44`.
 Authoritative continuation branch: `origin/feat/newapi-sidecar` in
 `ons96/LLM-API-Key-Proxy`. A later handoff-only commit is expected.
 
@@ -26,15 +26,16 @@ Read project AGENTS.md/SPEC.md, workload-router/AGENTS.md, this current handoff,
 and the latest workload-router/STATE.md entries before editing. The older
 workload-router/HANDOFF.md describes another VPS task and is not this assignment.
 
-Next: broaden the bounded coding/tool workload using existing benchmark/client
-primitives, starting with provider-free validation and explicit request budgets.
-Then reconcile remaining API compatibility exceptions before proposing a canary.
-Do not repeat completed smoke tests merely to recreate evidence.
+Next: run one budgeted live coding/tool workload batch where an owner-provided
+target plan and approved environment key exist (ten requests, 2560 output
+tokens), then reconcile remaining API compatibility exceptions before proposing
+a canary. Do not repeat completed smoke tests merely to recreate evidence.
 
 Already done: authorized entrypoint startup/restart, operator catalog/priority
 and installed OpenCode checks, real OpenRouter chat/SSE/read loop, real Mistral
-chat/SSE, and controlled pre-output failover to real responses in both directions.
-Latest full and release suites passed 384 tests. Read the handoff for exact
+chat/SSE, controlled pre-output failover to real responses in both directions,
+and a provider-free verified deterministic coding/tool workload mode. Latest
+full and release suites passed 392 tests. Read the handoff for exact
 limitations; injected local 429s are not real upstream rate-limit evidence.
 
 Use existing provider-manager metadata read-only and existing approved secret
@@ -64,7 +65,7 @@ Standalone prompt: `RESUME-newapi-sidecar.txt` at this worktree root.
 | Implementation worktree | `/home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar` |
 | Component and command cwd | Worktree's `workload-router/` |
 | Branch | `feat/newapi-sidecar`, tracks `origin/feat/newapi-sidecar` |
-| Last implementation commit | `ef6b803560788574f2215dfeea7ad31340be27d3` |
+| Last implementation commit | `41d2b44` (bounded coding/tool workload mode) |
 | Old baseline | `fde9784`; do not reset to it or redo its completed work |
 | Remote main at snapshot | `76cd928`; not merged into this branch |
 | Local changes before handoff | Tracked files clean; existing untracked `.serena/` preserved |
@@ -90,6 +91,7 @@ All implementation milestones below are committed and pushed:
 | `46aa2af` | Operator/catalog/priority checks and installed scripted OpenCode loop |
 | `5c4f323` | Budgeted live verifier; real OpenRouter chat/SSE/read loop |
 | `ef6b803` | Mistral support and controlled live fallback in both directions |
+| `41d2b44` | Deterministic coding/tool workload mode; provider-free verified |
 
 Git fetch and PR refs were checked before each milestone. No PR head pointed at
 these tips. PR review/check/state metadata was not queried because no approved
@@ -139,11 +141,11 @@ All paths in this section are relative to `workload-router/`.
 | `provider_adapter.py` | Existing transport, bounded responses/hints, no-redirect mode |
 | `newapi_catalog.py` | Authorized channel audit, catalog fetch and additive symlink-safe config refresh |
 | `newapi_operator.py` | Preview/apply, audit, priorities, classification, boot-check |
-| `newapi_benchmark.py` | Five deterministic plan/edit/debug/tool/review cases and persisted grades |
+| `newapi_benchmark.py` | Five deterministic plan/edit/debug/tool/review cases, declared capabilities and persisted grades |
 | `tools/newapi_channel_proof.py` | Operator TOTP/interactive proof helper |
 | `tools/verify_newapi.py` | Scripted providers, real binary, actual entrypoint/operator/client proof |
-| `tools/verify_newapi_live.py` | Explicit budgeted live checks with host-memory credential broker |
-| `tests/test_verify_newapi_live.py` | Free/credential/budget/failover regression gates |
+| `tools/verify_newapi_live.py` | Explicit budgeted live checks with host-memory credential broker: chat/SSE, OpenCode loop, deterministic workload or failover |
+| `tests/test_verify_newapi_live.py` | Free/credential/budget/failover/workload regression gates |
 
 Read as needed: `docs/newapi-design.md`, `docs/newapi-v1-v2-roadmap.md`,
 `docs/live-provider-verification.md`, `docs/operator-commands.md`,
@@ -154,9 +156,20 @@ are authoritative, not old repeated "next action" sections.
 
 ## Verified results and limits
 
-- Exact full suite: **384 passed, 1 existing asyncio_mode warning**.
-  `tools/verify_release.py`: 384 tests, session check, health/route 200,
-  approximately 26 MiB legacy resource smoke, compilation passed.
+- Exact full suite: **392 passed, 1 existing asyncio_mode warning**.
+  `tools/verify_release.py`: 392 tests, session check, health/route 200,
+  26168 KB legacy resource smoke, compilation passed. Focused live-policy suite:
+  35 passed.
+- Deterministic coding/tool workload mode is implemented and provider-free
+  tested: five plan/edit/debug/tool/review cases per target, a declared
+  ten-request/2560-output-token ceiling, 256-token per-request cap, tools intact,
+  catalog-verified capability gating and separate transport/quality reporting.
+  No live workload batch ran on this host: its private target plan and canonical
+  Mistral environment key were absent, which is an environment gap, not a pass.
+- Real-binary scripted verifier passed after the change:
+  `/tmp/opencode/newapi-proof-zg3ejfrg/report.json` (`passed:true`,
+  scripted-local-only); benchmark grades remained 0/5 for route one and 5/5 for
+  route two.
 - Focused Black/flake8/mypy passed; mypy skipped imported modules and flake8
   ignored existing E402 path bootstraps. No whole-repo type/format claim.
 - Secret hooks and added-text ASCII scans passed. No remaining owned test
@@ -195,6 +208,7 @@ Reports below were read directly, not inferred from a truncated success line:
 | --- | --- |
 | `newapi-proof-hsj9s35w/report.json` | Actual entrypoint startup/restart/accounting passed |
 | `newapi-proof-exot1afe/report.json` | Operator-written catalog + scripted OpenCode loop passed |
+| `newapi-proof-zg3ejfrg/report.json` | Post-workload real-binary scripted proof passed |
 | `newapi-live-us6lrwkv/report.json` | Mixed smoke failed overall: Groq 403, OpenRouter chat/SSE passed |
 | `newapi-live-pp7vl34a/report.json` | Failed client permission experiment; not successful evidence |
 | `newapi-live-gf3j9wix/report.json` | Real OpenRouter OpenCode loop passed |
@@ -246,35 +260,34 @@ head/tail, or follow an unrelated stale MCP index. Preserve actual exit codes.
 Live verifier usage and private target-plan format are in
 `docs/live-provider-verification.md`. Default is catalog-only. Existing limits:
 smokes <=2 requests/target with 128 output tokens; tool loop <=3 requests on one
-target with 512 output tokens; failover <=1 real 128-token request per provider.
+target with 512 output tokens; failover <=1 real 128-token request per provider;
+workload = five 256-token cases/target, max ten requests/2560 output tokens.
+The provider-free workload gate is `tests/test_verify_newapi_live.py`.
 No key value in argv/JSON. `key_env` must equal canonical `env_var`; normal file
 sources stay in `~/.secrets`. Use the existing approved secret loader, not manual
 key copying. Do not auto-run live generation on resume.
 
 ## Next bounded milestone
 
-1. Inspect `newapi_benchmark.py` CASES and the existing client/live helpers.
-   Broaden planning/edit/debug/tool/review validation with deterministic graders,
-   actual usage and clear transport-versus-correctness reporting. Start with
-   provider-free tests. The existing 512-token benchmark cases exceed the live
-   smoke's 128-token cap; do not simply turn off that guard to reuse them.
-   A new explicit workload mode must declare a small total request/token ceiling,
-   keep tools intact, reject unknown required capabilities, and preserve current
-   smoke/tool/failover contracts. Reuse primitives, do not add another gateway.
-2. Only after its local gates pass, perform one deliberately budgeted real batch
-   on the already verified routes if needed. Record every failed/title/tool
-   attempt. Stop on 401/403/429, never quietly substitute a paid/credit model.
-   Avoid repeating successful smoke calls to recreate past evidence.
-3. Update `docs/gateway-compatibility.md` with remaining coverage/exceptions.
-   It currently lists 27 sidecar paths vs 30 legacy paths: 24 same-path (mostly
-   partial), `/health` renamed to `/healthz`, 5 CLIProxyAPI routes absent.
-   Client route usage is unknown. Responses/embeddings are partial, model
-   discovery exposes aliases, session switching is process-local, provider
-   status is a stale-labelled read-only snapshot. Do not implement empty
-   shims or claim parity merely because an endpoint returns 200.
+1. ~~Broaden the bounded coding/tool workload~~ **Done provider-free** at
+   `41d2b44`: `--workload` runs the five deterministic cases per verified target
+   with a ten-request/2560-output-token ceiling, 256-token cap, tools intact,
+   verified-capability gating and separate transport/quality reporting. One live
+   batch remains optional and explicitly budgeted; this host lacked its private
+   target plan and canonical environment key. Stop on 401/403/429 and never
+   substitute a paid/credit model.
+2. ~~Update compatibility exceptions~~ **Inventory updated** in
+   `docs/gateway-compatibility.md` (27 vs 30 paths; 24 same-path, 1 renamed,
+   5 absent; client usage still unknown). Next, review redacted client
+   configs/request logs and decide alias translation vs dual path vs front proxy,
+   `/health` monitor migration, Responses/embeddings callers, process-local
+   sessions, stale provider status and the absent CLIProxyAPI routes. Do not add
+   empty shims or claim parity from a 200 response.
+3. Run a canary only after those compatibility decisions and the VPS strict
+   config/proof provisioning, resource/load, persistence/rollback and separate
+   authorization gates pass.
 4. Save tested milestones to the feature branch, update STATE/current handoff.
-   Do not promote to production until compatibility, canary load/persistence,
-   authorization and rollback gates have passed separately.
+   Do not promote to production from local or synthetic results.
 
 ## Production boundary (historical inventory only)
 

@@ -12,15 +12,16 @@ Read project AGENTS.md/SPEC.md, workload-router/AGENTS.md, this current handoff,
 and the latest workload-router/STATE.md entries before editing. The older
 workload-router/HANDOFF.md describes another VPS task and is not this assignment.
 
-Next: broaden the bounded coding/tool workload using existing benchmark/client
-primitives, starting with provider-free validation and explicit request budgets.
-Then reconcile remaining API compatibility exceptions before proposing a canary.
-Do not repeat completed smoke tests merely to recreate evidence.
+Next: run one budgeted live coding/tool workload batch where an owner-provided
+target plan and approved environment key exist (ten requests, 2560 output
+tokens), then reconcile remaining API compatibility exceptions before proposing
+a canary. Do not repeat completed smoke tests merely to recreate evidence.
 
 Already done: authorized entrypoint startup/restart, operator catalog/priority
 and installed OpenCode checks, real OpenRouter chat/SSE/read loop, real Mistral
-chat/SSE, and controlled pre-output failover to real responses in both directions.
-Latest full and release suites passed 384 tests. Read the handoff for exact
+chat/SSE, controlled pre-output failover to real responses in both directions,
+and a provider-free verified deterministic coding/tool workload mode. Latest
+full and release suites passed 392 tests. Read the handoff for exact
 limitations; injected local 429s are not real upstream rate-limit evidence.
 
 Use existing provider-manager metadata read-only and existing approved secret
