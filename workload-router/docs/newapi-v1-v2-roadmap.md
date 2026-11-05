@@ -114,6 +114,13 @@ Both client attempts were accounted on one deployment. This is not the v2
 live-provider/tool-loop gate: scripted outputs do not demonstrate model quality
 or live quota availability. See `operator-commands.md` and the latest STATE.
 
+A separate bounded live pass on 2026-11-05 completed chat/SSE and an actual
+OpenCode read loop on one verified zero-priced OpenRouter model through the
+sidecar/New-API. Groq rejected generation with 403 and was not retried. This
+partially closes the live-client gate only: no live two-provider fallback,
+broader workload, VPS canary, resource/load or rollback proof exists. Details
+and fixed request budgets: `live-provider-verification.md`.
+
 ### V2 implementation checkpoint - 2026-11-03
 
 - Added deterministic classification for the legacy `auto` alias in

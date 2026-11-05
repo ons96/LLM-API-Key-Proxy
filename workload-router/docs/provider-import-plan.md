@@ -100,6 +100,16 @@ KiosAPI/CrowLLM failover and a tool call; OpenCode 1.19.5 passed a tool loop.
 `router/fast` and `router/balanced` turned out to be Groq-only, so they are not
 fallback examples. See `newapi-v1-v2-roadmap.md`.
 
+## Bounded live v2 evidence - 2026-11-05
+
+The isolated sidecar/New-API path passed real OpenRouter
+`cohere/north-mini-code:free` chat and SSE, then an OpenCode 1.19.5 read-only tool
+loop with actual usage settlement. Groq's catalog passed but generation returned
+403 and was not retried. Only one free route works in this local sample; do not
+claim cross-provider fallback or production parity. See
+`live-provider-verification.md` for budgets and evidence. No VPS configuration,
+client permanent config or cutover occurred.
+
 ## Next
 
 - Follow the staged plan in `newapi-v1-v2-roadmap.md`. v1 is limited to verified

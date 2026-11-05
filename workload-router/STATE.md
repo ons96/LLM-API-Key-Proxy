@@ -1498,3 +1498,106 @@ Next recommendation:
 - A real-provider sidecar loop remains a distinct gate; the installed-client
   fixture does not substitute for it. VPS strict v2 config/proof approval,
   compatibility exceptions, load/restart/rollback and cutover approval remain.
+
+## Budgeted live free-provider milestone - 2026-11-05
+
+### Scope and safety
+
+- Re-fetched origin before work and again before saving: remote
+  `feat/newapi-sidecar` is `46aa2af`, no newer competing commits; no PR ref points
+  to that tip. Preserve `.serena/`. GitHub API review state still lacks approved
+  authentication. Continue saving only on the feature branch, not main.
+- Added explicit `tools/verify_newapi_live.py` and
+  `tests/test_verify_newapi_live.py`. Reuses the stdlib transport/catalog,
+  ledger/runtime and disposable-bootstrap code. Default is catalog-only;
+  `--execute` permits up to two 128-output-token chat/SSE requests per target
+  (one or two explicit Groq/OpenRouter targets). Optional `--opencode` replaces
+  that workload with one target and at most three 512-output-token requests.
+- Canonical provider DB is read-only. Selected HTTPS endpoints/funding/rate
+  limits come from it; OpenRouter must freshly advertise an explicit `:free`
+  model with all zero prices, context and tools. No unknown trial credits,
+  guessed endpoints, broad sweeps, new signups or canonical writes.
+- Private file-referenced Groq/OpenRouter keys were read in memory from the
+  existing `0600` secret store; never printed, copied into the gateway DB,
+  passed as argv, rotated or committed. Host-only broker enforces model, request
+  bytes, single generation, fixed request/output budgets and no retry after
+  provider errors. It ignores proxies/refuses redirects. A socketpair bridges
+  allowlisted responses into the new loopback-only namespace; New-API stores
+  only generated bridge keys. HTTP bridge also authenticates those local keys.
+- Started quota attempts settle independently. Real HTTP failures block a
+  target for the remainder of the run. Cleanup targets only owned child
+  process groups and closes the bridge. All reports/logs/DBs are owner-only
+  private artifacts; no temporary raw response, prompt or credential was dumped.
+
+### Actual live evidence
+
+- Both catalogs passed: Groq 11 models; OpenRouter 418. Selected canonical
+  Groq `openai/gpt-oss-20b` and live zero-priced OpenRouter
+  `cohere/north-mini-code:free` (256000 context, tool support).
+- Two-target smoke used **3 real attempts**: Groq generation 403 (no retry),
+  OpenRouter chat 200 and SSE 200. Exact `ok` content and real usage passed:
+  chat 5 input/90 output; SSE 5/62, text TTFT ~2757.5 ms and reasoning TTFT
+  ~348.4 ms. Overall two-provider report correctly failed because Groq rejected:
+  `/tmp/opencode/newapi-live-us6lrwkv/report.json`.
+- First real client loop used **3 attempts** then hit its budget: model returned
+  correct read calls but OpenCode rejected the test permission. Absolute-file
+  permission was wrong for a non-Git worktree, which OpenCode treats as `/`.
+  Report `/tmp/opencode/newapi-live-pp7vl34a/report.json` is failed, not provider
+  unavailability. Do not reuse those attempts as successful loop evidence.
+- Corrected both live and scripted verifier clients: initialize a disposable
+  Git worktree, then allow only relative `proof.txt` and deny every other tool
+  and file. Pinned OpenCode source confirmed relative permission semantics.
+  Scripted proof passed first at
+  `/tmp/opencode/newapi-proof-l8tj5qo1/report.json`; no extra live quota used
+  while debugging the permission rule.
+- Final actual OpenCode 1.19.5 loop passed with **3 real attempts**, all 200:
+  exactly one completed read of generated `proof.txt`, exact response
+  `hello-newapi-live-proof`, actual usage/settlement 2264/89, 2321/56,
+  2326/69 input/output tokens (6911 input / 214 output total), no cooldown.
+  Includes a small-model/title request in the same budget. Report read directly:
+  `/tmp/opencode/newapi-live-gf3j9wix/report.json`, `passed:true`.
+- Total this live session: **9 attempted generations** (1 rejected Groq, 2
+  OpenRouter smokes, 3 permission-failed client calls, 3 final client calls).
+  No further live provider traffic was used for safety/release checks.
+- This is one working free route, not two-provider fallback, broader SWE
+  quality, full compatibility, production entrypoint or VPS proof. Live runs
+  used audited Runtime/Server; separate scripted gate tests the real entrypoint.
+
+### Checks and saved artifacts
+
+- `python3 -m pytest tests -o addopts= --quiet` -> **376 passed, 1 warning in
+  29.15s**; existing `asyncio_mode` warning only.
+- `python3 tools/verify_release.py` -> **376 passed**, session validation OK,
+  health/route 200, RSS 26312 KB; compile gate passed. New/changed modules passed
+  py_compile, flake8 (existing path-bootstrap E402 ignored), mypy with imports
+  skipped, Black checks and diff whitespace checks.
+- New live-policy suite: **19 tests**; quota/request ceilings, 401/403/429
+  non-retry, unknown/free/price/capability boundaries, key permission/symlink
+  safety, canonical read-only preflight, framed response caps and key echoes.
+- Coverage of new critical policy: `Broker.dispatch` 48/51 lines, 13/16
+  branches; `free_model` 25/27, 16/18; `private_key` 9/9, 4/4; `load_targets`
+  42/47, 15/20. Overall live-harness coverage only ~52%, due to cross-process
+  child/client paths; do not claim 80% overall. More subprocess error-path
+  coverage remains. Evidence `/tmp/opencode/newapi-live-unit.json`.
+- After the actual live pass, additional broker/authentication/process-cleanup
+  hardening was verified with scripted host responses and real disposable
+  binary/client only (no more quota). Final offline self-check:
+  `/tmp/opencode/newapi-live-bot7lf38/report.json` (2 scripted attempts), not
+  live provider evidence. These monkeypatched reports are explicitly labelled
+  fixtures; the actual live evidence paths above are separate.
+- Added `docs/live-provider-verification.md`; updated README, provider import
+  plan, staged roadmap, QUESTIONS and root handoff. Private target JSON/key
+  references stay outside git. Check staged diff for secrets/ASCII before save.
+
+Next:
+
+- Save the bounded live milestone on `feat/newapi-sidecar`. Keep main/VPS and
+  existing v1/native retries unchanged; no cutover is recommended.
+- Need one more working renewable free provider before live cross-provider
+  failover. Groq inference 403 needs operator/account review, not retries or
+  auto-rotation. Pick a tiny approved second target using canonical metadata
+  and fresh catalog; avoid unbounded provider scans/credit depletion.
+- Broader client/code workload, live quota/error failover, compatibility
+  exceptions, VPS v2 config/proof provisioning, resource/load and tested rollback
+  remain. No VPS SSH, production configuration/data or credential changes were
+  performed. Current live successes do not authorize migration.

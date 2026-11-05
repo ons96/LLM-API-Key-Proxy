@@ -78,6 +78,14 @@ credentials, host access, or an explicit repository decision.
   Real-provider validation should use a small, explicitly free, already-owned
   subset after reviewing stale metadata. No bulk key/catalog import or new
   signup is needed.
+- A bounded 2026-11-05 live pass found Groq `/models` available but generation
+  403. Do not retry or rotate credentials automatically; catalog success is not
+  inference authorization. OpenRouter zero-priced `cohere/north-mini-code:free`
+  passed chat/SSE and a real OpenCode read loop. A second working renewable free
+  provider is still needed before live cross-provider failover can be tested.
+- Decide the approved second provider/model from canonical metadata and a fresh
+  catalog, not broad scans or one-time credit balances. Keep subsequent tests
+  bounded; no more quota is needed to validate the new helper's safety paths.
 - Local TOTP startup works against the pinned disposable binary. Real v2 startup
   still needs approved zero retries, cleared channel overrides and the
   operator-owned proof flow; do not change the live v1 prototype to unblock it.

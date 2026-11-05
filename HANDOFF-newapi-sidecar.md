@@ -60,6 +60,21 @@ continuing. Real-provider/OpenCode and VPS approval gates still apply.
   Keep v1 and the production gateway unchanged; real-provider, compatibility,
   load and rollback gates remain.
 
+## Bounded live continuation - 2026-11-05
+
+Local v2 evidence now includes OpenRouter `cohere/north-mini-code:free` chat,
+SSE and an actual OpenCode 1.19.5 read-only loop through the audited disposable
+New-API/sidecar. Groq catalog answered but generation returned 403 and was not
+retried. This is one working free route, not cross-provider parity or a VPS
+canary. Read `workload-router/docs/live-provider-verification.md` and the latest
+STATE checkpoint before repeating live calls; failed calls remain quota-consuming.
+
+The new live verifier defaults to catalog-only and uses fixed generation budgets.
+Real keys stay in parent memory; the gateway's private namespace sees only
+generated bridge credentials and allowlisted requests. Existing provider DB,
+secret store, permanent OpenCode config and VPS are unchanged. No cutover is
+recommended by these limited results.
+
 ## Current checkpoint
 
 - Branch `feat/newapi-sidecar` tracks `origin/feat/newapi-sidecar`.

@@ -607,7 +607,10 @@ def verify_opencode_boot(
             }
         },
     }
-    configuration["permission"] = {"*": "deny", "read": "allow"}
+    configuration["permission"] = {
+        "*": "deny",
+        "read": {"*": "deny", "proof.txt": "allow"},
+    }
     configuration["model"] = "sidecar/auto-coding"
     configuration["small_model"] = "sidecar/auto-coding"
     client_config.write_text(json.dumps(configuration))
@@ -615,6 +618,11 @@ def verify_opencode_boot(
     env["OPENCODE_DISABLE_LSP_DOWNLOAD"] = "true"
     work = directory / "client-work"
     work.mkdir()
+    subprocess.run(
+        ["git", "init", "--quiet", str(work)],
+        check=True,
+        env={"PATH": os.environ["PATH"], "HOME": str(home)},
+    )
     (work / "proof.txt").write_text("hello-sidecar-proof\n")
     address = ("127.0.0.1", int(entry_env["SIDECAR_PORT"]))
     with entrypoint_process(directory, entry_env, "opencode-sidecar") as process:

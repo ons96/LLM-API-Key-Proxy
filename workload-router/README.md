@@ -51,6 +51,13 @@ separate HOME/XDG state and no real provider quota. Operator preview/apply,
 last-good catalogs and priority-only updates are also verified. See
 `docs/operator-commands.md` for the exact scope and remaining live gates.
 
+Real-provider checks are separate and explicit in
+`tools/verify_newapi_live.py`: catalog-only by default, with bounded chat/SSE or
+one read-only OpenCode loop after `--execute`. Existing keys stay in memory in
+the host process, outside the disposable gateway namespace. See
+`docs/live-provider-verification.md` for input format, budgets, actual mixed
+results and the remaining two-provider/VPS gates.
+
 The gateway changes currently deployed are:
 
 - runtime enforcement of the mapping-based dead-provider policy;
