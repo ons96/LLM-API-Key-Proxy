@@ -2,7 +2,7 @@
 
 Current concise cross-harness handoff: `../HANDOFF-CURRENT-newapi-sidecar.md`.
 Standalone prompt: `../RESUME-newapi-sidecar.txt`. Implementation checkpoint
-`1586913` is pushed; 402 tests passed. The entries below are chronological, so
+`ec88ffd` is pushed; 405 tests passed. The entries below are chronological, so
 read the final checkpoints rather than an old repeated "next action" section.
 
 ## Current status
@@ -1907,6 +1907,34 @@ Limits and next:
   503-vs-429 semantics and VPS strict-config provisioning remain open. Do not
   cut over.
 
-Next: add and live-test a tool-capable `auto-coding` route, then resolve
-same-model failover, sustained quota/resource behavior, proof/token provisioning
-and the 503/429 contract before seeking cutover authorization.
+## Strict provisioning, live gates and local cutover - 2026-11-05
+
+- Applied the strict New-API configuration with a full backup at
+  `/etc/newapi-sidecar/backups/v2-strict-20261105-052743/`: `RetryTimes=0`,
+  empty `param_override` on channels 3 and 4, private `router/agnes-kios` and
+  `router/agnes-crow` aliases on channels 10 and 11, and four strict routes
+  (`bluesminds-canary`, `groq-tools`, `agnes-kios`, `agnes-crow`). Channel-key
+  hashes were unchanged across the metadata updates.
+- Refreshed the admin/proof token, pointed the proof helper at the release, and
+  deployed `ec88ffd` to `/opt/newapi-sidecar/releases/ec88ffd`. The canary is
+  active on loopback `:8124` but remains disabled. Startup audit passed with
+  channels 8, 3, 10 and 11. The admin token is short-lived (expires 05:40:39
+  UTC); unattended restart still needs a refresh flow.
+- Tool gate: authenticated HTTP tool request returned 200 on `agnes-kios` with
+  real `tool_calls`. Same-model failover gate: forced `agnes-crow` first;
+  CrowLLM returned 403 quota, then `agnes-kios` succeeded in two attempts.
+  Local quota gate: four `north-mini-code:free` successes, fifth rejected as
+  `rate_limit`/60 s, sixth succeeded after the minute window.
+- Client cutover: changed only OpenCode `vps-gateway` to the local sidecar
+  tunnel `localhost:8124`; 22 sidecar models cover all 15 provider models.
+  `coding-fast` returned 200 via `agnes-kios`. `custom` remains on legacy
+  `:8000`; legacy `/health` still returns 200. Config backup:
+  `opencode.json.bak-before-sidecar-cutover-20261105-054407`.
+- Code: `cb6824d` maps quota-only dead ends to 429; `ec88ffd` preserves an
+  upstream failure class when routes are merely cooling down. Full suite:
+  405 passed. No credentials were printed or committed.
+- Remaining limitations: CrowLLM channel 11 is out of quota; KiosAPI has an
+  observed 2 RPM upstream limit versus the local 4 RPM setting; a 16-token
+  request hit a transient `invalid_response`; the real OpenCode process may
+  need a config reload; and the short-lived token prevents unattended restart.
+  This is local canary evidence, not production readiness.

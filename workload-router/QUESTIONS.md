@@ -116,16 +116,32 @@ credentials, host access, or an explicit repository decision.
 
 ## New-API canary follow-up - 2026-11-05
 
-- The temporary loopback canary was live-verified and rolled back on
-  2026-11-05; see `workload-router/STATE.md` and the current handoff. Do not
-  cut over: only a chat-only route exists, tool/`auto-coding` coverage is
-  absent, same-model failover and sustained quota-reset behavior are untested,
-  and VPS strict-config provisioning is incomplete.
-- The fifth request in a 4-RPM burst was rejected locally in 4 ms but returned
-  503, not 429. Decide the sidecar's quota-rejection HTTP contract before
-  exposing it to OpenAI-compatible clients; do not call the current behavior a
-  429 pass.
-- The admin JWT is short-lived and expired at 05:13:40 UTC; the proof command
-  still points at `0e84d76/tools/newapi_channel_proof.py`. Refresh both and
-  verify a clean unattended start before the next canary. Keep the release,
-  route DB and unit backup for that run.
+Resolved in `ec88ffd`:
+
+- VPS strict-config provisioning is applied: `RetryTimes=0`, cleared channel
+  3/4 stream overrides, private Agnes aliases on channels 10/11, and four
+  audited sidecar routes. The backup is
+  `/etc/newapi-sidecar/backups/v2-strict-20261105-052743/`.
+- A tool-capable `auto-coding` route is live: authenticated `agnes-kios`
+  tool-call request returned 200 with actual `tool_calls`.
+- Same-model failover is live-verified: CrowLLM 403 -> `agnes-kios` 200 in two
+  attempts. Quota burst/reset is live-verified: four successes, fifth
+  `rate_limit` with `Retry-After=60`, success after 61 seconds.
+- The 503/429 contract is fixed in `cb6824d`: exhausted local capacity returns
+  429, while upstream failure/cooldown keeps its failure class and returns 503
+  after `ec88ffd`; focused and full tests pass (405).
+- The proof command points at the installed `ec88ffd` helper, and a clean
+  startup audit passed. Local OpenCode `vps-gateway` is cut over to `:8124`;
+  `custom` remains on legacy `:8000`.
+
+Still open:
+
+- The admin/proof token is short-lived; the current token expires at 05:40:39
+  UTC and no unattended refresh flow exists. The canary is active but disabled.
+- CrowLLM channel 11 is out of quota; KiosAPI has an observed 2 RPM upstream
+  limit versus the local 4 RPM route setting. Recheck provider limits and the
+  active route pair before production cutover.
+- The real OpenCode process may need a restart to reload the changed provider
+  URL; only direct HTTP through the new tunnel was verified.
+- Do not claim production readiness or merge/deploy to main without a separate
+  approval. Keep the legacy gateway and the timestamped config backup.
