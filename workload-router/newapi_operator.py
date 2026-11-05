@@ -304,7 +304,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     print(json.dumps(result, indent=2, sort_keys=True))
-    return 0
+    return 1 if args.command == "boot-check" and not result["ok"] else 0
 
 
 if __name__ == "__main__":

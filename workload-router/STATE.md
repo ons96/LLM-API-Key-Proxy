@@ -1421,3 +1421,80 @@ and the abilities table no longer contains those embeddings (73 abilities).
   1.19.5 boot/tool-loop checks against disposable New-API and scripted providers.
   Recommend no VPS mutation, real-account quota use or traffic switch for this
   milestone.
+
+## Operator and installed OpenCode proof - 2026-11-04
+
+- Committed/pushed the previous startup milestone as `b8b882b` on
+  `feat/newapi-sidecar`; both normal secret-scan hooks passed. Remote tip was
+  rechecked before more edits and contained no competing work. Main was not
+  merged or pushed; no PR/deployment was created.
+- `newapi_operator.py boot-check` previously printed `ok:false` but exited 0
+  for a missing/empty provider. It now exits 1, with success still 0. Added two
+  real CLI exit-status regressions in `tests/test_newapi_operator.py`.
+- `tools/verify_newapi.py` now invokes operator subprocesses in the existing
+  fresh loopback namespace: route preview/apply identity checks, three catalog
+  preview/apply checks, unchanged canonical test metadata, curated config and
+  symlink preservation, empty-catalog last-good preservation, audit and actual
+  priority-only updates. Invalid orders fail before writes. These commands
+  send no provider completions.
+- Added optional `--opencode PATH`: installed OpenCode 1.19.5 loads all three
+  refreshed fixture catalogs, then runs a scripted `read` call and returns
+  `hello-sidecar-proof` through the actual sidecar/New-API. Exactly two upstream
+  attempts settle successfully on one deployment; tool messages/definitions
+  arrive intact. Only the disposable read tool is allowed. HOME/XDG/config,
+  model cache, generated file-backed client key and work directory are isolated;
+  global plugins, external skills, project config, updates and model fetch are
+  disabled. No permanent OpenCode config, account key or live provider was used.
+- Fixture command outputs stay private, are bounded, and reject generated key
+  echoes; added timeout/exit/output/credential-leak regressions. The fixture's
+  previously 32-request verification budget hit a protected key read during
+  the larger audit workload. Pinned upstream source confirms critical limiting
+  guards that route. Fresh-test budgets alone are now `CRITICAL_RATE_LIMIT=64`
+  and `GLOBAL_WEB_RATE_LIMIT=512`, with limiting still enabled. No 429 retry or
+  production rate-limit change was made.
+- Verifier route comparison accounts for existing JSON tuple-to-list profile
+  storage; no route/ledger behavior was changed to satisfy the fixture.
+
+Validation:
+
+- `python3 -m pytest tests -o addopts= --quiet` -> **357 passed, 1 warning in
+  26.23s**. Existing `asyncio_mode` warning remains.
+- `python3 tools/verify_release.py` -> **357 passed**, session validation OK,
+  health/route 200, RSS 26244 KB and compilation passed.
+- `python3 tools/verify_newapi.py --binary /home/osees/new-api/bin/new-api
+  --artifacts /tmp/opencode --opencode /home/osees/.opencode/bin/opencode`
+  passed twice on fresh instances. Reports read directly:
+  `/tmp/opencode/newapi-proof-malzzq2d/report.json` and
+  `/tmp/opencode/newapi-proof-df6gpmct/report.json`. Operator flags true;
+  client version 1.19.5, 1 completed read loop, 2 accounted attempts, stable
+  deployment; startup/restart, exact 429 fallback, paid exclusion and five
+  grade-driven ranking changes still pass. Scripted responses are not LLM scores.
+- Final client boot now uses the exact symlinked file written by the operator,
+  not a separately refreshed equivalent. Repeated proofs after that final
+  change passed: `/tmp/opencode/newapi-proof-pkfms7du/report.json` and
+  `/tmp/opencode/newapi-proof-exot1afe/report.json`; focused suite 37 passed,
+  lint/type/diff and full new-test formatting remained green.
+- Exact verifier without `--opencode` also passed:
+  `/tmp/opencode/newapi-proof-wpsvw62x/report.json`; client is optional, not
+  silently claimed. Fixture RSS with client check: New-API 155588/156192 KiB,
+  Python fixture/in-process sidecar 43924/43972 KiB; not a VPS-load guarantee.
+- Focused flake8 (existing E402 bootstrap ignored), mypy with imports skipped,
+  Black changed-line checks (full check for `test_verify_newapi.py` due to a
+  range-boundary formatter artifact), py_compile and diff checks passed.
+- Combined real-namespace/focused coverage: verifier 82%; `fixture_command`
+  16/16 lines and 6/6 branches. Report:
+  `/tmp/opencode/newapi-operator-combined.json`. No claim of whole-repo type or
+  coverage compliance.
+- Updated README, operator/proof docs, staged roadmap and root handoff. Preserve
+  `.serena/`; only reviewed files are included in the feature-branch save.
+
+Next recommendation:
+
+- Save this verified milestone on the feature branch; do not merge into main,
+  deploy or cut over. Then prepare a tiny existing-free-provider validation
+  subset from canonical metadata with explicit live `/models` and price/capability
+  checks. Stored free flags include stale/non-free model IDs, so flags alone
+  cannot authorize generation. Do not bulk-import keys or spend unknown credits.
+- A real-provider sidecar loop remains a distinct gate; the installed-client
+  fixture does not substitute for it. VPS strict v2 config/proof approval,
+  compatibility exceptions, load/restart/rollback and cutover approval remain.

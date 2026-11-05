@@ -1,9 +1,11 @@
 """Provider-free checks for the real-binary verifier's startup gate."""
 
+import subprocess
+
 import pytest
 
 from newapi_catalog import CatalogError
-from tools.verify_newapi import wait_entrypoint
+from tools.verify_newapi import fixture_command, wait_entrypoint
 
 
 class Process:
@@ -56,3 +58,56 @@ def test_startup_probe_has_a_deadline(monkeypatch):
     monkeypatch.setattr("tools.verify_newapi.time.monotonic", lambda: next(clock))
     with pytest.raises(CatalogError, match="startup timed out"):
         wait_entrypoint(Process(None), ("127.0.0.1", 8003), fail_closed=False)
+
+
+@pytest.mark.parametrize("code", [0, 1])
+def test_fixture_command_requires_the_expected_exit_status(tmp_path, monkeypatch, code):
+    def run(argv, **kwargs):
+        kwargs["stdout"].write(b'{"ok":true}')
+        kwargs["stderr"].write(b"private diagnostic")
+        assert kwargs["stdin"] is subprocess.DEVNULL
+        assert kwargs["timeout"] == 45
+        assert kwargs["umask"] == 0o077
+        return subprocess.CompletedProcess(argv, code)
+
+    monkeypatch.setattr("tools.verify_newapi.subprocess.run", run)
+    if code:
+        with pytest.raises(CatalogError, match="fixture command failed"):
+            fixture_command(tmp_path, {}, "check", ["fake"])
+    else:
+        assert fixture_command(tmp_path, {}, "check", ["fake"]) == b'{"ok":true}'
+
+
+def test_fixture_command_hides_timeout_output(tmp_path, monkeypatch):
+    def run(*_args, **_kwargs):
+        raise subprocess.TimeoutExpired(["fake"], 45, output="sensitive-value")
+
+    monkeypatch.setattr("tools.verify_newapi.subprocess.run", run)
+    with pytest.raises(CatalogError, match="could not complete") as error:
+        fixture_command(tmp_path, {}, "check", ["fake"])
+    assert "sensitive-value" not in str(error.value)
+
+
+def test_fixture_command_rejects_excess_output(tmp_path, monkeypatch):
+    def run(argv, **kwargs):
+        kwargs["stdout"].write(b"x" * (1024 * 1024 + 1))
+        return subprocess.CompletedProcess(argv, 0)
+
+    monkeypatch.setattr("tools.verify_newapi.subprocess.run", run)
+    with pytest.raises(CatalogError, match="output exceeds limit"):
+        fixture_command(tmp_path, {}, "check", ["fake"])
+
+
+def test_fixture_command_rejects_credential_echo_without_exposing_it(
+    tmp_path, monkeypatch
+):
+    def run(argv, **kwargs):
+        kwargs["stdout"].write(b"generated-sensitive-value")
+        return subprocess.CompletedProcess(argv, 0)
+
+    monkeypatch.setattr("tools.verify_newapi.subprocess.run", run)
+    with pytest.raises(CatalogError, match="logged a generated credential") as error:
+        fixture_command(
+            tmp_path, {"NEWAPI_API_KEY": "generated-sensitive-value"}, "check", ["fake"]
+        )
+    assert "generated-sensitive-value" not in str(error.value)

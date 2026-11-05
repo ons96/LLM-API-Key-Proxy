@@ -107,6 +107,13 @@ and restart. The helper now accepts the binary's 579-byte signed proofs within
 the sidecar's 4096-byte limit. This closes the local boot-proof gap only; all VPS
 configuration/provisioning and live-provider/client gates above remain.
 
+The subsequent 2026-11-04 disposable milestone also passed operator route/catalog
+preview/apply, empty-catalog preservation, priority-only updates, and OpenCode
+1.19.5 catalog boot plus a scripted read tool loop through the actual sidecar.
+Both client attempts were accounted on one deployment. This is not the v2
+live-provider/tool-loop gate: scripted outputs do not demonstrate model quality
+or live quota availability. See `operator-commands.md` and the latest STATE.
+
 ### V2 implementation checkpoint - 2026-11-03
 
 - Added deterministic classification for the legacy `auto` alias in

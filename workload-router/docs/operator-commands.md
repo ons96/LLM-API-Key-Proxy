@@ -122,11 +122,44 @@ python3 newapi_operator.py boot-check --opencode-config ~/.config/opencode/openc
     --providers groq,cerebras
 ```
 
-`ok` is false when a named provider is missing or has an empty model map.
+`ok` is false when a named provider is missing or has an empty model map; the
+command now exits 1 in that case so shell-based boot gates cannot silently pass.
+A valid configuration exits 0.
+
+## Disposable end-to-end operator and client check
+
+```sh
+python3 tools/verify_newapi.py --binary /home/osees/new-api/bin/new-api \
+    --artifacts /tmp/opencode --opencode "$(command -v opencode)"
+```
+
+The `--opencode` flag is optional. Without it, the same verifier still exercises
+operator commands and startup; with it, the installed client must pass as well.
+The local proof uses fresh owner-only state and a network namespace containing
+only loopback, not the existing OpenCode config, secret files, or provider accounts.
+
+Verified against the pinned New-API binary and OpenCode 1.19.5:
+
+- route-file preview/apply preserves configured identities;
+- three provider `/models` catalogs refresh through the operator CLI, preview
+  never changes OpenCode, and apply preserves its symlink and curated metadata;
+- an empty catalog leaves last-good models and config intact;
+- missing-provider boot checks and invalid priority orders return failure;
+- authorized audit and priority-only updates preserve other channel fields and
+  dispatch no completions;
+- OpenCode loads the three refreshed catalogs, then completes exactly one
+  read-only tool loop through the actual sidecar and New-API. Both attempts are
+  accounted on the same deployment; the provider responses are scripted.
+
+Client HOME/XDG paths, model cache, config and generated file-backed key are
+isolated. Updates, plugins, external skills and network model fetching are
+unavailable/disabled. The only allowed tool is reading the disposable fixture.
+This proves client/transport orchestration, not real model quality, live free
+quota, or production readiness.
 
 ## Still unverified
 
-These commands are covered by provider-free tests only. A real three-provider
-refresh, a real OpenCode boot on the current client version, and a live priority
-update have not been run against VPS-40, because the sidecar cannot start there
-until the channel-key proof helper is configured on the host.
+No operator command, sidecar canary or client loop from this milestone was run
+against VPS-40. Real free-provider refresh/usage, compatibility exceptions,
+resource/load and rollback remain gated; do not change the live native v1 retry
+policy or current gateway to make the local tests pass.

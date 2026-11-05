@@ -45,7 +45,11 @@ missing/invalid-proof rejection, TOTP-authorized boot, chat/coding/SSE, graceful
 stop and durable restart, in addition to quota failover and catalog/benchmark
 checks. Reports and generated test credentials remain in owner-only artifacts;
 inspect public report fields, not logs or seeds. This is not live-provider or
-VPS deployment evidence.
+VPS deployment evidence. Add `--opencode "$(command -v opencode)"` to the verifier
+for the installed-client boot and scripted read tool-loop gate; that flag uses
+separate HOME/XDG state and no real provider quota. Operator preview/apply,
+last-good catalogs and priority-only updates are also verified. See
+`docs/operator-commands.md` for the exact scope and remaining live gates.
 
 The gateway changes currently deployed are:
 

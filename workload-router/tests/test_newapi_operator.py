@@ -270,6 +270,29 @@ def test_cli_rejects_an_unknown_route_without_touching_newapi(tmp_path, monkeypa
     assert result.stdout == ""
 
 
+@pytest.mark.parametrize("models, expected", [({}, 1), ({"fixture": {}}, 0)])
+def test_cli_boot_check_exit_status_matches_report(tmp_path, models, expected):
+    config = tmp_path / "opencode.json"
+    config.write_text(json.dumps({"provider": {"local": {"models": models}}}))
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(TOOL),
+            "boot-check",
+            "--opencode-config",
+            str(config),
+            "--providers",
+            "local",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == expected
+    assert json.loads(result.stdout)["ok"] is (expected == 0)
+    assert result.stderr == ""
+
+
 def test_cli_help_succeeds():
     result = subprocess.run([sys.executable, str(TOOL), "--help"],
                             capture_output=True, text=True, timeout=30)

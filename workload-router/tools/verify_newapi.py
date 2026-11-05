@@ -11,6 +11,7 @@ import argparse
 import base64
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import asdict
 from http.client import HTTPConnection
 from http.cookiejar import CookieJar
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -21,6 +22,7 @@ import os
 from pathlib import Path
 import secrets
 import shlex
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -318,6 +320,347 @@ def verify_entrypoint(
     return result
 
 
+def fixture_command(
+    directory: Path,
+    env: dict[str, str],
+    name: str,
+    argv: list[str],
+    *,
+    expected: int = 0,
+) -> bytes:
+    """Bound operator/client subprocesses and keep their output in private artifacts."""
+    try:
+        with (directory / (name + ".out")).open("xb") as out, (
+            directory / (name + ".err")
+        ).open("xb") as err:
+            process = subprocess.run(
+                argv,
+                cwd=directory,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=out,
+                stderr=err,
+                timeout=45,
+                umask=0o077,
+            )
+    except (OSError, subprocess.SubprocessError):
+        raise CatalogError("fixture command could not complete: " + name) from None
+    if process.returncode != expected:
+        raise CatalogError("fixture command failed: " + name)
+    stdout = directory / (name + ".out")
+    stderr = directory / (name + ".err")
+    if max(stdout.stat().st_size, stderr.stat().st_size) > 1024 * 1024:
+        raise CatalogError("fixture command output exceeds limit")
+    raw, error_output = stdout.read_bytes(), stderr.read_bytes()
+    credentials = [
+        env[key].encode()
+        for key in ("SIDECAR_API_KEY", "NEWAPI_API_KEY", "NEWAPI_ADMIN_TOKEN")
+        if env.get(key)
+    ]
+    if any(value in raw or value in error_output for value in credentials):
+        raise CatalogError("fixture command logged a generated credential")
+    return raw
+
+
+def verify_operators(
+    directory: Path,
+    env: dict[str, str],
+    admin: AdminClient,
+    ledger: QuotaLedger,
+    routes: list[Route],
+    config: Path,
+    calls: list[str],
+    catalog_faults: set[str],
+) -> dict:
+    """Exercise operator preview/apply, catalogs and protected priority-only writes."""
+    command = [
+        sys.executable,
+        str(Path(__file__).resolve().parents[1] / "newapi_operator.py"),
+    ]
+    before_calls = len(calls)
+    route_file = directory / "routes.json"
+    route_file.write_text(json.dumps({"routes": [asdict(route) for route in routes]}))
+    metadata = directory / "providers.db"
+    with sqlite3.connect(metadata) as db:
+        db.execute(
+            "CREATE TABLE providers (key_name, base_url, env_var, no_api_key_required)"
+        )
+        for route in routes:
+            db.execute(
+                "INSERT INTO providers VALUES (?, ?, ?, ?)",
+                (route.provider_id, route.channel_base_url + "/v1", None, 1),
+            )
+    result = {}
+    original_config = config.read_bytes()
+    metadata_before = metadata.read_bytes()
+    result["routes_preview"] = json.loads(
+        fixture_command(
+            directory,
+            env,
+            "routes-preview",
+            command + ["routes", "--file", str(route_file)],
+        )
+    )
+    result["routes_apply"] = json.loads(
+        fixture_command(
+            directory,
+            env,
+            "routes-apply",
+            command + ["routes", "--file", str(route_file), "--apply"],
+        )
+    )
+    # JSON route files store tuple profiles as lists.
+    expected_routes = {route.route_id: asdict(route) for route in routes}
+    for metadata_row in expected_routes.values():
+        metadata_row["profiles"] = list(metadata_row["profiles"])
+    if {route.route_id: asdict(route) for route in ledger.routes()} != expected_routes:
+        raise CatalogError("operator route seeding changed configured identities")
+    catalog_config = directory / "operator.stock.json"
+    catalog_config.write_bytes(original_config)
+    catalog_link = directory / "operator.json"
+    catalog_link.symlink_to(catalog_config.name)
+    catalog = command + [
+        "catalog",
+        "--provider-db",
+        str(metadata),
+        "--providers",
+        "one,two,three",
+        "--opencode-config",
+        str(catalog_link),
+    ]
+    result["catalog_preview"] = json.loads(
+        fixture_command(directory, env, "catalog-preview", catalog)
+    )
+    if (
+        catalog_link.read_bytes() != original_config
+        or result["catalog_preview"]["opencode"]["applied"]
+    ):
+        raise CatalogError("catalog preview changed OpenCode configuration")
+    result["catalog_apply"] = json.loads(
+        fixture_command(directory, env, "catalog-apply", catalog + ["--apply-opencode"])
+    )
+    if not result["catalog_apply"]["opencode"]["applied"]:
+        raise CatalogError("operator catalog apply did not update configuration")
+    if metadata.read_bytes() != metadata_before:
+        raise CatalogError("operator wrote the provider metadata database")
+    updated = json.loads(catalog_link.read_bytes())
+    if not catalog_link.is_symlink():
+        raise CatalogError("operator catalog refresh replaced the OpenCode symlink")
+    original = json.loads(original_config)
+    for name in ("one", "two", "three"):
+        if (
+            updated["provider"][name]["models"]["curated"]
+            != original["provider"][name]["models"]["curated"]
+        ):
+            raise CatalogError("operator refresh overwrote curated model metadata")
+        if name + "-model" not in updated["provider"][name]["models"]:
+            raise CatalogError("operator refresh omitted a catalog model")
+    last_good = list(
+        ledger.db.execute("SELECT * FROM models ORDER BY provider_id, model_id")
+    )
+    applied_config = catalog_link.read_bytes()
+    catalog_faults.add("one")
+    try:
+        fixture_command(directory, env, "catalog-empty", catalog, expected=1)
+    finally:
+        catalog_faults.clear()
+    if (
+        list(ledger.db.execute("SELECT * FROM models ORDER BY provider_id, model_id"))
+        != last_good
+    ):
+        raise CatalogError("empty catalog replaced last-good provider metadata")
+    if catalog_link.read_bytes() != applied_config:
+        raise CatalogError("failed catalog changed OpenCode configuration")
+    result["last_good_preserved"] = True
+    result["boot_check"] = json.loads(
+        fixture_command(
+            directory,
+            env,
+            "boot-check",
+            command
+            + [
+                "boot-check",
+                "--opencode-config",
+                str(catalog_link),
+                "--providers",
+                "one,two,three",
+            ],
+        )
+    )
+    result["missing_provider_boot_check"] = json.loads(
+        fixture_command(
+            directory,
+            env,
+            "boot-missing",
+            command
+            + [
+                "boot-check",
+                "--opencode-config",
+                str(catalog_link),
+                "--providers",
+                "missing",
+            ],
+            expected=1,
+        )
+    )
+    result["audit"] = json.loads(
+        fixture_command(directory, env, "operator-audit", command + ["audit"])
+    )
+    channel_ids = {route.channel_id for route in routes}
+    before = {row["id"]: row for row in admin.channels() if row["id"] in channel_ids}
+    invalid_order = command + ["priorities", "--order", "two,missing", "--apply"]
+    fixture_command(directory, env, "priority-invalid", invalid_order, expected=1)
+    if {
+        row["id"]: row for row in admin.channels() if row["id"] in channel_ids
+    } != before:
+        raise CatalogError("invalid priority order changed New-API channels")
+    result["invalid_priority_order_fail_closed"] = True
+    order = command + ["priorities", "--order", "two,one,three"]
+    result["priority_preview"] = json.loads(
+        fixture_command(directory, env, "priority-preview", order)
+    )
+    if {
+        row["id"]: row for row in admin.channels() if row["id"] in channel_ids
+    } != before:
+        raise CatalogError("priority preview changed New-API channels")
+    result["priority_apply"] = json.loads(
+        fixture_command(directory, env, "priority-apply", order + ["--apply"])
+    )
+    after = {row["id"]: row for row in admin.channels() if row["id"] in channel_ids}
+    for update in result["priority_apply"]["order"]:
+        identity = update["channel_id"]
+        if after[identity].get("priority") != update["priority"]:
+            raise CatalogError("New-API priority update was not applied")
+        if {
+            key: value for key, value in before[identity].items() if key != "priority"
+        } != {
+            key: value for key, value in after[identity].items() if key != "priority"
+        }:
+            raise CatalogError("priority update changed another channel field")
+    if len(calls) != before_calls:
+        raise CatalogError("operator command dispatched an upstream completion")
+    result.update(no_completion_calls=True, priorities_preserved_channel_fields=True)
+    return result
+
+
+def verify_opencode_boot(
+    directory: Path, executable: Path, config: Path, entry_env: dict[str, str]
+) -> dict:
+    """Boot the installed client and complete a scripted read tool loop in isolation."""
+    home = directory / "client-home"
+    home.mkdir()
+    models = directory / "client-models.json"
+    models.write_text("{}")
+    env = {
+        "PATH": os.environ["PATH"],
+        "HOME": str(home),
+        "OPENCODE_TEST_HOME": str(home),
+        "XDG_CONFIG_HOME": str(home / ".config"),
+        "XDG_DATA_HOME": str(home / ".local/share"),
+        "XDG_CACHE_HOME": str(home / ".cache"),
+        "XDG_STATE_HOME": str(home / ".local/state"),
+        "OPENCODE_CONFIG": str(config),
+        "OPENCODE_MODELS_PATH": str(models),
+        "OPENCODE_DISABLE_MODELS_FETCH": "true",
+        "OPENCODE_DISABLE_AUTOUPDATE": "true",
+        "OPENCODE_DISABLE_DEFAULT_PLUGINS": "true",
+        "OPENCODE_DISABLE_EXTERNAL_SKILLS": "true",
+        "OPENCODE_DISABLE_CLAUDE_CODE": "true",
+        "OPENCODE_DISABLE_PROJECT_CONFIG": "true",
+        "OPENCODE_DISABLE_CHANNEL_DB": "true",
+    }
+    version = fixture_command(
+        directory, env, "opencode-version", [str(executable), "--version"]
+    )
+    result: dict = {"version": version.decode().strip(), "providers": {}}
+    for name in ("one", "two", "three"):
+        output = fixture_command(
+            directory,
+            env,
+            "opencode-models-" + name,
+            [str(executable), "models", name, "--pure"],
+        )
+        entries = output.decode().splitlines()
+        if (
+            name + "/curated" not in entries
+            or name + "/" + name + "-model" not in entries
+        ):
+            raise CatalogError("OpenCode did not boot with refreshed catalog")
+        result["providers"][name] = len(entries)
+    client_config = directory / "client.json"
+    client_key = directory / "client.key"
+    client_key.write_text(entry_env["SIDECAR_API_KEY"])
+    client_key.chmod(0o600)
+    configuration = json.loads(config.read_bytes())
+    configuration["provider"]["sidecar"] = {
+        "npm": "@ai-sdk/openai-compatible",
+        "name": "Disposable sidecar",
+        "options": {
+            "baseURL": "http://127.0.0.1:" + entry_env["SIDECAR_PORT"] + "/v1",
+            "apiKey": "{file:" + str(client_key) + "}",
+        },
+        "models": {
+            "auto-coding": {
+                "name": "Auto coding",
+                "tool_call": True,
+                "limit": {"context": 131072, "output": 2048},
+            }
+        },
+    }
+    configuration["permission"] = {"*": "deny", "read": "allow"}
+    configuration["model"] = "sidecar/auto-coding"
+    configuration["small_model"] = "sidecar/auto-coding"
+    client_config.write_text(json.dumps(configuration))
+    env["OPENCODE_CONFIG"] = str(client_config)
+    env["OPENCODE_DISABLE_LSP_DOWNLOAD"] = "true"
+    work = directory / "client-work"
+    work.mkdir()
+    (work / "proof.txt").write_text("hello-sidecar-proof\n")
+    address = ("127.0.0.1", int(entry_env["SIDECAR_PORT"]))
+    with entrypoint_process(directory, entry_env, "opencode-sidecar") as process:
+        wait_entrypoint(process, address, fail_closed=False)
+        output = fixture_command(
+            directory,
+            env,
+            "opencode-loop",
+            [
+                str(executable),
+                "run",
+                "--pure",
+                "--dir",
+                str(work),
+                "--format",
+                "json",
+                "--model",
+                "sidecar/auto-coding",
+                "--title",
+                "local-proof",
+                "Use read to inspect proof.txt and reply with its exact content.",
+            ],
+        )
+    if process.returncode != 0:
+        raise CatalogError("OpenCode sidecar did not stop cleanly")
+    secret = entry_env["SIDECAR_API_KEY"].encode()
+    if secret in output or secret in (directory / "opencode-loop.err").read_bytes():
+        raise CatalogError("OpenCode logged its generated client credential")
+    events = [json.loads(line) for line in output.splitlines() if line.strip()]
+    completed = [
+        event
+        for event in events
+        if event.get("type") == "tool_use"
+        and event.get("part", {}).get("tool") == "read"
+        and event["part"].get("state", {}).get("status") == "completed"
+    ]
+    if len(completed) != 1 or not any(
+        event.get("type") == "text"
+        and "hello-sidecar-proof" in event.get("part", {}).get("text", "")
+        for event in events
+    ):
+        raise CatalogError("OpenCode did not complete the scripted read tool loop")
+    result.update(network_isolated=True, tool_loops=1, read_only_permissions=True)
+    return result
+
+
 def relay_token(admin: AdminClient, aliases: list[str]) -> tuple[int, str]:
     name = "proof-" + secrets.token_hex(4)
     admin.call(
@@ -376,7 +719,9 @@ def chat(
         connection.close()
 
 
-def verify(binary: Path, parent: Path, parent_inode: int) -> dict:
+def verify(
+    binary: Path, parent: Path, parent_inode: int, opencode: Path | None = None
+) -> dict:
     private_namespace(parent_inode)
     if not binary.is_file() or not os.access(binary, os.X_OK) or not parent.is_dir():
         raise ValueError("executable binary and existing artifact parent required")
@@ -389,7 +734,10 @@ def verify(binary: Path, parent: Path, parent_inode: int) -> dict:
     }
     calls = []
     faults = set()
+    catalog_faults: set[str] = set()
     grading = [False]
+    client_active = [False]
+    client_events = []
 
     class Upstream(BaseHTTPRequestHandler):
         def send_json(self, status, payload):
@@ -404,7 +752,12 @@ def verify(binary: Path, parent: Path, parent_inode: int) -> dict:
 
         def do_GET(self):
             name = self.path.split("/")[1]
-            self.send_json(200, {"data": [{"id": name + "-model", "object": "model"}]})
+            models = (
+                []
+                if name in catalog_faults
+                else [{"id": name + "-model", "object": "model"}]
+            )
+            self.send_json(200, {"data": models})
 
         def do_POST(self):
             payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
@@ -425,6 +778,52 @@ def verify(binary: Path, parent: Path, parent_inode: int) -> dict:
                             "name": "read_file", "arguments": json.dumps(arguments)}}]}
                 else:
                     message["content"] = json.dumps(case.expected if correct else {"wrong": True})
+            if client_active[0]:
+                tools = payload.get("tools", [])
+                tool_messages = [
+                    row for row in payload["messages"] if row.get("role") == "tool"
+                ]
+                if tool_messages:
+                    if "hello-sidecar-proof" not in json.dumps(tool_messages):
+                        self.send_json(
+                            400, {"error": {"message": "fixture tool result missing"}}
+                        )
+                        return
+                    message["content"] = "hello-sidecar-proof"
+                    client_events.append(
+                        {"step": "result", "model": model, "tools": len(tools)}
+                    )
+                else:
+                    if not any(
+                        row.get("function", {}).get("name") == "read" for row in tools
+                    ):
+                        self.send_json(
+                            400, {"error": {"message": "fixture read tool missing"}}
+                        )
+                        return
+                    message = {
+                        "role": "assistant",
+                        "content": None,
+                        "tool_calls": [
+                            {
+                                "id": "call_read_proof",
+                                "type": "function",
+                                "function": {
+                                    "name": "read",
+                                    "arguments": json.dumps(
+                                        {
+                                            "filePath": str(
+                                                directory / "client-work/proof.txt"
+                                            )
+                                        }
+                                    ),
+                                },
+                            }
+                        ],
+                    }
+                    client_events.append(
+                        {"step": "call", "model": model, "tools": len(tools)}
+                    )
             if payload.get("stream"):
                 self.send_response(200)
                 self.send_header("Content-Type", "text/event-stream")
@@ -437,8 +836,21 @@ def verify(binary: Path, parent: Path, parent_inode: int) -> dict:
                     self.wfile.write(("data: " + json.dumps(event) + "\n\n").encode())
                     self.wfile.flush()
                     time.sleep(0.005)
-                event = {"id": "proof", "object": "chat.completion.chunk", "model": model,
-                         "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}], "usage": usage}
+                event = {
+                    "id": "proof",
+                    "object": "chat.completion.chunk",
+                    "model": model,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "delta": {},
+                            "finish_reason": (
+                                "tool_calls" if message.get("tool_calls") else "stop"
+                            ),
+                        }
+                    ],
+                    "usage": usage,
+                }
                 self.wfile.write(("data: " + json.dumps(event) + "\n\ndata: [DONE]\n\n").encode())
                 return
             self.send_json(
@@ -468,8 +880,9 @@ def verify(binary: Path, parent: Path, parent_inode: int) -> dict:
         "CRYPTO_SECRET": secrets.token_urlsafe(32),
         "GOMEMLIMIT": "160MiB",
         "GOMAXPROCS": "2",
-        # Fixture-only budget for enrollment and three complete startup audits.
-        "CRITICAL_RATE_LIMIT": "32",
+        # Fixture-only budget for enrollment and repeated operator/startup audits.
+        "CRITICAL_RATE_LIMIT": "64",
+        "GLOBAL_WEB_RATE_LIMIT": "512",
     }
     process = None
     ledger = state = None
@@ -561,9 +974,49 @@ def verify(binary: Path, parent: Path, parent_inode: int) -> dict:
                 "NEWAPI_PROOF_ADMIN_USER_ID": str(admin.user_id),
                 "NEWAPI_PROOF_TOTP_SECRET_FILE": str(seed_file),
             }
+            operator_config = directory / "operator-input.json"
+            operator_config.write_text(json.dumps(configuration))
+            report["operators"] = verify_operators(
+                directory,
+                entry_env,
+                admin,
+                ledger,
+                routes,
+                operator_config,
+                calls,
+                catalog_faults,
+            )
             report["entrypoint"] = verify_entrypoint(
                 directory, entry_env, calls, ledger
             )
+            if opencode is not None:
+                before_client = len(calls)
+                accounted_before = ledger.diagnostics()["attempts"].get("success", 0)
+                client_active[0] = True
+                try:
+                    report["opencode_boot"] = verify_opencode_boot(
+                        directory, opencode, directory / "operator.json", entry_env
+                    )
+                finally:
+                    client_active[0] = False
+                if [row["step"] for row in client_events] != ["call", "result"]:
+                    raise CatalogError("unexpected OpenCode tool loop dispatch count")
+                if (
+                    len(calls) - before_client != 2
+                    or ledger.diagnostics()["attempts"].get("success", 0)
+                    - accounted_before
+                    != 2
+                ):
+                    raise CatalogError(
+                        "OpenCode tool loop was not independently accounted"
+                    )
+                if len({row["model"] for row in client_events}) != 1:
+                    raise CatalogError("OpenCode tool continuation changed deployments")
+                report["opencode_boot"].update(
+                    upstream_steps=client_events,
+                    accounted_attempts=2,
+                    stable_deployment=True,
+                )
             # Fresh graded phase in the owned fixture DB: clear decisions, cooldowns
             # and quota usage so before/after ranking shows grade-driven reordering.
             # Route config and learned limits remain. Do NOT do this in production.
@@ -612,6 +1065,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--artifacts", type=Path, default=Path("/tmp/opencode"))
+    parser.add_argument(
+        "--opencode",
+        type=Path,
+        help="optional installed client for isolated boot and scripted tool loop",
+    )
     parser.add_argument("--namespace-parent-inode", type=int, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.namespace_parent_inode is None:
@@ -620,7 +1078,10 @@ if __name__ == "__main__":
                                   sys.executable, *sys.argv, "--namespace-parent-inode", str(inode)]))
     try:
         report = verify(
-            args.binary.resolve(), args.artifacts.resolve(), args.namespace_parent_inode
+            args.binary.resolve(),
+            args.artifacts.resolve(),
+            args.namespace_parent_inode,
+            args.opencode.resolve() if args.opencode else None,
         )
         print(json.dumps(report, indent=2))
         sys.exit(0 if report["passed"] else 1)

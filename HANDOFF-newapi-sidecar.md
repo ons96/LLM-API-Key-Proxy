@@ -41,6 +41,25 @@ the API because no approved fine-grained PAT was available; stored OAuth/classic
 authentication was not used for API access. Recheck remote freshness before
 continuing. Real-provider/OpenCode and VPS approval gates still apply.
 
+## Saved operator/OpenCode milestone - 2026-11-04
+
+- Startup milestone was committed and pushed as `b8b882b` on the existing
+  `feat/newapi-sidecar` branch. Normal secret-scan hooks passed. No merge or
+  production deployment occurred.
+- The next local milestone now runs the operator CLI against fresh New-API:
+  route seeding, catalog preview/apply, empty-catalog preservation, audit,
+  invalid-order rejection and priority-only updates. Fixed `boot-check` returning
+  exit 0 despite `ok:false`; missing/empty providers now exit 1.
+- Optional verifier `--opencode /home/osees/.opencode/bin/opencode` boots current
+  OpenCode with isolated HOME/XDG/config and completes a scripted read tool loop
+  through the actual sidecar/New-API. It uses no real provider or permanent
+  client config. Latest full suite: 357 passed. Exact local evidence/commands
+  are in `workload-router/STATE.md` and `docs/operator-commands.md`.
+- Saving this verified milestone on the same feature branch is a backup, not a
+  cutover. PR review/API access still lacks approved fine-grained authentication.
+  Keep v1 and the production gateway unchanged; real-provider, compatibility,
+  load and rollback gates remain.
+
 ## Current checkpoint
 
 - Branch `feat/newapi-sidecar` tracks `origin/feat/newapi-sidecar`.

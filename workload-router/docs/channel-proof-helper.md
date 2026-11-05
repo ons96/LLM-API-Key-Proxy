@@ -67,10 +67,11 @@ incorrect 512-byte limit. This is release-specific evidence, not authorization
 to enroll or provision a production account.
 
 Repeated audits can hit New-API's security-verification rate limit. The local
-verifier alone sets `CRITICAL_RATE_LIMIT=32` in its fresh namespace to cover
-enrollment and repeated audits; limiting remains enabled. Do not copy that
-fixture setting into production or retry a 401, 403, or 429. Budget approved
-startup audits and report the authorization failure instead.
+verifier alone sets bounded `CRITICAL_RATE_LIMIT=64` and
+`GLOBAL_WEB_RATE_LIMIT=512` in its fresh namespace to cover enrollment,
+operator audits and repeated startup checks; limiting remains enabled. Do not
+copy those fixture settings into production or retry a 401, 403, or 429. Budget
+approved startup audits and report the authorization failure instead.
 
 ## Disposable entrypoint check
 
