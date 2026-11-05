@@ -1,6 +1,6 @@
 # Current New-API sidecar handoff
 
-Snapshot: 2026-11-04 UTC. Implementation checkpoint: `c6bc275`.
+Snapshot: 2026-11-05 UTC. Implementation checkpoint: `c6da14f`.
 Authoritative continuation branch: `origin/feat/newapi-sidecar` in
 `ons96/LLM-API-Key-Proxy`. A later handoff-only commit is expected.
 
@@ -16,7 +16,7 @@ Continue the New-API sidecar from:
 /home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar/HANDOFF-CURRENT-newapi-sidecar.md
 
 Work in that worktree's workload-router/ directory on feat/newapi-sidecar.
-Implementation was last verified at c6bc275; use the latest branch tip, not a
+Implementation was last verified at c6da14f; use the latest branch tip, not a
 reset to that hash. First inspect git status, fetch origin, compare commits and
 branches, and check relevant PRs if approved GitHub authentication is available.
 Remote work may have completed more; do not duplicate it. Preserve .serena/ and
@@ -26,12 +26,13 @@ Read project AGENTS.md/SPEC.md, workload-router/AGENTS.md, this current handoff,
 and the latest workload-router/STATE.md entries before editing. The older
 workload-router/HANDOFF.md describes another VPS task and is not this assignment.
 
-Next: audit installed-client configuration and recent request usage read-only
-against docs/gateway-compatibility.md, then decide alias translation vs dual
-path vs front proxy and reconcile remaining API compatibility exceptions
-before proposing a canary. The live workload now passes 5/5 on one free route
-at a 512-token cap with a bounded per-minute wait. Do not repeat completed
-smoke tests merely to recreate evidence.
+Next: the installed-client audit is complete and Option A (alias translation)
+is selected; `/health` now serves the legacy liveness path. Review the remaining
+partial/absent routes for each external consumer, then continue the canary gates
+for VPS strict config/proof, resource/load, persistence/rollback and separate
+authorization. The live workload passes 5/5 on one free route at a 512-token cap
+with a bounded per-minute wait. Do not repeat completed smoke tests merely to
+recreate evidence.
 
 Already done: authorized entrypoint startup/restart, operator catalog/priority
 and installed OpenCode checks, real OpenRouter chat/SSE/read loop, real Mistral
@@ -40,9 +41,10 @@ and a provider-free verified deterministic coding/tool workload mode; its child
 wiring was fixed after the first live invocation silently ran smoke. The
 2026-11-04 one-target live batch passed all five cases after the cap was raised
 to 512 and a bounded 4-RPM wait was added (5/5 correct, actual usage, no skips).
-Latest full and release suites passed 395 tests. Read the
-handoff for exact limitations; injected local 429s are not real upstream
-rate-limit evidence.
+The installed-client audit selected alias translation and added a `/health`
+liveness alias; latest full and release suites passed 395 tests and the
+provider-free real-binary/OpenCode verifier passed. Read the handoff for exact
+limitations; injected local 429s are not real upstream rate-limit evidence.
 
 Use existing provider-manager metadata read-only and existing approved secret
 sources. Free-only; no paid calls or unknown one-time-credit spending. Never
@@ -71,7 +73,7 @@ Standalone prompt: `RESUME-newapi-sidecar.txt` at this worktree root.
 | Implementation worktree | `/home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar` |
 | Component and command cwd | Worktree's `workload-router/` |
 | Branch | `feat/newapi-sidecar`, tracks `origin/feat/newapi-sidecar` |
-| Last implementation commit | `c6bc275` (workload cap/pacing calibration + live 5/5 evidence) |
+| Last implementation commit | `c6da14f` (health alias + installed-client compatibility audit) |
 | Old baseline | `fde9784`; do not reset to it or redo its completed work |
 | Remote main at snapshot | `76cd928`; not merged into this branch |
 | Local changes before handoff | Tracked files clean; existing untracked `.serena/` preserved |
@@ -100,6 +102,7 @@ All implementation milestones below are committed and pushed:
 | `41d2b44` | Deterministic coding/tool workload mode; provider-free verified |
 | `994395a` | Forwarded workload to child; live one-target batch recorded |
 | `c6bc275` | Raised workload cap to 512; bounded 4-RPM wait; live 5/5 pass |
+| `c6da14f` | Installed-client audit; `/health` liveness alias; Option A selected |
 
 Git fetch and PR refs were checked before each milestone. No PR head pointed at
 these tips. PR review/check/state metadata was not queried because no approved
@@ -166,8 +169,8 @@ are authoritative, not old repeated "next action" sections.
 
 - Exact full suite: **395 passed, 1 existing asyncio_mode warning**.
   `tools/verify_release.py`: 395 tests, session check, health/route 200,
-  26260 KB legacy resource smoke, compilation passed. Focused live-policy suite:
-  38 passed.
+  26240 KB legacy resource smoke, compilation passed. Focused live-policy suite:
+  38 passed; focused sidecar server/alias tests: 67 passed.
 - Deterministic coding/tool workload mode is implemented, provider-free tested
   and live-passed: five plan/edit/debug/tool/review cases per target, a declared
   ten-request/5120-output-token ceiling, 512-token per-request cap, tools intact,
@@ -177,9 +180,16 @@ are authoritative, not old repeated "next action" sections.
   actual usage and no skips after the cap/pacing calibration (`passed:true`,
   233 input / 773 output tokens). One live free route and one batch only; not
   sustained-load or canary evidence.
-- Real-binary scripted verifier passed after the change:
-  `/tmp/opencode/newapi-proof-zg3ejfrg/report.json` (`passed:true`,
-  scripted-local-only); benchmark grades remained 0/5 for route one and 5/5 for
+- Installed OpenCode audit (read-only): 117 provider entries; `custom` and
+  `vps-gateway` use `localhost:8000`, with `vps-gateway/coding-fast` used by
+  97 assistant messages and 263 sessions; coding-elite and coding-smart were
+  also used. Logs reference `/health`, `/v1/models` and chat, with no embedding,
+  CLIProxyAPI, token-count, cost-estimate or provider-status strings. Option A
+  selected; `/health` now returns the liveness body unauthenticated.
+- Real-binary scripted verifier passed after the health change:
+  `/tmp/opencode/newapi-proof-3qd538n_/report.json` (`passed:true`,
+  scripted-local-only). It booted OpenCode 1.19.5 for one tool loop, kept the
+  paid route excluded, and benchmark grades remained 0/5 route one and 5/5
   route two.
 - Focused Black/flake8/mypy passed; mypy skipped imported modules and flake8
   ignored existing E402 path bootstraps. No whole-repo type/format claim.
@@ -220,6 +230,7 @@ Reports below were read directly, not inferred from a truncated success line:
 | `newapi-proof-hsj9s35w/report.json` | Actual entrypoint startup/restart/accounting passed |
 | `newapi-proof-exot1afe/report.json` | Operator-written catalog + scripted OpenCode loop passed |
 | `newapi-proof-zg3ejfrg/report.json` | Post-workload real-binary scripted proof passed |
+| `newapi-proof-3qd538n_/report.json` | Post-health real-binary/OpenCode verifier passed |
 | `newapi-live-us6lrwkv/report.json` | Mixed smoke failed overall: Groq 403, OpenRouter chat/SSE passed |
 | `newapi-live-pp7vl34a/report.json` | Failed client permission experiment; not successful evidence |
 | `newapi-live-gf3j9wix/report.json` | Real OpenRouter OpenCode loop passed |
@@ -294,13 +305,13 @@ key copying. Do not auto-run live generation on resume.
    calibration. This is one live free route and one batch; it is not sustained
    load or canary evidence. Stop on 401/403/429 and never substitute a
    paid/credit model.
-2. ~~Update compatibility exceptions~~ **Inventory updated** in
-   `docs/gateway-compatibility.md` (27 vs 30 paths; 24 same-path, 1 renamed,
-   5 absent; client usage still unknown). Next, review redacted client
-   configs/request logs and decide alias translation vs dual path vs front proxy,
-   `/health` monitor migration, Responses/embeddings callers, process-local
-   sessions, stale provider status and the absent CLIProxyAPI routes. Do not add
-   empty shims or claim parity from a 200 response.
+2. ~~Update compatibility exceptions~~ **Audit complete; Option A selected** in
+   `docs/gateway-compatibility.md` (28 vs 30 paths; 25 same-path, 0 renamed,
+   5 absent). The installed OpenCode client uses legacy aliases over chat, and
+   `/health` now serves the liveness path. Remaining partial/absent routes are
+   explicit exceptions to review per external consumer; Responses/embeddings
+   callers, process-local sessions, stale provider status and CLIProxyAPI remain
+   separate gates. Do not add empty shims or claim parity from a 200 response.
 3. Run a canary only after those compatibility decisions and the VPS strict
    config/proof provisioning, resource/load, persistence/rollback and separate
    authorization gates pass.

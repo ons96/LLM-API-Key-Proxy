@@ -2,7 +2,7 @@
 
 Current concise cross-harness handoff: `../HANDOFF-CURRENT-newapi-sidecar.md`.
 Standalone prompt: `../RESUME-newapi-sidecar.txt`. Implementation checkpoint
-`c6bc275` is pushed; 395 tests passed. The entries below are chronological, so
+`c6da14f` is pushed; 395 tests passed. The entries below are chronological, so
 read the final checkpoints rather than an old repeated "next action" section.
 
 ## Current status
@@ -1815,6 +1815,37 @@ Limits and next:
   post-output stream failures with real providers, quotas under load, canary
   entrypoint provisioning, and VPS-40 resource/restart/rollback.
 
-Next: audit installed-client configuration and recent request usage read-only
-against `docs/gateway-compatibility.md`, then decide alias translation vs dual
-path vs front proxy before proposing any canary.
+## Installed-client compatibility audit and /health alias - 2026-11-05
+
+- Re-fetched origin before work: local and remote `feat/newapi-sidecar` were both
+  `3d8aef9` at the start with no divergence; untracked `.serena/` preserved.
+- Read-only OpenCode audit: `~/.config/opencode/opencode.json` is mode 0600 and
+  has 117 provider entries. `custom` and `vps-gateway` use
+  `http://localhost:8000/v1` and list 15 of 19 legacy aliases;
+  `agentic-gateway` has an empty model list. The `summary` agent is pinned to
+  `vps-gateway/coding-fast`.
+- Read-only `opencode.db` query (1,578 sessions, 81,094 messages):
+  `vps-gateway` assistant traffic for coding-elite 189, coding-fast 97 and
+  coding-smart 17; latest coding-fast 2026-10-27. Session rows also use
+  agent-oracle and auto. `agentic-gateway` has no messages.
+- Log strings reference `http://127.0.0.1:8000/health`,
+  `http://127.0.0.1:8000/v1/models` and `/v1/chat/completions`; none reference
+  embeddings, CLIProxyAPI, token-count, cost-estimate or provider-status paths.
+  Two `/v1/responses` strings had no gateway URL and are not counted as calls.
+- Decision: Option A (alias translation); dual-path and front-proxy are not
+  selected because they leave a second service in the request path or split
+  accounting. Added unauthenticated `/health` as a same-path liveness alias with
+  the same body as `/healthz`; it exposes no provider/config data. Updated the
+  compatibility inventory to 28 sidecar paths, 25 same-path, 0 renamed, 5 absent.
+- Verification: focused sidecar server/alias 67 passed; full suite 395 passed
+  with one existing asyncio_mode warning; `tools/verify_release.py` 395 passed,
+  health/route 200, RSS 26240 KB, compilation OK; `git diff --check` clean;
+  real-binary scripted verifier `/tmp/opencode/newapi-proof-3qd538n_` passed
+  with OpenCode 1.19.5, one tool loop and paid route excluded.
+- No key was printed or committed; no VPS change, deployment, retry/override
+  change or cutover occurred. Remaining canary gates: external-consumer route
+  exceptions, same-model mapping semantics, post-output stream failures, quotas
+  under load, canary entrypoint provisioning and VPS-40 resource/restart/rollback.
+
+Next: review the remaining partial/absent routes with each external consumer and
+prepare the canary gate evidence; do not deploy or cut over traffic.
