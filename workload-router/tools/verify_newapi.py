@@ -189,6 +189,18 @@ def get_json(address: tuple[str, int], path: str, key: str = "") -> tuple[int, d
         connection.close()
 
 
+def liveness_probe(address: tuple[str, int]) -> dict[str, int]:
+    """Require the unauthenticated legacy /health path to match /healthz."""
+    expected = {"status": "ok", "service": "newapi-sidecar"}
+    status, canonical = get_json(address, "/healthz")
+    alias_status, alias = get_json(address, "/health")
+    if status != 200 or canonical != expected:
+        raise CatalogError("unexpected sidecar health response")
+    if alias_status != 200 or alias != canonical:
+        raise CatalogError("sidecar liveness alias mismatch")
+    return {"health": alias_status, "healthz": status}
+
+
 def wait_entrypoint(
     process: subprocess.Popen[bytes], address: tuple[str, int], *, fail_closed: bool
 ) -> None:
@@ -257,6 +269,7 @@ def verify_entrypoint(
             same_window = window == int(time.time()) // 30
             if get_json(address, "/v1/models")[0] != 401:
                 raise CatalogError("entrypoint did not require client authentication")
+            liveness = liveness_probe(address)
             status, diagnostics = get_json(
                 address, "/v1/router/diagnostics", env["SIDECAR_API_KEY"]
             )
@@ -275,7 +288,9 @@ def verify_entrypoint(
             if quota_snapshot is not None and current_quota != quota_snapshot:
                 raise CatalogError("quota reservations did not survive restart")
             checks: dict = {
-                "health": 200,
+                "health": liveness["healthz"],
+                "health_alias": liveness["health"],
+                "health_body_match": True,
                 "unauthenticated_models": 401,
                 "totp_channels": 3,
                 "same_totp_window": same_window,
@@ -284,6 +299,12 @@ def verify_entrypoint(
             if name == "startup":
                 checks["coding"] = chat(
                     address, env["SIDECAR_API_KEY"], model="auto-coding"
+                )
+                checks["legacy_alias"] = chat(
+                    address,
+                    env["SIDECAR_API_KEY"],
+                    model="coding-elite",
+                    expected_model="coding-elite",
                 )
                 checks["stream"] = chat(address, env["SIDECAR_API_KEY"], stream=True)
             status, persisted = get_json(
@@ -704,6 +725,7 @@ def chat(
     *,
     model: str = "auto-chat",
     stream: bool = False,
+    expected_model: str = "",
 ) -> dict:
     connection = HTTPConnection(*address, timeout=5)
     payload = {"model": model, "messages": [{"role": "user", "content": "Reply with exactly ok."}],
@@ -719,8 +741,12 @@ def chat(
         if stream:
             if "[DONE]" not in body or '"content":"ok"' not in body:
                 raise CatalogError("sidecar stream did not complete")
-        elif json.loads(body)["choices"][0]["message"]["content"] != "ok":
-            raise CatalogError("sidecar completion content mismatch")
+        else:
+            completion = json.loads(body)
+            if completion["choices"][0]["message"]["content"] != "ok":
+                raise CatalogError("sidecar completion content mismatch")
+            if expected_model and completion.get("model") != expected_model:
+                raise CatalogError("sidecar completion model mismatch")
         return {"status": response.status, "decision": response.getheader("X-Router-Decision"),
                 "route": response.getheader("X-Router-Deployment")}
     finally:

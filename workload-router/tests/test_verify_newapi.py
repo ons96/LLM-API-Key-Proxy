@@ -5,7 +5,7 @@ import subprocess
 import pytest
 
 from newapi_catalog import CatalogError
-from tools.verify_newapi import fixture_command, wait_entrypoint
+from tools.verify_newapi import fixture_command, liveness_probe, wait_entrypoint
 
 
 class Process:
@@ -51,6 +51,30 @@ def test_startup_requires_the_expected_service_health(monkeypatch):
     )
     with pytest.raises(CatalogError, match="unexpected sidecar health"):
         wait_entrypoint(Process(None), ("127.0.0.1", 8003), fail_closed=False)
+
+
+def test_liveness_probe_requires_both_unauthenticated_paths(monkeypatch):
+    calls = []
+
+    def get_json(_address, path):
+        calls.append(path)
+        return 200, {"status": "ok", "service": "newapi-sidecar"}
+
+    monkeypatch.setattr("tools.verify_newapi.get_json", get_json)
+    assert liveness_probe(("127.0.0.1", 8003)) == {"health": 200, "healthz": 200}
+    assert calls == ["/healthz", "/health"]
+
+
+def test_liveness_probe_rejects_a_different_alias_body(monkeypatch):
+    def get_json(_address, path):
+        body = {"status": "ok", "service": "newapi-sidecar"}
+        if path == "/health":
+            body = {"status": "ok"}
+        return 200, body
+
+    monkeypatch.setattr("tools.verify_newapi.get_json", get_json)
+    with pytest.raises(CatalogError, match="liveness alias"):
+        liveness_probe(("127.0.0.1", 8003))
 
 
 def test_startup_probe_has_a_deadline(monkeypatch):

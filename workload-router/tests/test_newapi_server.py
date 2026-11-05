@@ -292,7 +292,9 @@ def test_large_body_rejected_before_dispatch(sidecar):
     assert not calls
 
 
-@pytest.mark.parametrize("model", ["auto-chat", "auto-code", "auto-coding"])
+@pytest.mark.parametrize(
+    "model", ["auto-chat", "auto-code", "auto-coding", "coding-elite"]
+)
 def test_completion_preserves_alias_and_settles(sidecar, model):
     server, runtime, calls, _ = sidecar
     status, body, headers = call(server, model=model, headers={"X-Session-Id": "http-session"})
