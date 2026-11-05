@@ -34,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from newapi_catalog import AdminClient, CatalogError, _request, items, refresh_opencode, refresh_provider
 from newapi_benchmark import CASES, benchmark
-from newapi_runtime import Runtime
+from newapi_runtime import LEGACY_ALIASES, MODEL_ALIASES, Runtime
 from newapi_server import Server
 from provider_adapter import _NoRedirect
 from quota_ledger import QuotaLedger, Route
@@ -201,6 +201,38 @@ def liveness_probe(address: tuple[str, int]) -> dict[str, int]:
     return {"health": alias_status, "healthz": status}
 
 
+def models_probe(address: tuple[str, int], key: str) -> dict[str, int]:
+    """Require authenticated discovery to expose every accepted alias."""
+    status, body = get_json(address, "/v1/models", key)
+    data = body.get("data")
+    if status != 200 or body.get("object") != "list" or not isinstance(data, list):
+        raise CatalogError("unexpected model discovery response")
+    entries = [
+        row
+        for row in data
+        if isinstance(row, dict) and isinstance(row.get("id"), str)
+    ]
+    if len(entries) != len(data):
+        raise CatalogError("model discovery entry is malformed")
+    ids = {row["id"] for row in entries}
+    if len(entries) != len(ids) or ids != set(MODEL_ALIASES):
+        raise CatalogError("model discovery omitted or changed an alias")
+    deprecated = {row["id"] for row in entries if row.get("deprecated") is True}
+    if deprecated != set(LEGACY_ALIASES):
+        raise CatalogError("legacy aliases were not marked consistently")
+    if any(row.get("object") != "model" for row in entries):
+        raise CatalogError("model discovery entry has the wrong object type")
+    status, detail = get_json(address, "/v1/models/coding-elite", key)
+    if (
+        status != 200
+        or detail.get("id") != "coding-elite"
+        or detail.get("object") != "model"
+        or detail.get("deprecated") is not True
+    ):
+        raise CatalogError("legacy model detail mismatch")
+    return {"models": len(ids), "legacy": len(deprecated), "detail": status}
+
+
 def wait_entrypoint(
     process: subprocess.Popen[bytes], address: tuple[str, int], *, fail_closed: bool
 ) -> None:
@@ -295,18 +327,23 @@ def verify_entrypoint(
                 "totp_channels": 3,
                 "same_totp_window": same_window,
             }
+            checks["models"] = models_probe(address, env["SIDECAR_API_KEY"])
             checks["chat"] = chat(address, env["SIDECAR_API_KEY"])
             if name == "startup":
                 checks["coding"] = chat(
                     address, env["SIDECAR_API_KEY"], model="auto-coding"
                 )
+                checks["legacy_aliases"] = legacy_aliases_probe(
+                    address, env["SIDECAR_API_KEY"]
+                )
+                checks["stream"] = chat(address, env["SIDECAR_API_KEY"], stream=True)
+            else:
                 checks["legacy_alias"] = chat(
                     address,
                     env["SIDECAR_API_KEY"],
                     model="coding-elite",
                     expected_model="coding-elite",
                 )
-                checks["stream"] = chat(address, env["SIDECAR_API_KEY"], stream=True)
             status, persisted = get_json(
                 address, "/v1/router/diagnostics", env["SIDECAR_API_KEY"]
             )
@@ -751,6 +788,19 @@ def chat(
                 "route": response.getheader("X-Router-Deployment")}
     finally:
         connection.close()
+
+
+def legacy_aliases_probe(address: tuple[str, int], key: str) -> dict:
+    """Exercise every installed legacy alias through the real entrypoint."""
+    results = {}
+    for model in sorted(LEGACY_ALIASES):
+        try:
+            results[model] = chat(
+                address, key, model=model, expected_model=model
+            )
+        except CatalogError as exc:
+            raise CatalogError(f"legacy alias {model} failed: {exc}") from None
+    return {"count": len(results), "models": results}
 
 
 def verify(

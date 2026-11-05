@@ -5,7 +5,14 @@ import subprocess
 import pytest
 
 from newapi_catalog import CatalogError
-from tools.verify_newapi import fixture_command, liveness_probe, wait_entrypoint
+from newapi_runtime import LEGACY_ALIASES, MODEL_ALIASES
+from tools.verify_newapi import (
+    fixture_command,
+    legacy_aliases_probe,
+    liveness_probe,
+    models_probe,
+    wait_entrypoint,
+)
 
 
 class Process:
@@ -75,6 +82,86 @@ def test_liveness_probe_rejects_a_different_alias_body(monkeypatch):
     monkeypatch.setattr("tools.verify_newapi.get_json", get_json)
     with pytest.raises(CatalogError, match="liveness alias"):
         liveness_probe(("127.0.0.1", 8003))
+
+
+def discovery_body():
+    return {
+        "object": "list",
+        "data": [
+            {
+                "id": name,
+                "object": "model",
+                "deprecated": name in LEGACY_ALIASES,
+            }
+            for name in MODEL_ALIASES
+        ],
+    }
+
+
+def test_models_probe_requires_all_aliases(monkeypatch):
+    def get_json(_address, path, key=""):
+        assert key == "generated-key"
+        if path == "/v1/models":
+            return 200, discovery_body()
+        if path == "/v1/models/coding-elite":
+            return 200, {
+                "id": "coding-elite",
+                "object": "model",
+                "deprecated": True,
+            }
+        raise AssertionError(path)
+
+    monkeypatch.setattr("tools.verify_newapi.get_json", get_json)
+    assert models_probe(("127.0.0.1", 8003), "generated-key") == {
+        "models": 22,
+        "legacy": 19,
+        "detail": 200,
+    }
+
+
+def test_models_probe_rejects_an_omitted_alias(monkeypatch):
+    body = discovery_body()
+    body["data"] = body["data"][:-1]
+    monkeypatch.setattr(
+        "tools.verify_newapi.get_json", lambda *_args: (200, body)
+    )
+    with pytest.raises(CatalogError, match="omitted or changed"):
+        models_probe(("127.0.0.1", 8003), "generated-key")
+
+
+def test_models_probe_rejects_an_unmarked_legacy_alias(monkeypatch):
+    body = discovery_body()
+    legacy = next(row for row in body["data"] if row["id"] in LEGACY_ALIASES)
+    legacy["deprecated"] = False
+
+    def get_json(_address, path, key=""):
+        if path == "/v1/models":
+            return 200, body
+        return 200, {
+            "id": "coding-elite",
+            "object": "model",
+            "deprecated": True,
+        }
+
+    monkeypatch.setattr("tools.verify_newapi.get_json", get_json)
+    with pytest.raises(CatalogError, match="not marked consistently"):
+        models_probe(("127.0.0.1", 8003), "generated-key")
+
+
+def test_legacy_aliases_probe_exercises_every_alias(monkeypatch):
+    calls = []
+
+    def fake_chat(_address, _key, *, model, expected_model):
+        calls.append((model, expected_model))
+        return {"status": 200}
+
+    monkeypatch.setattr("tools.verify_newapi.chat", fake_chat)
+    result = legacy_aliases_probe(("127.0.0.1", 8003), "generated-key")
+    assert result["count"] == 19
+    assert calls == [(name, name) for name in sorted(LEGACY_ALIASES)]
+    assert result["models"] == {
+        name: {"status": 200} for name in sorted(LEGACY_ALIASES)
+    }
 
 
 def test_startup_probe_has_a_deadline(monkeypatch):
