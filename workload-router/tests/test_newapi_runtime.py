@@ -229,3 +229,13 @@ def test_exhausted_quota_becomes_rate_limit(runtime, monkeypatch):
         runtime.complete(request(), routes=[limited])
     assert caught.value.error_class == "rate_limit"
     assert caught.value.retry_after_seconds == 60
+
+
+def test_upstream_failure_cooldowns_keep_their_error_class(runtime, monkeypatch):
+    install(runtime, monkeypatch, {
+        "sc.a": ProviderError("upstream", error_class="upstream_failure"),
+        "sc.b": ProviderError("upstream", error_class="upstream_failure"),
+    }, [])
+    with pytest.raises(ProviderError) as caught:
+        runtime.complete(request())
+    assert caught.value.error_class == "upstream_failure"

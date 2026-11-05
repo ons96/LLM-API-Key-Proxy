@@ -121,8 +121,8 @@ AUTO_CAPABILITY_STEPS = {
 AUTO_DEBUG_SIGNALS = ("debug", "traceback", "stack trace")
 AUTO_VERIFY_SIGNALS = ("verify", "verification")
 QUOTA_REASONS = frozenset({
-    "cooldown", "exhausted_rpm", "exhausted_rpd", "exhausted_tpm",
-    "exhausted_tpd", "exhausted_credits", "exhausted_money_day",
+    "exhausted_rpm", "exhausted_rpd", "exhausted_tpm", "exhausted_tpd",
+    "exhausted_credits", "exhausted_money_day",
 })
 
 
