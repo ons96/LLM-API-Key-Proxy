@@ -1601,3 +1601,73 @@ Next:
   exceptions, VPS v2 config/proof provisioning, resource/load and tested rollback
   remain. No VPS SSH, production configuration/data or credential changes were
   performed. Current live successes do not authorize migration.
+
+## Second free provider and controlled fallback - 2026-11-05
+
+- Re-fetched origin before work and before saving: remote sidecar remains
+  `5c4f323`, no competing work; existing `.serena/` untouched. Current PR refs
+  do not point at sidecar tip; approved GitHub API auth still unavailable.
+- Chose Mistral using existing human-confirmed canonical renewable-free metadata
+  and current catalog, not a new signup or unknown one-time credits. Existing
+  `MISTRAL_API_KEY` was resolved in memory by the approved dotenv loader; its
+  value was not printed, copied into a file, modified or passed as argv.
+- Extended `tools/verify_newapi_live.py` for Mistral active live chat/function
+  support, canonical free/tools metadata and conservative min(live,canonical)
+  context. Added mutually exclusive `key_file` or `key_env` source; environment
+  name must exactly match canonical `env_var`, and the child gets no real keys.
+- Added `--failover` (mutually exclusive with the client workload): exactly two
+  providers, controlled primary-first order via fixture latency, local pre-output
+  429 injection, maximum one real 128-output-token request per provider. Fresh
+  owned ledger per direction; no clearing production/test quota state. Failed
+  started attempts retain full reservations and cooldowns; successful fallback
+  settles actual usage. Ledger reopening must retain reservation and cooldown.
+
+Live results, four real requests total:
+
+- Mistral catalog 55 models; `codestral-latest` active, chat/tool supported,
+  live context 256000, conservative canonical context 200000. Two smoke calls
+  passed, exact `ok`, 8 input/2 output tokens each. SSE text TTFT ~431.6 ms;
+  no estimated usage/cooldown. Report read directly:
+  `/tmp/opencode/newapi-live-vk3e2kqt/report.json`, `passed:true`.
+- Both-direction fallback passed: Mistral local injected 429 -> OpenRouter chat
+  (5 input/52 output); OpenRouter local injected 429 -> Mistral SSE (8/2).
+  Exact primary/fallback order, no same-route hidden retry, conservatively
+  charged failure and persisted cooldown. Only two real upstream requests:
+  `/tmp/opencode/newapi-live-ad33w88d/report.json`, `passed:true`. Read each
+  retained ledger directly: one charged failure, one success and one cooldown.
+- Faults were generated in the local bridge; do not claim upstream spontaneous
+  429s. These are different models within the same profiles, not same-model
+  mapping parity. Groq was not retried. No VPS, production retry/override,
+  client permanent configuration or traffic change occurred.
+- After live success, one-call broker cap and exact persisted-reservation
+  equality checks were tightened and verified only with scripted transport:
+  `/tmp/opencode/newapi-live-123lfdk9/report.json` (2 scripted requests). No more
+  live quota was spent for safety, coverage or formatting.
+
+Validation and save:
+
+- `python3 -m pytest tests -o addopts= --quiet` -> **384 passed, 1 warning in
+  30.32s**. Existing `asyncio_mode` warning remains.
+- `python3 tools/verify_release.py` -> **384 passed**, session validation OK,
+  health/route 200, RSS 26152 KB; compilation passed. Final focused live suite
+  **27 passed**, Black/flake8/mypy (imports skipped) and diff checks passed.
+- Added tests for canonical env-source matching/missing vars, Mistral active
+  tool/free/context gates, both failover directions, hidden-retry/missing-usage
+  rejection, durable failures and one-request provider budget. New failover
+  function: 45/50 covered lines, 15/20 branches. Evidence:
+  `/tmp/opencode/newapi-failover-unit.json`. Whole-harness coverage still is
+  not an 80% claim. One coverage run's wall-clock duration was negative due
+  to a clock step; test exit/count and monotonic assertions passed, and a fresh
+  exact focused run reported 27 passed in 1.07s.
+- Updated live verification docs, README, provider plan, roadmap, QUESTIONS and
+  root handoff; save only those and the two reviewed Python files on the feature
+  branch. Keep target plans, secret paths/values and private reports outside git.
+
+Next recommendation:
+
+- Save this milestone, then validate a broader bounded coding/tool workload and
+  compatibility exceptions before proposing any canary. Avoid more repetitive
+  smoke probes; both currently selected free routes are now verified locally.
+- VPS v2 still needs deliberate retry/override/proof configuration and separate
+  resource/load, persistence/rollback and cutover decisions. Main deploy trigger
+  remains untouched. New-API native v1 and the current gateway remain live.

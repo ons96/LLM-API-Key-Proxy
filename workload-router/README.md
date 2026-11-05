@@ -56,7 +56,9 @@ Real-provider checks are separate and explicit in
 one read-only OpenCode loop after `--execute`. Existing keys stay in memory in
 the host process, outside the disposable gateway namespace. See
 `docs/live-provider-verification.md` for input format, budgets, actual mixed
-results and the remaining two-provider/VPS gates.
+results and the remaining production gates. A later bounded continuation
+validated Mistral chat/SSE and injected-429 failover to real responses in both
+Mistral/OpenRouter directions; broader workload and VPS gates remain.
 
 The gateway changes currently deployed are:
 

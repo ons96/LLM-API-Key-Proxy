@@ -2,6 +2,7 @@
 
 Default: catalog preflight only. --execute allows at most two 128-token calls
 per target (four total); --opencode permits one target and three 512-token calls.
+--failover injects local 429s and allows one 128-token fallback per provider.
 Existing keys stay in the parent process; an inherited
 socket feeds a loopback bridge inside a private network namespace. New-API stores
 only generated bridge credentials, never real provider keys. No VPS is accessed.
@@ -10,7 +11,7 @@ only generated bridge credentials, never real provider keys. No VPS is accessed.
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import hmac
 import json
 import os
@@ -58,7 +59,7 @@ OUTPUT_CAP = 128
 CALLS_PER_TARGET = 2
 TOOL_OUTPUT_CAP = 512
 TOOL_CALLS = 3
-SUPPORTED_PROVIDERS = {"groq", "openrouter"}
+SUPPORTED_PROVIDERS = {"groq", "openrouter", "mistral"}
 
 
 @dataclass
@@ -138,6 +139,25 @@ def free_model(provider: str, model: str, catalog: list[dict], canonical: dict) 
         ):
             raise ValueError("selected model has no verified tool support")
         context = row.get("context_length")
+    elif provider == "mistral":
+        capabilities = row.get("capabilities")
+        if (
+            canonical.get("free_tier") != 1
+            or "tools" not in str(canonical.get("capabilities", ""))
+            or not isinstance(capabilities, dict)
+            or capabilities.get("completion_chat") is not True
+            or capabilities.get("function_calling") is not True
+            or row.get("deprecation") is not None
+        ):
+            raise ValueError(
+                "Mistral needs canonical free/tools and active live chat/tool support"
+            )
+        context = row.get("max_context_length")
+        stored_context = canonical.get("context_window")
+        if type(stored_context) is not int or stored_context <= OUTPUT_CAP:
+            raise ValueError("canonical Mistral context is required")
+        if type(context) is int:
+            context = min(context, stored_context)
     else:
         raise ValueError("provider needs an approved free-only validation policy")
     if type(context) is not int or context <= OUTPUT_CAP:
@@ -157,14 +177,15 @@ def load_targets(database: Path, plan: Path) -> tuple[list[Target], list[dict]]:
     for row in rows:
         if (
             not isinstance(row, dict)
-            or set(row) != {"provider", "model", "key_file"}
+            or set(row)
+            not in ({"provider", "model", "key_file"}, {"provider", "model", "key_env"})
             or not isinstance(row["provider"], str)
             or row["provider"] not in SUPPORTED_PROVIDERS
             or not valid_model_id(row["model"])
-            or not isinstance(row["key_file"], str)
+            or not isinstance(row.get("key_file", row.get("key_env")), str)
         ):
             raise ValueError(
-                "targets require an approved provider, model and private key-file path"
+                "targets require an approved provider, model and one private key source"
             )
         names.append(row["provider"])
     if len(set(names)) != len(names):
@@ -197,7 +218,14 @@ def load_targets(database: Path, plan: Path) -> tuple[list[Target], list[dict]]:
                     )
                 if not record["base_url"].startswith("https://"):
                     raise ValueError("live provider endpoints must use HTTPS")
-                key = private_key(Path(row["key_file"]))
+                if "key_env" in row:
+                    if row["key_env"] != record["env_var"]:
+                        raise ValueError(
+                            "key_env must match the canonical credential variable"
+                        )
+                    key = validate_key(os.environ.get(row["key_env"], ""))
+                else:
+                    key = private_key(Path(row["key_file"]))
                 data = _request(
                     opener,
                     record["base_url"] + "/models",
@@ -267,10 +295,14 @@ def frame_read(channel: socket.socket) -> dict:
 class Broker:
     """Only allow selected models, bounded calls and output; never retry a target error."""
 
-    def __init__(self, targets: list[Target], *, tool_loop: bool = False) -> None:
+    def __init__(
+        self, targets: list[Target], *, tool_loop: bool = False, failover: bool = False
+    ) -> None:
         self.targets = {row.provider: row for row in targets}
         self.output_cap = TOOL_OUTPUT_CAP if tool_loop else OUTPUT_CAP
-        self.call_limit = TOOL_CALLS if tool_loop else CALLS_PER_TARGET
+        self.call_limit = (
+            1 if failover else TOOL_CALLS if tool_loop else CALLS_PER_TARGET
+        )
         self.body_limit = 65536 if tool_loop else MAX_REQUEST_BYTES
         self.calls = {row.provider: 0 for row in targets}
         self.blocked: set[str] = set()
@@ -539,12 +571,118 @@ def live_opencode(directory: Path, executable: Path, runtime: Runtime) -> dict:
     }
 
 
+def verify_failover(
+    directory: Path,
+    base: str,
+    relay: str,
+    routes: list[Route],
+    bridge_faults: set[str],
+    bridge_attempts: list[str],
+) -> list[dict]:
+    """Use fresh ledgers per direction; never clear quota or cooldown history."""
+    if len(routes) != 2 or len({route.provider_id for route in routes}) != 2:
+        raise ValueError("failover requires two verified provider routes")
+    results = []
+    for index, primary in enumerate(routes):
+        path = directory / ("failover-" + primary.provider_id + ".db")
+        candidates = [
+            replace(route, latency_ms=1 if route == primary else 100000)
+            for route in routes
+        ]
+        backup = next(
+            route for route in candidates if route.provider_id != primary.provider_id
+        )
+        ledger, state = QuotaLedger(path), RouterState(path)
+        payload = {
+            "model": "auto-coding" if index else "auto-chat",
+            "stream": bool(index),
+            "max_tokens": OUTPUT_CAP,
+            "messages": [{"role": "user", "content": "Reply with exactly ok."}],
+        }
+        prepared = prepare(payload)
+        before = len(bridge_attempts)
+        bridge_faults.add(primary.provider_id)
+        try:
+            for route in candidates:
+                ledger.configure(route)
+            runtime = Runtime(ledger, state, base + "/v1", relay, explore=False)
+            if runtime.ranked(prepared)[0].route.provider_id != primary.provider_id:
+                raise CatalogError("controlled primary route was not ranked first")
+            if payload["stream"]:
+                source = runtime.open_stream(prepared)
+                completion = collect(source)
+                identity = source.identity
+            else:
+                result = runtime.complete(prepared)
+                completion, identity = result.completion, result.decision_id
+            attempts = bridge_attempts[before:]
+            if attempts != [primary.provider_id, backup.provider_id]:
+                raise CatalogError("hidden retry or unexpected failover order")
+            decision = ledger.decision(identity)
+            failure = ledger.db.execute(
+                "SELECT * FROM routing_decisions WHERE status='failure'"
+            ).fetchone()
+            if (
+                failure is None
+                or failure["error_class"] != "rate_limit"
+                or failure["input_tokens"] != failure["reserved_input"]
+                or failure["output_tokens"] != failure["reserved_output"]
+            ):
+                raise CatalogError("injected failure was not conservatively accounted")
+            content = completion.content
+            if (
+                not isinstance(content, str)
+                or content.strip().lower().strip(".!") != "ok"
+                or decision["status"] != "success"
+                or decision["usage_estimated"]
+            ):
+                raise CatalogError("live fallback content or final usage is missing")
+            results.append(
+                {
+                    "primary": primary.provider_id,
+                    "fallback": backup.provider_id,
+                    "stream": payload["stream"],
+                    "attempt_order": attempts,
+                    "fault": "local_injected_429",
+                    "hidden_retries": 0,
+                    "failed_reservation_retained": True,
+                    "input_tokens": decision["input_tokens"],
+                    "output_tokens": decision["output_tokens"],
+                }
+            )
+        finally:
+            bridge_faults.discard(primary.provider_id)
+            state.close()
+            ledger.close()
+        # A new connection must still see the failed route's quota and cooldown.
+        restored = QuotaLedger(path)
+        try:
+            cooldown = restored.capacity(
+                primary, prepared.work.input_tokens, OUTPUT_CAP
+            )
+            if cooldown.feasible or cooldown.reason != "cooldown":
+                raise CatalogError(
+                    "failover cooldown did not survive reopening the ledger"
+                )
+            persisted_failure = restored.decision(failure["id"])
+            if persisted_failure != dict(failure):
+                raise CatalogError(
+                    "failed reservation did not survive reopening the ledger"
+                )
+            results[-1]["cooldown_persisted"] = True
+            results[-1]["reservation_persisted"] = True
+        finally:
+            restored.close()
+    return results
+
+
 def child_verify(
     directory: Path,
     binary: Path,
     channel: socket.socket,
     parent_inode: int,
     opencode: Path | None = None,
+    failover: bool = False,
 ) -> dict:
     """The gateway has no real credentials or external network access."""
     private_namespace(parent_inode)
@@ -554,6 +692,8 @@ def child_verify(
     body_limit = 65536 if opencode else MAX_REQUEST_BYTES
     bridge_lock = threading.Lock()
     bridge_keys: dict[str, str] = {}
+    bridge_faults: set[str] = set()
+    bridge_attempts: list[str] = []
 
     class Bridge(BaseHTTPRequestHandler):
         def log_message(self, *_args):
@@ -586,6 +726,16 @@ def child_verify(
                 self.send_error(400)
                 return
             with bridge_lock:
+                bridge_attempts.append(parts[1])
+                if parts[1] in bridge_faults:
+                    self.send_response(429)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Retry-After", "120")
+                    self.end_headers()
+                    self.wfile.write(
+                        b'{"error":{"message":"local injected rate limit"}}'
+                    )
+                    return
                 frame_send(channel, {"provider": parts[1], "payload": broker_request})
                 first = frame_read(channel)
                 self.send_response(first["status"])
@@ -675,6 +825,12 @@ def child_verify(
                 timeout=40,
                 deadline=45,
             )
+            if failover:
+                report["failover"] = verify_failover(
+                    directory, base, relay, routes, bridge_faults, bridge_attempts
+                )
+                report["passed"] = len(report["failover"]) == 2
+                return report
             if opencode is not None:
                 if len(routes) != 1:
                     raise ValueError("live tool loop must use one verified target")
@@ -797,6 +953,11 @@ def main() -> int:
         type=Path,
         help="one live read-only tool loop instead of chat/SSE smokes",
     )
+    parser.add_argument(
+        "--failover",
+        action="store_true",
+        help="two directions of injected-429 fallback to live providers",
+    )
     parser.add_argument("--bridge-fd", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--namespace-parent-inode", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--directory", type=Path, help=argparse.SUPPRESS)
@@ -810,6 +971,7 @@ def main() -> int:
                 channel,
                 args.namespace_parent_inode,
                 args.opencode,
+                args.failover,
             )
         (args.directory / "live-report.json").write_text(
             json.dumps(report, indent=2) + "\n"
@@ -821,12 +983,18 @@ def main() -> int:
     report = {"catalogs": catalogs, "generation_requests": 0, "executed": False}
     if args.opencode and len(targets) != 1:
         raise ValueError("select exactly one verified target for a live tool loop")
+    if args.failover and (len(targets) != 2 or args.opencode):
+        raise ValueError(
+            "failover requires exactly two verified targets and no tool-loop mode"
+        )
     if args.execute and targets and all(row["ok"] for row in catalogs):
         if not args.binary or not args.binary.is_file() or not args.artifacts.is_dir():
             raise ValueError("existing binary and artifact parent required")
         directory = Path(tempfile.mkdtemp(prefix="newapi-live-", dir=args.artifacts))
         parent, child = socket.socketpair()
-        broker = Broker(targets, tool_loop=args.opencode is not None)
+        broker = Broker(
+            targets, tool_loop=args.opencode is not None, failover=args.failover
+        )
         thread = threading.Thread(target=broker.serve, args=(parent,), daemon=True)
         thread.start()
         frame_send(parent, {"targets": [target.public() for target in targets]})
@@ -850,6 +1018,7 @@ def main() -> int:
             str(directory),
             "--namespace-parent-inode",
             str(os.stat("/proc/self/ns/net").st_ino),
+            *(["--failover"] if args.failover else []),
             *(["--opencode", str(args.opencode.resolve())] if args.opencode else []),
         ]
         process = None

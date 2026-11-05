@@ -119,7 +119,11 @@ OpenCode read loop on one verified zero-priced OpenRouter model through the
 sidecar/New-API. Groq rejected generation with 403 and was not retried. This
 partially closes the live-client gate only: no live two-provider fallback,
 broader workload, VPS canary, resource/load or rollback proof exists. Details
-and fixed request budgets: `live-provider-verification.md`.
+and fixed request budgets: `live-provider-verification.md`. The subsequent
+Mistral free-account check passed chat/SSE; controlled local 429s then triggered
+fallback between Mistral and OpenRouter in both directions to actual completions,
+with separate failed reservations and durable cooldowns. These are different models
+in one profile, not same-model canonical parity or production deployment proof.
 
 ### V2 implementation checkpoint - 2026-11-03
 

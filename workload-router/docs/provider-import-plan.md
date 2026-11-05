@@ -107,7 +107,11 @@ The isolated sidecar/New-API path passed real OpenRouter
 loop with actual usage settlement. Groq's catalog passed but generation returned
 403 and was not retried. Only one free route works in this local sample; do not
 claim cross-provider fallback or production parity. See
-`live-provider-verification.md` for budgets and evidence. No VPS configuration,
+`live-provider-verification.md` for budgets and evidence. A subsequent bounded
+check passed Mistral `codestral-latest` chat/SSE and local injected-429 failover
+between it and OpenRouter in both directions, with actual fallback usage and
+persistent cooldowns. That proves profile-level pre-output fallback, not the
+same underlying model or a VPS load/rollback gate. No VPS configuration,
 client permanent config or cutover occurred.
 
 ## Next

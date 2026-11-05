@@ -75,6 +75,21 @@ generated bridge credentials and allowlisted requests. Existing provider DB,
 secret store, permanent OpenCode config and VPS are unchanged. No cutover is
 recommended by these limited results.
 
+## Second-provider continuation - 2026-11-05
+
+Mistral `codestral-latest` now passes bounded chat and SSE through the local
+sidecar/New-API. The helper accepts `key_env` only when it matches the canonical
+provider credential variable, so the existing key remains environment-only.
+Then `--failover` passed Mistral -> OpenRouter chat and OpenRouter -> Mistral SSE
+with locally injected pre-output 429s, actual fallback usage, no hidden retries
+and persistent cooldowns. Four real requests total in this continuation.
+
+See `workload-router/docs/live-provider-verification.md` and latest STATE for
+scope/evidence. No Groq retry, unknown-credit provider, permanent OpenCode config,
+VPS change or cutover was performed. These routes share a sidecar profile but
+are different models; wider coding/tool/compatibility and VPS load/rollback
+checks still matter. Save/review on the feature branch, not production main.
+
 ## Current checkpoint
 
 - Branch `feat/newapi-sidecar` tracks `origin/feat/newapi-sidecar`.

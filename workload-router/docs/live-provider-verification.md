@@ -25,14 +25,21 @@ Create an owner-controlled JSON target plan outside the repository:
 This example is a 2026-11-05 tested selection, not a permanent availability
 promise. The live catalog must still list it with tools and zero prices.
 
-- One or two explicit providers only: Groq or OpenRouter. Other providers need
-  reviewed free-only selection policy before this tool can use them.
+- One or two explicit providers only: Groq, OpenRouter or Mistral. Other
+  providers need reviewed free-only selection policy before this tool can use them.
 - Endpoints and funding/rate limits come from read-only `llm_providers.db`.
   Groq additionally needs canonical free/tool/context metadata. OpenRouter
   needs an explicit `:free` model, zero current pricing on all catalog axes,
-  known context and advertised `tools` plus `tool_choice`.
+  known context and advertised `tools` plus `tool_choice`. Mistral needs
+  canonical free/tool/context metadata plus current `completion_chat` and
+  `function_calling` capabilities, known live context and no deprecation; the
+  smaller verified context wins. Mistral eligibility still relies on the
+  already-owned free-tier account, not an inference-price endpoint.
 - Key files must be bounded owner-only regular files in `~/.secrets` with no
-  final-component symlink. No key value is accepted in arguments or target JSON.
+  final-component symlink. Alternatively `key_env` may name exactly the
+  provider's canonical `env_var`, already populated by an approved secret
+  loader. Exactly one credential source is allowed. No key value is accepted
+  in arguments or target JSON; no key is copied into a temporary file.
 - Catalog/auth/429 failures fail closed; no automatic same-provider retries or
   paid fallback. A failed generation blocks that target for the rest of the run.
 - A host-process broker keeps real keys in memory. A local inherited socket
@@ -85,6 +92,42 @@ Local tests remain provider-free:
 python3 -m pytest tests/test_verify_newapi_live.py -o addopts= --quiet
 ```
 
+## Cross-provider fallback mode
+
+A plan may combine a canonical environment key and an existing private file:
+
+```json
+{
+  "targets": [
+    {"provider": "mistral", "model": "codestral-latest", "key_env": "MISTRAL_API_KEY"},
+    {"provider": "openrouter", "model": "cohere/north-mini-code:free", "key_file": "~/.secrets/openrouter-key"}
+  ]
+}
+```
+
+Populate `MISTRAL_API_KEY` using the existing approved environment/secret loader,
+not a literal key in a shell command. This tool does not edit secret stores.
+
+```sh
+python3 tools/verify_newapi_live.py \
+    --provider-db /home/osees/CodingProjects/llm-provider-manager/llm_providers.db \
+    --targets /tmp/opencode/live-targets.json \
+    --binary /home/osees/new-api/bin/new-api --artifacts /tmp/opencode \
+    --execute --failover
+```
+
+This mode replaces the smokes and cannot combine with `--opencode`. It requires
+two distinct verified providers, injects a local pre-output 429 in each
+direction, and permits only one real 128-output-token completion per provider.
+The injected primary never reaches a real provider. Primary order uses fixture
+latency values so the test is deterministic, not a performance ranking.
+
+Each direction uses a freshly created owner-only test ledger. Started failures
+retain their whole reservation; successful fallbacks settle final usage; only
+one attempt per route occurs. Reopening each ledger must retain the failed
+reservation and cooldown. There is no quota/cooldown deletion. Do not transplant
+fresh test ledgers or fixture latency values into production.
+
 ## Evidence from 2026-11-05
 
 - Groq catalog: 11 models. `openai/gpt-oss-20b` generation returned 403; no
@@ -120,9 +163,34 @@ Runtime/Server in the disposable instance; separate provider-free evidence
 covers the production entrypoint. A post-run broker/cleanup hardening pass was
 verified only with scripted host responses, not additional live quota.
 
+## Second provider and fallback evidence - 2026-11-05
+
+- Mistral catalog: 55 models; active `codestral-latest` advertises chat/tools
+  and 256000 context. Canonical free/tool metadata caps the test context at
+  200000. Chat and SSE both returned exactly `ok` with actual 8 input/2 output
+  tokens each. Two real attempts, no cooldown or estimated usage. Private
+  report: `/tmp/opencode/newapi-live-vk3e2kqt/report.json` (`passed:true`).
+- Both directions passed through audited New-API private aliases: Mistral
+  injected 429 -> real OpenRouter chat (5 input/52 output); OpenRouter injected
+  429 -> real Mistral SSE (8/2). Attempt order was exactly the primary then
+  fallback; no hidden retry; failed reservation retained and cooldown persisted.
+  Only two real provider attempts, because local injected faults consumed no
+  upstream quota. Report: `/tmp/opencode/newapi-live-ad33w88d/report.json`.
+- The local bridge introduced the faults. This does not claim that an upstream
+  spontaneously returned 429 or prove same-model identity across providers;
+  the tested routes serve the same sidecar profile but different models.
+- Four additional real requests were used in this continuation (two Mistral
+  smokes plus two live fallbacks). Groq was not retried and no new signup,
+  real credit-funded provider, VPS change or permanent config change occurred.
+- Final single-call broker ceiling and explicit persisted-reservation assertion
+  were validated with scripted transport only after the live pass, to avoid
+  spending more quota. Fixture report:
+  `/tmp/opencode/newapi-live-123lfdk9/report.json`; not live-provider evidence.
+
 ## Remaining gates
 
-Only one live free-provider route passed. Two-provider live fallback, broader
-coding workloads, quotas under load, real canary entrypoint provisioning and
-VPS-40 resource/restart/rollback gates remain. Do not switch production traffic,
-clear live New-API overrides, or set its retries to zero based on this result.
+Two live free routes and pre-output failover now pass locally. Broader coding
+workloads, same-model mapping semantics, post-output stream failures with real
+providers, quotas under load, real canary entrypoint provisioning and VPS-40
+resource/restart/rollback gates remain. Do not switch production traffic, clear
+live New-API overrides or set its retries to zero based on this result.

@@ -10,6 +10,8 @@ import urllib.error
 import pytest
 
 from newapi_catalog import CatalogError
+from provider_adapter import ProviderCompletion, ProviderError
+from quota_ledger import Route
 from tools.verify_newapi_live import (
     Broker,
     OUTPUT_CAP,
@@ -19,6 +21,7 @@ from tools.verify_newapi_live import (
     free_model,
     load_targets,
     private_key,
+    verify_failover,
 )
 
 
@@ -80,7 +83,8 @@ def test_plan_rejects_missing_unapproved_or_repeated_targets_before_network(
         load_targets(tmp_path / "unused.db", plan)
 
 
-def test_catalog_preflight_keeps_canonical_db_read_only(tmp_path, monkeypatch):
+@pytest.mark.parametrize("source", ["file", "env", "wrong_env", "missing_env"])
+def test_catalog_preflight_keeps_canonical_db_read_only(tmp_path, monkeypatch, source):
     monkeypatch.setattr("tools.verify_newapi_live.Path.home", lambda: tmp_path)
     store = tmp_path / ".secrets"
     store.mkdir(mode=0o700)
@@ -99,13 +103,15 @@ def test_catalog_preflight_keeps_canonical_db_read_only(tmp_path, monkeypatch):
             "CREATE TABLE models (provider_id, model_id, context_window, free_tier, capabilities)"
         )
     plan = tmp_path / "targets.json"
+    credentials = (
+        {"key_file": str(key)}
+        if source == "file"
+        else {"key_env": "OTHER_KEY" if source == "wrong_env" else "KEY"}
+    )
+    monkeypatch.setenv("KEY", "fixture-only-key" if source != "missing_env" else "")
     plan.write_text(
         json.dumps(
-            {
-                "targets": [
-                    {"provider": "openrouter", "model": "m:free", "key_file": str(key)}
-                ]
-            }
+            {"targets": [{"provider": "openrouter", "model": "m:free", **credentials}]}
         )
     )
     before = database.read_bytes()
@@ -128,6 +134,9 @@ def test_catalog_preflight_keeps_canonical_db_read_only(tmp_path, monkeypatch):
     monkeypatch.setattr("tools.verify_newapi_live._request", fetch)
     targets, reports = load_targets(database, plan)
     assert database.read_bytes() == before
+    if source in {"wrong_env", "missing_env"}:
+        assert not targets and not reports[0]["ok"] and not calls
+        return
     assert len(targets) == 1 and reports[0]["ok"]
     assert targets[0].rpm == 4
     assert "fixture-only-key" not in repr(targets) + repr(reports)
@@ -152,6 +161,107 @@ def test_free_model_accepts_only_active_free_tool_groq_metadata():
         free_model("groq", "m", [{"id": "m", "active": False}], canonical)
     with pytest.raises(ValueError):
         free_model("groq", "m", [{"id": "m"}], {**canonical, "free_tier": 0})
+
+
+def test_mistral_needs_live_tools_and_canonical_free_context():
+    model = {
+        "id": "codestral-latest",
+        "max_context_length": 256000,
+        "deprecation": None,
+        "capabilities": {"completion_chat": True, "function_calling": True},
+    }
+    canonical = {"free_tier": 1, "capabilities": "chat,tools", "context_window": 200000}
+    assert free_model("mistral", model["id"], [model], canonical)["context"] == 200000
+    for change in (
+        {"deprecation": "retired"},
+        {"capabilities": {"completion_chat": True}},
+        {"max_context_length": None},
+    ):
+        with pytest.raises(ValueError):
+            free_model("mistral", model["id"], [{**model, **change}], canonical)
+    with pytest.raises(ValueError):
+        free_model("mistral", model["id"], [model], {**canonical, "free_tier": 0})
+
+
+@pytest.mark.parametrize("fault_mode", ["none", "hidden_retry", "missing_usage"])
+def test_failover_is_independently_accounted_in_both_directions(
+    tmp_path, monkeypatch, fault_mode
+):
+    routes = [
+        Route(
+            name,
+            name,
+            "m",
+            "key-" + name,
+            "sc." + name,
+            index,
+            quota_type="rate_limited",
+            context_window=32768,
+            output_limit=128,
+            input_price=0,
+            output_price=0,
+            stream=True,
+            limits={"rpd": 2},
+        )
+        for index, name in enumerate(("a", "b"), 1)
+    ]
+    faults, attempts = set(), []
+
+    class Adapter:
+        def complete(self, deployment, payload):
+            attempts.append(deployment.provider)
+            if deployment.provider in faults:
+                raise ProviderError(
+                    "fixture", error_class="rate_limit", retry_after_seconds=120
+                )
+            if fault_mode == "hidden_retry":
+                attempts.append(deployment.provider)
+            return ProviderCompletion(
+                {"role": "assistant", "content": "ok"},
+                "stop",
+                (
+                    None
+                    if fault_mode == "missing_usage"
+                    else {"prompt_tokens": 10, "completion_tokens": 2}
+                ),
+            )
+
+        def stream(self, deployment, payload):
+            result = self.complete(deployment, payload)
+            yield json.dumps({"choices": [{"index": 0, "delta": {"content": "ok"}}]})
+            yield json.dumps({"choices": [], "usage": result.usage})
+            yield "[DONE]"
+
+    monkeypatch.setattr(
+        "tools.verify_newapi_live.Runtime.adapter", lambda *_args: Adapter()
+    )
+    if fault_mode != "none":
+        match = (
+            "hidden retry" if fault_mode == "hidden_retry" else "final usage is missing"
+        )
+        with pytest.raises(CatalogError, match=match):
+            verify_failover(
+                tmp_path,
+                "http://127.0.0.1:8002",
+                "fixture-relay",
+                routes,
+                faults,
+                attempts,
+            )
+        assert not faults
+        return
+    result = verify_failover(
+        tmp_path, "http://127.0.0.1:8002", "fixture-relay", routes, faults, attempts
+    )
+    assert [row["attempt_order"] for row in result] == [["a", "b"], ["b", "a"]]
+    assert all(
+        row["hidden_retries"] == 0
+        and row["cooldown_persisted"]
+        and row["failed_reservation_retained"]
+        and row["reservation_persisted"]
+        for row in result
+    )
+    assert not faults
 
 
 def target():
@@ -186,8 +296,9 @@ def drain(channel):
             return frames
 
 
-def test_bridge_budget_prevents_hidden_extra_generation(monkeypatch):
-    broker = Broker([target()])
+@pytest.mark.parametrize("failover", [False, True])
+def test_bridge_budget_prevents_hidden_extra_generation(monkeypatch, failover):
+    broker = Broker([target()], failover=failover)
     attempts = []
 
     def open_request(req, **kwargs):
@@ -200,7 +311,7 @@ def test_bridge_budget_prevents_hidden_extra_generation(monkeypatch):
         for _ in range(3):
             broker.dispatch(left, {"provider": "groq", "payload": payload()})
             frames = drain(right)
-        assert len(attempts) == 2
+        assert len(attempts) == (1 if failover else 2)
         assert frames[0]["status"] == 429
         assert "private-test-value" not in repr(broker.events)
     finally:
