@@ -180,6 +180,29 @@ unverified-capability skips, aggregate budget rejection, the 256-token broker
 cap and mutually exclusive workload flags. It uses scripted adapters and spends
 no provider quota.
 
+### Live workload attempt - 2026-11-04
+
+An owner-provided one-target plan (`/tmp/opencode/newapi-live-tool-target.json`,
+OpenRouter `cohere/north-mini-code:free`, existing owner-only key file) used the
+declared workload budget. The first invocation exposed a child-entrypoint wiring
+bug: the parent passed `--workload` to the isolated child, but `child_verify()`
+did not receive it, so two smoke requests ran instead. The child call now
+forwards `workload`, with a provider-free regression test covering the child CLI
+path; the rerun used the workload path.
+
+The rerun planned five cases but attempted three. `plan` and `edit` returned
+correct JSON with actual usage (183 and 123 output tokens). `debug` returned no
+content after exactly 256 completion tokens, reported estimated usage and
+`invalid_response`; that failure put the route into cooldown, so `tool` and
+`review` were reported `route_unavailable`. `quality` was 2/2 correct among
+graded cases, but `passed:false` because coverage was incomplete. The cap
+exhaustion is consistent with a reasoning-heavy or truncated completion, not
+proven as the sole cause; do not raise the cap without a new declared ceiling
+and a fresh batch. Private report:
+`/tmp/opencode/newapi-live-ht15k438/report.json`. Including the two accidental
+smoke calls, this attempt spent five live provider requests; no key was
+printed, copied into New-API, or committed.
+
 ## Evidence from 2026-11-05
 
 - Groq catalog: 11 models. `openai/gpt-oss-20b` generation returned 403; no
@@ -241,11 +264,11 @@ verified only with scripted host responses, not additional live quota.
 
 ## Remaining gates
 
-Two live free routes and pre-output failover now pass locally. The deterministic
-coding/tool workload is implemented and provider-free tested, but no live
-workload batch has run: this continuation's host has no private
-`/tmp/opencode/live-targets.json` plan and no canonical `MISTRAL_API_KEY`, and
-an absent plan is an environment gap rather than a passing result. Same-model
+Two live free routes and pre-output failover now pass locally. A live
+single-target workload batch was attempted on 2026-11-04; it did not complete
+all five cases (see above), so the workload coverage gate still fails. The
+remaining work is to decide whether the 256-token cap is adequate for
+reasoning-heavy cases or to declare a larger budget, then rerun. Same-model
 mapping semantics, post-output stream failures with real providers, quotas under
 load, real canary entrypoint provisioning and VPS-40 resource/restart/rollback
 gates remain. Do not switch production traffic, clear live New-API overrides or

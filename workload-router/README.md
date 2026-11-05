@@ -61,9 +61,12 @@ on unverified case capabilities and reports transport and deterministic
 correctness separately. See `docs/live-provider-verification.md` for input
 format, budgets, actual mixed results and the remaining production gates. A
 later bounded continuation validated Mistral chat/SSE and injected-429 failover
-to real responses in both Mistral/OpenRouter directions. The workload mode is
-provider-free tested; no live workload batch ran where its private target plan
-and environment key were absent. Canary and VPS gates remain.
+to real responses in both Mistral/OpenRouter directions. A 2026-11-04 live
+one-target workload batch reached the workload path after fixing a child-wiring
+bug, graded 2/2 attempted cases correct, but the debug case exhausted the
+256-token cap with empty content and the final two cases were skipped;
+`passed:false`. See `docs/live-provider-verification.md` for the exact budget
+finding. Canary and VPS gates remain.
 
 The gateway changes currently deployed are:
 

@@ -1753,3 +1753,30 @@ Limits and next:
   the owner-provided plan and approved environment key exist, then resolve
   client-usage/compatibility exceptions before proposing any canary. VPS
   resource/load/rollback and authorization gates remain separate.
+
+## Live workload attempt and child wiring fix - 2026-11-04
+
+- Located the existing owner-created plans in `/tmp/opencode` and used
+  `newapi-live-tool-target.json` (one OpenRouter `cohere/north-mini-code:free`
+  target, owner-only key file). The canonical read-only provider DB was present.
+- Found and fixed a real child-entrypoint bug: the parent forwarded `--workload`
+  to the isolated child command, but the `child_verify()` call omitted
+  `args.workload`, so the first invocation silently ran two smoke requests.
+  Added keyword forwarding and a regression test that calls the child CLI path
+  and asserts `workload=True`.
+- Validation after the fix: focused live-policy suite **36 passed**; full suite
+  **393 passed**, one existing `asyncio_mode` warning in 28.65s; `git diff
+  --check` clean and no added non-ASCII lines.
+- Live workload rerun: 5 planned, 3 attempted, 2 transport-usable and graded
+  correct (plan 183 output tokens, edit 123). The debug case returned empty
+  content after exactly 256 completion tokens with estimated usage and
+  `invalid_response`; the route then cooled down, so tool and review reported
+  `route_unavailable`. Workload `passed:false`; `quality` was 2/2 among graded
+  cases. Private report: `/tmp/opencode/newapi-live-ht15k438/report.json`.
+- Including the two accidental smoke calls from the first invocation, this
+  continuation spent five live provider requests. No key was printed, copied
+  into New-API, or committed; no VPS change, retry/override change, deployment
+  or cutover occurred.
+- Next: decide whether the 256-token cap is adequate for reasoning-heavy debug
+  cases or declare a larger workload ceiling and rerun; then audit client usage
+  and resolve compatibility exceptions before any canary proposal.

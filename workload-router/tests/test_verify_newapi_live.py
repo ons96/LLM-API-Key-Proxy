@@ -3,8 +3,10 @@
 from contextlib import contextmanager
 import io
 import json
+import os
 import socket
 import sqlite3
+import sys
 import urllib.error
 
 import pytest
@@ -671,3 +673,67 @@ def test_workload_broker_enforces_256_token_and_five_call_budget(monkeypatch):
 def test_broker_rejects_combined_verification_budgets():
     with pytest.raises(ValueError, match="mutually exclusive"):
         Broker([target()], workload=True, failover=True)
+
+
+def test_child_entrypoint_forwards_workload(monkeypatch, tmp_path):
+    import tools.verify_newapi_live as live
+
+    seen = {}
+
+    def fake_child(
+        directory,
+        binary,
+        channel,
+        parent_inode,
+        opencode=None,
+        failover=False,
+        workload=False,
+    ):
+        seen.update(
+            directory=directory,
+            binary=binary,
+            parent_inode=parent_inode,
+            opencode=opencode,
+            failover=failover,
+            workload=workload,
+        )
+        return {"passed": True}
+
+    monkeypatch.setattr(live, "child_verify", fake_child)
+    left, right = socket.socketpair()
+    fd = left.detach()
+    try:
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "verify_newapi_live.py",
+                "--binary",
+                str(tmp_path / "new-api"),
+                "--bridge-fd",
+                str(fd),
+                "--directory",
+                str(tmp_path),
+                "--namespace-parent-inode",
+                "1",
+                "--workload",
+            ],
+        )
+        assert live.main() == 0
+    finally:
+        right.close()
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
+    assert seen == {
+        "directory": tmp_path,
+        "binary": tmp_path / "new-api",
+        "parent_inode": 1,
+        "opencode": None,
+        "failover": False,
+        "workload": True,
+    }
+    report = json.loads((tmp_path / "live-report.json").read_text())
+    assert report == {"passed": True}

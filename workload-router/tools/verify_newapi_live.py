@@ -1141,8 +1141,9 @@ def main() -> int:
                 args.binary,
                 channel,
                 args.namespace_parent_inode,
-                args.opencode,
-                args.failover,
+                opencode=args.opencode,
+                failover=args.failover,
+                workload=args.workload,
             )
         (args.directory / "live-report.json").write_text(
             json.dumps(report, indent=2) + "\n"
