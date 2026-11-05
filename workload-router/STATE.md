@@ -2,7 +2,7 @@
 
 Current concise cross-harness handoff: `../HANDOFF-CURRENT-newapi-sidecar.md`.
 Standalone prompt: `../RESUME-newapi-sidecar.txt`. Implementation checkpoint
-`ef6b803` is pushed; 384 tests passed. The entries below are chronological, so
+`994395a` is pushed; 393 tests passed. The entries below are chronological, so
 read the final checkpoints rather than an old repeated "next action" section.
 
 ## Current status
