@@ -15,6 +15,12 @@ from provider_adapter import ProviderCompletion, ProviderError
 from quota_ledger import Route, token_count
 
 
+# Capabilities a case may declare. An undeclared or unknown requirement fails
+# closed before dispatch; live workloads only use capabilities verified from the
+# provider's current catalog metadata.
+KNOWN_CAPABILITIES = frozenset({"tools"})
+
+
 @dataclass(frozen=True)
 class Case:
     name: str
@@ -22,10 +28,16 @@ class Case:
     prompt: str
     expected: dict
     tool: bool = False
+    requires: frozenset[str] = frozenset()
 
-    def payload(self, stream: bool) -> dict:
+    def __post_init__(self) -> None:
+        if not isinstance(self.requires, frozenset) or not self.requires <= KNOWN_CAPABILITIES:
+            raise ValueError("case requires an unknown capability")
+
+    def payload(self, stream: bool, *, output: int = 512, schema: bool = True) -> dict:
+        """Keep tools intact; schema is optional for prompt-only JSON workloads."""
         payload = {"model": "auto-coding", "messages": [{"role": "user", "content": self.prompt}],
-                   "max_tokens": 512, "temperature": 0, "stream": stream}
+                   "max_tokens": output, "temperature": 0, "stream": stream}
         if self.tool:
             payload["tools"] = [{"type": "function", "function": {
                 "name": "read_file", "description": "Read a bounded source-file range.",
@@ -33,7 +45,7 @@ class Case:
                     "path": {"type": "string"}, "start": {"type": "integer"}, "count": {"type": "integer"}},
                     "required": ["path", "start", "count"], "additionalProperties": False}}}]
             payload["tool_choice"] = {"type": "function", "function": {"name": "read_file"}}
-        else:
+        elif schema:
             payload["response_format"] = {"type": "json_object"}
         return payload
 
@@ -70,7 +82,8 @@ CASES = (
          {"operator": ">", "right": 0}),
     Case("tool", "explore", 'Task tool: Call read_file for path src/app.py, start line 12, count 4. '
          'Use those exact arguments, not a text description.',
-         {"path": "src/app.py", "start": 12, "count": 4}, tool=True),
+         {"path": "src/app.py", "start": 12, "count": 4}, tool=True,
+         requires=frozenset({"tools"})),
     Case("review", "final-review", 'Task review: discount(price, percent) returns price * (100 + percent) / 100 '
          'and never checks percent is between 0 and 100. Return only a JSON object with findings equal to '
          '["adds_instead_of_subtracts", "missing_percent_bounds"] in that order.',

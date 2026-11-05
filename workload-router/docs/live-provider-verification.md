@@ -128,6 +128,58 @@ one attempt per route occurs. Reopening each ledger must retain the failed
 reservation and cooldown. There is no quota/cooldown deletion. Do not transplant
 fresh test ledgers or fixture latency values into production.
 
+## Deterministic coding/tool workload
+
+`--workload` runs the existing five `newapi_benchmark.CASES` (plan, edit, debug,
+tool, review) once per verified target. It replaces, rather than adds to, the
+chat/SSE, client and failover workloads.
+
+```sh
+python3 tools/verify_newapi_live.py \
+    --provider-db /home/osees/CodingProjects/llm-provider-manager/llm_providers.db \
+    --targets /tmp/opencode/live-targets.json \
+    --binary /home/osees/new-api/bin/new-api --artifacts /tmp/opencode \
+    --execute --workload
+```
+
+Budget and contracts:
+
+- At most two verified targets, five non-streaming cases each: ten requests and
+  2560 output tokens in total, each request capped at 256 output tokens. The
+  host broker enforces per-target and aggregate request ceilings before any
+  upstream call; the isolated child has a 480-second wall-clock guard.
+- Temperature is 0. The tool case keeps its `tools` definition and forced
+  `tool_choice`. The four JSON cases require JSON in the prompt but omit
+  `response_format`, because live catalogs do not verify structured-output
+  support; the scripted verifier still exercises `response_format`.
+- Each case declares its required capabilities. Live targets advertise only
+  `tools`, and only after `free_model()` verified it from current catalog
+  metadata. A case whose requirement is unverified is skipped and reported, not
+  guessed. Unknown capability names fail closed before dispatch.
+- A target is not retried after a `rate_limit` or `provider_rejection` class
+  failure; remaining cases are reported as `target_blocked_after:<class>`.
+  Cases infeasible from cooldown/context are reported as `route_unavailable`.
+  401/403/429 are never silently substituted or rotated.
+- `passed` is a transport, settlement and coverage gate: every planned case
+  must be dispatched, return usable output and settle with real (non-estimated)
+  usage. Deterministic correctness is reported separately as `quality.graded`,
+  `quality.correct`, `quality.all_correct` and per-route counts. A transport
+  pass with low `quality.correct` is a model-quality result, not a pipeline
+  failure. Reports contain no prompts.
+- Broker response bounds, credential-echo rejection, no-redirect/no-proxy
+  transport and owner-only artifacts are unchanged from the other live modes.
+
+Provider-free gate:
+
+```sh
+python3 -m pytest tests/test_verify_newapi_live.py -o addopts= --quiet
+```
+
+The suite covers the complete five-case dispatch, transport/grade separation,
+unverified-capability skips, aggregate budget rejection, the 256-token broker
+cap and mutually exclusive workload flags. It uses scripted adapters and spends
+no provider quota.
+
 ## Evidence from 2026-11-05
 
 - Groq catalog: 11 models. `openai/gpt-oss-20b` generation returned 403; no
@@ -189,8 +241,12 @@ verified only with scripted host responses, not additional live quota.
 
 ## Remaining gates
 
-Two live free routes and pre-output failover now pass locally. Broader coding
-workloads, same-model mapping semantics, post-output stream failures with real
-providers, quotas under load, real canary entrypoint provisioning and VPS-40
-resource/restart/rollback gates remain. Do not switch production traffic, clear
-live New-API overrides or set its retries to zero based on this result.
+Two live free routes and pre-output failover now pass locally. The deterministic
+coding/tool workload is implemented and provider-free tested, but no live
+workload batch has run: this continuation's host has no private
+`/tmp/opencode/live-targets.json` plan and no canonical `MISTRAL_API_KEY`, and
+an absent plan is an environment gap rather than a passing result. Same-model
+mapping semantics, post-output stream failures with real providers, quotas under
+load, real canary entrypoint provisioning and VPS-40 resource/restart/rollback
+gates remain. Do not switch production traffic, clear live New-API overrides or
+set its retries to zero based on these results.

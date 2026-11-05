@@ -52,13 +52,18 @@ last-good catalogs and priority-only updates are also verified. See
 `docs/operator-commands.md` for the exact scope and remaining live gates.
 
 Real-provider checks are separate and explicit in
-`tools/verify_newapi_live.py`: catalog-only by default, with bounded chat/SSE or
-one read-only OpenCode loop after `--execute`. Existing keys stay in memory in
-the host process, outside the disposable gateway namespace. See
-`docs/live-provider-verification.md` for input format, budgets, actual mixed
-results and the remaining production gates. A later bounded continuation
-validated Mistral chat/SSE and injected-429 failover to real responses in both
-Mistral/OpenRouter directions; broader workload and VPS gates remain.
+`tools/verify_newapi_live.py`: catalog-only by default, with bounded chat/SSE,
+one read-only OpenCode loop, deterministic coding/tool cases (`--workload`) or
+injected-429 failover after `--execute`. Existing keys stay in memory in the
+host process, outside the disposable gateway namespace. The workload mode is
+capped at ten requests and 2560 output tokens, keeps tools intact, fails closed
+on unverified case capabilities and reports transport and deterministic
+correctness separately. See `docs/live-provider-verification.md` for input
+format, budgets, actual mixed results and the remaining production gates. A
+later bounded continuation validated Mistral chat/SSE and injected-429 failover
+to real responses in both Mistral/OpenRouter directions. The workload mode is
+provider-free tested; no live workload batch ran where its private target plan
+and environment key were absent. Canary and VPS gates remain.
 
 The gateway changes currently deployed are:
 

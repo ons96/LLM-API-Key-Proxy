@@ -1696,3 +1696,60 @@ Next recommendation:
   package ASCII, referenced paths, prompt consistency and git diff before save.
 - Save this docs-only package on the same feature branch for GitHub portability;
   no merge, deployment, service change, credential access or traffic cutover.
+
+## Deterministic coding/tool workload mode - 2026-11-05
+
+- Re-fetched origin before work: local `feat/newapi-sidecar` and
+  `origin/feat/newapi-sidecar` were both `675a199` with no divergence. Existing
+  untracked `.serena/` was preserved; no stash/reset/clean was run.
+- Added explicit `--workload` to `tools/verify_newapi_live.py`, reusing
+  `newapi_benchmark.CASES`, the stdlib transport, ledger/runtime and live broker.
+  Five cases (plan/edit/debug/tool/review) run once per verified target under a
+  declared ceiling: at most two targets, ten requests, 2560 output tokens, 256
+  output tokens per request and a 480-second child guard. The mode is mutually
+  exclusive with `--opencode`/`--failover`; smoke, tool-loop and failover
+  budgets are unchanged.
+- `Case` now declares `requires` from a known capability set; the tool case
+  keeps tools and forced `tool_choice`. JSON cases ask for JSON in the prompt
+  but omit `response_format`, because live catalogs do not verify structured
+  output. Payload output defaults to 512 for existing scripted use; only the
+  workload passes 256.
+- Live targets advertise only catalog-verified `tools`. Unverified case
+  requirements and unknown capability names are skipped/rejected before
+  dispatch. The broker enforces per-target and aggregate call ceilings plus the
+  256-token cap; credential echo, redirect/proxy denial and owner-only artifacts
+  are unchanged. Rate-limit/provider-rejection failures stop that target's
+  remaining cases (`target_blocked_after:*`); cooldown-infeasible cases report
+  `route_unavailable`.
+- `passed` is transport/settlement/coverage only; deterministic correctness is
+  reported separately in `quality` (`graded`, `correct`, `all_correct`,
+  `by_route`). No prompt, key or raw response is stored in the report.
+
+Validation:
+
+- `python3 -m pytest tests -o addopts= --quiet` -> **392 passed, 1 existing
+  `asyncio_mode` warning in 30.12s**.
+- `python3 tools/verify_release.py` -> **392 passed**, session validation OK,
+  health/route 200, RSS 26168 KB; compilation passed.
+- Provider-free real-binary verifier passed on a fresh instance:
+  `/tmp/opencode/newapi-proof-zg3ejfrg/report.json` (`passed:true`,
+  scripted-local-only). Chat/coding/SSE, entrypoint startup/restart, operator
+  catalog/priority, paid exclusion and grade-driven ranking changes passed; the
+  benchmark still reports 0/5 for route one and 5/5 for route two.
+- New workload tests cover complete five-case dispatch, transport/grade
+  separation, unverified-capability skip, over-budget/unknown-capability
+  rejection before dispatch, the 256-token/five-call broker budget and
+  mutually exclusive modes. `git diff --check` clean.
+
+Limits and next:
+
+- No live provider generation, key access, VPS change, retry/override change or
+  cutover occurred. This host has no private `/tmp/opencode/live-targets.json`
+  plan and no canonical `MISTRAL_API_KEY`, so a live workload batch could not
+  run; that is an environment gap, not a passing live result. Do not treat the
+  scripted 0/5 vs 5/5 grades as LLM quality evidence.
+- Updated `docs/live-provider-verification.md`, `docs/gateway-compatibility.md`,
+  README and the root handoff. Next: run one budgeted live workload batch where
+  the owner-provided plan and approved environment key exist, then resolve
+  client-usage/compatibility exceptions before proposing any canary. VPS
+  resource/load/rollback and authorization gates remain separate.

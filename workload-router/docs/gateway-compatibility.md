@@ -123,6 +123,44 @@ profile-and-step, not the gateway's exact chains; see
   to the sidecar and the rest to the gateway. Preserves URLs, but splits
   accounting: some spend bypasses the ledger.
 
+## Continuation review - 2026-11-05
+
+Counts were rechecked against `newapi_server.py`: the sidecar still exposes 27
+paths, the recorded gateway surface is 30, so 24 are same-path (1 covered, 23
+partial), 1 is renamed (`/health` -> `/healthz`) and 5 are absent
+(`/api/cliproxyapi/*`). No empty shim was added for this review.
+
+Client-visible exceptions to settle before a canary:
+
+1. **Health probes:** monitors must use `/healthz` or change their config. Do
+   not add an unauthenticated `/health` shim without deciding its liveness and
+   auth contract.
+2. **Model discovery:** `/v1/models` and `/v1/model/list` expose the 22 sidecar
+   aliases, not the gateway's upstream catalog. A client that selects concrete
+   upstream models will not find them. The alias-translation, dual-path and
+   front-proxy options above remain undecided.
+3. **Responses and embeddings:** only the documented text/function response
+   subset and operator-allowlisted embedding aliases are served.
+   `previous_response_id`, multimodal input, streaming tools and non-allowlisted
+   embeddings still fail closed.
+4. **Sessions and intent:** `/v1/model/switch`, session lookup and intent
+   detection are process-local. They do not share state across workers,
+   restarts or a multi-instance canary; treat them as advisory, not durable
+   routing state.
+5. **Provider status and TPS:** `/api/providers/*` is an authenticated,
+   stale-labelled read-only snapshot; `/v1/providers` lists ledger route
+   providers only; `/v1/tps-stats` reports ledger streaming samples and rejects
+   `export=true`.
+6. **CLIProxyAPI:** five routes remain absent until that external service and
+   its credentials are configured. Empty 200 responses would still be
+   incompatible, so do not add stubs.
+
+Route *usage* is still unknown: the inventory proves availability, not demand.
+Before proposing a canary, review client configs or redacted request logs for
+these paths and aliases, and record which exceptions are accepted for the
+canary versus must be closed. A 200 response is not evidence of semantic
+parity.
+
 ## Unknowns
 
 - Whether any live client actually calls the 5 absent CLIProxyAPI routes.

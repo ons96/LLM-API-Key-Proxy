@@ -3,6 +3,8 @@
 Default: catalog preflight only. --execute allows at most two 128-token calls
 per target (four total); --opencode permits one target and three 512-token calls.
 --failover injects local 429s and allows one 128-token fallback per provider.
+--workload runs five deterministic coding/tool cases per target with a 256-token
+output cap and a declared ten-request, 2560-output-token ceiling.
 Existing keys stay in the parent process; an inherited
 socket feeds a loopback bridge inside a private network namespace. New-API stores
 only generated bridge credentials, never real provider keys. No VPS is accessed.
@@ -31,7 +33,7 @@ from urllib import error, request
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from newapi_benchmark import collect
+from newapi_benchmark import CASES, KNOWN_CAPABILITIES, collect
 from newapi_catalog import (
     CatalogError,
     _request,
@@ -59,6 +61,10 @@ OUTPUT_CAP = 128
 CALLS_PER_TARGET = 2
 TOOL_OUTPUT_CAP = 512
 TOOL_CALLS = 3
+WORKLOAD_OUTPUT_CAP = 256
+WORKLOAD_TARGETS = 2
+WORKLOAD_MAX_REQUESTS = len(CASES) * WORKLOAD_TARGETS
+WORKLOAD_MAX_OUTPUT_TOKENS = WORKLOAD_MAX_REQUESTS * WORKLOAD_OUTPUT_CAP
 SUPPORTED_PROVIDERS = {"groq", "openrouter", "mistral"}
 
 
@@ -72,6 +78,7 @@ class Target:
     key: str = field(repr=False)
     context: int
     rpm: int
+    capabilities: frozenset[str] = frozenset()
 
     def public(self) -> dict:
         return {
@@ -79,6 +86,7 @@ class Target:
             "model": self.model,
             "context": self.context,
             "rpm": self.rpm,
+            "capabilities": sorted(self.capabilities),
         }
 
 
@@ -162,7 +170,9 @@ def free_model(provider: str, model: str, catalog: list[dict], canonical: dict) 
         raise ValueError("provider needs an approved free-only validation policy")
     if type(context) is not int or context <= OUTPUT_CAP:
         raise ValueError("verified model context is required")
-    return {"context": context}
+    # Every supported policy above verifies tool support. No other live
+    # capability is inferred from provider marketing metadata.
+    return {"context": context, "capabilities": frozenset({"tools"})}
 
 
 def load_targets(database: Path, plan: Path) -> tuple[list[Target], list[dict]]:
@@ -253,6 +263,7 @@ def load_targets(database: Path, plan: Path) -> tuple[list[Target], list[dict]]:
                     key,
                     verified["context"],
                     min(rpm, 4),
+                    verified["capabilities"],
                 )
                 targets.append(target)
                 report.update(
@@ -296,14 +307,28 @@ class Broker:
     """Only allow selected models, bounded calls and output; never retry a target error."""
 
     def __init__(
-        self, targets: list[Target], *, tool_loop: bool = False, failover: bool = False
+        self,
+        targets: list[Target],
+        *,
+        tool_loop: bool = False,
+        failover: bool = False,
+        workload: bool = False,
     ) -> None:
+        if sum((tool_loop, failover, workload)) > 1:
+            raise ValueError("verification workloads are mutually exclusive")
         self.targets = {row.provider: row for row in targets}
-        self.output_cap = TOOL_OUTPUT_CAP if tool_loop else OUTPUT_CAP
-        self.call_limit = (
-            1 if failover else TOOL_CALLS if tool_loop else CALLS_PER_TARGET
-        )
-        self.body_limit = 65536 if tool_loop else MAX_REQUEST_BYTES
+        if workload:
+            self.output_cap = WORKLOAD_OUTPUT_CAP
+            self.call_limit = len(CASES)
+            self.body_limit = 65536
+            self.total_limit: int | None = WORKLOAD_MAX_REQUESTS
+        else:
+            self.output_cap = TOOL_OUTPUT_CAP if tool_loop else OUTPUT_CAP
+            self.call_limit = (
+                1 if failover else TOOL_CALLS if tool_loop else CALLS_PER_TARGET
+            )
+            self.body_limit = 65536 if tool_loop else MAX_REQUEST_BYTES
+            self.total_limit = None
         self.calls = {row.provider: 0 for row in targets}
         self.blocked: set[str] = set()
         self.events: list[dict] = []
@@ -335,7 +360,14 @@ class Broker:
             or len(json.dumps(payload, allow_nan=False).encode()) > self.body_limit
         ):
             raise ValueError("bridge request violates model/token/body budget")
-        if name in self.blocked or self.calls[name] >= self.call_limit:
+        if (
+            name in self.blocked
+            or self.calls[name] >= self.call_limit
+            or (
+                self.total_limit is not None
+                and sum(self.calls.values()) >= self.total_limit
+            )
+        ):
             frame_send(channel, {"status": 429, "content_type": "application/json"})
             frame_send(
                 channel,
@@ -436,6 +468,121 @@ class Broker:
                 frame_send(channel, {"end": True})
             except (EOFError, OSError):
                 return
+
+
+def verify_workload(
+    ledger: QuotaLedger,
+    runtime: Runtime,
+    routes: list[Route],
+    capabilities: dict[str, frozenset[str]],
+) -> dict:
+    """Dispatch each deterministic case once per verified route under a budget.
+
+    ``passed`` covers transport, settlement and coverage only. Deterministic
+    correctness is reported separately in ``quality``; these free models are not
+    being ranked as production coding quality. Unknown declared capabilities fail
+    closed before any dispatch.
+    """
+    planned = len(CASES) * len(routes)
+    if not routes or len(routes) > WORKLOAD_TARGETS or planned > WORKLOAD_MAX_REQUESTS:
+        raise ValueError("workload exceeds the declared request budget")
+    for names in capabilities.values():
+        if not names <= KNOWN_CAPABILITIES:
+            raise ValueError("workload target declares an unknown capability")
+    results: list[dict] = []
+    blocked: dict[str, str] = {}
+    for route in routes:
+        available = capabilities.get(route.provider_id, frozenset())
+        for case in CASES:
+            if route.provider_id in blocked:
+                results.append({
+                    "case": case.name,
+                    "route": route.provider_id,
+                    "skipped": "target_blocked_after:" + blocked[route.provider_id],
+                })
+                continue
+            missing = sorted(case.requires - available)
+            if missing:
+                results.append({
+                    "case": case.name,
+                    "route": route.provider_id,
+                    "skipped": "unverified_capability:" + ",".join(missing),
+                })
+                continue
+            prepared = prepare(
+                case.payload(False, output=WORKLOAD_OUTPUT_CAP, schema=False),
+                step=case.step,
+            )
+            if not runtime.ranked(prepared, routes=[route]):
+                results.append({
+                    "case": case.name,
+                    "route": route.provider_id,
+                    "skipped": "route_unavailable",
+                })
+                continue
+            try:
+                result = runtime.complete(prepared, routes=[route])
+            except ProviderError as exc:
+                results.append({
+                    "case": case.name,
+                    "route": route.provider_id,
+                    "transport_ok": False,
+                    "error_class": exc.error_class,
+                })
+                if exc.error_class in {"rate_limit", "provider_rejection"}:
+                    blocked[route.provider_id] = exc.error_class
+                continue
+            correct = case.grade(result.completion)
+            ledger.grade(result.decision_id, correct)
+            decision = ledger.decision(result.decision_id)
+            results.append({
+                "case": case.name,
+                "route": route.provider_id,
+                "transport_ok": True,
+                "correct": correct,
+                "usage_estimated": bool(decision["usage_estimated"]),
+                "input_tokens": decision["input_tokens"],
+                "output_tokens": decision["output_tokens"],
+                "latency_ms": decision["latency_ms"],
+                "ttft_ms": decision["ttft_ms"],
+            })
+    dispatched = [row for row in results if "skipped" not in row]
+    usable = [row for row in dispatched if row["transport_ok"]]
+    graded = [row for row in usable if "correct" in row]
+    by_route = {}
+    for route in routes:
+        rows = [row for row in graded if row["route"] == route.provider_id]
+        by_route[route.provider_id] = {
+            "graded": len(rows),
+            "correct": sum(row["correct"] for row in rows),
+        }
+    summary = {
+        "cases": [case.name for case in CASES],
+        "budget": {
+            "max_requests": WORKLOAD_MAX_REQUESTS,
+            "max_output_tokens": WORKLOAD_MAX_OUTPUT_TOKENS,
+            "output_cap": WORKLOAD_OUTPUT_CAP,
+        },
+        "attempts": len(dispatched),
+        "transport_ok": len(usable),
+        "transport_failed": len(dispatched) - len(usable),
+        "skipped": len(results) - len(dispatched),
+        "usage_estimated": sum(row["usage_estimated"] for row in usable),
+        "quality": {
+            "graded": len(graded),
+            "correct": sum(row["correct"] for row in graded),
+            "all_correct": len(graded) == planned
+            and all(row["correct"] for row in graded),
+            "by_route": by_route,
+        },
+        "results": results,
+    }
+    summary["passed"] = (
+        len(dispatched) == planned
+        and len(usable) == planned
+        and summary["usage_estimated"] == 0
+    )
+    return summary
 
 
 def live_opencode(directory: Path, executable: Path, runtime: Runtime) -> dict:
@@ -683,13 +830,19 @@ def child_verify(
     parent_inode: int,
     opencode: Path | None = None,
     failover: bool = False,
+    workload: bool = False,
 ) -> dict:
     """The gateway has no real credentials or external network access."""
     private_namespace(parent_inode)
     targets = frame_read(channel)["targets"]
-    output_cap = TOOL_OUTPUT_CAP if opencode else OUTPUT_CAP
-    call_limit = TOOL_CALLS if opencode else CALLS_PER_TARGET
-    body_limit = 65536 if opencode else MAX_REQUEST_BYTES
+    if opencode is not None:
+        output_cap, call_limit, body_limit = TOOL_OUTPUT_CAP, TOOL_CALLS, 65536
+    elif workload:
+        output_cap = WORKLOAD_OUTPUT_CAP
+        call_limit = len(CASES)
+        body_limit = 65536
+    else:
+        output_cap, call_limit, body_limit = OUTPUT_CAP, CALLS_PER_TARGET, MAX_REQUEST_BYTES
     bridge_lock = threading.Lock()
     bridge_keys: dict[str, str] = {}
     bridge_faults: set[str] = set()
@@ -791,6 +944,7 @@ def child_verify(
             )
             routes = []
             for index, target in enumerate(targets, 1):
+                verified_tools = "tools" in target["capabilities"]
                 route = Route(
                     target["provider"],
                     target["provider"],
@@ -804,7 +958,7 @@ def child_verify(
                     input_price=0,
                     output_price=0,
                     stream=True,
-                    tool_call=True,
+                    tool_call=verified_tools if workload else True,
                     limits={"rpm": target["rpm"], "rpd": call_limit},
                 )
                 endpoint = f"http://127.0.0.1:{bridge.server_address[1]}/{target['provider']}/v1"
@@ -862,6 +1016,18 @@ def child_verify(
                         for row in decisions
                     )
                 )
+                return report
+            if workload:
+                report["workload"] = verify_workload(
+                    ledger,
+                    runtime,
+                    routes,
+                    {
+                        target["provider"]: frozenset(target["capabilities"])
+                        for target in targets
+                    },
+                )
+                report["passed"] = report["workload"]["passed"]
                 return report
             for route in routes:
                 for stream in (False, True):
@@ -958,6 +1124,11 @@ def main() -> int:
         action="store_true",
         help="two directions of injected-429 fallback to live providers",
     )
+    parser.add_argument(
+        "--workload",
+        action="store_true",
+        help="five deterministic coding/tool cases per target with a 256-token cap",
+    )
     parser.add_argument("--bridge-fd", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--namespace-parent-inode", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--directory", type=Path, help=argparse.SUPPRESS)
@@ -987,13 +1158,20 @@ def main() -> int:
         raise ValueError(
             "failover requires exactly two verified targets and no tool-loop mode"
         )
+    if args.workload and (args.opencode or args.failover):
+        raise ValueError(
+            "choose one verification workload: --workload, --opencode or --failover"
+        )
     if args.execute and targets and all(row["ok"] for row in catalogs):
         if not args.binary or not args.binary.is_file() or not args.artifacts.is_dir():
             raise ValueError("existing binary and artifact parent required")
         directory = Path(tempfile.mkdtemp(prefix="newapi-live-", dir=args.artifacts))
         parent, child = socket.socketpair()
         broker = Broker(
-            targets, tool_loop=args.opencode is not None, failover=args.failover
+            targets,
+            tool_loop=args.opencode is not None,
+            failover=args.failover,
+            workload=args.workload,
         )
         thread = threading.Thread(target=broker.serve, args=(parent,), daemon=True)
         thread.start()
@@ -1019,6 +1197,7 @@ def main() -> int:
             "--namespace-parent-inode",
             str(os.stat("/proc/self/ns/net").st_ino),
             *(["--failover"] if args.failover else []),
+            *(["--workload"] if args.workload else []),
             *(["--opencode", str(args.opencode.resolve())] if args.opencode else []),
         ]
         process = None
@@ -1035,7 +1214,7 @@ def main() -> int:
                     start_new_session=True,
                 )
                 try:
-                    process.wait(timeout=150)
+                    process.wait(timeout=480 if args.workload else 150)
                 except subprocess.TimeoutExpired:
                     os.killpg(process.pid, signal.SIGTERM)
                     try:

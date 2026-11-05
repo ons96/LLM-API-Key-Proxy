@@ -9,19 +9,25 @@ import urllib.error
 
 import pytest
 
+from newapi_benchmark import CASES, KNOWN_CAPABILITIES, Case
 from newapi_catalog import CatalogError
+from newapi_runtime import Runtime
 from provider_adapter import ProviderCompletion, ProviderError
-from quota_ledger import Route
+from quota_ledger import QuotaLedger, Route
+from router_state import RouterState
 from tools.verify_newapi_live import (
     Broker,
     OUTPUT_CAP,
     Target,
+    WORKLOAD_MAX_REQUESTS,
+    WORKLOAD_OUTPUT_CAP,
     frame_read,
     frame_send,
     free_model,
     load_targets,
     private_key,
     verify_failover,
+    verify_workload,
 )
 
 
@@ -428,3 +434,240 @@ def test_frame_roundtrip_is_bounded():
     finally:
         left.close()
         right.close()
+
+
+def test_workload_cases_declare_only_known_capabilities():
+    assert all(case.requires <= KNOWN_CAPABILITIES for case in CASES)
+    tool = next(case for case in CASES if case.name == "tool")
+    assert tool.requires == frozenset({"tools"})
+    with pytest.raises(ValueError, match="unknown capability"):
+        Case("x", "plan", "prompt", {}, requires=frozenset({"vision"}))
+
+
+def test_workload_payload_keeps_tools_and_drops_schema_requirement():
+    tool = next(case for case in CASES if case.name == "tool")
+    plan = next(case for case in CASES if case.name == "plan")
+    body = tool.payload(False, output=WORKLOAD_OUTPUT_CAP, schema=False)
+    assert body["max_tokens"] == WORKLOAD_OUTPUT_CAP
+    assert body["tools"] and body["tool_choice"]
+    assert "response_format" not in plan.payload(
+        False, output=WORKLOAD_OUTPUT_CAP, schema=False
+    )
+    assert plan.payload(False)["max_tokens"] == 512
+    assert plan.payload(False)["response_format"] == {"type": "json_object"}
+
+
+def workload_route(name: str = "a") -> Route:
+    return Route(
+        name,
+        name,
+        "m",
+        "key-" + name,
+        "sc." + name,
+        1,
+        quota_type="rate_limited",
+        context_window=131072,
+        output_limit=WORKLOAD_OUTPUT_CAP,
+        input_price=0,
+        output_price=0,
+        stream=True,
+        tool_call=True,
+        limits={"rpd": 20},
+    )
+
+
+def workload_completion(case: Case, correct: bool = True) -> ProviderCompletion:
+    usage = {"prompt_tokens": 40, "completion_tokens": 20}
+    if case.tool:
+        arguments = case.expected if correct else {
+            "path": "wrong",
+            "start": 0,
+            "count": 1,
+        }
+        return ProviderCompletion(
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {
+                        "id": "call",
+                        "type": "function",
+                        "function": {
+                            "name": "read_file",
+                            "arguments": json.dumps(arguments),
+                        },
+                    }
+                ],
+            },
+            "tool_calls",
+            usage,
+        )
+    content = json.dumps(case.expected if correct else {"wrong": True})
+    return ProviderCompletion(
+        {"role": "assistant", "content": content}, "stop", usage
+    )
+
+
+class WorkloadAdapter:
+    def __init__(self, calls: list[str], correct: bool = True) -> None:
+        self.calls, self.correct = calls, correct
+
+    def complete(self, deployment, request):
+        prompt = request.messages[0]["content"]
+        case = next(case for case in CASES if case.prompt == prompt)
+        self.calls.append(case.name)
+        return workload_completion(case, self.correct)
+
+
+def test_workload_runs_every_case_once_with_actual_usage(monkeypatch):
+    ledger, state = QuotaLedger(), RouterState()
+    route = workload_route()
+    ledger.configure(route)
+    runtime = Runtime(
+        ledger, state, "http://127.0.0.1:8002/v1", "fixture-relay", explore=False
+    )
+    calls: list[str] = []
+    monkeypatch.setattr(runtime, "adapter", lambda _remaining: WorkloadAdapter(calls))
+    try:
+        report = verify_workload(
+            ledger, runtime, [route], {"a": frozenset({"tools"})}
+        )
+        assert report["passed"]
+        assert report["attempts"] == report["transport_ok"] == len(CASES)
+        assert report["skipped"] == 0 and report["usage_estimated"] == 0
+        assert report["quality"]["correct"] == len(CASES)
+        assert report["quality"]["all_correct"]
+        assert report["quality"]["by_route"]["a"] == {
+            "graded": len(CASES),
+            "correct": len(CASES),
+        }
+        assert report["budget"] == {
+            "max_requests": WORKLOAD_MAX_REQUESTS,
+            "max_output_tokens": WORKLOAD_MAX_REQUESTS * WORKLOAD_OUTPUT_CAP,
+            "output_cap": WORKLOAD_OUTPUT_CAP,
+        }
+        assert calls == [case.name for case in CASES]
+        assert "Task plan" not in json.dumps(report)
+        assert ledger.diagnostics()["attempts"] == {"success": len(CASES)}
+    finally:
+        state.close()
+        ledger.close()
+
+
+def test_workload_reports_grades_separately_from_transport(monkeypatch):
+    ledger, state = QuotaLedger(), RouterState()
+    route = workload_route()
+    ledger.configure(route)
+    runtime = Runtime(
+        ledger, state, "http://127.0.0.1:8002/v1", "fixture-relay", explore=False
+    )
+    calls: list[str] = []
+    monkeypatch.setattr(
+        runtime, "adapter", lambda _remaining: WorkloadAdapter(calls, False)
+    )
+    try:
+        report = verify_workload(
+            ledger, runtime, [route], {"a": frozenset({"tools"})}
+        )
+        assert report["passed"]
+        assert report["transport_ok"] == len(CASES)
+        assert report["quality"]["correct"] == 0
+        assert report["quality"]["all_correct"] is False
+        assert all(row["correct"] is False for row in report["results"])
+    finally:
+        state.close()
+        ledger.close()
+
+
+def test_workload_skips_unverified_capabilities_without_dispatch(monkeypatch):
+    ledger, state = QuotaLedger(), RouterState()
+    route = workload_route()
+    ledger.configure(route)
+    runtime = Runtime(
+        ledger, state, "http://127.0.0.1:8002/v1", "fixture-relay", explore=False
+    )
+    calls: list[str] = []
+    monkeypatch.setattr(runtime, "adapter", lambda _remaining: WorkloadAdapter(calls))
+    try:
+        report = verify_workload(ledger, runtime, [route], {"a": frozenset()})
+        assert not report["passed"]
+        assert report["skipped"] == 1
+        assert report["quality"]["graded"] == len(CASES) - 1
+        skipped = [row for row in report["results"] if "skipped" in row]
+        assert skipped == [
+            {
+                "case": "tool",
+                "route": "a",
+                "skipped": "unverified_capability:tools",
+            }
+        ]
+        assert "tool" not in calls
+        assert ledger.diagnostics()["attempts"] == {"success": len(CASES) - 1}
+    finally:
+        state.close()
+        ledger.close()
+
+
+def test_workload_rejects_over_budget_and_unknown_capabilities_before_dispatch():
+    ledger, state = QuotaLedger(), RouterState()
+    routes = [workload_route(name) for name in ("a", "b", "c")]
+    for route in routes:
+        ledger.configure(route)
+    runtime = Runtime(
+        ledger, state, "http://127.0.0.1:8002/v1", "fixture-relay", explore=False
+    )
+    try:
+        with pytest.raises(ValueError, match="request budget"):
+            verify_workload(
+                ledger,
+                runtime,
+                routes,
+                {route.provider_id: frozenset({"tools"}) for route in routes},
+            )
+        with pytest.raises(ValueError, match="unknown capability"):
+            verify_workload(
+                ledger, runtime, [routes[0]], {"a": frozenset({"vision"})}
+            )
+        assert ledger.diagnostics()["attempts"] == {}
+    finally:
+        state.close()
+        ledger.close()
+
+
+def test_workload_broker_enforces_256_token_and_five_call_budget(monkeypatch):
+    broker = Broker([target()], workload=True)
+    monkeypatch.setattr(
+        broker.opener, "open", lambda *_args, **_kwargs: successful_response()
+    )
+    left, right = socket.socketpair()
+    try:
+        for _ in range(len(CASES) + 1):
+            broker.dispatch(
+                left,
+                {
+                    "provider": "groq",
+                    "payload": payload(max_tokens=WORKLOAD_OUTPUT_CAP, stream=False),
+                },
+            )
+            frames = drain(right)
+        assert broker.calls["groq"] == len(CASES)
+        assert frames[0]["status"] == 429
+        with pytest.raises(ValueError, match="budget"):
+            broker.dispatch(
+                left,
+                {
+                    "provider": "groq",
+                    "payload": payload(
+                        max_tokens=WORKLOAD_OUTPUT_CAP + 1, stream=False
+                    ),
+                },
+            )
+        assert broker.calls["groq"] == len(CASES)
+    finally:
+        left.close()
+        right.close()
+
+
+def test_broker_rejects_combined_verification_budgets():
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        Broker([target()], workload=True, failover=True)
