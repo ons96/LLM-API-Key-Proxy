@@ -51,8 +51,8 @@ Standalone prompt: `RESUME-newapi-sidecar.txt` at the worktree root.
 | Strict-config backup | `/etc/newapi-sidecar/backups/v2-strict-20261105-052743/` |
 | Unit backups | `/etc/systemd/system/newapi-sidecar-canary.service.bak-before-{bfe91ff,cb6824d,ec88ffd}` |
 | Client config backup | `/home/osees/.config/opencode/opencode.json.bak-before-sidecar-cutover-20261105-054407` |
-| Local sidecar tunnel | `127.0.0.1:8124 -> VPS 127.0.0.1:8124`; process `212370` at this snapshot |
-| Local legacy tunnel | `127.0.0.1:8000 -> VPS 127.0.0.1:8000`; process `418` at this snapshot |
+| Local sidecar tunnel | `127.0.0.1:8124 -> VPS 127.0.0.1:8124`; managed background SSH tunnel |
+| Local legacy tunnel | `127.0.0.1:8000 -> VPS 127.0.0.1:8000`; existing rollback tunnel |
 
 The canary is intentionally **not enabled**. If the VPS reboots, it will not
 return until an operator refreshes the short-lived admin/proof token and starts
