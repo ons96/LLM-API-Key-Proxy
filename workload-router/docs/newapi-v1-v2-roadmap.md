@@ -324,20 +324,32 @@ service change, no data deletion, no credential change.
    model mapping, credential fingerprint, endpoint identity, relay token.
 5. [ ] Serve the 19 legacy aliases and prompt/phase classification; verify that
    aliases with the same profile/step are documented as equivalent. The
-   deterministic `auto` baseline is implemented; semantic-router parity, full
-   phase inference and running-sidecar validation remain open.
-6. [ ] Cover quota, cooldown, telemetry ordering, stream failure and free-only
-   enforcement with provider-free tests.
-7. [ ] Close or explicitly document the remaining missing gateway paths (16 at
-   this checkpoint); update `gateway-compatibility.md`.
+   deterministic `auto` baseline is implemented, and all 19 aliases now pass
+   through the real entrypoint; semantic-router parity, full phase inference
+   and live-provider chain equivalence remain open.
+6. [x] Cover quota, cooldown, telemetry ordering, stream failure and free-only
+   enforcement with provider-free tests. The suite includes paid-route
+   exclusion, cooldown/telemetry ranking, pre-output failover and late/partial
+   stream failure without false success.
+7. [x] Close or explicitly document the remaining missing gateway paths (5
+   absent at the 2026-11-05 checkpoint); `gateway-compatibility.md` records the
+   28-path surface and per-client exceptions.
 8. [ ] Run bounded live provider tests, an OpenCode tool loop, restart and
-   persistence checks, and a full rollback drill.
+   persistence checks, and a full rollback drill. Bounded live chat/SSE,
+   OpenCode and local restart/persistence pass; live same-model failover,
+   sustained load, VPS canary and a full rollback drill remain open.
 9. [ ] Obtain explicit cutover approval. Keep LiteLLM and its configuration
    intact until retirement is separately approved.
 
 v2 rollback: stop the sidecar, point clients back to the old gateway, leave
 New-API running, and restore the previous sidecar DB/config from backup if
 needed. Never delete the old gateway as part of the switch.
+
+Current provider-free checkpoint (2026-11-05): **402 tests**, 28 sidecar paths
+(25 same-path, 0 renamed, 5 absent), and a real-binary run at
+`/tmp/opencode/newapi-proof-imi83fh6` covering 22 model aliases, all 19 legacy
+chat aliases, restart and the installed OpenCode loop. This is local evidence,
+not live-provider, load or canary proof.
 
 ## Non-negotiable safety boundary
 
