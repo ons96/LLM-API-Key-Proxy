@@ -1,5 +1,10 @@
 # New-API sidecar handoff for OmniRush
 
+**Current cross-harness entry point:** `HANDOFF-CURRENT-newapi-sidecar.md`
+(snapshot 2026-11-05, implementation `ef6b803`). Copy-paste prompt:
+`RESUME-newapi-sidecar.txt`. Read those first; the content below is a historical
+log and contains superseded counts, paths and next actions.
+
 **Saved local continuation (2026-11-04):** focused startup-proof changes are on
 `feat/newapi-sidecar`, based on remote `546952e`. Read the local continuation
 section below and `workload-router/STATE.md` first; preserve any newer work.

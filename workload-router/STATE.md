@@ -1,5 +1,10 @@
 # Router Session State
 
+Current concise cross-harness handoff: `../HANDOFF-CURRENT-newapi-sidecar.md`.
+Standalone prompt: `../RESUME-newapi-sidecar.txt`. Implementation checkpoint
+`ef6b803` is pushed; 384 tests passed. The entries below are chronological, so
+read the final checkpoints rather than an old repeated "next action" section.
+
 ## Current status
 
 This project folder contains prior router artifacts and a handoff from the VPS
@@ -1671,3 +1676,23 @@ Next recommendation:
 - VPS v2 still needs deliberate retry/override/proof configuration and separate
   resource/load, persistence/rollback and cutover decisions. Main deploy trigger
   remains untouched. New-API native v1 and the current gateway remain live.
+
+## Cross-harness handoff package - 2026-11-05
+
+- User requested a portable handoff. Added root
+  `HANDOFF-CURRENT-newapi-sidecar.md` and `RESUME-newapi-sidecar.txt`.
+  They capture current branch/remote, safety/accounting contracts, completed
+  evidence and limitations, paths, prerequisites, exact checks and the next
+  bounded workload/compatibility milestone. No provider call or code change
+  was made for this handoff.
+- Re-fetched origin: feature tip remains `ef6b803`, tracked work clean before
+  docs edits; existing untracked `.serena/` preserved. Do not reset to the old
+  `fde9784` handoff baseline or duplicate remote milestones.
+- Older root and `temp-omnirush` handoffs now point to the current package.
+  `temp-omnirush` is not the implementation worktree. A sandbox must mount the
+  real worktree and binary; launch the new harness from the implementation root.
+- Latest implementation verification remains 384 tests plus release/lint/type
+  checks; no rerun needed for documentation-only changes. Validate current
+  package ASCII, referenced paths, prompt consistency and git diff before save.
+- Save this docs-only package on the same feature branch for GitHub portability;
+  no merge, deployment, service change, credential access or traffic cutover.
