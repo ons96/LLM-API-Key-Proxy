@@ -22,7 +22,7 @@ recorded.
 
 ## HTTP surface
 
-Sidecar exposes twenty-seven paths: `GET /` and `GET /healthz`
+Sidecar exposes twenty-eight paths: `GET /`, `GET /health` and `GET /healthz`
 (unauthenticated), `GET /v1/models`, `GET /v1/models/{model_id}`,
 `GET /v1/providers`, `GET /v1/tps-stats`, `GET /v1/model/list`,
 `GET /v1/model/status`, `GET /v1/model-info/stats`,
@@ -34,14 +34,14 @@ Sidecar exposes twenty-seven paths: `GET /` and `GET /healthz`
 `POST /v1/model/parse-command`, `POST /v1/model/switch`,
 `POST /v1/model/detect-intent`, `POST /v1/chat/completions`,
 `POST /v1/cost-estimate`, `POST /v1/token-count`, `POST /v1/responses` and
-`POST /v1/embeddings` (all except `/` and `/healthz` are Bearer-authenticated,
-1 MiB body cap).
+`POST /v1/embeddings` (all except `/`, `/health` and `/healthz` are
+Bearer-authenticated, 1 MiB body cap).
 
 | Gateway path | Sidecar | Status |
 | --- | --- | --- |
 | `/v1/chat/completions` | same path | **covered** (plus SSE, `X-Session-Id`, `X-Route-Step`) |
 | `/v1/models` | same path | **partial** — returns the 22 accepted aliases, not the gateway's upstream model list |
-| `/health` | `/healthz` | **renamed** — monitors must change path |
+| `/health` | same path | **partial** — unauthenticated liveness alias; body is sidecar-specific, not the gateway's exact payload |
 | `/` | same path | **partial** — unauthenticated status object; not the gateway's exact body |
 | `/v1/models/{model_id}` | same path | **partial** — returns the old basic `{id, object, created, owned_by}` envelope for any non-empty id; known aliases carry `deprecated`; no upstream model-info stats |
 | `/v1/responses` | same path | **partial** — text/messages, function tools, text-only streaming; no `previous_response_id` or non-function tools |
@@ -70,8 +70,8 @@ Sidecar exposes twenty-seven paths: `GET /` and `GET /healthz`
 | `/api/cliproxyapi/status` | — | missing |
 | `/api/cliproxyapi/backend/{backend_name}` | — | missing |
 
-Totals: 24 gateway paths are served at the same path (1 covered, 23 partial),
-1 is renamed, and 5 of the 30 gateway paths are still absent.
+Totals: 25 gateway paths are served at the same path (1 covered, 24 partial),
+0 are renamed, and 5 of the 30 gateway paths are still absent.
 
 ## Model aliases
 
@@ -99,7 +99,8 @@ profile-and-step, not the gateway's exact chains; see
    `provider_status.db` snapshot, authenticated, with `stale:true` once the
    gateway stops updating it; `/v1/providers` still returns only route-provider
    IDs, and `/v1/tps-stats` has ledger samples only.
-6. Uptime probes on `/health` -> 404 unless moved to `/healthz`.
+6. Uptime probes on `/health` now receive an unauthenticated liveness response
+   from the same alias as `/healthz`; the JSON body is sidecar-specific.
 7. Token-counting tooling -> served as a conservative byte bound, not an exact
    provider tokenizer; cost estimation is available only from ledger pricing,
    not the gateway's model-info service.
@@ -109,7 +110,41 @@ profile-and-step, not the gateway's exact chains; see
    heuristic, not shared session state or a semantic router. The five
    CLIProxyAPI routes remain absent until that external service is configured.
 
-## Options (recorded, not decided)
+## Client usage audit - 2026-11-05
+
+Read-only local audit of the installed OpenCode 1.19.5 config and state DB; no
+credential value or prompt text was read into this repository.
+
+- `~/.config/opencode/opencode.json` is mode 0600 and has 117 provider entries.
+  `custom` and `vps-gateway` both use `http://localhost:8000/v1` and each list
+  15 of the 19 legacy aliases; `agentic-gateway` uses the same base URL but has
+  an empty model list. The `summary` agent is pinned to
+  `vps-gateway/coding-fast`.
+- A read-only query of `~/.local/share/opencode/opencode.db` (1,578 sessions,
+  81,094 messages) found `vps-gateway` assistant traffic for `coding-elite`
+  (189 messages), `coding-fast` (97) and `coding-smart` (17); the latest
+  `coding-fast` use was 2026-10-27. Session rows also show `agent-oracle` and
+  `auto`. `agentic-gateway` had no messages.
+- OpenCode's recent log strings include `http://127.0.0.1:8000/health`,
+  `http://127.0.0.1:8000/v1/models` and `/v1/chat/completions`; they contain no
+  `/v1/embeddings`, `/api/cliproxyapi`, `/v1/token-count`, `/v1/cost-estimate`
+  or `/api/providers` strings. Two `/v1/responses` strings had no captured
+  gateway URL and are not counted as calls. This is log-string evidence, not a
+  complete request trace.
+- Therefore the required installed-client path is the legacy alias over chat,
+  plus liveness and model discovery. `/health` is now a same-path,
+  unauthenticated liveness alias. Model discovery remains the 22-alias list by
+  design; it does not reproduce the gateway's upstream model catalog.
+
+## Options and decision
+
+**Decision (2026-11-05): Option A, alias translation.** The installed client
+uses the legacy aliases over the chat path, so translation is the smallest
+change that preserves existing configuration. Permanent dual-path and the
+front-proxy split are not selected for this canary: they would either leave two
+services in the request path or split accounting. Option A was already
+implemented; the remaining partial and absent routes are explicit exceptions,
+not silently emulated.
 
 - **A. Alias translation in the sidecar.** Map each gateway alias to a profile or
   explicit route, and serve the full alias list from `/v1/models`. Smallest
@@ -125,20 +160,20 @@ profile-and-step, not the gateway's exact chains; see
 
 ## Continuation review - 2026-11-05
 
-Counts were rechecked against `newapi_server.py`: the sidecar still exposes 27
-paths, the recorded gateway surface is 30, so 24 are same-path (1 covered, 23
-partial), 1 is renamed (`/health` -> `/healthz`) and 5 are absent
-(`/api/cliproxyapi/*`). No empty shim was added for this review.
+Counts were rechecked against `newapi_server.py`: the sidecar exposes 28 paths,
+the recorded gateway surface is 30, so 25 are same-path (1 covered, 24 partial),
+0 are renamed and 5 are absent (`/api/cliproxyapi/*`). No empty shim was added
+for this review.
 
 Client-visible exceptions to settle before a canary:
 
-1. **Health probes:** monitors must use `/healthz` or change their config. Do
-   not add an unauthenticated `/health` shim without deciding its liveness and
-   auth contract.
+1. **Health probes:** `/health` is now a same-path, unauthenticated liveness
+   alias with the same body as `/healthz`; it exposes no provider or config
+   data. Monitors that require the gateway's exact body still need review.
 2. **Model discovery:** `/v1/models` and `/v1/model/list` expose the 22 sidecar
-   aliases, not the gateway's upstream catalog. A client that selects concrete
-   upstream models will not find them. The alias-translation, dual-path and
-   front-proxy options above remain undecided.
+   aliases, not the gateway's upstream catalog. Option A (alias translation) is
+   selected; a client that selects concrete upstream models still will not find
+   them. That is an accepted limit for the installed client, not parity.
 3. **Responses and embeddings:** only the documented text/function response
    subset and operator-allowlisted embedding aliases are served.
    `previous_response_id`, multimodal input, streaming tools and non-allowlisted
@@ -155,15 +190,16 @@ Client-visible exceptions to settle before a canary:
    its credentials are configured. Empty 200 responses would still be
    incompatible, so do not add stubs.
 
-Route *usage* is still unknown: the inventory proves availability, not demand.
-Before proposing a canary, review client configs or redacted request logs for
-these paths and aliases, and record which exceptions are accepted for the
-canary versus must be closed. A 200 response is not evidence of semantic
-parity.
+Route usage has been reviewed for the installed OpenCode client: it uses the
+legacy aliases over `/v1/chat/completions`, with `/health` and `/v1/models` also
+referenced. The other partial and absent routes have no observed local client
+demand, but external monitors or scripts may still use them. Record accepted
+exceptions per client before a canary; a 200 response is not semantic parity.
 
 ## Unknowns
 
-- Whether any live client actually calls the 5 absent CLIProxyAPI routes.
+- Whether any client other than the installed OpenCode instance calls the 5
+  absent CLIProxyAPI routes.
 - Gateway `/v1/models` response shape versus the sidecar's 22-alias list.
 - Whether TPS consumers expect the gateway's `export=true` file side effect;
   the sidecar rejects it to remain read-only.
@@ -171,5 +207,5 @@ parity.
   sidecar returns only the basic alias envelope and configured route providers.
 - Whether gateway auth and sidecar Bearer auth ever differ in practice (gateway
   `/v1/models` returns 401 unauthenticated; `/health` and `/docs` are open).
-- Route-level client usage requires a request log review, which has not been
-  done.
+- Only the installed OpenCode configuration, state DB and local logs were
+  reviewed; gateway-side request logs and other clients remain unreviewed.

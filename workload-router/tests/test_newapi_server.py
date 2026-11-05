@@ -126,6 +126,8 @@ def test_auth_models_health_and_diagnostics(sidecar):
     status, body, _ = call(server, "/", method="GET", auth=False)
     assert status == 200 and json.loads(body)["Status"] == "New-API sidecar is running"
     assert call(server, "/healthz", method="GET", auth=False)[0] == 200
+    status, body, _ = call(server, "/health", method="GET", auth=False)
+    assert status == 200 and json.loads(body)["status"] == "ok"
     assert call(server, "/v1/models", method="GET", auth=False)[0] == 401
     status, body, headers = call(server, "/v1/models", method="GET")
     models = json.loads(body)["data"]

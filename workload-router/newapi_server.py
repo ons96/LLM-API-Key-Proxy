@@ -217,7 +217,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/":
             self.send_json(200, {"Status": "New-API sidecar is running"})
             return
-        if path == "/healthz":
+        if path in {"/health", "/healthz"}:
             self.send_json(200, {"status": "ok", "service": "newapi-sidecar"})
             return
         if not self.authorized():
