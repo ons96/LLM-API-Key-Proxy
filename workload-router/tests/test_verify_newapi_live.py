@@ -7,6 +7,7 @@ import os
 import socket
 import sqlite3
 import sys
+from types import SimpleNamespace
 import urllib.error
 
 import pytest
@@ -543,14 +544,76 @@ def test_workload_runs_every_case_once_with_actual_usage(monkeypatch):
             "graded": len(CASES),
             "correct": len(CASES),
         }
+        assert WORKLOAD_OUTPUT_CAP == 512
+        assert WORKLOAD_MAX_REQUESTS == 10
         assert report["budget"] == {
             "max_requests": WORKLOAD_MAX_REQUESTS,
-            "max_output_tokens": WORKLOAD_MAX_REQUESTS * WORKLOAD_OUTPUT_CAP,
+            "max_output_tokens": 5120,
             "output_cap": WORKLOAD_OUTPUT_CAP,
         }
         assert calls == [case.name for case in CASES]
         assert "Task plan" not in json.dumps(report)
         assert ledger.diagnostics()["attempts"] == {"success": len(CASES)}
+    finally:
+        state.close()
+        ledger.close()
+
+
+def test_workload_waits_out_short_exhausted_rpm_once(monkeypatch):
+    import tools.verify_newapi_live as live
+    from quota_ledger import Capacity
+
+    slept = []
+
+    class Ledger:
+        def capacity(self, _route, _input, _output):
+            return Capacity(False, "exhausted_rpm", 1.0, 60.0)
+
+    monkeypatch.setattr(live.time, "sleep", slept.append)
+    prepared = SimpleNamespace(
+        work=SimpleNamespace(input_tokens=50, output_tokens=512)
+    )
+    assert live.wait_for_workload_rpm(Ledger(), workload_route(), prepared)
+    assert slept == [60.5]
+
+    class Daily:
+        def capacity(self, _route, _input, _output):
+            return Capacity(False, "exhausted_rpd", 1.0, 86400.0)
+
+    assert not live.wait_for_workload_rpm(Daily(), workload_route(), prepared)
+    assert slept == [60.5]
+
+
+def test_workload_rechecks_after_short_rpm_wait(monkeypatch):
+    import tools.verify_newapi_live as live
+
+    ledger, state = QuotaLedger(), RouterState()
+    route = workload_route()
+    ledger.configure(route)
+    runtime = Runtime(
+        ledger, state, "http://127.0.0.1:8002/v1", "fixture-relay", explore=False
+    )
+    calls: list[str] = []
+    monkeypatch.setattr(runtime, "adapter", lambda _remaining: WorkloadAdapter(calls))
+    monkeypatch.setattr(live, "wait_for_workload_rpm", lambda *_args: True)
+    real_ranked = runtime.ranked
+    seen = {"review": 0}
+
+    def ranked(prepared, **kwargs):
+        if prepared.work.step == "final-review" and seen["review"] == 0:
+            seen["review"] += 1
+            return []
+        return real_ranked(prepared, **kwargs)
+
+    monkeypatch.setattr(runtime, "ranked", ranked)
+    try:
+        report = verify_workload(
+            ledger, runtime, [route], {"a": frozenset({"tools"})}
+        )
+        assert report["passed"]
+        assert report["attempts"] == len(CASES)
+        assert report["skipped"] == 0
+        assert calls == [case.name for case in CASES]
     finally:
         state.close()
         ledger.close()
@@ -636,7 +699,7 @@ def test_workload_rejects_over_budget_and_unknown_capabilities_before_dispatch()
         ledger.close()
 
 
-def test_workload_broker_enforces_256_token_and_five_call_budget(monkeypatch):
+def test_workload_broker_enforces_output_cap_and_five_call_budget(monkeypatch):
     broker = Broker([target()], workload=True)
     monkeypatch.setattr(
         broker.opener, "open", lambda *_args, **_kwargs: successful_response()

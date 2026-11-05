@@ -3,8 +3,9 @@
 Default: catalog preflight only. --execute allows at most two 128-token calls
 per target (four total); --opencode permits one target and three 512-token calls.
 --failover injects local 429s and allows one 128-token fallback per provider.
---workload runs five deterministic coding/tool cases per target with a 256-token
-output cap and a declared ten-request, 2560-output-token ceiling.
+--workload runs five deterministic coding/tool cases per target with a 512-token
+output cap, a declared ten-request, 5120-output-token ceiling, and a bounded wait
+for a short exhausted per-minute window.
 Existing keys stay in the parent process; an inherited
 socket feeds a loopback bridge inside a private network namespace. New-API stores
 only generated bridge credentials, never real provider keys. No VPS is accessed.
@@ -40,7 +41,7 @@ from newapi_catalog import (
     load_provider_metadata,
     valid_model_id,
 )
-from newapi_runtime import Runtime, prepare, strict_json, validate_key
+from newapi_runtime import Prepared, Runtime, prepare, strict_json, validate_key
 from newapi_server import Server
 from provider_adapter import ProviderError, _NoRedirect
 from quota_ledger import QuotaLedger, Route
@@ -61,10 +62,11 @@ OUTPUT_CAP = 128
 CALLS_PER_TARGET = 2
 TOOL_OUTPUT_CAP = 512
 TOOL_CALLS = 3
-WORKLOAD_OUTPUT_CAP = 256
+WORKLOAD_OUTPUT_CAP = 512
 WORKLOAD_TARGETS = 2
 WORKLOAD_MAX_REQUESTS = len(CASES) * WORKLOAD_TARGETS
 WORKLOAD_MAX_OUTPUT_TOKENS = WORKLOAD_MAX_REQUESTS * WORKLOAD_OUTPUT_CAP
+WORKLOAD_RPM_WAIT = 65.0
 SUPPORTED_PROVIDERS = {"groq", "openrouter", "mistral"}
 
 
@@ -470,6 +472,21 @@ class Broker:
                 return
 
 
+def wait_for_workload_rpm(
+    ledger: QuotaLedger, route: Route, prepared: Prepared
+) -> bool:
+    """Wait once for a short exhausted per-minute window, never for daily blocks."""
+    capacity = ledger.capacity(
+        route, prepared.work.input_tokens, prepared.work.output_tokens
+    )
+    if capacity.feasible or capacity.reason != "exhausted_rpm":
+        return False
+    if not 0 < capacity.retry_after <= WORKLOAD_RPM_WAIT:
+        return False
+    time.sleep(capacity.retry_after + 0.5)
+    return True
+
+
 def verify_workload(
     ledger: QuotaLedger,
     runtime: Runtime,
@@ -514,12 +531,15 @@ def verify_workload(
                 step=case.step,
             )
             if not runtime.ranked(prepared, routes=[route]):
-                results.append({
-                    "case": case.name,
-                    "route": route.provider_id,
-                    "skipped": "route_unavailable",
-                })
-                continue
+                if not wait_for_workload_rpm(ledger, route, prepared) or not runtime.ranked(
+                    prepared, routes=[route]
+                ):
+                    results.append({
+                        "case": case.name,
+                        "route": route.provider_id,
+                        "skipped": "route_unavailable",
+                    })
+                    continue
             try:
                 result = runtime.complete(prepared, routes=[route])
             except ProviderError as exc:
@@ -1127,7 +1147,7 @@ def main() -> int:
     parser.add_argument(
         "--workload",
         action="store_true",
-        help="five deterministic coding/tool cases per target with a 256-token cap",
+        help="five deterministic coding/tool cases per target with a 512-token cap",
     )
     parser.add_argument("--bridge-fd", type=int, help=argparse.SUPPRESS)
     parser.add_argument("--namespace-parent-inode", type=int, help=argparse.SUPPRESS)
