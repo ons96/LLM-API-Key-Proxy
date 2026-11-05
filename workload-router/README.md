@@ -23,6 +23,54 @@ the live request path:
 
 Design: `docs/workload-router-architecture.md`. Session checkpoints: `STATE.md`.
 
+## New-API sidecar local verification
+
+The separate `newapi_server.py` entrypoint is opt-in and requires a strict
+management audit plus authorized channel-key proofs. It does not change the
+legacy gateway or the native New-API v1 prototype. See
+`docs/newapi-v1-v2-roadmap.md` for the staged boundaries and
+`docs/channel-proof-helper.md` for the operator contract.
+
+From this directory, run the provider-free suite and disposable integration:
+
+```sh
+python3 -m pytest tests -o addopts= --quiet
+python3 tools/verify_newapi.py --binary /home/osees/new-api/bin/new-api --artifacts /tmp/opencode
+```
+
+The verifier requires Linux `unshare` and `ip`, an unmodified pinned binary,
+and an existing artifact parent. It creates a private network namespace and
+fresh databases with scripted local providers. It checks the actual entrypoint's
+missing/invalid-proof rejection, TOTP-authorized boot, chat/coding/SSE, graceful
+stop and durable restart, in addition to quota failover and catalog/benchmark
+checks. Reports and generated test credentials remain in owner-only artifacts;
+inspect public report fields, not logs or seeds. This is not live-provider or
+VPS deployment evidence. Add `--opencode "$(command -v opencode)"` to the verifier
+for the installed-client boot and scripted read tool-loop gate; that flag uses
+separate HOME/XDG state and no real provider quota. Operator preview/apply,
+last-good catalogs and priority-only updates are also verified. See
+`docs/operator-commands.md` for the exact scope and remaining live gates.
+
+Real-provider checks are separate and explicit in
+`tools/verify_newapi_live.py`: catalog-only by default, with bounded chat/SSE,
+one read-only OpenCode loop, deterministic coding/tool cases (`--workload`) or
+injected-429 failover after `--execute`. Existing keys stay in memory in the
+host process, outside the disposable gateway namespace. The workload mode is
+capped at ten requests and 5120 output tokens, keeps tools intact, fails closed
+on unverified case capabilities and reports transport and deterministic
+correctness separately. It waits once for a short exhausted per-minute window
+(bounded at 65 seconds) before reporting a case unavailable. See
+`docs/live-provider-verification.md` for input format, budgets, actual results
+and the remaining production gates. A later bounded continuation validated
+Mistral chat/SSE and injected-429 failover to real responses in both
+Mistral/OpenRouter directions. A 2026-11-04 live one-target workload batch
+reached the workload path after fixing a child-wiring bug; at a 256-token cap
+it graded 2/2 attempted cases but hit the cap and skipped the rest. After
+raising the cap to 512 and adding the bounded wait, all five cases ran and
+graded 5/5 correct with actual usage and no skips (`passed:true`). This is one
+live free route and one batch, not canary or production evidence. Canary and
+VPS gates remain.
+
 The gateway changes currently deployed are:
 
 - runtime enforcement of the mapping-based dead-provider policy;
@@ -139,7 +187,13 @@ explicit `ROUTER_DEPLOYMENTS` catalog takes precedence. Use
 `GET /v1/router/groups` to inspect the resulting groups and chain order.
 
 Quota class and remaining quota are soft scoring inputs. An exhausted quota is
-penalized, but quota metadata never removes every candidate by itself.
+penalized, but quota metadata never removes every candidate by itself. The
+sidecar distinguishes `free_unlimited`, `free_limited`, `free_credits` and
+`paid`; one-time credit routes use a separate notional credit tariff so their
+customer price stays zero while the grant depletes. The provider classifications
+in `llm_providers.db` are the read-only source; `newapi_operator.py classify`
+previews route mismatches without rewriting them. See
+`docs/free-tier-classes.md`.
 
 `stall_detector.py` tracks repeated bounded action identifiers and failed
 verification signals without retaining raw tool history. It supports one-way

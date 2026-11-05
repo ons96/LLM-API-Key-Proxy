@@ -100,12 +100,20 @@ Gateway runs in free-only mode by default (`FREE_ONLY_MODE=true`). No paid API k
 
 ## CONVENTIONS
 
+### Python tooling
+- Prefer `uv` for Python environments, dependency installation, and command execution when available (for example, `uv run pytest` or `uv pip install`).
+- Fall back to `python -m pip` only when `uv` is unavailable or would add unnecessary setup; document the fallback in the session summary.
+
 ### Python
 - **Formatting:** Black, 88-char line limit
 - **Type hints:** Required for function signatures
 - **Async:** Heavy use of async/await + httpx
 - **Imports:** `from pathlib import Path` (not `os.path`)
 - **Logging:** `logging.getLogger(__name__)`
+
+### System packages
+- Prefer `nala` over `apt-get` for Debian/Ubuntu package operations when `nala` is available.
+- Use `apt-get` only when `nala` is unavailable or cannot perform the required operation, and document that fallback.
 
 ### FastAPI
 - **Dependencies:** Use `Depends()` for injection (get_rotating_client, verify_api_key)

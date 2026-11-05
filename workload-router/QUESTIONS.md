@@ -63,6 +63,39 @@ credentials, host access, or an explicit repository decision.
 - Confirm PR #315 review/merge before enabling the gated gateway integration;
   its current review check is skipped, while local validation remains green.
 
+## New-API continuation - 2026-11-04
+
+- Git fetch and PR refs were inspected, but PR state/review metadata could not
+  be queried because no approved machine-user fine-grained PAT was available.
+  Do not use the stored non-fine-grained gh token for API calls or create/rotate
+  credentials autonomously.
+- The user's existing provider accounts should be reused. Read-only local
+  inventory: canonical `llm-provider-manager/llm_providers.db` has 204 providers
+  and 6,827 models (137 providers enabled); OpenCode has 117 provider entries and
+  1,214 model entries. `~/.secrets` exists and was not opened. Endpoint and model
+  metadata must come from the canonical DB, not a credential-file search.
+- Prior VPS inventory is historical; this session did not SSH to refresh it.
+  Real-provider validation should use a small, explicitly free, already-owned
+  subset after reviewing stale metadata. No bulk key/catalog import or new
+  signup is needed.
+- A bounded 2026-11-05 live pass found Groq `/models` available but generation
+  403. Do not retry or rotate credentials automatically; catalog success is not
+  inference authorization. OpenRouter zero-priced `cohere/north-mini-code:free`
+  passed chat/SSE and a real OpenCode read loop. A later Mistral check passed
+  chat/SSE, then Mistral/OpenRouter profile-level failover passed in both
+  directions using locally injected 429s. Do not equate these different models
+  with same-model parity or treat those injected faults as real provider limits.
+- The second-provider local gate now passes; next validate broader coding/tool
+  workloads and compatibility exceptions before a VPS canary. Continue choosing
+  renewable free targets with canonical/live metadata, not bulk scans or unknown
+  trial credits. No more real quota is needed for helper safety checks.
+- Local TOTP startup works against the pinned disposable binary. Real v2 startup
+  still needs approved zero retries, cleared channel overrides and the
+  operator-owned proof flow; do not change the live v1 prototype to unblock it.
+  Repeated audits can hit the verification limiter. Budget startup/refresh
+  operations before enabling an unattended service; do not copy the fixture's
+  raised verification budget into production.
+
 ## Issue #1083 evaluation (New-API vs LiteLLM, dashboard + free/paid tagging)
 
 - The evaluation doc (`docs/newapi-vs-litellm-eval.md`) is complete, but it

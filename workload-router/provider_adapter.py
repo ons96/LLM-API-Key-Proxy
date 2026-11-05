@@ -6,6 +6,7 @@ from email.utils import parsedate_to_datetime
 from http.client import IncompleteRead
 import json
 import math
+import re
 import time
 import os
 from urllib import error, request
@@ -39,6 +40,7 @@ class ProviderError(Exception):
         deployment_id: str | None = None,
         retry_after_seconds: float | None = None,
         quota_reset_at: float | None = None,
+        limit_hints: dict[str, int] | None = None,
     ) -> None:
         super().__init__(message)
         self.error_class = error_class if error_class in self._ERROR_CLASSES else "provider_error"
@@ -46,6 +48,7 @@ class ProviderError(Exception):
         self.deployment_id = deployment_id
         self.retry_after_seconds = _finite_nonnegative(retry_after_seconds)
         self.quota_reset_at = _finite_nonnegative(quota_reset_at)
+        self.limit_hints = limit_hints or {}
 
 
 ROUTER_ONLY_FIELDS = {
@@ -133,11 +136,20 @@ class OpenAICompatibleAdapter:
         timeout: float = 30.0,
         env_prefix: str | None = None,
         base_url: str | None = None,
+        response_limit: int | None = None,
+        allow_redirects: bool = True,
     ) -> None:
         prefix = (env_prefix or provider).upper().replace("-", "_")
         self.base_url = (base_url or os.environ.get(f"{prefix}_BASE_URL", "")).rstrip("/")
         self.api_key = os.environ.get(f"{prefix}_API_KEY", "")
         self.timeout = timeout
+        self.response_limit = response_limit
+        self.opener = None if allow_redirects else request.build_opener(_NoRedirect())
+
+    def _open(self, req):
+        if self.opener is None:
+            return request.urlopen(req, timeout=self.timeout)
+        return self.opener.open(req, timeout=self.timeout)
 
     def complete(self, deployment: Deployment, provider_request: ProviderRequest) -> ProviderCompletion:
         if not self.base_url:
@@ -148,8 +160,11 @@ class OpenAICompatibleAdapter:
             headers["Authorization"] = f"Bearer {self.api_key}"
         req = request.Request(f"{self.base_url}/chat/completions", data=payload, headers=headers)
         try:
-            with request.urlopen(req, timeout=self.timeout) as response:
-                body = json.loads(response.read())
+            with self._open(req) as response:
+                raw = response.read() if self.response_limit is None else response.read(self.response_limit + 1)
+                if self.response_limit is not None and len(raw) > self.response_limit:
+                    raise ProviderError("provider response exceeds size limit", error_class="invalid_response")
+                body = json.loads(raw)
         except error.HTTPError as exc:
             retry_after, quota_reset = _retry_hints(exc.headers)
             raise ProviderError(
@@ -158,6 +173,7 @@ class OpenAICompatibleAdapter:
                 status_code=exc.code,
                 retry_after_seconds=retry_after,
                 quota_reset_at=quota_reset,
+                limit_hints=_limit_hints(exc),
             ) from exc
         except error.URLError as exc:
             category = "timeout" if isinstance(exc.reason, TimeoutError) else "network_error"
@@ -193,7 +209,7 @@ class OpenAICompatibleAdapter:
             headers["Authorization"] = f"Bearer {self.api_key}"
         req = request.Request(f"{self.base_url}/chat/completions", data=payload, headers=headers)
         try:
-            response = request.urlopen(req, timeout=self.timeout)
+            response = self._open(req)
         except error.HTTPError as exc:
             retry_after, quota_reset = _retry_hints(exc.headers)
             raise ProviderError(
@@ -202,6 +218,7 @@ class OpenAICompatibleAdapter:
                 status_code=exc.code,
                 retry_after_seconds=retry_after,
                 quota_reset_at=quota_reset,
+                limit_hints=_limit_hints(exc),
             ) from exc
         except error.URLError as exc:
             category = "timeout" if isinstance(exc.reason, TimeoutError) else "network_error"
@@ -211,7 +228,12 @@ class OpenAICompatibleAdapter:
         except OSError as exc:
             raise ProviderError("OpenAI-compatible stream failed", error_class="network_error") from exc
         try:
-            for raw_line in response:
+            consumed = 0
+            lines = response if self.response_limit is None else iter(lambda: response.readline(self.response_limit + 1), b"")
+            for raw_line in lines:
+                consumed += len(raw_line)
+                if self.response_limit is not None and consumed > self.response_limit:
+                    raise ProviderError("provider stream exceeds size limit", error_class="invalid_response")
                 line = raw_line.decode("utf-8").strip()
                 if line.startswith("data:"):
                     payload = line[5:].strip()
@@ -227,6 +249,13 @@ class OpenAICompatibleAdapter:
             raise ProviderError("provider returned invalid SSE encoding", error_class="invalid_response") from exc
         finally:
             close_stream(response)
+
+
+class _NoRedirect(request.HTTPRedirectHandler):
+    """A private-alias request must not bypass its audited gateway or leak its token."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 
 def adapters_from_environment(deployments: list[Deployment]) -> dict[str, ProviderAdapter]:
@@ -276,6 +305,37 @@ def _finite_nonnegative(value: object) -> float | None:
     except (TypeError, ValueError, OverflowError):
         return None
     return max(0.0, parsed) if math.isfinite(parsed) else None
+
+
+def _limit_hints(exc: error.HTTPError) -> dict[str, int]:
+    """Extract only explicit rate ceilings; never retain raw upstream errors."""
+    hints: dict[str, int] = {}
+    if exc.code != 429:
+        close_stream(exc)
+        return hints
+    headers = exc.headers or {}
+    for axis, names in {
+        "rpm": ("X-RateLimit-Limit-RPM", "X-RateLimit-Limit-Requests"),
+        "rpd": ("X-RateLimit-Limit-RPD",),
+        "tpm": ("X-RateLimit-Limit-TPM", "X-RateLimit-Limit-Tokens"),
+        "tpd": ("X-RateLimit-Limit-TPD",),
+    }.items():
+        for name in names:
+            raw = str(headers.get(name, ""))
+            if raw.isdigit() and 0 < int(raw) < 1_000_000_000_000:
+                hints[axis] = min(hints.get(axis, int(raw)), int(raw))
+    try:
+        text = exc.read(8192).decode("utf-8", errors="replace")
+        for axis, raw in re.findall(r"\b(RPM|RPD|TPM|TPD)\b[^\n]{0,80}?\b[Ll]imit\s*[:=]?\s*(\d+)", text, re.IGNORECASE):
+            value = int(raw)
+            if 0 < value < 1_000_000_000_000:
+                key = axis.lower()
+                hints[key] = min(hints.get(key, value), value)
+    except (OSError, AttributeError, TypeError):
+        pass
+    finally:
+        close_stream(exc)
+    return hints
 
 
 def _retry_hints(headers) -> tuple[float | None, float | None]:

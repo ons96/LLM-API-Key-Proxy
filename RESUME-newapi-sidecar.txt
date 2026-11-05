@@ -1,0 +1,51 @@
+Continue the New-API sidecar from:
+/home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar/HANDOFF-CURRENT-newapi-sidecar.md
+
+Work in that worktree's workload-router/ directory on feat/newapi-sidecar.
+Implementation was last verified at 1586913; use the latest branch tip, not a
+reset to that hash. First inspect git status, fetch origin, compare commits and
+branches, and check relevant PRs if approved GitHub authentication is available.
+Remote work may have completed more; do not duplicate it. Preserve .serena/ and
+all other pre-existing work. Never stash/reset/clean this worktree blindly.
+
+Read project AGENTS.md/SPEC.md, workload-router/AGENTS.md, this current handoff,
+and the latest workload-router/STATE.md entries before editing. The older
+workload-router/HANDOFF.md describes another VPS task and is not this assignment.
+
+Next: the installed-client audit is complete and Option A (alias translation)
+is selected; `/health` now serves the legacy liveness path. Review remaining
+partial/absent routes per external consumer, then continue the canary gates for
+VPS strict config/proof, resource/load, persistence/rollback and separate
+authorization. The live workload passes 5/5 on one free route. Do not repeat
+completed smoke tests merely to recreate evidence.
+
+Already done: authorized entrypoint startup/restart, operator catalog/priority
+and installed OpenCode checks, real OpenRouter chat/SSE/read loop, real Mistral
+chat/SSE, controlled pre-output failover to real responses in both directions,
+and a provider-free verified deterministic coding/tool workload mode; its child
+wiring was fixed after the first live invocation silently ran smoke. The
+2026-11-04 one-target live batch passed all five cases after the cap was raised
+to 512 and a bounded 4-RPM wait was added (5/5 correct, actual usage, no skips).
+The installed-client audit selected alias translation and added a `/health`
+liveness alias; latest full and release suites passed 402 tests, and the
+provider-free real-binary/OpenCode verifier now checks all 22 discovered
+aliases and sends every legacy alias through the entrypoint. Read the handoff
+for exact limitations; injected local 429s are not real upstream rate-limit
+evidence.
+
+Use existing provider-manager metadata read-only and existing approved secret
+sources. Free-only; no paid calls or unknown one-time-credit spending. Never
+print, copy into the gateway, rotate, or commit real credentials. Keep current
+smoke/tool/failover budgets unchanged unless a separate explicit workload mode
+has provider-free tests and a declared generation ceiling.
+
+Commit and push small verified milestones to feat/newapi-sidecar to save work,
+using normal secret-scan hooks. Do not merge into main, create duplicate PRs,
+force-push, deploy, restart/reconfigure VPS services, change native New-API
+retry/stream settings, or cut over traffic. Main has a deployment trigger.
+Preserve the legacy gateway as rollback. Document blockers in QUESTIONS.md and
+continue safe local work without asking for interactive input.
+
+Update STATE.md and this handoff after the milestone. Report actual results,
+remaining gates, and the next concrete action; never claim production readiness
+from local or synthetic results.
