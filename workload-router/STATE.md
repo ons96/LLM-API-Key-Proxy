@@ -2,7 +2,7 @@
 
 Current concise cross-harness handoff: `../HANDOFF-CURRENT-newapi-sidecar.md`.
 Standalone prompt: `../RESUME-newapi-sidecar.txt`. Implementation checkpoint
-`c6da14f` is pushed; 395 tests passed. The entries below are chronological, so
+`27e1fd6` is pushed; 398 tests passed. The entries below are chronological, so
 read the final checkpoints rather than an old repeated "next action" section.
 
 ## Current status
@@ -1842,6 +1842,13 @@ Limits and next:
   health/route 200, RSS 26240 KB, compilation OK; `git diff --check` clean;
   real-binary scripted verifier `/tmp/opencode/newapi-proof-3qd538n_` passed
   with OpenCode 1.19.5, one tool loop and paid route excluded.
+- Follow-up real-binary regression: `tools/verify_newapi.py` now requires
+  `/health` to return the same unauthenticated body as `/healthz`, and sends
+  `coding-elite` through the entrypoint with a response-model assertion. The
+  `/tmp/opencode/newapi-proof-ubats_oc` run passed (`passed:true`), with both
+  liveness paths 200, legacy alias 200, OpenCode 1.19.5 one tool loop, paid
+  route excluded and grades 0/5 vs 5/5. Focused 81 passed; full and release
+  suites 398 passed; release RSS 26280 KB and compilation OK.
 - No key was printed or committed; no VPS change, deployment, retry/override
   change or cutover occurred. Remaining canary gates: external-consumer route
   exceptions, same-model mapping semantics, post-output stream failures, quotas

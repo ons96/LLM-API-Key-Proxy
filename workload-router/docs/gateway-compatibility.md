@@ -17,8 +17,8 @@ recorded.
   -> 19 aliases.
 - Sidecar surface read from `newapi_server.py` (`do_GET` / `do_POST`) and
   `PROFILE_ALIASES` in `newapi_runtime.py`.
-- Client traffic was not inspected, so route *usage* is unknown; only route
-  *availability* is established.
+- Client traffic was not part of the initial route inventory; the 2026-11-05
+  installed-client audit below records observed local OpenCode usage.
 
 ## HTTP surface
 
@@ -195,6 +195,19 @@ legacy aliases over `/v1/chat/completions`, with `/health` and `/v1/models` also
 referenced. The other partial and absent routes have no observed local client
 demand, but external monitors or scripts may still use them. Record accepted
 exceptions per client before a canary; a 200 response is not semantic parity.
+
+## Real-binary verification - 2026-11-05
+
+The provider-free verifier now asserts that `/health` and `/healthz` both return
+200 without authentication and the same liveness body, and sends `coding-elite`
+through the actual entrypoint with a response-model assertion. The
+`/tmp/opencode/newapi-proof-ubats_oc` run passed (`passed:true`,
+scripted-local-only): both liveness probes returned 200 with matching bodies,
+the legacy alias returned 200 and preserved its model, OpenCode 1.19.5
+completed one read-tool loop, the paid route was excluded, and benchmark grades
+were 0/5 on route one and 5/5 on route two. Full suite: 398 passed; release
+verifier: 398 passed, health/route 200, RSS 26280 KB. This is client-boundary
+evidence, not a live provider or canary result.
 
 ## Unknowns
 
