@@ -56,17 +56,20 @@ Real-provider checks are separate and explicit in
 one read-only OpenCode loop, deterministic coding/tool cases (`--workload`) or
 injected-429 failover after `--execute`. Existing keys stay in memory in the
 host process, outside the disposable gateway namespace. The workload mode is
-capped at ten requests and 2560 output tokens, keeps tools intact, fails closed
+capped at ten requests and 5120 output tokens, keeps tools intact, fails closed
 on unverified case capabilities and reports transport and deterministic
-correctness separately. See `docs/live-provider-verification.md` for input
-format, budgets, actual mixed results and the remaining production gates. A
-later bounded continuation validated Mistral chat/SSE and injected-429 failover
-to real responses in both Mistral/OpenRouter directions. A 2026-11-04 live
-one-target workload batch reached the workload path after fixing a child-wiring
-bug, graded 2/2 attempted cases correct, but the debug case exhausted the
-256-token cap with empty content and the final two cases were skipped;
-`passed:false`. See `docs/live-provider-verification.md` for the exact budget
-finding. Canary and VPS gates remain.
+correctness separately. It waits once for a short exhausted per-minute window
+(bounded at 65 seconds) before reporting a case unavailable. See
+`docs/live-provider-verification.md` for input format, budgets, actual results
+and the remaining production gates. A later bounded continuation validated
+Mistral chat/SSE and injected-429 failover to real responses in both
+Mistral/OpenRouter directions. A 2026-11-04 live one-target workload batch
+reached the workload path after fixing a child-wiring bug; at a 256-token cap
+it graded 2/2 attempted cases but hit the cap and skipped the rest. After
+raising the cap to 512 and adding the bounded wait, all five cases ran and
+graded 5/5 correct with actual usage and no skips (`passed:true`). This is one
+live free route and one batch, not canary or production evidence. Canary and
+VPS gates remain.
 
 The gateway changes currently deployed are:
 

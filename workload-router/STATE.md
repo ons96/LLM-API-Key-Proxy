@@ -2,7 +2,7 @@
 
 Current concise cross-harness handoff: `../HANDOFF-CURRENT-newapi-sidecar.md`.
 Standalone prompt: `../RESUME-newapi-sidecar.txt`. Implementation checkpoint
-`994395a` is pushed; 393 tests passed. The entries below are chronological, so
+`c6bc275` is pushed; 395 tests passed. The entries below are chronological, so
 read the final checkpoints rather than an old repeated "next action" section.
 
 ## Current status
@@ -1780,3 +1780,41 @@ Limits and next:
 - Next: decide whether the 256-token cap is adequate for reasoning-heavy debug
   cases or declare a larger workload ceiling and rerun; then audit client usage
   and resolve compatibility exceptions before any canary proposal.
+
+## Live workload cap and pacing calibration - 2026-11-04
+
+- Re-fetched origin before work: local `feat/newapi-sidecar` and
+  `origin/feat/newapi-sidecar` were both `74f1fb1` with no divergence. Existing
+  untracked `.serena/` was preserved; no stash/reset/clean was run.
+- Raised `WORKLOAD_OUTPUT_CAP` from 256 to 512 and the declared aggregate
+  ceiling from 2560 to 5120 output tokens; the ten-request ceiling and
+  five-case coverage are unchanged. Added `wait_for_workload_rpm`, which waits
+  once for an exhausted per-minute window only when the retry hint is at most
+  65 seconds, then rechecks capacity. Daily exhaustion and provider cooldowns
+  still report `route_unavailable`.
+- Provider-free tests: focused live-policy **38 passed**; full suite **395
+  passed**, one existing `asyncio_mode` warning; `tools/verify_release.py`
+  **395 passed**, session OK, health/route 200, RSS 26260 KB and compilation
+  OK; `git diff --check` clean.
+- Live one-target calibration on OpenRouter
+  `cohere/north-mini-code:free`: the first 512-cap run completed 4/5 with 4/4
+  correct; `debug` used 323 output tokens, confirming the earlier 256-token
+  failure was cap exhaustion. `review` was skipped because the live harness
+  caps the target at four requests per minute and the fifth case fell inside
+  that window. After the bounded wait, the rerun completed all five cases:
+  5/5 correct, actual usage, 0 skips, 233 input/773 output tokens, and
+  `passed:true`.
+- Private reports:
+  `/tmp/opencode/newapi-live-e3rrmblj/report.json` (four-case pacing run) and
+  `/tmp/opencode/newapi-live-s2tlwq_a/report.json` (passing five-case run).
+  The two calibration batches used nine live provider requests. No key was
+  printed, copied into New-API, or committed; no VPS change, deployment,
+  retry/override change or cutover occurred.
+- Workload coverage now passes on one live free route and one batch. Remaining
+  gates: compatibility/client decisions, same-model mapping semantics,
+  post-output stream failures with real providers, quotas under load, canary
+  entrypoint provisioning, and VPS-40 resource/restart/rollback.
+
+Next: audit installed-client configuration and recent request usage read-only
+against `docs/gateway-compatibility.md`, then decide alias translation vs dual
+path vs front proxy before proposing any canary.

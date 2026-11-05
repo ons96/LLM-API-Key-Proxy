@@ -2,7 +2,7 @@ Continue the New-API sidecar from:
 /home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar/HANDOFF-CURRENT-newapi-sidecar.md
 
 Work in that worktree's workload-router/ directory on feat/newapi-sidecar.
-Implementation was last verified at 994395a; use the latest branch tip, not a
+Implementation was last verified at c6bc275; use the latest branch tip, not a
 reset to that hash. First inspect git status, fetch origin, compare commits and
 branches, and check relevant PRs if approved GitHub authentication is available.
 Remote work may have completed more; do not duplicate it. Preserve .serena/ and
@@ -12,21 +12,20 @@ Read project AGENTS.md/SPEC.md, workload-router/AGENTS.md, this current handoff,
 and the latest workload-router/STATE.md entries before editing. The older
 workload-router/HANDOFF.md describes another VPS task and is not this assignment.
 
-Next: decide whether the live workload's 256-token per-request cap is adequate
-for reasoning-heavy debug cases or declare a larger ceiling and rerun the
-one-target batch; the first batch graded 2/2 attempted cases but hit the cap and
-skipped tool/review. Then reconcile remaining API compatibility exceptions
-before proposing a canary. Do not repeat completed smoke tests merely to
-recreate evidence.
+Next: audit installed-client configuration and recent request usage read-only
+against docs/gateway-compatibility.md, then decide alias translation vs dual
+path vs front proxy and reconcile remaining API compatibility exceptions
+before proposing a canary. The live workload now passes 5/5 on one free route.
+Do not repeat completed smoke tests merely to recreate evidence.
 
 Already done: authorized entrypoint startup/restart, operator catalog/priority
 and installed OpenCode checks, real OpenRouter chat/SSE/read loop, real Mistral
 chat/SSE, controlled pre-output failover to real responses in both directions,
 and a provider-free verified deterministic coding/tool workload mode; its child
-wiring was fixed after the first live invocation silently ran smoke. A
-2026-11-04 one-target live batch graded 2/2 attempted cases but the debug case
-exhausted the 256-token cap, so tool/review were skipped and the workload gate
-remains failed. Latest full and release suites passed 393 tests. Read the
+wiring was fixed after the first live invocation silently ran smoke. The
+2026-11-04 one-target live batch passed all five cases after the cap was raised
+to 512 and a bounded 4-RPM wait was added (5/5 correct, actual usage, no skips).
+Latest full and release suites passed 395 tests. Read the
 handoff for exact limitations; injected local 429s are not real upstream
 rate-limit evidence.
 

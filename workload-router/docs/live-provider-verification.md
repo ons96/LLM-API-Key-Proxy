@@ -145,9 +145,13 @@ python3 tools/verify_newapi_live.py \
 Budget and contracts:
 
 - At most two verified targets, five non-streaming cases each: ten requests and
-  2560 output tokens in total, each request capped at 256 output tokens. The
+  5120 output tokens in total, each request capped at 512 output tokens. The
   host broker enforces per-target and aggregate request ceilings before any
   upstream call; the isolated child has a 480-second wall-clock guard.
+- If a target's per-minute request window is exhausted between cases, the runner
+  waits once for the remaining window (bounded at 65 seconds), rechecks
+  capacity and retries that case. Daily exhaustion and provider cooldowns are
+  not waited out; those cases remain `route_unavailable`.
 - Temperature is 0. The tool case keeps its `tools` definition and forced
   `tool_choice`. The four JSON cases require JSON in the prompt but omit
   `response_format`, because live catalogs do not verify structured-output
@@ -176,9 +180,9 @@ python3 -m pytest tests/test_verify_newapi_live.py -o addopts= --quiet
 ```
 
 The suite covers the complete five-case dispatch, transport/grade separation,
-unverified-capability skips, aggregate budget rejection, the 256-token broker
-cap and mutually exclusive workload flags. It uses scripted adapters and spends
-no provider quota.
+unverified-capability skips, aggregate budget rejection, the 512-token broker
+cap, the bounded per-minute wait and mutually exclusive workload flags. It uses
+scripted adapters and spends no provider quota.
 
 ### Live workload attempt - 2026-11-04
 
@@ -202,6 +206,29 @@ and a fresh batch. Private report:
 `/tmp/opencode/newapi-live-ht15k438/report.json`. Including the two accidental
 smoke calls, this attempt spent five live provider requests; no key was
 printed, copied into New-API, or committed.
+
+### Workload cap calibration - 2026-11-04
+
+The per-request cap was raised from 256 to 512 output tokens, keeping five cases
+per target and the ten-request ceiling; the aggregate output ceiling became 5120
+tokens. The first calibration run completed four cases: plan, edit, debug and
+tool were all correct with actual usage. Debug used 323 output tokens,
+confirming that the earlier empty response at 256 was cap exhaustion. `review`
+was skipped as `route_unavailable` because the live harness deliberately caps
+the target at four requests per minute and the fifth case fell inside the same
+window.
+
+A bounded wait now covers exactly that case: when the ledger reports an
+exhausted per-minute window, the runner sleeps for the remaining window plus a
+small margin (bounded at 65 seconds), rechecks capacity and dispatches once.
+Daily exhaustion and provider cooldowns are not waited out. The rerun completed
+all five cases: plan, edit, debug, tool and review were 5/5 correct, with actual
+usage, 233 input / 773 output tokens and no skips, so the workload reported
+`passed:true`. The five requests were spread across about 65 seconds by the
+wait. Private reports: `/tmp/opencode/newapi-live-e3rrmblj/report.json`
+(four-case pacing run) and `/tmp/opencode/newapi-live-s2tlwq_a/report.json`
+(passing five-case run). The two calibration batches used nine live provider
+requests; no key was printed, copied into New-API, or committed.
 
 ## Evidence from 2026-11-05
 
@@ -264,12 +291,11 @@ verified only with scripted host responses, not additional live quota.
 
 ## Remaining gates
 
-Two live free routes and pre-output failover now pass locally. A live
-single-target workload batch was attempted on 2026-11-04; it did not complete
-all five cases (see above), so the workload coverage gate still fails. The
-remaining work is to decide whether the 256-token cap is adequate for
-reasoning-heavy cases or to declare a larger budget, then rerun. Same-model
-mapping semantics, post-output stream failures with real providers, quotas under
-load, real canary entrypoint provisioning and VPS-40 resource/restart/rollback
-gates remain. Do not switch production traffic, clear live New-API overrides or
-set its retries to zero based on these results.
+Two live free routes and pre-output failover now pass locally. The deterministic
+five-case workload now passes on one live free OpenRouter route (5/5 correct,
+actual usage, no skips) after the cap and per-minute-window calibration. That
+is single-route, single-batch evidence, not sustained-load or canary proof.
+Same-model mapping semantics, post-output stream failures with real providers,
+quotas under load, real canary entrypoint provisioning and VPS-40
+resource/restart/rollback gates remain. Do not switch production traffic, clear
+live New-API overrides or set its retries to zero based on these results.

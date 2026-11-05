@@ -1,6 +1,6 @@
 # Current New-API sidecar handoff
 
-Snapshot: 2026-11-05 UTC. Implementation checkpoint: `994395a`.
+Snapshot: 2026-11-04 UTC. Implementation checkpoint: `c6bc275`.
 Authoritative continuation branch: `origin/feat/newapi-sidecar` in
 `ons96/LLM-API-Key-Proxy`. A later handoff-only commit is expected.
 
@@ -16,7 +16,7 @@ Continue the New-API sidecar from:
 /home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar/HANDOFF-CURRENT-newapi-sidecar.md
 
 Work in that worktree's workload-router/ directory on feat/newapi-sidecar.
-Implementation was last verified at 994395a; use the latest branch tip, not a
+Implementation was last verified at c6bc275; use the latest branch tip, not a
 reset to that hash. First inspect git status, fetch origin, compare commits and
 branches, and check relevant PRs if approved GitHub authentication is available.
 Remote work may have completed more; do not duplicate it. Preserve .serena/ and
@@ -26,21 +26,21 @@ Read project AGENTS.md/SPEC.md, workload-router/AGENTS.md, this current handoff,
 and the latest workload-router/STATE.md entries before editing. The older
 workload-router/HANDOFF.md describes another VPS task and is not this assignment.
 
-Next: decide whether the live workload's 256-token per-request cap is adequate
-for reasoning-heavy debug cases or declare a larger ceiling and rerun the
-one-target batch; the first batch graded 2/2 attempted cases but hit the cap and
-skipped tool/review. Then reconcile remaining API compatibility exceptions
-before proposing a canary. Do not repeat completed smoke tests merely to
-recreate evidence.
+Next: audit installed-client configuration and recent request usage read-only
+against docs/gateway-compatibility.md, then decide alias translation vs dual
+path vs front proxy and reconcile remaining API compatibility exceptions
+before proposing a canary. The live workload now passes 5/5 on one free route
+at a 512-token cap with a bounded per-minute wait. Do not repeat completed
+smoke tests merely to recreate evidence.
 
 Already done: authorized entrypoint startup/restart, operator catalog/priority
 and installed OpenCode checks, real OpenRouter chat/SSE/read loop, real Mistral
 chat/SSE, controlled pre-output failover to real responses in both directions,
 and a provider-free verified deterministic coding/tool workload mode; its child
-wiring was fixed after the first live invocation silently ran smoke. A
-2026-11-04 one-target live batch graded 2/2 attempted cases but the debug case
-exhausted the 256-token cap, so tool/review were skipped and the workload gate
-remains failed. Latest full and release suites passed 393 tests. Read the
+wiring was fixed after the first live invocation silently ran smoke. The
+2026-11-04 one-target live batch passed all five cases after the cap was raised
+to 512 and a bounded 4-RPM wait was added (5/5 correct, actual usage, no skips).
+Latest full and release suites passed 395 tests. Read the
 handoff for exact limitations; injected local 429s are not real upstream
 rate-limit evidence.
 
@@ -71,7 +71,7 @@ Standalone prompt: `RESUME-newapi-sidecar.txt` at this worktree root.
 | Implementation worktree | `/home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar` |
 | Component and command cwd | Worktree's `workload-router/` |
 | Branch | `feat/newapi-sidecar`, tracks `origin/feat/newapi-sidecar` |
-| Last implementation commit | `994395a` (child workload wiring + live evidence) |
+| Last implementation commit | `c6bc275` (workload cap/pacing calibration + live 5/5 evidence) |
 | Old baseline | `fde9784`; do not reset to it or redo its completed work |
 | Remote main at snapshot | `76cd928`; not merged into this branch |
 | Local changes before handoff | Tracked files clean; existing untracked `.serena/` preserved |
@@ -99,6 +99,7 @@ All implementation milestones below are committed and pushed:
 | `ef6b803` | Mistral support and controlled live fallback in both directions |
 | `41d2b44` | Deterministic coding/tool workload mode; provider-free verified |
 | `994395a` | Forwarded workload to child; live one-target batch recorded |
+| `c6bc275` | Raised workload cap to 512; bounded 4-RPM wait; live 5/5 pass |
 
 Git fetch and PR refs were checked before each milestone. No PR head pointed at
 these tips. PR review/check/state metadata was not queried because no approved
@@ -163,20 +164,19 @@ are authoritative, not old repeated "next action" sections.
 
 ## Verified results and limits
 
-- Exact full suite: **393 passed, 1 existing asyncio_mode warning**.
-  `tools/verify_release.py`: 393 tests, session check, health/route 200,
-  26236 KB legacy resource smoke, compilation passed. Focused live-policy suite:
-  36 passed.
-- Deterministic coding/tool workload mode is implemented and provider-free
-  tested: five plan/edit/debug/tool/review cases per target, a declared
-  ten-request/2560-output-token ceiling, 256-token per-request cap, tools intact,
-  catalog-verified capability gating and separate transport/quality reporting.
-  A 2026-11-04 live one-target OpenRouter batch reached the workload path after
-  the child wiring fix: plan/edit graded correct (183/123 output tokens), debug
-  returned empty content at exactly 256 completion tokens with
-  `invalid_response`, and tool/review were skipped after cooldown. Workload
-  `passed:false`; quality was 2/2 among graded cases. Five live requests total,
-  including two accidental smoke calls from the bug.
+- Exact full suite: **395 passed, 1 existing asyncio_mode warning**.
+  `tools/verify_release.py`: 395 tests, session check, health/route 200,
+  26260 KB legacy resource smoke, compilation passed. Focused live-policy suite:
+  38 passed.
+- Deterministic coding/tool workload mode is implemented, provider-free tested
+  and live-passed: five plan/edit/debug/tool/review cases per target, a declared
+  ten-request/5120-output-token ceiling, 512-token per-request cap, tools intact,
+  catalog-verified capability gating, a bounded per-minute-window wait and
+  separate transport/quality reporting. The 2026-11-04 one-target OpenRouter
+  batch first confirmed cap exhaustion at 256 tokens, then completed 5/5 with
+  actual usage and no skips after the cap/pacing calibration (`passed:true`,
+  233 input / 773 output tokens). One live free route and one batch only; not
+  sustained-load or canary evidence.
 - Real-binary scripted verifier passed after the change:
   `/tmp/opencode/newapi-proof-zg3ejfrg/report.json` (`passed:true`,
   scripted-local-only); benchmark grades remained 0/5 for route one and 5/5 for
@@ -228,6 +228,8 @@ Reports below were read directly, not inferred from a truncated success line:
 | `newapi-live-123lfdk9/report.json` | Post-live hardening check with scripted transport only |
 | `newapi-live-ht15k438/report.json` | One-target live workload failed coverage at 256-token cap |
 | `newapi-live-2v7xsx0u/report.json` | Unintended smoke from child wiring bug; not workload evidence |
+| `newapi-live-e3rrmblj/report.json` | 512-cap calibration: 4/4 correct, fifth blocked by 4-RPM window |
+| `newapi-live-s2tlwq_a/report.json` | Live workload passed 5/5 after bounded RPM wait |
 
 Artifacts are owner-only and contain generated credentials, logs and test DBs.
 Do not copy/commit/dump those directories to move harnesses. Public summaries
@@ -274,7 +276,8 @@ Live verifier usage and private target-plan format are in
 `docs/live-provider-verification.md`. Default is catalog-only. Existing limits:
 smokes <=2 requests/target with 128 output tokens; tool loop <=3 requests on one
 target with 512 output tokens; failover <=1 real 128-token request per provider;
-workload = five 256-token cases/target, max ten requests/2560 output tokens.
+workload = five 512-token cases/target, max ten requests/5120 output tokens,
+with a bounded wait for a short exhausted per-minute window.
 The provider-free workload gate is `tests/test_verify_newapi_live.py`.
 No key value in argv/JSON. `key_env` must equal canonical `env_var`; normal file
 sources stay in `~/.secrets`. Use the existing approved secret loader, not manual
@@ -282,16 +285,15 @@ key copying. Do not auto-run live generation on resume.
 
 ## Next bounded milestone
 
-1. ~~Broaden the bounded coding/tool workload~~ **Implemented** at `41d2b44`;
-   child wiring fixed at `994395a`. `--workload` runs the five deterministic
-   cases per verified target with a ten-request/2560-output-token ceiling,
-   256-token cap, tools intact, verified-capability gating and separate
-   transport/quality reporting. A 2026-11-04 one-target live batch attempted
-   three cases: plan/edit graded correct, debug returned empty content at the
-   256-token cap (`invalid_response`), and tool/review were skipped after
-   cooldown, so `passed:false`. Next, decide whether the cap is adequate or
-   declare a larger ceiling and rerun. Stop on 401/403/429 and never substitute
-   a paid/credit model.
+1. ~~Broaden the bounded coding/tool workload~~ **Implemented and live-passed**
+   at `c6bc275`. `--workload` runs the five deterministic cases per verified
+   target with a ten-request/5120-output-token ceiling, 512-token cap, tools
+   intact, verified-capability gating, a bounded per-minute-window wait and
+   separate transport/quality reporting. The 2026-11-04 one-target OpenRouter
+   batch passed 5/5 with actual usage and no skips after the cap/pacing
+   calibration. This is one live free route and one batch; it is not sustained
+   load or canary evidence. Stop on 401/403/429 and never substitute a
+   paid/credit model.
 2. ~~Update compatibility exceptions~~ **Inventory updated** in
    `docs/gateway-compatibility.md` (27 vs 30 paths; 24 same-path, 1 renamed,
    5 absent; client usage still unknown). Next, review redacted client
