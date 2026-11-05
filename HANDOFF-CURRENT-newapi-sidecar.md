@@ -1,6 +1,7 @@
 # Current New-API sidecar handoff
 
-Snapshot: 2026-11-05 UTC. Implementation checkpoint: `1586913`.
+Snapshot: 2026-11-05 UTC. Implementation checkpoint: `bfe91ff`; feature
+branch tip `9e591d0` before this evidence commit.
 Authoritative continuation branch: `origin/feat/newapi-sidecar` in
 `ons96/LLM-API-Key-Proxy`. A later handoff-only commit is expected.
 
@@ -16,7 +17,7 @@ Continue the New-API sidecar from:
 /home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar/HANDOFF-CURRENT-newapi-sidecar.md
 
 Work in that worktree's workload-router/ directory on feat/newapi-sidecar.
-Implementation was last verified at 1586913; use the latest branch tip, not a
+Implementation was last verified at bfe91ff; use the latest branch tip, not a
 reset to that hash. First inspect git status, fetch origin, compare commits and
 branches, and check relevant PRs if approved GitHub authentication is available.
 Remote work may have completed more; do not duplicate it. Preserve .serena/ and
@@ -75,9 +76,9 @@ Standalone prompt: `RESUME-newapi-sidecar.txt` at this worktree root.
 | Implementation worktree | `/home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar` |
 | Component and command cwd | Worktree's `workload-router/` |
 | Branch | `feat/newapi-sidecar`, tracks `origin/feat/newapi-sidecar` |
-| Last implementation commit | `1586913` (all-alias discovery + entrypoint regression) |
+| Last implementation commit | `bfe91ff` (empty-tool_calls fix; feature tip `9e591d0` before this docs commit) |
 | Old baseline | `fde9784`; do not reset to it or redo its completed work |
-| Remote main at snapshot | `76cd928`; not merged into this branch |
+| Remote main at snapshot | `bfe91ff`; merged into this branch at `9e591d0` |
 | Local changes before handoff | Tracked files clean; existing untracked `.serena/` preserved |
 | Canonical metadata, read-only | `/home/osees/CodingProjects/llm-provider-manager/llm_providers.db` |
 | Provider-manager schema guidance | Same project's `CLAUDE.md`; some documented counts are stale |
@@ -113,6 +114,36 @@ these tips. PR review/check/state metadata was not queried because no approved
 machine-user fine-grained PAT was available. Do not use stored OAuth/classic
 `gh` authentication for API calls. Normal Git pushes and secret hooks succeeded.
 A feature-branch push is a backup, not permission to merge or deploy.
+
+## Latest canary deployment and rollback - 2026-11-05
+
+- Merged release `bfe91ff` was installed at
+  `/opt/newapi-sidecar/releases/bfe91ff`; the prior unit is backed up at
+  `/etc/systemd/system/newapi-sidecar-canary.service.bak-before-bfe91ff`. The
+  unit points at that release and has a 300 s/3-start systemd start limit.
+- The only route was `bluesminds-canary`: channel 8, model/alias
+  `nvidia/ising-calibration-1.5-31b`, profile `auto-chat`, single key, default
+  group, 4 RPM/8192 TPM. It is chat-only; there is no tool/`auto-coding` route.
+- The upstream was intermittently unavailable: earlier sidecar calls timed out
+  at 30 s while New-API logged 504 after 60 s. After recovery, a direct
+  16-token call returned 200 in 1.936 s; sidecar non-stream chat returned 200
+  in 15.745 s and SSE returned 200 in 12.658 s with `[DONE]`. The ledger
+  recorded both successes. The installed runtime hash matched the fixed
+  release, ruling out a stale-code install.
+- A bounded 4-RPM burst passed 4/4 non-stream calls (16.5-17.8 s). The immediate
+  fifth call was rejected in 4 ms, so only four dispatched, but it returned
+  **503**, not 429; the 503/429 contract is unresolved. The final ledger had
+  10 decisions: 6 successes, 3 timeouts and 1 older, unreproduced
+  `invalid_response`.
+- Rollback passed: `RetryTimes` was restored from 0 to 3 through the admin
+  option API (PUT 200; GET 3), the canary stopped and disabled (`MainPID=0`),
+  `:8124/health` became unreachable, and `:8000/health`, `:8001/api/status`
+  and `:8123/healthz` all returned 200. No production traffic was cut over.
+- The admin JWT expired at 05:13:40 UTC and the proof command still points at
+  the old `0e84d76/tools/newapi_channel_proof.py`; a future unattended start
+  needs both refreshed. Same-model failover, sustained load/quota-reset
+  evidence, a tool route and VPS strict-config provisioning remain open. The
+  release and route database were intentionally preserved.
 
 ## Architecture and invariants
 
@@ -322,20 +353,25 @@ key copying. Do not auto-run live generation on resume.
    explicit exceptions to review per external consumer; Responses/embeddings
    callers, process-local sessions, stale provider status and CLIProxyAPI remain
    separate gates. Do not add empty shims or claim parity from a 200 response.
-3. Run a canary only after those compatibility decisions and the VPS strict
-   config/proof provisioning, resource/load, persistence/rollback and separate
-   authorization gates pass.
+3. ~~Run a temporary loopback canary~~ **Completed and rolled back** on
+   2026-11-05 (see the latest canary section). A traffic cutover still requires
+   the compatibility decisions, VPS strict-config/proof provisioning,
+   same-model and tool-route evidence, sustained quota/resource evidence and
+   separate cutover authorization.
 4. Save tested milestones to the feature branch, update STATE/current handoff.
    Do not promote to production from local or synthetic results.
 
-## Production boundary (historical inventory only)
+## Production boundary and authorization
 
 Prior remote work recorded legacy gateway on VPS-40 `:8000`, native New-API v1
-on `:8001`, and older P0 canary on loopback `:8123`. This continuation never
-SSH'ed or changed them. Last recorded native v1 had `RetryTimes=3`, forced
-stream overrides on channels 3/4, and no 2FA enrollment; sidecar v2 was not
-serving. v1 model-first fallback is separate from strict v2 accounting.
-Changing these settings would alter v1 behavior, not merely unblock a test.
+on `:8001`, and older P0 canary on loopback `:8123`. The 2026-11-05 canary
+continuation did SSH to the host and temporarily changed the sidecar unit,
+route configuration and `RetryTimes` under owner authorization; the canary was
+stopped/disabled and retry behavior was restored before this handoff. Last
+recorded native v1 had `RetryTimes=3`, forced stream overrides on channels 3/4,
+and no 2FA enrollment; sidecar v2 was not serving. v1 model-first fallback is
+separate from strict v2 accounting. Changing these settings would alter v1
+behavior, not merely unblock a test.
 
 Require a separately scoped authorization for VPS service/configuration changes,
 proof provisioning, load/rollback drills and traffic cutover. Keep legacy state

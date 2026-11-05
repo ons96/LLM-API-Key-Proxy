@@ -113,3 +113,19 @@ credentials, host access, or an explicit repository decision.
   accepted free/paid metadata model, confirm that PR's merge priority so the
   dashboard reads `quota_class` instead of duplicating a parallel tagging
   scheme.
+
+## New-API canary follow-up - 2026-11-05
+
+- The temporary loopback canary was live-verified and rolled back on
+  2026-11-05; see `workload-router/STATE.md` and the current handoff. Do not
+  cut over: only a chat-only route exists, tool/`auto-coding` coverage is
+  absent, same-model failover and sustained quota-reset behavior are untested,
+  and VPS strict-config provisioning is incomplete.
+- The fifth request in a 4-RPM burst was rejected locally in 4 ms but returned
+  503, not 429. Decide the sidecar's quota-rejection HTTP contract before
+  exposing it to OpenAI-compatible clients; do not call the current behavior a
+  429 pass.
+- The admin JWT is short-lived and expired at 05:13:40 UTC; the proof command
+  still points at `0e84d76/tools/newapi_channel_proof.py`. Refresh both and
+  verify a clean unattended start before the next canary. Keep the release,
+  route DB and unit backup for that run.

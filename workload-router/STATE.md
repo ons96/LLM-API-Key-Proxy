@@ -1860,5 +1860,53 @@ Limits and next:
   exceptions, same-model mapping semantics, post-output stream failures, quotas
   under load, canary entrypoint provisioning and VPS-40 resource/restart/rollback.
 
-Next: review the remaining partial/absent routes with each external consumer and
-prepare the canary gate evidence; do not deploy or cut over traffic.
+## VPS canary live verification and rollback - 2026-11-05
+
+- Deployed merged `bfe91ff` to `/opt/newapi-sidecar/releases/bfe91ff` with the
+  `usable_completion()` empty-`tool_calls` fix (runtime SHA-256
+  `526473430f413684dd1649e5037755d4b5574c1df3ddd797be85e9721a814a91`). The
+  previous unit was backed up as
+  `/etc/systemd/system/newapi-sidecar-canary.service.bak-before-bfe91ff`; the
+  unit also gained `StartLimitIntervalSec=300` and `StartLimitBurst=3` after a
+  failed-start loop. PR #360 merged as `bfe91ff`; full suite 403 passed and
+  focused runtime tests 27 passed (existing asyncio_mode warning only).
+- Strict loopback route `bluesminds-canary`: channel 8, alias/model
+  `nvidia/ising-calibration-1.5-31b`, profile `auto-chat`, single key, default
+  group, `limits={"rpm":4,"tpm":8192}`. `/health`, `/healthz` and `/v1/models`
+  returned 200; the pre-stop memory peak was 42,758,144 bytes (42.7 MB) under
+  the 128 MB cap. This route is chat-only; no `auto-coding` or tool route exists.
+- The upstream was intermittently unavailable: a direct call at 04:46 succeeded,
+  sidecar calls at 04:59-05:06 timed out at 30 s, and New-API logged 504 after
+  60 s. A direct 16-token recovery call at 05:06:08 returned 200 in 1.936 s. The
+  installed runtime hash matched the release containing the fix, so the
+  discrepancy was not a stale-code install.
+- Live evidence after recovery: sidecar non-stream chat returned 200 in 15.745 s
+  (`auto-chat`, 20 input/10 output); SSE returned 200 in 12.658 s with 19
+  `data:` events and `[DONE]`; the ledger recorded both as successes. A
+  bounded 4-RPM burst completed 4/4 non-stream calls in 16.5-17.8 s (20 input
+  tokens each). An immediate fifth call was rejected locally in 4 ms, so only
+  four dispatched, but the observed status was **503**, not 429 (66-byte
+  response; body not retained). Treat the status semantics as an open protocol
+  caveat, not a 429 pass.
+- One older `invalid_response` ledger row (2.5 s) remains unexplained and was
+  not reproduced after recovery. The final ledger showed 10 decisions: 6
+  successes, 3 timeouts and 1 invalid_response. The 30 s failures were
+  upstream timeouts, not a claim that all historical startup races are fixed.
+- Rollback completed: `RetryTimes` was restored from 0 to 3 with
+  `PUT /api/option/` (HTTP 200; a subsequent GET returned `3`); the canary was
+  stopped and disabled (`MainPID=0`); `127.0.0.1:8124/health` became
+  unreachable. Legacy checks returned 200 for `:8000/health`,
+  `:8001/api/status` and `:8123/healthz`. The release and route database remain
+  for a future canary; no production traffic was cut over.
+- Remaining gates: only a chat-only route exists; there is no tool-capable
+  coding route. Same-model failover was not tested because each tested provider
+  has one local key. The load was a bounded 4-request burst, not sustained load
+  or quota-reset evidence. The admin JWT is short-lived and expired at 05:13:40
+  UTC, so an unattended restart needs a fresh token; the proof command still
+  points at the old `0e84d76/tools/newapi_channel_proof.py`. Fifth-request
+  503-vs-429 semantics and VPS strict-config provisioning remain open. Do not
+  cut over.
+
+Next: add and live-test a tool-capable `auto-coding` route, then resolve
+same-model failover, sustained quota/resource behavior, proof/token provisioning
+and the 503/429 contract before seeking cutover authorization.
