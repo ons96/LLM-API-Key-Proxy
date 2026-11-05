@@ -2,7 +2,7 @@
 
 Current concise cross-harness handoff: `../HANDOFF-CURRENT-newapi-sidecar.md`.
 Standalone prompt: `../RESUME-newapi-sidecar.txt`. Implementation checkpoint
-`27e1fd6` is pushed; 398 tests passed. The entries below are chronological, so
+`1586913` is pushed; 402 tests passed. The entries below are chronological, so
 read the final checkpoints rather than an old repeated "next action" section.
 
 ## Current status
@@ -1849,6 +1849,12 @@ Limits and next:
   liveness paths 200, legacy alias 200, OpenCode 1.19.5 one tool loop, paid
   route excluded and grades 0/5 vs 5/5. Focused 81 passed; full and release
   suites 398 passed; release RSS 26280 KB and compilation OK.
+- Alias-completeness regression: authenticated `/v1/models` returned all 22
+  accepted aliases with the 19 legacy names marked; every legacy alias, plus
+  `coding-elite` after restart, returned 200 through the real entrypoint. The
+  `/tmp/opencode/newapi-proof-imi83fh6` run passed (`passed:true`), with
+  OpenCode 1.19.5 one tool loop, paid route excluded and grades 0/5 vs 5/5.
+  Focused 85 passed; full and release suites 402 passed; release RSS 26272 KB.
 - No key was printed or committed; no VPS change, deployment, retry/override
   change or cutover occurred. Remaining canary gates: external-consumer route
   exceptions, same-model mapping semantics, post-output stream failures, quotas

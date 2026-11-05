@@ -2,7 +2,7 @@ Continue the New-API sidecar from:
 /home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar/HANDOFF-CURRENT-newapi-sidecar.md
 
 Work in that worktree's workload-router/ directory on feat/newapi-sidecar.
-Implementation was last verified at 27e1fd6; use the latest branch tip, not a
+Implementation was last verified at 1586913; use the latest branch tip, not a
 reset to that hash. First inspect git status, fetch origin, compare commits and
 branches, and check relevant PRs if approved GitHub authentication is available.
 Remote work may have completed more; do not duplicate it. Preserve .serena/ and
@@ -27,10 +27,11 @@ wiring was fixed after the first live invocation silently ran smoke. The
 2026-11-04 one-target live batch passed all five cases after the cap was raised
 to 512 and a bounded 4-RPM wait was added (5/5 correct, actual usage, no skips).
 The installed-client audit selected alias translation and added a `/health`
-liveness alias; latest full and release suites passed 398 tests, and the
-provider-free real-binary/OpenCode verifier now exercises `/health` and a
-legacy alias. Read the handoff for exact limitations; injected local 429s are
-not real upstream rate-limit evidence.
+liveness alias; latest full and release suites passed 402 tests, and the
+provider-free real-binary/OpenCode verifier now checks all 22 discovered
+aliases and sends every legacy alias through the entrypoint. Read the handoff
+for exact limitations; injected local 429s are not real upstream rate-limit
+evidence.
 
 Use existing provider-manager metadata read-only and existing approved secret
 sources. Free-only; no paid calls or unknown one-time-credit spending. Never

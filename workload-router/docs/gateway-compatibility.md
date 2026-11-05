@@ -40,7 +40,7 @@ Bearer-authenticated, 1 MiB body cap).
 | Gateway path | Sidecar | Status |
 | --- | --- | --- |
 | `/v1/chat/completions` | same path | **covered** (plus SSE, `X-Session-Id`, `X-Route-Step`) |
-| `/v1/models` | same path | **partial** — returns the 22 accepted aliases, not the gateway's upstream model list |
+| `/v1/models` | same path | **partial** — returns the 22 accepted aliases (19 legacy names marked deprecated), not the gateway's upstream model list; real-binary discovery is covered |
 | `/health` | same path | **partial** — unauthenticated liveness alias; body is sidecar-specific, not the gateway's exact payload |
 | `/` | same path | **partial** — unauthenticated status object; not the gateway's exact body |
 | `/v1/models/{model_id}` | same path | **partial** — returns the old basic `{id, object, created, owned_by}` envelope for any non-empty id; known aliases carry `deprecated`; no upstream model-info stats |
@@ -199,15 +199,18 @@ exceptions per client before a canary; a 200 response is not semantic parity.
 ## Real-binary verification - 2026-11-05
 
 The provider-free verifier now asserts that `/health` and `/healthz` both return
-200 without authentication and the same liveness body, and sends `coding-elite`
-through the actual entrypoint with a response-model assertion. The
-`/tmp/opencode/newapi-proof-ubats_oc` run passed (`passed:true`,
-scripted-local-only): both liveness probes returned 200 with matching bodies,
-the legacy alias returned 200 and preserved its model, OpenCode 1.19.5
-completed one read-tool loop, the paid route was excluded, and benchmark grades
-were 0/5 on route one and 5/5 on route two. Full suite: 398 passed; release
-verifier: 398 passed, health/route 200, RSS 26280 KB. This is client-boundary
-evidence, not a live provider or canary result.
+200 without authentication and the same liveness body. Authenticated
+`/v1/models` must return all 22 accepted aliases, with all 19 legacy names
+marked deprecated; every legacy alias is then sent through the actual
+entrypoint with a response-model assertion, and `coding-elite` is repeated
+after restart. The `/tmp/opencode/newapi-proof-imi83fh6` run passed
+(`passed:true`, scripted-local-only): discovery returned 22 models and 19
+legacy names, all legacy aliases returned 200, and the restart alias preserved
+its model. OpenCode 1.19.5 completed one read-tool loop, the paid route was
+excluded, and benchmark grades were 0/5 on route one and 5/5 on route two. Full
+suite: 402 passed; release verifier: 402 passed, health/route 200, RSS
+26272 KB. This is client-boundary evidence, not a live provider or canary
+result.
 
 ## Unknowns
 

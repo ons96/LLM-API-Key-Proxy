@@ -1,6 +1,6 @@
 # Current New-API sidecar handoff
 
-Snapshot: 2026-11-05 UTC. Implementation checkpoint: `27e1fd6`.
+Snapshot: 2026-11-05 UTC. Implementation checkpoint: `1586913`.
 Authoritative continuation branch: `origin/feat/newapi-sidecar` in
 `ons96/LLM-API-Key-Proxy`. A later handoff-only commit is expected.
 
@@ -16,7 +16,7 @@ Continue the New-API sidecar from:
 /home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar/HANDOFF-CURRENT-newapi-sidecar.md
 
 Work in that worktree's workload-router/ directory on feat/newapi-sidecar.
-Implementation was last verified at 27e1fd6; use the latest branch tip, not a
+Implementation was last verified at 1586913; use the latest branch tip, not a
 reset to that hash. First inspect git status, fetch origin, compare commits and
 branches, and check relevant PRs if approved GitHub authentication is available.
 Remote work may have completed more; do not duplicate it. Preserve .serena/ and
@@ -42,10 +42,11 @@ wiring was fixed after the first live invocation silently ran smoke. The
 2026-11-04 one-target live batch passed all five cases after the cap was raised
 to 512 and a bounded 4-RPM wait was added (5/5 correct, actual usage, no skips).
 The installed-client audit selected alias translation and added a `/health`
-liveness alias; latest full and release suites passed 398 tests, and the
-provider-free real-binary/OpenCode verifier now exercises `/health` and a
-legacy alias. Read the handoff for exact limitations; injected local 429s are
-not real upstream rate-limit evidence.
+liveness alias; latest full and release suites passed 402 tests, and the
+provider-free real-binary/OpenCode verifier now checks all 22 discovered
+aliases and sends every legacy alias through the entrypoint. Read the handoff
+for exact limitations; injected local 429s are not real upstream rate-limit
+evidence.
 
 Use existing provider-manager metadata read-only and existing approved secret
 sources. Free-only; no paid calls or unknown one-time-credit spending. Never
@@ -74,7 +75,7 @@ Standalone prompt: `RESUME-newapi-sidecar.txt` at this worktree root.
 | Implementation worktree | `/home/osees/CodingProjects/LLM-API-Key-Proxy-worktrees/wt-newapi-sidecar` |
 | Component and command cwd | Worktree's `workload-router/` |
 | Branch | `feat/newapi-sidecar`, tracks `origin/feat/newapi-sidecar` |
-| Last implementation commit | `27e1fd6` (health alias + legacy-alias real-binary regression) |
+| Last implementation commit | `1586913` (all-alias discovery + entrypoint regression) |
 | Old baseline | `fde9784`; do not reset to it or redo its completed work |
 | Remote main at snapshot | `76cd928`; not merged into this branch |
 | Local changes before handoff | Tracked files clean; existing untracked `.serena/` preserved |
@@ -105,6 +106,7 @@ All implementation milestones below are committed and pushed:
 | `c6bc275` | Raised workload cap to 512; bounded 4-RPM wait; live 5/5 pass |
 | `c6da14f` | Installed-client audit; `/health` liveness alias; Option A selected |
 | `27e1fd6` | Real-binary `/health` alias + legacy `coding-elite` regression |
+| `1586913` | Real-binary all-alias discovery + 19 legacy alias calls |
 
 Git fetch and PR refs were checked before each milestone. No PR head pointed at
 these tips. PR review/check/state metadata was not queried because no approved
@@ -169,10 +171,10 @@ are authoritative, not old repeated "next action" sections.
 
 ## Verified results and limits
 
-- Exact full suite: **398 passed, 1 existing asyncio_mode warning**.
-  `tools/verify_release.py`: 398 tests, session check, health/route 200,
-  26280 KB legacy resource smoke, compilation passed. Focused live-policy suite:
-  38 passed; focused verifier/server/alias tests: 81 passed.
+- Exact full suite: **402 passed, 1 existing asyncio_mode warning**.
+  `tools/verify_release.py`: 402 tests, session check, health/route 200,
+  26272 KB legacy resource smoke, compilation passed. Focused live-policy suite:
+  38 passed; focused verifier/server/alias tests: 85 passed.
 - Deterministic coding/tool workload mode is implemented, provider-free tested
   and live-passed: five plan/edit/debug/tool/review cases per target, a declared
   ten-request/5120-output-token ceiling, 512-token per-request cap, tools intact,
@@ -188,13 +190,15 @@ are authoritative, not old repeated "next action" sections.
   also used. Logs reference `/health`, `/v1/models` and chat, with no embedding,
   CLIProxyAPI, token-count, cost-estimate or provider-status strings. Option A
   selected; `/health` now returns the liveness body unauthenticated.
-- Real-binary scripted verifier passed after the liveness/alias follow-up:
-  `/tmp/opencode/newapi-proof-ubats_oc/report.json` (`passed:true`,
-  scripted-local-only). Startup and restart both returned 200 with matching
-  `/health` and `/healthz` bodies; a `coding-elite` request returned 200 and
-  preserved its response model. It booted OpenCode 1.19.5 for one tool loop,
-  kept the paid route excluded, and benchmark grades remained 0/5 route one
-  and 5/5 route two.
+- Real-binary scripted verifier passed after the alias-completeness follow-up:
+  `/tmp/opencode/newapi-proof-imi83fh6/report.json` (`passed:true`,
+  scripted-local-only). Startup and restart returned matching unauthenticated
+  `/health` and `/healthz` bodies; authenticated `/v1/models` returned 22
+  aliases with all 19 legacy names marked, and every legacy alias returned 200
+  through the entrypoint. `coding-elite` still returned 200 after restart and
+  preserved its response model. OpenCode 1.19.5 completed one tool loop, the
+  paid route stayed excluded, and benchmark grades were 0/5 route one and 5/5
+  route two.
 - Focused Black/flake8/mypy passed; mypy skipped imported modules and flake8
   ignored existing E402 path bootstraps. No whole-repo type/format claim.
 - Secret hooks and added-text ASCII scans passed. No remaining owned test
@@ -236,6 +240,7 @@ Reports below were read directly, not inferred from a truncated success line:
 | `newapi-proof-zg3ejfrg/report.json` | Post-workload real-binary scripted proof passed |
 | `newapi-proof-3qd538n_/report.json` | Post-health real-binary/OpenCode verifier passed |
 | `newapi-proof-ubats_oc/report.json` | Post-liveness health alias + legacy alias verifier passed |
+| `newapi-proof-imi83fh6/report.json` | All-alias discovery + entrypoint verifier passed |
 | `newapi-live-us6lrwkv/report.json` | Mixed smoke failed overall: Groq 403, OpenRouter chat/SSE passed |
 | `newapi-live-pp7vl34a/report.json` | Failed client permission experiment; not successful evidence |
 | `newapi-live-gf3j9wix/report.json` | Real OpenRouter OpenCode loop passed |
