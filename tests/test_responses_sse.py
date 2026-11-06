@@ -190,3 +190,115 @@ def test_normalize_handles_a_dict():
     main = _load_main()
 
     assert main._normalize_responses_content({"text": "from dict"}) == "from dict"
+
+
+# --- tool calling -----------------------------------------------------------
+#
+# A harness is only useful if it can call tools. The Responses API nests a
+# function tool differently from chat completions and reports tool calls as
+# separate ``function_call`` output items, so both directions need translating.
+
+
+def test_tools_are_converted_to_chat_shape():
+    main = _load_main()
+    tools = [
+        {
+            "type": "function",
+            "name": "get_weather",
+            "description": "Get weather",
+            "parameters": {"type": "object", "properties": {"city": {"type": "string"}}},
+        }
+    ]
+    chat = main._responses_tools_to_chat(tools)
+    assert chat == [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get weather",
+                "parameters": {"type": "object", "properties": {"city": {"type": "string"}}},
+            },
+        }
+    ]
+
+
+def test_builtin_tools_are_dropped_and_chat_shape_passes_through():
+    main = _load_main()
+    already_chat = {"type": "function", "function": {"name": "keep", "parameters": {}}}
+    chat = main._responses_tools_to_chat([already_chat, {"type": "web_search"}, "junk"])
+    assert chat == [already_chat]
+
+
+def test_tool_choice_converts():
+    main = _load_main()
+    assert main._responses_tool_choice_to_chat("auto") == "auto"
+    assert main._responses_tool_choice_to_chat({"type": "function", "name": "f"}) == {
+        "type": "function",
+        "function": {"name": "f"},
+    }
+    assert main._responses_tool_choice_to_chat(None) is None
+
+
+def test_function_call_items_become_assistant_tool_calls():
+    main = _load_main()
+    messages = main._responses_input_to_messages(
+        {
+            "input": [
+                {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "hi"}]},
+                {"type": "function_call", "call_id": "call_1", "name": "f", "arguments": '{"a":1}'},
+                {"type": "function_call_output", "call_id": "call_1", "output": "result"},
+            ]
+        }
+    )
+    assert messages[0] == {"role": "user", "content": "hi"}
+    assert messages[1]["role"] == "assistant"
+    assert messages[1]["tool_calls"][0]["id"] == "call_1"
+    assert messages[1]["tool_calls"][0]["function"] == {"name": "f", "arguments": '{"a":1}'}
+    assert messages[2] == {"role": "tool", "tool_call_id": "call_1", "content": "result"}
+
+
+def test_reasoning_items_are_skipped():
+    main = _load_main()
+    messages = main._responses_input_to_messages(
+        {"input": [{"type": "reasoning", "encrypted_content": "x"}, {"type": "message", "role": "user", "content": "hi"}]}
+    )
+    assert messages == [{"role": "user", "content": "hi"}]
+
+
+def test_chat_usage_is_normalized_to_responses_fields():
+    main = _load_main()
+    assert main._to_responses_usage({"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}) == {
+        "input_tokens": 10,
+        "output_tokens": 5,
+        "total_tokens": 15,
+        "input_tokens_details": {"cached_tokens": 0},
+        "output_tokens_details": {"reasoning_tokens": 0},
+    }
+    assert main._to_responses_usage(None) is None
+
+
+@pytest.mark.asyncio
+async def test_sse_emits_function_call_items():
+    main = _load_main()
+    chunks = [
+        {"choices": [{"delta": {"tool_calls": [{"index": 0, "id": "call_1", "function": {"name": "f", "arguments": '{"a"'}}]}}]},
+        {"choices": [{"delta": {"tool_calls": [{"index": 0, "function": {"arguments": ":1}"}}]}}]},
+        {"choices": [{"delta": {}, "finish_reason": "tool_calls"}]},
+    ]
+    events = _parse_sse(await _collect(main._responses_sse(_chunks(chunks), "test/model")))
+    names = [name for name, _ in events]
+    assert "response.output_item.added" in names
+    assert "response.function_call_arguments.delta" in names
+    assert "response.function_call_arguments.done" in names
+    assert names[-1] == "response.completed"
+
+    added = [d for n, d in events if n == "response.output_item.added"][1]
+    assert added["item"]["type"] == "function_call"
+    assert added["item"]["name"] == "f"
+    assert added["output_index"] == 1
+
+    completed = [d for n, d in events if n == "response.completed"][0]
+    call_items = [i for i in completed["response"]["output"] if i["type"] == "function_call"]
+    assert len(call_items) == 1
+    assert call_items[0]["arguments"] == '{"a":1}'
+    assert call_items[0]["call_id"] == "call_1"

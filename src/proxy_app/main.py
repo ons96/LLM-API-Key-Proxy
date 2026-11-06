@@ -798,6 +798,157 @@ def _upstream_error_status(exc: BaseException) -> tuple[int | None, str]:
     return None, str(exc)
 
 
+def _responses_tools_to_chat(tools: Any) -> list:
+    """Translate Responses-API tool definitions into chat-completions tools.
+
+    The Responses API flattens a function tool::
+
+        {"type": "function", "name": "f", "description": ..., "parameters": ...}
+
+    while chat completions nests it under a ``function`` key. Sending the
+    Responses shape upstream means the provider sees no usable tools at all,
+    which is why a model asked to call a tool answered "tool choice is none".
+    """
+    if not isinstance(tools, list):
+        return []
+    out: list = []
+    for tool in tools:
+        if not isinstance(tool, dict):
+            continue
+        if tool.get("type") == "function" and "function" in tool:
+            # Already in chat-completions shape.
+            out.append(tool)
+            continue
+        name = tool.get("name")
+        if not isinstance(name, str) or not name:
+            # Built-in Responses tools (web_search, file_search, ...) have no
+            # chat-completions equivalent; dropping them is better than
+            # sending a tool the provider will reject.
+            continue
+        function: Dict[str, Any] = {"name": name}
+        if isinstance(tool.get("description"), str):
+            function["description"] = tool["description"]
+        params = tool.get("parameters")
+        function["parameters"] = params if isinstance(params, dict) else {"type": "object", "properties": {}}
+        out.append({"type": "function", "function": function})
+    return out
+
+
+def _responses_tool_choice_to_chat(choice: Any) -> Any:
+    """Translate Responses ``tool_choice`` into the chat-completions form."""
+    if choice is None:
+        return None
+    if isinstance(choice, str):
+        return choice
+    if isinstance(choice, dict):
+        name = choice.get("name")
+        if isinstance(name, str) and name:
+            return {"type": "function", "function": {"name": name}}
+    return None
+
+
+def _responses_input_to_messages(body: Dict[str, Any]) -> list:
+    """Translate a Responses-API ``input`` payload into chat messages.
+
+    Besides plain turns, Codex replays the tool loop as ``function_call`` and
+    ``function_call_output`` items. Those must become an assistant message with
+    ``tool_calls`` and a ``tool`` role message; passing the raw items through as
+    chat messages produces a transcript the provider rejects.
+    """
+    messages: list = []
+    pending_calls: list = []
+
+    def _flush_calls() -> None:
+        if pending_calls:
+            messages.append({"role": "assistant", "content": None, "tool_calls": list(pending_calls)})
+            pending_calls.clear()
+
+    raw_input = body.get("input")
+    if isinstance(raw_input, str):
+        return [{"role": "user", "content": raw_input}]
+    if not isinstance(raw_input, list):
+        return messages
+
+    for item in raw_input:
+        if not isinstance(item, dict):
+            _flush_calls()
+            messages.append({"role": "user", "content": str(item)})
+            continue
+        item_type = item.get("type")
+        if item_type == "function_call":
+            call_id = item.get("call_id") or item.get("id") or f"call_{len(pending_calls)}"
+            arguments = item.get("arguments")
+            if not isinstance(arguments, str):
+                arguments = json.dumps(arguments or {})
+            pending_calls.append(
+                {
+                    "id": str(call_id),
+                    "type": "function",
+                    "function": {"name": item.get("name") or "", "arguments": arguments},
+                }
+            )
+            continue
+        if item_type == "function_call_output":
+            _flush_calls()
+            output = item.get("output")
+            if not isinstance(output, str):
+                output = json.dumps(output) if output is not None else ""
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": str(item.get("call_id") or ""),
+                    "content": output,
+                }
+            )
+            continue
+        if item_type == "reasoning":
+            # Encrypted reasoning items carry no chat-completions equivalent.
+            continue
+        _flush_calls()
+        if item_type == "message" or "role" in item:
+            messages.append(
+                {
+                    "role": item.get("role", "user"),
+                    "content": _normalize_responses_content(item.get("content", "")),
+                }
+            )
+        else:
+            messages.append(item)
+    _flush_calls()
+    return messages
+
+
+def _to_responses_usage(usage: Any) -> Dict[str, Any] | None:
+    """Normalize provider usage into the Responses API's token field names.
+
+    Chat completions report ``prompt_tokens``/``completion_tokens``; the
+    Responses API reads ``input_tokens``/``output_tokens``. Passing the chat
+    shape through makes clients report zero tokens used.
+    """
+    if not isinstance(usage, dict):
+        return None
+    if "input_tokens" in usage or "output_tokens" in usage:
+        return usage
+    prompt = usage.get("prompt_tokens")
+    completion = usage.get("completion_tokens")
+    if prompt is None and completion is None:
+        return None
+    total = usage.get("total_tokens")
+    if total is None:
+        total = (prompt or 0) + (completion or 0)
+    normalized: Dict[str, Any] = {
+        "input_tokens": prompt or 0,
+        "output_tokens": completion or 0,
+        "total_tokens": total,
+        "input_tokens_details": {"cached_tokens": 0},
+        "output_tokens_details": {"reasoning_tokens": 0},
+    }
+    cached = usage.get("prompt_tokens_details")
+    if isinstance(cached, dict) and isinstance(cached.get("cached_tokens"), int):
+        normalized["input_tokens_details"]["cached_tokens"] = cached["cached_tokens"]
+    return normalized
+
+
 async def _responses_sse(chunks, model: str):
     """Translate a chat-completions stream into Responses-API SSE events.
 
@@ -819,6 +970,8 @@ async def _responses_sse(chunks, model: str):
     text_parts: list[str] = []
     usage = None
     finish_reason = None
+    tool_calls: dict[int, dict] = {}
+    next_output_index = 1  # 0 is the assistant message item
 
     def _event(name: str, payload: dict) -> bytes:
         return f"event: {name}\ndata: {json.dumps(payload)}\n\n".encode("utf-8")
@@ -912,6 +1065,70 @@ async def _responses_sse(chunks, model: str):
                         },
                     ),
                 )
+
+            # Streamed tool calls arrive as delta.tool_calls fragments that must
+            # be reassembled per index and re-emitted as Responses-API
+            # function_call items, which is what a harness actually executes.
+            for fragment in delta.get("tool_calls") or []:
+                if not isinstance(fragment, dict):
+                    continue
+                try:
+                    index = int(fragment.get("index", 0))
+                except (TypeError, ValueError):
+                    index = 0
+                slot = tool_calls.get(index)
+                if slot is None:
+                    slot = {
+                        "item_id": f"fc_{uuid.uuid4().hex[:24]}",
+                        "call_id": "",
+                        "name": "",
+                        "arguments": "",
+                        "output_index": None,
+                    }
+                    tool_calls[index] = slot
+                function = fragment.get("function") or {}
+                if fragment.get("id") and not slot["call_id"]:
+                    slot["call_id"] = str(fragment["id"])
+                if isinstance(function.get("name"), str) and function["name"]:
+                    slot["name"] = function["name"]
+                args_piece = function.get("arguments")
+                if not isinstance(args_piece, str):
+                    args_piece = ""
+                if slot["output_index"] is None:
+                    # First sighting of this call: open the output item. Index 0
+                    # belongs to the assistant message, so calls start at 1.
+                    slot["output_index"] = next_output_index
+                    next_output_index += 1
+                    yield _event(
+                        "response.output_item.added",
+                        _base(
+                            "response.output_item.added",
+                            {
+                                "output_index": slot["output_index"],
+                                "item": {
+                                    "id": slot["item_id"],
+                                    "type": "function_call",
+                                    "status": "in_progress",
+                                    "call_id": slot["call_id"] or f"call_{uuid.uuid4().hex[:16]}",
+                                    "name": slot["name"],
+                                    "arguments": "",
+                                },
+                            },
+                        ),
+                    )
+                if args_piece:
+                    slot["arguments"] += args_piece
+                    yield _event(
+                        "response.function_call_arguments.delta",
+                        _base(
+                            "response.function_call_arguments.delta",
+                            {
+                                "item_id": slot["item_id"],
+                                "output_index": slot["output_index"],
+                                "delta": args_piece,
+                            },
+                        ),
+                    )
             if choice.get("finish_reason"):
                 finish_reason = choice["finish_reason"]
             chunk_usage = chunk.get("usage")
@@ -970,15 +1187,51 @@ async def _responses_sse(chunks, model: str):
         _base("response.output_item.done", {"output_index": 0, "item": _message("completed")}),
     )
 
+    # Close out every function_call item, then list them in the final response.
+    tool_items: list[dict] = []
+    for index in sorted(tool_calls):
+        slot = tool_calls[index]
+        item = {
+            "id": slot["item_id"],
+            "type": "function_call",
+            "status": "completed",
+            "call_id": slot["call_id"] or f"call_{uuid.uuid4().hex[:16]}",
+            "name": slot["name"],
+            "arguments": slot["arguments"] or "{}",
+        }
+        yield _event(
+            "response.function_call_arguments.done",
+            _base(
+                "response.function_call_arguments.done",
+                {
+                    "item_id": slot["item_id"],
+                    "output_index": slot["output_index"],
+                    "arguments": item["arguments"],
+                },
+            ),
+        )
+        yield _event(
+            "response.output_item.done",
+            _base(
+                "response.output_item.done",
+                {"output_index": slot["output_index"], "item": item},
+            ),
+        )
+        tool_items.append(item)
+
     final = _shell("completed")
-    final["output"] = [_message("completed")]
+    final_output = []
+    if full_text or not tool_items:
+        final_output.append(_message("completed"))
+    final_output.extend(tool_items)
+    final["output"] = final_output
     if usage is None:
         usage = {
             "input_tokens": 0,
             "output_tokens": 0,
             "total_tokens": 0,
         }
-    final["usage"] = usage
+    final["usage"] = _to_responses_usage(usage) or usage
     yield _event(
         "response.completed",
         _base("response.completed", {"response": final}),
@@ -1256,28 +1509,39 @@ async def responses_endpoint(
     if "instructions" in body:
         messages.append({"role": "system", "content": body["instructions"]})
 
-    if "input" in body and isinstance(body["input"], list):
-        for item in body["input"]:
-            if not isinstance(item, dict):
-                # A bare string item is a user turn.
-                messages.append({"role": "user", "content": str(item)})
-                continue
-            if item.get("type") == "message" or "role" in item:
-                content = _normalize_responses_content(item.get("content", ""))
-                messages.append({"role": item.get("role", "user"), "content": content})
-            else:
-                messages.append(item)
-    elif "input" in body and isinstance(body["input"], str):
-        # The Responses API also allows input as a plain string.
-        messages.append({"role": "user", "content": body["input"]})
+    messages.extend(_responses_input_to_messages(body))
 
     chat_body = {
         "model": body.get("model"),
         "messages": messages,
         "stream": body.get("stream", False),
         "temperature": body.get("temperature"),
-        "max_tokens": body.get("max_tokens", 4096),
+        "top_p": body.get("top_p"),
+        "max_tokens": body.get("max_tokens") or body.get("max_output_tokens") or 4096,
     }
+
+    # Tools are what make a harness useful: without them the provider sees no
+    # tool definitions at all and a client that replays a tool loop breaks.
+    tools = _responses_tools_to_chat(body.get("tools"))
+    if tools:
+        chat_body["tools"] = tools
+        tool_choice = _responses_tool_choice_to_chat(body.get("tool_choice"))
+        if tool_choice is not None:
+            chat_body["tool_choice"] = tool_choice
+        if isinstance(body.get("parallel_tool_calls"), bool):
+            chat_body["parallel_tool_calls"] = body["parallel_tool_calls"]
+
+    # Codex sends the reasoning ladder as {"effort": ...}.
+    reasoning = body.get("reasoning")
+    if isinstance(reasoning, dict) and isinstance(reasoning.get("effort"), str):
+        chat_body["reasoning_effort"] = reasoning["effort"]
+
+    # Ask for usage on the final stream chunk so response.completed reports real
+    # token counts. litellm.drop_params is True, so providers that reject the
+    # field have it stripped rather than failing the request.
+    if chat_body.get("stream"):
+        chat_body["stream_options"] = {"include_usage": True}
+
     # Filter None values
     chat_body = {k: v for k, v in chat_body.items() if v is not None}
 
@@ -1335,21 +1599,45 @@ async def responses_endpoint(
             if not isinstance(text_content, str):
                 text_content = _normalize_responses_content(text_content)
 
-            output.append(
-                {
-                    "type": "message",
-                    "role": role,
-                    "content": [{"type": "text", "text": text_content}],
-                }
-            )
+            if text_content:
+                output.append(
+                    {
+                        "id": f"msg_{uuid.uuid4().hex[:24]}",
+                        "type": "message",
+                        "status": "completed",
+                        "role": role,
+                        "content": [{"type": "output_text", "text": text_content, "annotations": []}],
+                    }
+                )
+
+            # Chat completions returns tool calls on the message; the Responses
+            # API expects them as separate function_call output items.
+            for call in message.get("tool_calls") or []:
+                if not isinstance(call, dict):
+                    continue
+                function = call.get("function") or {}
+                arguments = function.get("arguments")
+                if not isinstance(arguments, str):
+                    arguments = json.dumps(arguments or {})
+                output.append(
+                    {
+                        "id": f"fc_{uuid.uuid4().hex[:24]}",
+                        "type": "function_call",
+                        "status": "completed",
+                        "call_id": call.get("id") or f"call_{uuid.uuid4().hex[:16]}",
+                        "name": function.get("name") or "",
+                        "arguments": arguments,
+                    }
+                )
 
         new_response = {
             "id": content_body.get("id"),
             "object": "response",
             "created": content_body.get("created"),
             "model": content_body.get("model"),
+            "status": "completed",
             "output": output,
-            "usage": content_body.get("usage"),
+            "usage": _to_responses_usage(content_body.get("usage")),
         }
         return JSONResponse(content=new_response)
 
