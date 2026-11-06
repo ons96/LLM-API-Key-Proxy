@@ -7,7 +7,7 @@ failing smoke case 3: a data-URI image request must return HTTP 200 via a
 working vision-capable candidate.
 
 This is the repo-local successor to /tmp/opencode/vision-test.py. It:
-  1. sends a 1x1 PNG data-URI to the configured virtual model(s)
+  1. sends a 32x32 PNG data-URI to the configured virtual model(s)
   2. prints HTTP status, latency, usage, and content preview
   3. exits nonzero if no model returned 200
 
@@ -20,7 +20,6 @@ Env:
     VPS_GATEWAY_API_KEY  gateway bearer token (required)
 """
 
-import base64
 import json
 import os
 import sys
@@ -28,14 +27,11 @@ import time
 import urllib.error
 import urllib.request
 
-# 1x1 transparent PNG (valid, minimal).
-_PNG = base64.b64encode(
-    bytes.fromhex(
-        "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
-        "1f15c4890000000d49444154789c626001000000ffff030000060005"
-        "57bfabd40000000049454e44ae426082"
-    )
-).decode()
+# 32x32 solid red PNG. Some vision APIs reject 1x1 images as unreadable.
+_PNG = (
+    "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKklEQVR4nGO4IydHU8QwasGo"
+    "BaMWjFowasGoBaMWjFowasGoBaMWDBULAJI2YD1ZaHIvAAAAAElFTkSuQmCC"
+)
 
 DEFAULT_MODELS = ["coding-smart", "coding-fast"]
 GATEWAY_URL = os.environ.get("GATEWAY_URL", "http://localhost:8000")

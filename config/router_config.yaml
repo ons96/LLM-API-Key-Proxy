@@ -119,6 +119,7 @@ providers:
     - nvidia/llama-3.3-70b-instruct
     - nvidia/llama-3.1-405b-instruct
     - nvidia/gemma-2-27b-it
+    - nvidia/nemotron-3.5-super-vl-120b-a12b
   mistral:
     enabled: true
     env_var: MISTRAL_API_KEY
@@ -128,6 +129,7 @@ providers:
     - mistral-large-latest
     - codestral-latest
     - mistral-nemo
+    - pixtral-12b-2409
   openrouter:
     enabled: true
     env_var: OPENROUTER_API_KEY
