@@ -371,9 +371,6 @@ virtual_models:
     - provider: cliproxyapi
       model: gemini-3.1-pro-preview
       priority: 1
-    - provider: groq
-      model: meta-llama/llama-4-maverick-17b-128e-instruct
-      priority: 2
     - provider: gemini
       model: gemini-3-flash
       priority: 3
@@ -425,15 +422,18 @@ virtual_models:
     - provider: kilo
       model: qwen/qwen3-coder:free
       priority: 19
+    - provider: mistral
+      model: pixtral-12b-2409
+      priority: 20
+    - provider: nvidia
+      model: nvidia/nemotron-3.5-super-vl-120b-a12b
+      priority: 21
   coding-fast:
     description: Fastest coding models (TPS/latency ranked, no g4f, free first)
     fallback_chain:
     - provider: gemini
       model: gemini-3-flash
       priority: 1
-    - provider: groq
-      model: meta-llama/llama-4-maverick-17b-128e-instruct
-      priority: 2
     - provider: groq
       model: llama-3.3-70b-versatile
       priority: 3
@@ -530,6 +530,12 @@ virtual_models:
     - provider: aihubmix
       model: glm-4-flash
       priority: 34
+    - provider: mistral
+      model: pixtral-12b-2409
+      priority: 35
+    - provider: nvidia
+      model: nvidia/nemotron-3.5-super-vl-120b-a12b
+      priority: 36
   title-fast:
     description: Fast title generation with NVIDIA TTFT-ranked fallback chain
     fallback_chain:

@@ -1,0 +1,6 @@
+# Explicit capability overrides for models whose provider catalog entry does not
+# carry capabilities yet. The chain selector applies these last on main.
+mistral/pixtral-12b-2409:
+  - vision
+nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b:
+  - vision

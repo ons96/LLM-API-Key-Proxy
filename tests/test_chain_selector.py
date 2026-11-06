@@ -403,6 +403,40 @@ def test_perf_50_candidates():
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_coding_chains_select_live_vision_candidate():
+    """The real coding chains must select a verified vision model (#486 AC1)."""
+    import yaml
+
+    from proxy_app.routing.tier_classifier import classify_request, load_model_scores
+
+    db_path = REPO_ROOT / "config" / "providers_database.yaml"
+    caps = load_capabilities(
+        str(db_path), str(REPO_ROOT / "config" / "model_capabilities.yaml")
+    )
+    scores = load_model_scores(str(REPO_ROOT / "config" / "model_rankings.yaml"))
+    data = yaml.safe_load((REPO_ROOT / "config" / "virtual_models.yaml").read_text())
+    verified = {
+        ("mistral", "pixtral-12b-2409"),
+        ("nvidia", "nvidia/nemotron-3.5-super-vl-120b-a12b"),
+    }
+    features = _features(
+        capabilities=Capabilities.TEXT | Capabilities.VISION, image_count=1
+    )
+    tier = classify_request(features)
+
+    for vm in ("coding-smart", "coding-fast"):
+        chain = data["virtual_models"][vm]["fallback_chain"]
+        pairs = {(entry["provider"], entry["model"]) for entry in chain}
+        assert verified <= pairs, f"{vm} missing verified vision entries: {verified - pairs}"
+
+        selector = ChainSelector(model_scores=scores, capabilities=caps, predictor=None)
+        result = selector.select(features, tier, chain)
+        chosen = {(c.provider, c.model) for c in result.chain}
+        assert result.chain, f"{vm} produced an empty vision chain at {tier}"
+        assert all(c.capabilities & Capabilities.VISION for c in result.chain)
+        assert chosen & verified, f"{vm} did not select a verified vision model"
+
+
 def test_real_catalog_has_a_live_vision_candidate():
     """A vision request must reach a model that accepts images (#486 AC1).
 

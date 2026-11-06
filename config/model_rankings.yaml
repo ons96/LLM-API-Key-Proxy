@@ -5153,3 +5153,41 @@ models:
     composite_score: 38.0
   best_for:
   - coding-smart
+- id: mistral/pixtral-12b-2409
+  name: Pixtral 12B (vision)
+  scores:
+    speed_tps: 60.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: -1
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: -1
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: -1
+    composite_score: 50.0
+  best_for:
+  - coding-smart
+  - coding-fast
+- id: nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b
+  name: Nemotron 3.5 Super VL 120B (vision)
+  scores:
+    speed_tps: 60.0
+    livebench_coding: -1
+    aider: -1
+    swe_bench: -1
+    swe_bench_verified: -1
+    swe_rebench: -1
+    humaneval: -1
+    bigcodebench: -1
+    gso_bench: -1
+    ts_bench: -1
+    vals_ai: -1
+    agentic_coding: -1
+    composite_score: 50.0
+  best_for:
+  - coding-smart
+  - coding-fast
