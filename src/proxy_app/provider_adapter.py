@@ -221,8 +221,29 @@ class OpenAICompatibleAdapter(BaseProviderAdapter):
         - Standard OpenAI: "rate_limit", "insufficient_quota"
         - AIHubMix/GLM: error code 1302, "exceeded", "concurrency"
         - Generic: "quota", "usage", "exhausted", "daily", "limit"
+
+        A status code carried by the exception itself wins over the keyword
+        guess below. litellm raises NotFoundError with status_code 404 when a
+        provider does not carry the requested model; flattening that to 500
+        made the gateway retry a permanent error four times and then report
+        it as a transient fault, so clients showed "high demand" instead of
+        the real cause. The keyword heuristics stay as the fallback for
+        providers that do not attach a status.
         """
         error_str = str(error).lower()
+
+        upstream_status = getattr(error, "status_code", None)
+        if upstream_status is None:
+            response = getattr(error, "response", None)
+            upstream_status = getattr(response, "status_code", None)
+        try:
+            upstream_status = int(upstream_status) if upstream_status is not None else None
+        except (TypeError, ValueError):
+            upstream_status = None
+
+        if upstream_status in (400, 401, 403, 404, 429):
+            return HTTPException(status_code=upstream_status, detail=str(error))
+
         if "authentication" in error_str or "api_key" in error_str:
             status_code = 401
         elif any(

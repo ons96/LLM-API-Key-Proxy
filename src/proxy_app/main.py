@@ -733,6 +733,258 @@ async def lifespan(app: FastAPI):
 # --- FastAPI App Setup ---
 app = FastAPI(lifespan=lifespan)
 
+
+def _normalize_responses_content(content: Any) -> str:
+    """Flatten Responses-API content into plain text.
+
+    The Responses API uses "input_text" for user/developer turns and
+    "output_text" for assistant turns; the plain "text" type is the
+    chat-completions spelling. Accept all three, otherwise a Codex turn
+    arrives as an empty message and the provider rejects it.
+    """
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        text_parts = []
+        for part in content:
+            if isinstance(part, dict):
+                part_type = part.get("type")
+                if part_type in ("text", "input_text", "output_text"):
+                    if isinstance(part.get("text"), str):
+                        text_parts.append(part["text"])
+                elif isinstance(part.get("content"), str):
+                    text_parts.append(part["content"])
+            elif isinstance(part, str):
+                text_parts.append(part)
+
+        if text_parts:
+            return "\n".join(text_parts)
+        return ""
+
+    if isinstance(content, dict):
+        if isinstance(content.get("text"), str):
+            return content["text"]
+        if isinstance(content.get("content"), str):
+            return content["content"]
+
+    return ""
+
+
+def _upstream_error_status(exc: BaseException) -> tuple[int | None, str]:
+    """Map a provider exception onto the HTTP status the client should see.
+
+    Returns ``(status, detail)``; ``status`` is None when the exception does
+    not carry a usable upstream status, and the caller then keeps its own
+    default handling.
+
+    A provider that simply does not carry the requested model answers 404.
+    That status must survive the hop through the gateway: as a 500 it reads
+    as a transient fault, so clients retry a permanent error and finally
+    report it as something unrelated ("high demand", "connection reset").
+    Forwarding 404 lets the client show the real cause, and stops the retries.
+    """
+    status = getattr(exc, "status_code", None)
+    if status is None:
+        response = getattr(exc, "response", None)
+        status = getattr(response, "status_code", None)
+    try:
+        status = int(status) if status is not None else None
+    except (TypeError, ValueError):
+        status = None
+
+    if status in (400, 401, 403, 404, 429):
+        return status, str(exc)
+    return None, str(exc)
+
+
+async def _responses_sse(chunks, model: str):
+    """Translate a chat-completions stream into Responses-API SSE events.
+
+    The Responses API does not speak chat-completions SSE. A client such as
+    Codex expects the event sequence ``response.created`` -> ``*.delta`` ->
+    ``response.completed`` and ignores anything else, so a chat-shaped stream
+    leaves it waiting for a completion event that never arrives.
+
+    The upstream stream is consumed here, so the text is accumulated and the
+    final event carries the whole message plus the usage the provider
+    reported.
+    """
+    import time as _time
+
+    response_id = f"resp_{uuid.uuid4().hex[:24]}"
+    item_id = f"msg_{uuid.uuid4().hex[:24]}"
+    created = int(_time.time())
+    sequence = 0
+    text_parts: list[str] = []
+    usage = None
+    finish_reason = None
+
+    def _event(name: str, payload: dict) -> bytes:
+        return f"event: {name}\ndata: {json.dumps(payload)}\n\n".encode("utf-8")
+
+    def _shell(status: str) -> dict:
+        return {
+            "id": response_id,
+            "object": "response",
+            "created": created,
+            "model": model,
+            "status": status,
+            "output": [],
+            "usage": usage,
+        }
+
+    def _message(status: str) -> dict:
+        return {
+            "id": item_id,
+            "type": "message",
+            "status": status,
+            "role": "assistant",
+            "content": [{"type": "output_text", "text": "".join(text_parts), "annotations": []}],
+        }
+
+    def _base(event_type: str, extra: dict | None = None) -> dict:
+        nonlocal sequence
+        payload = {"type": event_type, "sequence_number": sequence}
+        sequence += 1
+        if extra:
+            payload.update(extra)
+        return payload
+
+    yield _event(
+        "response.created",
+        _base("response.created", {"response": _shell("in_progress")}),
+    )
+    yield _event(
+        "response.output_item.added",
+        _base(
+            "response.output_item.added",
+            {
+                "output_index": 0,
+                "item": {
+                    "id": item_id,
+                    "type": "message",
+                    "status": "in_progress",
+                    "role": "assistant",
+                    "content": [],
+                },
+            },
+        ),
+    )
+    yield _event(
+        "response.content_part.added",
+        _base(
+            "response.content_part.added",
+            {
+                "item_id": item_id,
+                "output_index": 0,
+                "content_index": 0,
+                "part": {"type": "output_text", "text": "", "annotations": []},
+            },
+        ),
+    )
+
+    try:
+        async for chunk in chunks:
+            if not isinstance(chunk, dict):
+                continue
+            choices = chunk.get("choices") or []
+            if not choices:
+                # Providers report usage on a final chunk with no choices.
+                chunk_usage = chunk.get("usage")
+                if chunk_usage:
+                    usage = chunk_usage
+                continue
+            choice = choices[0] or {}
+            delta = choice.get("delta") or {}
+            piece = delta.get("content")
+            if isinstance(piece, str) and piece:
+                text_parts.append(piece)
+                yield _event(
+                    "response.output_text.delta",
+                    _base(
+                        "response.output_text.delta",
+                        {
+                            "item_id": item_id,
+                            "output_index": 0,
+                            "content_index": 0,
+                            "delta": piece,
+                        },
+                    ),
+                )
+            if choice.get("finish_reason"):
+                finish_reason = choice["finish_reason"]
+            chunk_usage = chunk.get("usage")
+            if chunk_usage:
+                usage = chunk_usage
+    except Exception as exc:  # upstream failed mid-stream
+        _status, _detail = _upstream_error_status(exc)
+        yield _event(
+            "error",
+            {
+                "type": "error",
+                "code": "upstream_error",
+                "message": _detail,
+                "param": None,
+            },
+        )
+        # The SSE headers are already out, so the HTTP status cannot change
+        # any more. End the stream with the Responses API's own failure event
+        # instead of raising: an exception here aborts the connection and the
+        # client never sees the reason.
+        failed = _shell("failed")
+        failed["error"] = {"code": "upstream_error", "message": _detail}
+        yield _event(
+            "response.failed",
+            _base("response.failed", {"response": failed}),
+        )
+        return
+
+    full_text = "".join(text_parts)
+    yield _event(
+        "response.output_text.done",
+        _base(
+            "response.output_text.done",
+            {
+                "item_id": item_id,
+                "output_index": 0,
+                "content_index": 0,
+                "text": full_text,
+            },
+        ),
+    )
+    yield _event(
+        "response.content_part.done",
+        _base(
+            "response.content_part.done",
+            {
+                "item_id": item_id,
+                "output_index": 0,
+                "content_index": 0,
+                "part": {"type": "output_text", "text": full_text, "annotations": []},
+            },
+        ),
+    )
+    yield _event(
+        "response.output_item.done",
+        _base("response.output_item.done", {"output_index": 0, "item": _message("completed")}),
+    )
+
+    final = _shell("completed")
+    final["output"] = [_message("completed")]
+    if usage is None:
+        usage = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+        }
+    final["usage"] = usage
+    yield _event(
+        "response.completed",
+        _base("response.completed", {"response": final}),
+    )
+
+
 # Configure CORS - open for wide compatibility
 allow_origins = ["*"]
 allow_credentials = True
@@ -962,33 +1214,6 @@ async def responses_endpoint(
     Translates Requests API format to Chat Completions format.
     """
 
-    def _normalize_responses_content(content: Any) -> str:
-        if isinstance(content, str):
-            return content
-
-        if isinstance(content, list):
-            text_parts = []
-            for part in content:
-                if isinstance(part, dict):
-                    if part.get("type") == "text" and isinstance(part.get("text"), str):
-                        text_parts.append(part["text"])
-                    elif isinstance(part.get("content"), str):
-                        text_parts.append(part["content"])
-                elif isinstance(part, str):
-                    text_parts.append(part)
-
-            if text_parts:
-                return "\n".join(text_parts)
-            return ""
-
-        if isinstance(content, dict):
-            if isinstance(content.get("text"), str):
-                return content["text"]
-            if isinstance(content.get("content"), str):
-                return content["content"]
-
-        return ""
-
     def _to_plain_dict(response_obj: Any) -> Dict[str, Any]:
         if isinstance(response_obj, dict):
             return response_obj
@@ -1033,11 +1258,18 @@ async def responses_endpoint(
 
     if "input" in body and isinstance(body["input"], list):
         for item in body["input"]:
-            if item.get("type") == "message":
+            if not isinstance(item, dict):
+                # A bare string item is a user turn.
+                messages.append({"role": "user", "content": str(item)})
+                continue
+            if item.get("type") == "message" or "role" in item:
                 content = _normalize_responses_content(item.get("content", ""))
                 messages.append({"role": item.get("role", "user"), "content": content})
             else:
                 messages.append(item)
+    elif "input" in body and isinstance(body["input"], str):
+        # The Responses API also allows input as a plain string.
+        messages.append({"role": "user", "content": body["input"]})
 
     chat_body = {
         "model": body.get("model"),
@@ -1051,11 +1283,46 @@ async def responses_endpoint(
 
     # 2. Call Router
     router = get_router()
-    response = await router.handle_chat_completions(chat_body, request)
+    try:
+        response = await router.handle_chat_completions(chat_body, request)
+    except Exception as e:
+        # A provider that does not carry the requested model answers 404.
+        # Forward that status instead of letting it become a 500: a 500 looks
+        # transient, so clients (Codex, OpenCode) retry a permanent error and
+        # finally report it as something unrelated ("high demand").
+        _status, _detail = _upstream_error_status(e)
+        if _status is not None:
+            raise HTTPException(status_code=_status, detail=_detail)
+        raise
 
     # 3. Translate Response
     if chat_body.get("stream"):
-        return response
+        # Pull the first chunk before the response starts. A provider that
+        # does not carry the model fails on that first read, so the error can
+        # still be reported as a real HTTP status. Once the SSE headers are
+        # out, the status is fixed and only a 200 with an error event is
+        # possible, which the client then reports as a generic failure.
+        stream_iter = response.__aiter__()
+        try:
+            first_chunk = await stream_iter.__anext__()
+        except StopAsyncIteration:
+            first_chunk = None
+        except Exception as e:
+            _status, _detail = _upstream_error_status(e)
+            if _status is not None:
+                raise HTTPException(status_code=_status, detail=_detail)
+            raise
+
+        async def _with_first():
+            if first_chunk is not None:
+                yield first_chunk
+            async for chunk in stream_iter:
+                yield chunk
+
+        return StreamingResponse(
+            _responses_sse(_with_first(), chat_body.get("model") or "unknown"),
+            media_type="text/event-stream",
+        )
 
     content_body = _to_plain_dict(response)
 
@@ -1207,6 +1474,11 @@ async def chat_completions(
         logging.error(f"Router delegation failed: {e}.")
         if isinstance(e, HTTPException):
             raise e
+        # Keep a provider's own status when it is meaningful (404 model not
+        # found, 401/403 auth, 429 rate limit). See _upstream_error_status.
+        _status, _detail = _upstream_error_status(e)
+        if _status is not None:
+            raise HTTPException(status_code=_status, detail=_detail)
         raise HTTPException(status_code=500, detail=f"Router Error: {str(e)}")
 
 
