@@ -270,6 +270,9 @@ class ProviderCandidate:
     role: Optional[str] = None  # For MoE mode
     search_enabled: bool = False
     free_tier_only: bool = True
+    # Effective limits are resolved during candidate construction so execution
+    # uses the same model/candidate overrides the selector checked.
+    rate_limits: Dict[str, Any] = field(default_factory=dict)
 
     def matches_requirements(self, requirements: CapabilityRequirements) -> bool:
         """Check if candidate matches capability requirements.
@@ -892,6 +895,7 @@ class RouterCore:
         success: bool,
         error_category: Optional["ErrorCategory"] = None,
         response: Optional[Any] = None,
+        api_key: Optional[str] = None,
     ):
         """Update metrics and rate limit tracking.
 
@@ -933,7 +937,9 @@ class RouterCore:
 
             total_tokens = input_tokens + output_tokens
             if total_tokens > 0:
-                await self.rate_limiter.record_tokens(provider, model, total_tokens)
+                await self.rate_limiter.record_tokens(
+                    provider, model, total_tokens, api_key=api_key
+                )
 
         try:
             telemetry = get_telemetry_manager()
@@ -959,26 +965,49 @@ class RouterCore:
         except Exception as telemetry_err:
             logger.debug(f"Telemetry record failed (non-fatal): {telemetry_err}")
 
-    def _resolve_llm_api_key(self, candidate_cfg: Dict[str, Any], provider: str) -> Optional[str]:
-        """Resolve the API key for a provider from env vars (config + per-provider fallbacks).
+    def _resolve_llm_api_keys(
+        self, candidate_cfg: Dict[str, Any], provider: str
+    ) -> List[str]:
+        """Resolve all configured keys for a provider, base key first.
 
-        # ponytail: 3x duplication at _execute_single_candidate + streaming variant; this
-        # consolidates the 2 identical-shape sites. The env_var_map.get site (~L1031) has
-        # a different shape and is left untouched.
+        Supports ``PROVIDER_API_KEY`` plus numbered ``PROVIDER_API_KEY_N``
+        env vars, in numeric order. Values are deduplicated and never logged.
         """
         provider_cfg = self.config.get("providers", {}).get(provider, {})
-        env_var = provider_cfg.get("env_var")
-        api_key = None
+        env_var = (candidate_cfg or {}).get("env_var") or provider_cfg.get("env_var")
+        names: List[Tuple[int, str]] = []
         if env_var:
-            api_key = os.getenv(env_var) or os.getenv(f"{env_var}_1")
+            names.append((0, env_var))
+            prefix = f"{env_var}_"
+            for name in os.environ:
+                if not name.startswith(prefix):
+                    continue
+                suffix = name[len(prefix) :]
+                if suffix.isdigit():
+                    names.append((int(suffix), name))
 
-        if provider == "groq":
-            api_key = api_key or os.getenv("GROQ_API_KEY") or os.getenv("GROQ_API_KEY_1")
-        elif provider == "gemini":
-            api_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY_1")
-        elif provider == "kilo":
-            api_key = api_key or os.getenv("KILO_API_KEY") or os.getenv("KILO_API_KEY_1")
-        return api_key
+        aliases = {
+            "groq": ["GROQ_API_KEY"],
+            "gemini": ["GEMINI_API_KEY"],
+            "kilo": ["KILO_API_KEY"],
+        }.get(provider, [])
+        for alias in aliases:
+            if alias != env_var:
+                names.append((10_000, alias))
+
+        keys: List[str] = []
+        for _, name in sorted(names):
+            value = os.getenv(name)
+            if value and value not in keys:
+                keys.append(value)
+        return keys
+
+    def _resolve_llm_api_key(
+        self, candidate_cfg: Dict[str, Any], provider: str
+    ) -> Optional[str]:
+        """Backward-compatible single-key lookup (first configured key)."""
+        keys = self._resolve_llm_api_keys(candidate_cfg, provider)
+        return keys[0] if keys else None
 
     def _get_provider_credit_cfg(self, provider: str) -> Dict[str, Any]:
         """Return providers_database.yaml config for credit taxonomy."""
@@ -1091,31 +1120,80 @@ class RouterCore:
     ) -> bool:
         """Check rate limits AND credit exhaustion for a candidate."""
         provider_cfg = self.config.get("providers", {}).get(provider, {})
-        api_key = self._resolve_llm_api_key(candidate_cfg, provider)
+        api_keys = self._resolve_llm_api_keys(candidate_cfg, provider)
         if (
             provider_cfg.get("env_var")
             and not provider_cfg.get("no_api_key_required", False)
-            and not api_key
+            and not api_keys
         ):
             logger.info("Skipping %s/%s: API key unavailable", provider, model)
             return False
 
         limits = self._compute_rate_limits(provider, model, candidate_cfg)
 
-        can_use = await self.rate_limiter.can_use_provider(provider, model, limits)
-        if isinstance(can_use, tuple):
-            if not can_use[0]:
+        # Pick the first key under its limits. Execution reserves it atomically;
+        # this check only decides whether the candidate is worth enqueueing.
+        selected_key: Optional[str] = None
+        if api_keys:
+            allowed = False
+            for key in api_keys:
+                allowed, _ = await self.rate_limiter.can_use_provider(
+                    provider, model, limits, api_key=key
+                )
+                if allowed:
+                    selected_key = key
+                    break
+            if not allowed:
                 return False
-        elif not can_use:
-            return False
+        else:
+            can_use = await self.rate_limiter.can_use_provider(provider, model, limits)
+            if isinstance(can_use, tuple):
+                if not can_use[0]:
+                    return False
+            elif not can_use:
+                return False
 
         # Credit / quota exhaustion check (task-board #290 Phase 2).
-        if not self._check_credit_exhaustion(candidate_cfg, provider, api_key):
+        if not self._check_credit_exhaustion(candidate_cfg, provider, selected_key):
             logger.info(
                 f"Skipping {provider}/{model}: credits exhausted (will retry after daily reset)"
             )
             return False
         return True
+
+    async def _reserve_api_key(
+        self,
+        provider: str,
+        model: str,
+        candidate_cfg: Dict[str, Any],
+        limits: Dict[str, Any],
+    ) -> Tuple[bool, Optional[str], str]:
+        """Atomically reserve the first configured key under its limits.
+
+        Returns ``(allowed, api_key, reason)``. Keyless providers reserve the
+        aggregate provider/model counter with ``api_key=None``.
+        """
+        api_keys = self._resolve_llm_api_keys(candidate_cfg, provider)
+        if not api_keys:
+            allowed, reason = await self.rate_limiter.reserve_request(
+                provider, model, limits
+            )
+            return allowed, None, reason
+
+        last_reason = ""
+        for key in api_keys:
+            allowed, reason = await self.rate_limiter.reserve_request(
+                provider, model, limits, api_key=key
+            )
+            if allowed:
+                return True, key, ""
+            last_reason = reason
+        return False, None, last_reason
+
+    def _has_multiple_api_keys(self, provider: str) -> bool:
+        """Whether a provider has independent keys that can survive a 429."""
+        provider_cfg = self.config.get("providers", {}).get(provider, {})
+        return len(self._resolve_llm_api_keys(provider_cfg, provider)) > 1
 
     def _is_provider_allowed_in_free_mode(self, provider: str) -> bool:
         """Check if a provider is allowed under FREE_ONLY_MODE.
@@ -1191,8 +1269,21 @@ class RouterCore:
         self, candidate: ProviderCandidate, request: Dict[str, Any], request_id: str
     ) -> Any:
         """Execute request against a single candidate."""
-        # Record request attempt
-        await self.rate_limiter.record_request(candidate.provider, candidate.model)
+        provider_cfg = self.config.get("providers", {}).get(candidate.provider, {})
+        limits = candidate.rate_limits or self._compute_rate_limits(
+            candidate.provider, candidate.model, provider_cfg
+        )
+        allowed, api_key, reason = await self._reserve_api_key(
+            candidate.provider, candidate.model, provider_cfg, limits
+        )
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    f"No API key under rate limits for "
+                    f"{candidate.provider}/{candidate.model}: {reason}"
+                ),
+            )
 
         start_time = time.time()
         try:
@@ -1230,11 +1321,6 @@ class RouterCore:
             )
 
             # Try adapter creation for all providers (config-driven)
-            provider_cfg = self.config.get("providers", {}).get(
-                candidate.provider, {}
-            )
-            api_key = self._resolve_llm_api_key(provider_cfg, candidate.provider)
-
             api_base = provider_cfg.get("base_url")
             model_list = provider_cfg.get("free_tier_models", [])
 
@@ -1299,7 +1385,12 @@ class RouterCore:
             # Record success
             elapsed_ms = (time.time() - start_time) * 1000
             await self._update_metrics(
-                candidate.provider, candidate.model, elapsed_ms, True, response=response
+                candidate.provider,
+                candidate.model,
+                elapsed_ms,
+                True,
+                response=response,
+                api_key=api_key,
             )
             try:
                 from rotator_library.telemetry import get_telemetry_manager
@@ -1320,7 +1411,9 @@ class RouterCore:
 
             if error_type == ErrorCategory.RATE_LIMIT:
                 await self.rate_limiter.record_rate_limit_hit(
-                    candidate.provider, candidate.model
+                    candidate.provider,
+                    candidate.model,
+                    api_key=api_key,
                 )
 
             await self._update_metrics(
@@ -1329,6 +1422,7 @@ class RouterCore:
                 (time.time() - start_time) * 1000,
                 False,
                 error_type,
+                api_key=api_key,
             )
             # Map rate-limit errors to quota_exceeded for credit accounting.
             # _classify_error already folds quota keywords into RATE_LIMIT, so any
@@ -1338,11 +1432,7 @@ class RouterCore:
 
                 get_telemetry_manager().record_llm_call_outcome(
                     provider=candidate.provider,
-                    api_key=self._resolve_llm_api_key(
-                        self.config.get("providers", {}).get(candidate.provider, {}),
-                        candidate.provider,
-                    )
-                    or "",
+                    api_key=api_key or "",
                     success=False,
                     error_type="quota_exceeded"
                     if error_type == ErrorCategory.RATE_LIMIT
@@ -1864,14 +1954,20 @@ class RouterCore:
                 ]
             ):
                 reason = REASON_USAGE_CAP
-            await self.rate_limiter.record_rate_limit_hit(
-                provider,
-                model,
-                retry_after=float(retry_after or 0.5),
-                reason=reason,
-            )
+            # The per-key execution path already recorded the hit against the
+            # exact key. Do not duplicate it as an aggregate, provider-wide
+            # block when sibling keys can still serve the request.
+            multi_key = self._has_multiple_api_keys(provider)
+            if not multi_key:
+                await self.rate_limiter.record_rate_limit_hit(
+                    provider,
+                    model,
+                    retry_after=float(retry_after or 0.5),
+                    reason=reason,
+                )
             metrics = self._get_metrics(provider, model)
-            metrics.cooldown_until = time.time() + float(retry_after or 0.5)
+            if not multi_key:
+                metrics.cooldown_until = time.time() + float(retry_after or 0.5)
         elif error_category == ErrorCategory.AUTH_ERROR:
             metrics = self._get_metrics(provider, model)
             metrics.cooldown_until = time.time() + 60  # Auth errors take longer to fix
@@ -2065,6 +2161,11 @@ class RouterCore:
                     fallback_only=candidate_cfg.get("fallback_only", False),
                     role=candidate_cfg.get("role"),
                     search_enabled=candidate_cfg.get("search_enabled", False),
+                    rate_limits=self._compute_rate_limits(
+                        candidate_cfg["provider"],
+                        candidate_cfg["model"],
+                        candidate_cfg,
+                    ),
                 )
 
                 if candidate.matches_requirements(requirements):
@@ -2460,9 +2561,21 @@ class RouterCore:
         """Execute a single candidate (streaming)."""
         start_time = time.time()
         metrics = self._get_metrics(candidate.provider, candidate.model)
-
-        # Record attempt
-        await self.rate_limiter.record_request(candidate.provider, candidate.model)
+        provider_cfg = self.config.get("providers", {}).get(candidate.provider, {})
+        limits = candidate.rate_limits or self._compute_rate_limits(
+            candidate.provider, candidate.model, provider_cfg
+        )
+        allowed, api_key, reason = await self._reserve_api_key(
+            candidate.provider, candidate.model, provider_cfg, limits
+        )
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    f"No API key under rate limits for "
+                    f"{candidate.provider}/{candidate.model}: {reason}"
+                ),
+            )
 
         try:
             # Update model reference
@@ -2493,9 +2606,6 @@ class RouterCore:
             # Prefer provider adapters for config-driven OpenAI-compatible routes.
             # Direct LiteLLM streaming needs explicit custom_llm_provider/api_base
             # for many free providers; adapters already normalize that metadata.
-            provider_cfg = self.config.get("providers", {}).get(candidate.provider, {})
-            api_key = self._resolve_llm_api_key(provider_cfg, candidate.provider)
-
             api_base = provider_cfg.get("base_url")
             model_list = provider_cfg.get("free_tier_models", [])
 
@@ -2590,7 +2700,11 @@ class RouterCore:
 
             latency_ms = (time.time() - start_time) * 1000
             await self._update_metrics(
-                candidate.provider, candidate.model, latency_ms, True
+                candidate.provider,
+                candidate.model,
+                latency_ms,
+                True,
+                api_key=api_key,
             )
 
             try:
@@ -2616,13 +2730,23 @@ class RouterCore:
             error_category = error_classification[0]
             retry_after = error_classification[1]
 
-            if retry_after:
-                metrics.set_cooldown(retry_after)
-            elif error_category == ErrorCategory.RATE_LIMIT:
-                metrics.set_cooldown(
-                    self.config.get("routing", {}).get(
-                        "rate_limit_cooldown_seconds", 300
+            # A provider with multiple keys can continue on a sibling key, so a
+            # single key's 429 must not put the whole candidate in cooldown.
+            if not self._has_multiple_api_keys(candidate.provider):
+                if retry_after:
+                    metrics.set_cooldown(retry_after)
+                elif error_category == ErrorCategory.RATE_LIMIT:
+                    metrics.set_cooldown(
+                        self.config.get("routing", {}).get(
+                            "rate_limit_cooldown_seconds", 300
+                        )
                     )
+
+            if error_category == ErrorCategory.RATE_LIMIT:
+                await self.rate_limiter.record_rate_limit_hit(
+                    candidate.provider,
+                    candidate.model,
+                    api_key=api_key,
                 )
 
             await self._update_metrics(
@@ -2631,6 +2755,7 @@ class RouterCore:
                 latency_ms,
                 False,
                 error_category,
+                api_key=api_key,
             )
 
             try:
