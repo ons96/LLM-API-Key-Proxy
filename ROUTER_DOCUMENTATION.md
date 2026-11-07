@@ -407,7 +407,9 @@ curl http://localhost:8000/v1/router/status | jq .search_providers
 ### Throughput
 
 - Router overhead is minimal per request
-- Provider rate limits apply per provider
+- Provider rate limits apply per API key when multiple keys are configured
+- Keyless providers use provider-wide counters
+- A 429 on one key leaves sibling keys available for the next request
 - Virtual models distribute load across providers
 
 ### Resource Usage

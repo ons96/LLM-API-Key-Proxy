@@ -301,7 +301,11 @@ The integration spec and reversible rollout criteria are in
 `docs/specs/post-merge-integration.md`.
 
 ### 3. Rate Limit Tracking
-A new `RateLimitTracker` monitors usage (RPM, Daily) and enforces limits defined in `virtual_models.yaml`. It prevents hitting provider 429s by proactively rotating or rejecting requests.
+`RateLimitTracker` monitors RPM, RPD, TPM, and TPD and enforces limits from
+`router_config.yaml`. Limits are checked and reserved atomically per API key
+(`*_API_KEY` and `*_API_KEY_1..N`); if a key is at its cap, the router selects
+the next configured key. Keyless providers keep provider-wide counters. A 429
+on one key does not block sibling keys.
 
 ### 4. Health Checks
 A background `HealthChecker` periodically pings configured providers.

@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -93,7 +94,14 @@ class RateLimitTracker:
 
     def __init__(self, active_days_path: Optional[Path] = None):
         self._usage: Dict[str, RateLimitStatus] = {}
+        # Key-specific counters are kept separate so one key's limit never
+        # blocks its siblings. Keys are identified by a short SHA-256
+        # fingerprint; raw credentials never enter this map or its API output.
+        self._key_usage: Dict[str, RateLimitStatus] = {}
         self._lock = asyncio.Lock()
+        # Serializes check-then-increment for request reservations. Without
+        # this, two concurrent requests can both observe the last RPM slot.
+        self._reserve_lock = asyncio.Lock()
         # Provider-level reset windows: provider_name -> {"daily_reset_utc": "00:00", ...}
         self._reset_windows: Dict[str, Dict[str, Any]] = {}
         # Active-days configuration: provider -> {"window_days", "max_active_days", "tz", "tzinfo"}
@@ -307,28 +315,42 @@ class RateLimitTracker:
         self._reset_windows = dict(windows)
         logger.info(f"Configured reset windows for {len(windows)} providers")
 
-    def _get_key(self, provider: str, model: str) -> str:
-        return f"{provider}/{model}"
+    def _get_key(
+        self, provider: str, model: str, api_key: Optional[str] = None
+    ) -> str:
+        base = f"{provider}/{model}"
+        if not api_key:
+            return base
+        fingerprint = hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:12]
+        return f"{base}#key:{fingerprint}"
 
     def _provider_from_key(self, key: str) -> str:
         return key.split("/", 1)[0] if "/" in key else key
 
     async def can_use_provider(
-        self, provider: str, model: str, limits: Dict[str, int]
+        self,
+        provider: str,
+        model: str,
+        limits: Dict[str, int],
+        api_key: Optional[str] = None,
     ) -> Tuple[bool, str]:
         """
         Check if a provider can be used based on limits.
         limits dict can contain: 'rpm', 'daily', 'tpm', 'daily_tokens'
 
+        When ``api_key`` is supplied, only that key's counters are checked.
+        Without it, the historical provider/model aggregate counters apply.
+
         Returns (allowed, reason_code) where reason_code is empty if allowed.
         """
-        key = self._get_key(provider, model)
+        key = self._get_key(provider, model, api_key)
+        bucket = self._key_usage if api_key else self._usage
 
         async with self._lock:
-            if key not in self._usage:
-                self._usage[key] = RateLimitStatus()
+            if key not in bucket:
+                bucket[key] = RateLimitStatus()
 
-            status = self._usage[key]
+            status = bucket[key]
             now = time.time()
             prov_name = self._provider_from_key(key)
 
@@ -440,27 +462,71 @@ class RateLimitTracker:
 
             return True, ""
 
-    async def record_request(self, provider: str, model: str):
-        """Record a request attempt and (if configured) today's active-day stamp."""
-        key = self._get_key(provider, model)
-        async with self._lock:
-            if key not in self._usage:
-                self._usage[key] = RateLimitStatus()
+    async def reserve_request(
+        self,
+        provider: str,
+        model: str,
+        limits: Dict[str, int],
+        api_key: Optional[str] = None,
+    ) -> Tuple[bool, str]:
+        """Atomically check limits and count a request against them.
 
-            self._usage[key].requests_this_minute += 1
-            self._usage[key].requests_today += 1
+        The selector must use this (rather than a separate check followed by
+        ``record_request``) so concurrent requests cannot overrun the last
+        RPM slot on the same key.
+        """
+        async with self._reserve_lock:
+            allowed, reason = await self.can_use_provider(
+                provider, model, limits, api_key=api_key
+            )
+            if not allowed:
+                return False, reason
+            await self.record_request(provider, model, api_key=api_key)
+            return True, ""
+
+    @staticmethod
+    def _increment_requests(status: RateLimitStatus) -> None:
+        status.requests_this_minute += 1
+        status.requests_today += 1
+
+    async def record_request(
+        self, provider: str, model: str, api_key: Optional[str] = None
+    ):
+        """Record a request attempt and (if configured) today's active-day stamp.
+
+        The aggregate provider/model counter is always incremented so existing
+        stats remain complete. A key-specific counter is incremented too when
+        ``api_key`` is supplied.
+        """
+        aggregate_key = self._get_key(provider, model)
+        detail_key = self._get_key(provider, model, api_key) if api_key else None
+        async with self._lock:
+            aggregate = self._usage.setdefault(aggregate_key, RateLimitStatus())
+            self._increment_requests(aggregate)
+            if detail_key:
+                detail = self._key_usage.setdefault(detail_key, RateLimitStatus())
+                self._increment_requests(detail)
             # Stamp active day for this provider (no-op if not configured)
             await self.record_active_day(provider)
 
-    async def record_tokens(self, provider: str, model: str, token_count: int):
-        """Record tokens used in a request."""
-        key = self._get_key(provider, model)
+    async def record_tokens(
+        self,
+        provider: str,
+        model: str,
+        token_count: int,
+        api_key: Optional[str] = None,
+    ):
+        """Record tokens used in a request, both aggregate and per key."""
+        aggregate_key = self._get_key(provider, model)
+        detail_key = self._get_key(provider, model, api_key) if api_key else None
         async with self._lock:
-            if key not in self._usage:
-                self._usage[key] = RateLimitStatus()
-
-            self._usage[key].tokens_this_minute += token_count
-            self._usage[key].tokens_today += token_count
+            aggregate = self._usage.setdefault(aggregate_key, RateLimitStatus())
+            aggregate.tokens_this_minute += token_count
+            aggregate.tokens_today += token_count
+            if detail_key:
+                detail = self._key_usage.setdefault(detail_key, RateLimitStatus())
+                detail.tokens_this_minute += token_count
+                detail.tokens_today += token_count
 
     async def record_rate_limit_hit(
         self,
@@ -468,19 +534,23 @@ class RateLimitTracker:
         model: str,
         retry_after: float = 60.0,
         reason: str = REASON_RATE_LIMIT,
+        api_key: Optional[str] = None,
     ):
         """Record a 429/Rate Limit error.
 
         If the provider has a known daily reset window and the reason is
         USAGE_CAP, block until the reset time instead of the default
-        retry_after period.
+        retry_after period. A key-specific hit blocks only that key. Its block
+        is intentionally in-memory: the persisted telemetry table has no key
+        dimension and must not turn one key's 429 into a provider-wide block.
         """
-        key = self._get_key(provider, model)
+        key = self._get_key(provider, model, api_key)
+        bucket = self._key_usage if api_key else self._usage
         prov_name = self._provider_from_key(key)
 
         async with self._lock:
-            if key not in self._usage:
-                self._usage[key] = RateLimitStatus()
+            if key not in bucket:
+                bucket[key] = RateLimitStatus()
 
             block_until = time.time() + retry_after
 
@@ -498,12 +568,15 @@ class RateLimitTracker:
                         f"({next_reset.isoformat()})"
                     )
 
-            self._usage[key].rate_limited_until = block_until
-            self._usage[key].block_reason = reason
+            bucket[key].rate_limited_until = block_until
+            bucket[key].block_reason = reason
             logger.warning(
                 f"Provider {key} blocked ({reason}) until "
                 f"{datetime.fromtimestamp(block_until, tz=timezone.utc).isoformat()}"
             )
+
+        if api_key is not None:
+            return
 
         # Persist so a fresh process can restore the block before the reset
         # time elapses (restart survival). Telemetry uses its own sqlite
@@ -523,13 +596,16 @@ class RateLimitTracker:
             logger.debug(f"Could not persist rate-limit hit: {e}")
 
     async def get_usage_stats(self) -> Dict[str, Any]:
-        """Get current usage statistics, including active-day state per provider."""
+        """Get current usage statistics, including active-day and per-key state."""
         now = time.time()
-        async with self._lock:
-            usage = {
+
+        def snapshot(items: Dict[str, RateLimitStatus]) -> Dict[str, Any]:
+            return {
                 k: {
                     "rpm": v.requests_this_minute,
                     "daily": v.requests_today,
+                    "tpm": v.tokens_this_minute,
+                    "daily_tokens": v.tokens_today,
                     "limited": now < v.rate_limited_until,
                     "block_reason": v.block_reason
                     if now < v.rate_limited_until
@@ -542,7 +618,15 @@ class RateLimitTracker:
                         else None
                     ),
                 }
-                for k, v in self._usage.items()
+                for k, v in items.items()
             }
+
+        async with self._lock:
+            usage = snapshot(self._usage)
+            key_usage = snapshot(self._key_usage)
             active_days = self.list_active_days_providers()
-        return {"usage": usage, "active_days": active_days}
+        return {
+            "usage": usage,
+            "key_usage": key_usage,
+            "active_days": active_days,
+        }
