@@ -148,3 +148,83 @@ def test_string_status_is_coerced(code):
     err = type("ProviderError", (Exception,), {"status_code": str(code)})("boom")
     status, _detail = main._upstream_error_status(err)
     assert status == code
+
+
+# --- 402 payment required ---------------------------------------------------
+#
+# Cerebras answers "Payment required to access this resource" for a key with
+# no credit. Flattening that to 500 made the gateway classify it as transient
+# and retry a permanent condition, so clients reported "high demand".
+
+
+@pytest.mark.parametrize("code", [402])
+def test_adapter_keeps_payment_required(code):
+    adapter_cls = _load_adapter()
+    adapter = adapter_cls("cerebras", "key", "https://example.invalid/v1")
+
+    err = adapter._convert_error(_error_with_status(code))
+    assert err.status_code == 402
+
+
+def test_adapter_maps_payment_required_text_to_402():
+    """Providers that do not attach a status still must not look transient."""
+    adapter_cls = _load_adapter()
+    adapter = adapter_cls("cerebras", "key", "https://example.invalid/v1")
+
+    err = adapter._convert_error(
+        Exception("Payment required to access this resource. Visit your billing tab.")
+    )
+    assert err.status_code == 402
+
+
+@pytest.mark.parametrize("code", [402])
+def test_main_forwards_payment_required(code):
+    main = _load_main()
+    status, _detail = main._upstream_error_status(_error_with_status(code))
+    assert status == code
+
+
+def test_error_status_helper_keeps_402_from_text_wrapped_error():
+    """A wrapped HTTPException carries the status, so it must be forwarded."""
+    from fastapi import HTTPException
+
+    main = _load_main()
+    status, detail = main._upstream_error_status(
+        HTTPException(status_code=402, detail="Payment required")
+    )
+    assert status == 402
+    assert "Payment required" in detail
+
+
+def test_every_adapter_forwards_a_404():
+    """Regression: each adapter class had its own keyword-only error mapping.
+
+    A real upstream 404 (Gemini reports a retired model this way) was
+    flattened to 500 by GeminiAdapter/GroqAdapter/G4FAdapter/TogetherAdapter/
+    KiloAdapter, so the router retried it and Codex printed "high demand".
+    """
+    from proxy_app import provider_adapter as pa
+
+    adapter_classes = [
+        (pa.OpenAICompatibleAdapter, 3),
+        (pa.GroqAdapter, 2),
+        (pa.GeminiAdapter, 2),
+        (pa.G4FAdapter, 2),
+        (pa.TogetherAdapter, 2),
+        (pa.KiloAdapter, 2),
+    ]
+    for adapter_cls, arity in adapter_classes:
+        args = ("probe", "key", "https://example.invalid/v1")[:arity]
+        adapter = adapter_cls(*args)
+        err = adapter._convert_error(_error_with_status(404))
+        assert err.status_code == 404, f"{adapter_cls.__name__} flattened 404"
+
+
+def test_forwardable_upstream_status_helper():
+    from proxy_app import provider_adapter as pa
+
+    assert pa.forwardable_upstream_status(_error_with_status(404)) == 404
+    assert pa.forwardable_upstream_status(_error_with_status(402)) == 402
+    # Not a status we forward; callers keep their own heuristic.
+    assert pa.forwardable_upstream_status(_error_with_status(500)) is None
+    assert pa.forwardable_upstream_status(Exception("plain")) is None

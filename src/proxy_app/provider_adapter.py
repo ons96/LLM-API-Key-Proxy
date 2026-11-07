@@ -19,6 +19,28 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
+# Statuses that describe a per-request, non-transient condition. Letting any of
+# these collapse into a 500 makes the router retry a permanent error and lets
+# clients misreport the cause (Codex prints "high demand" for a 404). Adapters
+# that do not inspect the upstream response themselves use this helper.
+FORWARDABLE_UPSTREAM_STATUSES = (400, 401, 402, 403, 404, 429)
+
+
+def forwardable_upstream_status(error: Exception) -> Optional[int]:
+    """Return the provider's own status when it should survive the gateway hop."""
+    status = getattr(error, "status_code", None)
+    if status is None:
+        response = getattr(error, "response", None)
+        status = getattr(response, "status_code", None)
+    try:
+        status = int(status) if status is not None else None
+    except (TypeError, ValueError):
+        return None
+    if status is not None and status in FORWARDABLE_UPSTREAM_STATUSES:
+        return status
+    return None
+
+
 @dataclass
 class ModelCapabilities:
     """Model capability flags and metadata."""
@@ -241,11 +263,24 @@ class OpenAICompatibleAdapter(BaseProviderAdapter):
         except (TypeError, ValueError):
             upstream_status = None
 
-        if upstream_status in (400, 401, 403, 404, 429):
+        if upstream_status in (400, 401, 402, 403, 404, 429):
             return HTTPException(status_code=upstream_status, detail=str(error))
 
         if "authentication" in error_str or "api_key" in error_str:
             status_code = 401
+        elif any(
+            kw in error_str
+            for kw in [
+                "payment required",
+                "billing",
+                "insufficient_quota_paid",
+                "payment_required",
+            ]
+        ):
+            # Billing exhaustion is permanent for this key, not a transient
+            # fault: flattening it to 500 made the gateway retry and report
+            # "high demand". 402 tells the client the truth.
+            status_code = 402
         elif any(
             kw in error_str
             for kw in [
@@ -502,6 +537,9 @@ class GroqAdapter(BaseProviderAdapter):
 
     def _convert_error(self, error: Exception) -> HTTPException:
         """Convert provider error to HTTPException."""
+        passthrough = forwardable_upstream_status(error)
+        if passthrough is not None:
+            return HTTPException(status_code=passthrough, detail=str(error))
         error_str = str(error).lower()
 
         if "authentication" in error_str or "api_key" in error_str:
@@ -639,6 +677,9 @@ class GeminiAdapter(BaseProviderAdapter):
 
     def _convert_error(self, error: Exception) -> HTTPException:
         """Convert provider error to HTTPException."""
+        passthrough = forwardable_upstream_status(error)
+        if passthrough is not None:
+            return HTTPException(status_code=passthrough, detail=str(error))
         error_str = str(error).lower()
 
         if "api_key" in error_str or "permission" in error_str:
@@ -935,6 +976,9 @@ class G4FAdapter(BaseProviderAdapter):
 
     def _convert_error(self, error: Exception) -> HTTPException:
         """Convert provider error to HTTPException."""
+        passthrough = forwardable_upstream_status(error)
+        if passthrough is not None:
+            return HTTPException(status_code=passthrough, detail=str(error))
         error_str = str(error).lower()
 
         if "rate" in error_str:
@@ -1064,6 +1108,9 @@ class TogetherAdapter(BaseProviderAdapter):
 
     def _convert_error(self, error: Exception) -> HTTPException:
         """Convert provider error to HTTPException."""
+        passthrough = forwardable_upstream_status(error)
+        if passthrough is not None:
+            return HTTPException(status_code=passthrough, detail=str(error))
         return HTTPException(status_code=500, detail=str(error))
 
 
@@ -1195,6 +1242,9 @@ class KiloAdapter(BaseProviderAdapter):
         return chunk
 
     def _convert_error(self, error: Exception) -> HTTPException:
+        passthrough = forwardable_upstream_status(error)
+        if passthrough is not None:
+            return HTTPException(status_code=passthrough, detail=str(error))
         error_str = str(error).lower()
         if "authentication" in error_str or "api_key" in error_str:
             status_code = 401

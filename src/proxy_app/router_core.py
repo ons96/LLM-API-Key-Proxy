@@ -1806,6 +1806,10 @@ class RouterCore:
             if status_code == 404:
                 # Model/provider gone — skip immediately, never retry.
                 return ErrorCategory.PROVIDER_ERROR, None
+            if status_code == 402:
+                # Payment required: the key has no credit for this provider.
+                # Permanent, so never retry it as a transient fault.
+                return ErrorCategory.PROVIDER_ERROR, None
             if status_code == 429:
                 retry_after = None
                 response = getattr(error, "response", None)
