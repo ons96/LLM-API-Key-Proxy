@@ -114,6 +114,25 @@ Two consequences worth stating because they invert intuition:
   30 s faster per attempt wins only if it does not add attempts. Oracles must be
   fast or sampled (section 3.3).
 
+### 2.1 Invariants that must not be traded away
+
+These four are cheap to hold and expensive to lose. Any implementation that
+breaks one is wrong regardless of what it improves:
+
+1. **Unknown is not success.** A request with no verdict, a timeout, a 200 with
+   no verification, or a harness that cannot run the oracle must not increment a
+   success count. Priors stay put.
+2. **A one-time credit's value is its advantage, not its balance.** If
+   `a(m,class) ≤ 0` — the model is no better than the best available free
+   option — the credit is worth zero and must not be routed to "to avoid waste".
+   The loss was booked when the credit was acquired; expiry is only the
+   accounting date. Section 6.3, enforced by the S5 gate.
+3. **Quota is priced by displacement, not utilisation.** `λ > 0` only when
+   remaining demand exceeds remaining quota. Never route to an expiring balance
+   merely because it expires.
+4. **The router never calls an LLM to decide.** No classifier model, no
+   grader in the hot path, no "judge" in the routing loop. Section 5.
+
 ---
 
 ## 3. What "correct" can actually mean
@@ -190,6 +209,10 @@ This is the single most important architectural consequence in this document:
 router deployed purely on the VPS with no client cooperation can only ever learn
 HTTP success, which is Lie 1. If the grade channel is not built, the router is
 a load balancer with extra steps.
+
+The normative contract (definition of done, threat model, reference
+implementation, verdict enum) is `docs/verification-protocol.md`. Implement the
+client side against that file, not against this summary.
 
 Required protocol change (small):
 
