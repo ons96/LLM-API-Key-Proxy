@@ -375,6 +375,19 @@ learn only when there is data:
 - Serve it as a **tie-breaker**, never as the primary gate: rules decide
   feasibility and hard filters; the model only nudges the entry tier.
 
+**Cadence.** Two different learning loops, do not conflate them:
+
+| Loop | What it learns | Updates | Where it lives |
+|---|---|---|---|
+| Online bandit (`alpha`/`beta` per route×step) | which route actually succeeds, how fast, at this hour | every graded request, continuously | SQLite on the VPS |
+| Offline classifier (optional) | which prompt features predict the entry tier | weekly, only while it beats the rules on held-out weeks | a 1 KB JSON file |
+
+So the logistic is **not** a one-time artifact and not the main learning either.
+The bandit is the thing that makes the router improve, and it needs no training
+job at all. The classifier is a refinement you may delete in six months if it
+stops earning its keep — providers change, and a stale weight vector is worse
+than no weight vector.
+
 Why not a tree: no inference server exists that is worth the memory, and a
 portable JSON tree is a maintenance liability for a marginal accuracy gain.
 Logistic regression gets you most of the signal at zero operational cost.
@@ -720,8 +733,9 @@ records it as failure, and `evidence()`'s alpha/beta move accordingly.
 **S2 — Client oracle (2–4 days).**
 OpenCode plugin: run V0 + V4 always, V2 on the changed subset, from a pristine
 worktree; post the grade. Handle the Python/node/Go/rust toolchain detection
-from the repo's own config. Gate: 20 real tasks on the owner's repo, grades
-match a human read; no test-tamper patch is ever graded pass.
+from the repo's own config. Gate: the eight acceptance tests in
+`verification-protocol.md` §8.7 pass, then 20 real tasks on the owner's repo
+grade the same as a human read; no test-tamper patch is ever graded pass.
 
 **S3 — Ladder (3–5 days).**
 Entry-tier DP, semantic-vs-operational failure split, attempt reservation per
