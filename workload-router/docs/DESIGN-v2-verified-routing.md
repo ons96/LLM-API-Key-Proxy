@@ -306,6 +306,49 @@ error-message-driven debugging. That is the majority of agentic coding traffic.
 - Harness interaction: if the harness also retries, you get 2×N attempts.
   Disable harness-level retry (or set it to 1) when the router owns failover.
 
+### 4.5 Exploration: the budget that keeps the cascade honest
+
+A bandit that only ever takes the best-known route learns nothing new, and what
+it "knows" is one lucky sample. With `Beta(1,1)` priors, a single success makes
+`p̂ = 0.67`, which beats every untried route forever. That is the failure mode:
+not a wrong choice, but a choice that can never be corrected.
+
+The repo already has the mechanism — `Weights.top_n = 3` and
+`rank_routes(explore=True)` sample from the top 3 with `betavariate(α, β)` — but
+it has no **budget** and no **stop rule**, so it randomises between the top 3
+forever. That trades away stability (their own P0 spec asks for "no route
+oscillation") for exploration you stopped needing weeks ago.
+
+Make it explicit:
+
+```
+ε_cell  = clamp(1 − n_cell / n_min, 0, ε_max)      # n_min = 20, ε_max = 0.10
+explore = rng() < ε_cell  AND route within 1.25× best score
+                          AND route is feasible
+                          AND task is reversible
+```
+
+Rules that matter more than the formula:
+
+- **Stop rule.** Stop exploring a cell when the Beta credible interval
+  half-width < 0.10 or `n ≥ 30`. After that, route deterministically.
+- **Global cap.** Exploration may cost at most ~10% extra expected time per
+  week. Track it as its own metric; if it exceeds the cap, the model is either
+  changing too fast (real) or the priors are bad (fixable).
+- **Never explore on irreversible tasks** (migrations, deploys, deletions). One
+  shot, best known route, no sampling.
+- **Never explore into a credit route with `a ≤ 0`.** You would pay opportunity
+  cost to learn something you already know.
+- **Cold-start priors are the real prior.** `Route.prior_success` /
+  `prior_failure` act as pseudo-observations: `(5, 2)` means "as if this route
+  had 5 wins and 2 losses". Set them per provider class (established unlimited
+  provider higher, unknown one-time credit lower) and write down why, because
+  these numbers dominate the first ~50 real observations.
+
+The honest trade-off: exploration costs time now to save time later. Ten
+percent early, decaying to near zero, is cheap. Permanent randomisation among
+the top 3 is not.
+
 ---
 
 ## 5. Classification: fast, free, and almost never learned
@@ -845,3 +888,44 @@ architecture (cascade, shadow auction, hazard-discounted credits, client-side
 policy with a shared state snapshot) follows mechanically. Do not add models to
 the routing path, do not add dependencies that cost RAM, and do not build a
 second router in a sibling repo.
+
+---
+
+## Appendix B — harness compatibility (verified 2026-11-09)
+
+Checked against the owner's own config/sync tooling
+(`opencode-config/scripts/sync-opencode-to-omp.py`,
+`sync-opencode-to-pi.py`, `llm-model-catalog/README.md`), not from memory.
+
+| Harness | Custom provider / baseURL | Model list location | Plugin / tool hooks | Verdict |
+|---|---|---|---|---|
+| **opencode** | yes, `opencode.json` providers | `opencode.json` | yes (`plugins/*.ts`, e.g. `errcont.ts`) | **primary target**: can override per call and observe tool results |
+| **omp** (oh-my-pi) | yes, any provider with `baseURL` | `~/.omp/agent/models.yml` | unknown — needs checking | good second target: gateway switching is free, grading may need a wrapper |
+| **pi** | yes, provider `baseURL` | `~/.pi/agent/models.json` | unknown — needs checking | same as omp; note pi does not load `~/.env`, so keys come via `!sh` |
+| **kilo** | yes, `~/.config/kilo/kilo.jsonc` | same file | unknown | usable, low priority |
+| **jcode** | **no** — providers built into the binary, `jcode provider list` | none user-editable | n/a | not a target until it supports a custom baseURL |
+| **hermes** | own list, `hermes model --refresh` overwrites manual edits | internal | unknown | not a target: the refresh would delete gateway entries |
+
+Consequence for the design: **the gateway is the portable layer; the plugin is
+not.** Every harness above that takes a `baseURL` gets routing for free. Only
+the ones with a tool-result hook get automatic grading; the rest must run
+`verify-pristine.sh` through their shell tool and post the verdict, or accept
+`unknown`.
+
+Do not build per-harness forks of the router. Build one OpenAI-compatible
+endpoint and one script.
+
+## Appendix C — what to reuse, and what to write
+
+| Need | Reuse | Why not just use it |
+|---|---|---|
+| transport, keys, channel weights, retries | **new-api** (already running) | no quality-aware routing; that is the point of this project |
+| cooldown / fallback state machine | **LiteLLM** (read the code) | Python memory cost; its routing strategies are cost/latency, not correctness |
+| Go transport alternative | **Bifrost** | same limitation |
+| edit→lint→test→feed-back loop | **opencode plugins**, **aider** (read only) | aider is an editor/agent, not a router; borrow the loop shape, not the tool |
+| fast oracle | **pytest-testmon**, **jest --changedSince**, **cargo-nextest**, `nx affected` | this is the single biggest lever on oracle latency |
+| trained quality router | **RouteLLM** (Apache-2.0) | needs a BERT/embedding model: too heavy for 1 GB, adds 100 ms+ |
+| verification-gated routing | **nothing exists** | this is the part to write: ~300 lines of scorer + ~150 lines of oracle |
+
+Rule: reuse the *plumbing*, write the *judgement*. Do not fork a whole project
+to add one idea that would be 450 lines from scratch.
