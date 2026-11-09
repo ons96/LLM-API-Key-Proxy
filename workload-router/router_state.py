@@ -2,12 +2,18 @@
 
 import hashlib
 import math
+import secrets
 import sqlite3
 import threading
 import time
 from pathlib import Path
 
 from router_core import CacheHint
+
+VERDICTS = frozenset({
+    "pass", "fail_build", "fail_lint", "fail_test",
+    "fail_scope", "fail_tamper", "timeout", "unknown",
+})
 
 
 class RouterState:
@@ -69,6 +75,17 @@ class RouterState:
             self.connection.execute(
                 "ALTER TABLE cache_observations ADD COLUMN ttl_seconds REAL NOT NULL DEFAULT 600"
             )
+        self.connection.execute(
+            """CREATE TABLE IF NOT EXISTS attempts (
+                attempt_id TEXT PRIMARY KEY,
+                session_hash TEXT NOT NULL,
+                deployment TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                graded_at REAL,
+                grade INTEGER,
+                verdict TEXT
+            )"""
+        )
         self.connection.commit()
 
     @staticmethod
@@ -126,6 +143,72 @@ class RouterState:
             return int(
                 self.connection.execute("SELECT COUNT(*) FROM outcomes WHERE outcome = ?", (outcome,)).fetchone()[0]
             )
+
+    def open_attempt(self, session_id: str, deployment: str) -> str:
+        """Issue an attempt id for the client to grade later.
+
+        Dispatching a request no longer implies success: the attempt stays
+        ungraded until the client reports a verdict. A router that grades on
+        HTTP 200 learns only which providers avoid rate limits.
+        """
+        attempt_id = secrets.token_hex(16)
+        with self.lock:
+            self.connection.execute(
+                "INSERT INTO attempts(attempt_id, session_hash, deployment, created_at) VALUES (?, ?, ?, ?)",
+                (attempt_id, self._hash(session_id), deployment, time.time()),
+            )
+            self.connection.commit()
+        return attempt_id
+
+    def grade_attempt(self, attempt_id: str, grade: bool, verdict: str) -> None:
+        """Store a client verdict once. Unknown verdicts and regrades are rejected."""
+        if not isinstance(grade, bool):
+            raise ValueError("grade must be a boolean")
+        if not isinstance(verdict, str) or verdict not in VERDICTS:
+            raise ValueError(f"unsupported verdict: {verdict}")
+        with self.lock:
+            row = self.connection.execute(
+                "SELECT graded_at FROM attempts WHERE attempt_id = ?", (attempt_id,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("unknown attempt_id")
+            if row[0] is not None:
+                raise ValueError("attempt already graded")
+            self.connection.execute(
+                "UPDATE attempts SET graded_at = ?, grade = ?, verdict = ? WHERE attempt_id = ?",
+                (time.time(), int(grade), verdict, attempt_id),
+            )
+            self.connection.commit()
+
+    def attempt(self, attempt_id: str) -> dict[str, object] | None:
+        with self.lock:
+            row = self.connection.execute(
+                "SELECT attempt_id, deployment, created_at, graded_at, grade, verdict FROM attempts WHERE attempt_id = ?",
+                (attempt_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "attempt_id": row[0], "deployment": row[1], "created_at": row[2],
+            "graded_at": row[3], "grade": row[4], "verdict": row[5],
+        }
+
+    def pending_attempts(self) -> int:
+        with self.lock:
+            return int(
+                self.connection.execute(
+                    "SELECT COUNT(*) FROM attempts WHERE graded_at IS NULL"
+                ).fetchone()[0]
+            )
+
+    def graded_attempts(self, passed: bool | None = None) -> int:
+        query = "SELECT COUNT(*) FROM attempts WHERE graded_at IS NOT NULL"
+        params: tuple[object, ...] = ()
+        if passed is not None:
+            query += " AND grade = ?"
+            params = (int(passed),)
+        with self.lock:
+            return int(self.connection.execute(query, params).fetchone()[0])
 
     def record_cache(
         self,
