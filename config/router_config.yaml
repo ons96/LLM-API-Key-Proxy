@@ -832,6 +832,11 @@ providers:
     env_var: CRAX_API_KEY
     base_url: https://gpt.crax.lol/v1
     enabled: true
+    # Owner reports 20M tokens/day; the DB says 40M/day. Enforce the lower
+    # figure until the account limit is confirmed. 200 RPM is the reported cap.
+    rate_limits:
+      rpm: 200
+      daily_tokens: 20000000
     # Verified 2026-11-09: 65 live; 20 HTTP 200, 16 text, 4 empty, 45 upstream
     # 403. Five zero-rate ids and three free-daily metered ids returned text.
     free_tier: true

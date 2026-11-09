@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -61,6 +62,20 @@ def test_compute_rate_limits_uses_static_defaults_and_overrides(monkeypatch):
     limits = router._compute_rate_limits("provider_a", "model_a", {})
 
     assert limits == {"rpm": 10, "tpm": 50, "daily_tokens": 100}
+
+
+def test_crax_daily_token_and_rpm_caps_are_enforced():
+    """Crax's free-daily allowance must have a local preemptive cap."""
+    config_path = Path(__file__).parent.parent / "config" / "router_config.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+
+    router = RouterCore.__new__(RouterCore)
+    router.provider_configs = config["providers"]
+
+    limits = router._compute_rate_limits("crax", "glm-5.3", {})
+
+    assert limits["rpm"] == 200
+    assert limits["daily_tokens"] == 20_000_000
 
 
 @pytest.mark.asyncio

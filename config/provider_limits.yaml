@@ -21,6 +21,9 @@ providers:
   cloudflare:
     daily_tokens: 10000
     rpm: 300
+  crax:
+    daily_tokens: 40000000
+    rpm: 200
   freetheai:
     rpm: 10
   g4f:
@@ -55,6 +58,10 @@ providers:
   llm7:
     daily_tokens: 100000
     rpm: 30
+  logfare:
+    rpm: 80
+  logfare-alt:
+    rpm: 80
   mistral:
     rpm: 10
   noobrouter:
@@ -95,3 +102,5 @@ providers:
     rpm: 60
   xinjianya:
     rpm: 100
+  zenllm:
+    rpm: 15
