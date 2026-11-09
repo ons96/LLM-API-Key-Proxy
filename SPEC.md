@@ -178,7 +178,7 @@ Two telemetry systems:
 
 **Insert API:** `TelemetryManager.record_call(provider, model, success, response_time_ms, error_reason=None, time_to_first_token_ms=None, tokens_per_second=None, input_tokens=None, output_tokens=None, cost_estimate_usd=None)` (`telemetry.py:227`).
 
-**Active probe** `[built]` (#332) -- `scripts/probe_providers.py`: sends canonical prompt to each enabled provider+model, measures TTFT/TPS/latency, writes via `record_call`. Scheduled every 30min on VPS-40 cron (`/home/ubuntu/logs/probe-providers.log`). 16 tests in `tests/test_probe_providers_332.py`.
+**Active probe** `[built]` (#332) -- `scripts/probe_providers.py`: checks each provider endpoint once, skips all of that provider's models when the endpoint is dead, and tags it in `config/provider_probe_status.yaml` for retry on the next run. One-time-credit providers are skipped. Healthy targets get the canonical prompt; TTFT/TPS/latency are written via `record_call`. Scheduled every 30min on VPS-40 cron (`/home/ubuntu/logs/probe-providers.log`). 30 tests in `tests/test_probe_providers_332.py`.
 
 **Telemetry export** `[built]` -- `src/rotator_library/tps_export.py` `aggregate_tps_stats(db_path, days=7, min_samples=5)`: queries `api_calls WHERE success=1 AND tokens_per_second>0`, groups by (provider,model), computes avg/median/p95 TPS + avg TTFT.
 

@@ -9,10 +9,12 @@ Covers:
 - end-to-end: probe -> DB row queryable
 """
 import os
+import socket
 import sys
 import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError, URLError
 
 import pytest
 import yaml
@@ -81,7 +83,9 @@ SAMPLE_CONFIG = {
 
 
 @pytest.fixture
-def config_file(tmp_path):
+def config_file(tmp_path, monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    monkeypatch.setenv("WIWI_API_KEY", "test-key")
     p = tmp_path / "router_config.yaml"
     p.write_text(yaml.safe_dump(SAMPLE_CONFIG))
     return p
@@ -139,6 +143,162 @@ class TestSelectTargets:
         targets = probe_mod.select_targets(providers, only="groq", max_models=1)
         assert len(targets) == 1
 
+    def test_skips_one_time_provider(self, config_file):
+        providers = probe_mod.load_provider_config(config_file)
+        targets = probe_mod.select_targets(providers, only="groq", skip_providers={"groq"})
+        assert targets == []
+
+
+class TestOneTimeProviders:
+    def test_reads_provider_level_one_time_quota(self, tmp_path):
+        path = tmp_path / "providers_database.yaml"
+        path.write_text(
+            yaml.safe_dump(
+                {
+                    "providers": [
+                        {"id": "together", "free_quota": {"free_type": "one_time_credit"}},
+                        {"id": "groq", "free_quota": {"free_type": "daily_renewable"}},
+                    ]
+                }
+            )
+        )
+        assert probe_mod.load_one_time_providers(path) == {"together"}
+
+    def test_missing_provider_db_is_safe(self, tmp_path):
+        assert probe_mod.load_one_time_providers(tmp_path / "missing.yaml") == set()
+
+
+class TestCheckEndpoint:
+    def _response(self, status):
+        response = MagicMock()
+        response.status = status
+        response.__enter__.return_value = response
+        response.__exit__.return_value = None
+        return response
+
+    def test_http_200_is_alive(self):
+        with patch.object(probe_mod, "urlopen", return_value=self._response(200)):
+            ok, detail = probe_mod.check_endpoint("https://api.example.com/v1")
+        assert ok is True
+        assert detail == "HTTP 200"
+
+    def test_http_404_is_reachable(self):
+        error = HTTPError("https://api.example.com/v1", 404, "Not Found", None, None)
+        with patch.object(probe_mod, "urlopen", side_effect=error):
+            ok, detail = probe_mod.check_endpoint("https://api.example.com/v1")
+        assert ok is True
+        assert detail == "HTTP 404"
+
+    def test_auth_error_is_unhealthy(self):
+        error = HTTPError("https://api.example.com/v1", 401, "Unauthorized", None, None)
+        with patch.object(probe_mod, "urlopen", side_effect=error):
+            ok, detail = probe_mod.check_endpoint("https://api.example.com/v1")
+        assert ok is False
+        assert detail == "HTTP 401 auth_error"
+
+    def test_server_error_is_unhealthy(self):
+        error = HTTPError("https://api.example.com/v1", 503, "Unavailable", None, None)
+        with patch.object(probe_mod, "urlopen", side_effect=error):
+            ok, detail = probe_mod.check_endpoint("https://api.example.com/v1")
+        assert ok is False
+        assert detail == "HTTP 503 server_error"
+
+    def test_connection_error_is_unhealthy(self):
+        with patch.object(probe_mod, "urlopen", side_effect=URLError("dns failure")):
+            ok, detail = probe_mod.check_endpoint("https://api.example.com/v1")
+        assert ok is False
+        assert "connection_error" in detail
+
+    def test_timeout_is_unhealthy(self):
+        with patch.object(probe_mod, "urlopen", side_effect=socket.timeout("timed out")):
+            ok, detail = probe_mod.check_endpoint("https://api.example.com/v1")
+        assert ok is False
+        assert "connection_error" in detail
+
+    def test_key_is_sent_as_bearer_header(self):
+        captured = {}
+
+        def fake_urlopen(request, timeout):
+            captured["auth"] = request.get_header("Authorization")
+            captured["url"] = request.full_url
+            captured["headers"] = {k.lower(): v for k, v in request.headers.items()}
+            return self._response(200)
+
+        with patch.object(probe_mod, "urlopen", side_effect=fake_urlopen):
+            probe_mod.check_endpoint("https://api.example.com/v1", api_key="test-key")
+        assert captured["auth"] == "Bearer test-key"
+        assert captured["url"] == "https://api.example.com/v1/models"
+        assert "Mozilla/5.0" in captured["headers"]["user-agent"]
+
+
+class TestCheckTargets:
+    def test_dead_provider_skips_all_models_and_is_tagged(self):
+        status = {"version": 1, "providers": {}}
+        targets = [
+            ("dead", "m1", "https://dead.example/v1", ""),
+            ("dead", "m2", "https://dead.example/v1", ""),
+            ("alive", "m3", "https://alive.example/v1", ""),
+        ]
+
+        def checker(url, key):
+            return (url.startswith("https://alive"), "HTTP 503 server_error" if "dead" in url else "HTTP 200")
+
+        healthy, counts = probe_mod.check_targets(targets, status, checker=checker, now="2026-11-08T00:00:00+00:00")
+        assert [t[1] for t in healthy] == ["m3"]
+        assert counts == {"providers": 2, "alive": 1, "dead": 1, "skipped_models": 2}
+        assert status["providers"]["dead"]["status"] == "dead"
+        assert status["providers"]["dead"]["reason"] == "HTTP 503 server_error"
+        assert status["providers"]["dead"]["dead_since"] == "2026-11-08T00:00:00+00:00"
+
+    def test_dead_provider_is_retried_and_cleared_on_recovery(self):
+        status = {
+            "version": 1,
+            "providers": {
+                "recovering": {
+                    "status": "dead",
+                    "reason": "HTTP 503 server_error",
+                    "dead_since": "2026-11-07T00:00:00+00:00",
+                }
+            },
+        }
+        targets = [("recovering", "m1", "https://recovering.example/v1", "")]
+
+        healthy, counts = probe_mod.check_targets(
+            targets,
+            status,
+            checker=lambda url, key: (True, "HTTP 200"),
+            now="2026-11-08T00:00:00+00:00",
+        )
+        assert [t[1] for t in healthy] == ["m1"]
+        assert counts["alive"] == 1
+        assert status["providers"]["recovering"]["status"] == "alive"
+        assert "reason" not in status["providers"]["recovering"]
+        assert "dead_since" not in status["providers"]["recovering"]
+
+    def test_all_targets_skipped_when_all_endpoints_dead(self):
+        status = {"version": 1, "providers": {}}
+        targets = [("dead", "m1", "https://dead.example/v1", "")]
+        healthy, counts = probe_mod.check_targets(
+            targets,
+            status,
+            checker=lambda url, key: (False, "connection_error: dns"),
+            now="2026-11-08T00:00:00+00:00",
+        )
+        assert healthy == []
+        assert counts["dead"] == 1
+        assert counts["skipped_models"] == 1
+
+    def test_status_file_round_trip(self, tmp_path):
+        path = tmp_path / "provider_probe_status.yaml"
+        status = {
+            "version": 1,
+            "updated": "2026-11-08T00:00:00+00:00",
+            "providers": {"dead": {"status": "dead", "reason": "HTTP 503 server_error"}},
+        }
+        probe_mod.save_probe_status(path, status)
+        loaded = probe_mod.load_probe_status(path)
+        assert loaded["providers"]["dead"]["status"] == "dead"
+
 
 class TestEnvResolution:
     def test_resolves_var(self, monkeypatch):
@@ -171,8 +331,9 @@ class TestProbeOne:
         ]
         mock_client = MagicMock()
         mock_client.chat.completions.create.return_value = iter(chunks)
-        with patch.object(probe_mod, "OpenAI", return_value=mock_client):
+        with patch.object(probe_mod, "OpenAI", return_value=mock_client) as mock_openai:
             result = probe_mod.probe_one("groq", "llama-3.3-70b", "https://api/v1", "key")
+        assert mock_openai.call_args.kwargs["default_headers"]["User-Agent"] == probe_mod.BROWSER_USER_AGENT
         assert result["success"] is True
         assert result["time_to_first_token_ms"] is not None and result["time_to_first_token_ms"] >= 0
         assert result["response_time_ms"] >= result["time_to_first_token_ms"]

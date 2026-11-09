@@ -168,11 +168,16 @@ def load_tiers(
         # Fill gaps from router_config so a missing artifact does not open the gate.
         providers_cfg = ((router_config or {}).get("providers") or {})
         for name, cfg in providers_cfg.items():
-            if not isinstance(cfg, dict) or name in tiers:
+            if not isinstance(cfg, dict):
                 continue
             if not cfg.get("enabled", False):
-                tiers.setdefault(name, PAID_TIER)
-                types.setdefault(name, "unknown")
+                # A disabled provider must fail closed even when a stale catalog
+                # still marks it free (g4f is disabled after a paywall finding).
+                tiers[name] = PAID_TIER
+                types[name] = "unknown"
+                models.pop(name, None)
+                continue
+            if name in tiers:
                 continue
             if cfg.get("free_tier") or cfg.get("free_tier_models"):
                 tiers[name] = 0

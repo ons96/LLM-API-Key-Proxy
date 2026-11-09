@@ -313,6 +313,34 @@ class RateLimitTracker:
     def _provider_from_key(self, key: str) -> str:
         return key.split("/", 1)[0] if "/" in key else key
 
+    def _refresh_windows(
+        self, status: RateLimitStatus, prov_name: str, now: float
+    ) -> None:
+        """Reset minute/day counters whose windows have rolled. Lock held."""
+        if now - status.last_reset_minute > 60:
+            status.requests_this_minute = 0
+            status.tokens_this_minute = 0
+            status.last_reset_minute = now
+
+        reset_window = self._reset_windows.get(prov_name, {})
+        daily_reset_utc = reset_window.get("daily_reset_utc")
+
+        if daily_reset_utc:
+            # Use provider's known reset time instead of sliding 24h window
+            next_reset = _parse_reset_time_utc(daily_reset_utc)
+            prev_reset = next_reset - timedelta(days=1)
+            reset_epoch = prev_reset.timestamp()
+            if status.last_reset_day < reset_epoch:
+                status.requests_today = 0
+                status.tokens_today = 0
+                status.last_reset_day = now
+        else:
+            # Fallback: simple 24h sliding window
+            if now - status.last_reset_day > 86400:
+                status.requests_today = 0
+                status.tokens_today = 0
+                status.last_reset_day = now
+
     async def can_use_provider(
         self, provider: str, model: str, limits: Dict[str, int]
     ) -> Tuple[bool, str]:
@@ -376,65 +404,60 @@ class RateLimitTracker:
                 )
                 return False, ad_reason
 
-            # Reset counters if windows have passed
-            if now - status.last_reset_minute > 60:
-                status.requests_this_minute = 0
-                status.tokens_this_minute = 0
-                status.last_reset_minute = now
+            # Refresh every model bucket for this provider and aggregate.
+            # A provider RPM limit is per API key, not per model; checking only
+            # the current provider/model key multiplied the allowance by the
+            # number of models in the chain.
+            provider_usages = [
+                sibling
+                for sibling_key, sibling in self._usage.items()
+                if self._provider_from_key(sibling_key) == prov_name
+            ]
+            for sibling in provider_usages:
+                self._refresh_windows(sibling, prov_name, now)
 
-            # Check if daily counter should reset based on known reset window
-            reset_window = self._reset_windows.get(prov_name, {})
-            daily_reset_utc = reset_window.get("daily_reset_utc")
-
-            if daily_reset_utc:
-                # Use provider's known reset time instead of sliding 24h window
-                next_reset = _parse_reset_time_utc(daily_reset_utc)
-                prev_reset = next_reset - timedelta(days=1)
-                reset_epoch = prev_reset.timestamp()
-                if status.last_reset_day < reset_epoch:
-                    status.requests_today = 0
-                    status.tokens_today = 0
-                    status.last_reset_day = now
-            else:
-                # Fallback: simple 24h sliding window
-                if now - status.last_reset_day > 86400:
-                    status.requests_today = 0
-                    status.tokens_today = 0
-                    status.last_reset_day = now
+            requests_this_minute = sum(
+                sibling.requests_this_minute for sibling in provider_usages
+            )
+            tokens_this_minute = sum(
+                sibling.tokens_this_minute for sibling in provider_usages
+            )
+            requests_today = sum(sibling.requests_today for sibling in provider_usages)
+            tokens_today = sum(sibling.tokens_today for sibling in provider_usages)
 
             # Check RPM
             rpm_limit = limits.get("rpm")
-            if rpm_limit and status.requests_this_minute >= rpm_limit:
+            if rpm_limit and requests_this_minute >= rpm_limit:
                 logger.debug(
-                    f"Rate limit hit (RPM) for {key}: "
-                    f"{status.requests_this_minute}/{rpm_limit}"
+                    f"Rate limit hit (RPM) for {prov_name}: "
+                    f"{requests_this_minute}/{rpm_limit}"
                 )
                 return False, REASON_RATE_LIMIT
 
             # Check TPM
             tpm_limit = limits.get("tpm")
-            if tpm_limit and status.tokens_this_minute >= tpm_limit:
+            if tpm_limit and tokens_this_minute >= tpm_limit:
                 logger.debug(
-                    f"Rate limit hit (TPM) for {key}: "
-                    f"{status.tokens_this_minute}/{tpm_limit}"
+                    f"Rate limit hit (TPM) for {prov_name}: "
+                    f"{tokens_this_minute}/{tpm_limit}"
                 )
                 return False, REASON_RATE_LIMIT
 
             # Check Daily Requests
             daily_limit = limits.get("daily")
-            if daily_limit and status.requests_today >= daily_limit:
+            if daily_limit and requests_today >= daily_limit:
                 logger.debug(
-                    f"Rate limit hit (Daily) for {key}: "
-                    f"{status.requests_today}/{daily_limit}"
+                    f"Rate limit hit (Daily) for {prov_name}: "
+                    f"{requests_today}/{daily_limit}"
                 )
                 return False, REASON_USAGE_CAP
 
             # Check Daily Tokens
             daily_tokens_limit = limits.get("daily_tokens")
-            if daily_tokens_limit and status.tokens_today >= daily_tokens_limit:
+            if daily_tokens_limit and tokens_today >= daily_tokens_limit:
                 logger.debug(
-                    f"Rate limit hit (Daily Tokens) for {key}: "
-                    f"{status.tokens_today}/{daily_tokens_limit}"
+                    f"Rate limit hit (Daily Tokens) for {prov_name}: "
+                    f"{tokens_today}/{daily_tokens_limit}"
                 )
                 return False, REASON_USAGE_CAP
 

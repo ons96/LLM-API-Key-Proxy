@@ -374,10 +374,11 @@ class TestLoadersGraceful:
             pytest.skip("benchmark DB not on this machine")
         result = rank_models.load_benchmark_scores(db)
         assert len(result) > 0
-        # Spot-check: gemini-3-flash should be present with coding score ~0.747
+        # Spot-check: models.db has gemini-3-flash coding 49.7536/100 on
+        # 2026-11-09; the loader normalizes it to 0.4975.
         score = result.get("gemini-3-flash")
         assert score is not None
-        assert score.coding == pytest.approx(0.747, abs=0.05)
+        assert score.coding == pytest.approx(0.4975, abs=0.01)
 
 
 if __name__ == "__main__":

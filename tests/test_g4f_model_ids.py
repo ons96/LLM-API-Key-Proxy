@@ -149,10 +149,16 @@ class TestG4FConfiguration:
         with open(config_path) as f:
             return yaml.safe_load(f)
 
-    def test_g4f_provider_enabled(self, router_config):
-        """Verify G4F provider is enabled."""
-        g4f_config = router_config.get("providers", {}).get("g4f", {})
-        assert g4f_config.get("enabled") is True, "G4F should be enabled"
+    def test_g4f_provider_disabled(self, router_config):
+        """Verify G4F is disabled and its paywalled pool is not routed."""
+        providers = router_config.get("providers", {})
+        g4f_config = providers.get("g4f", {})
+        assert g4f_config.get("enabled") is False, (
+            "G4F is observed paywalled and must stay disabled"
+        )
+        assert providers.get("g4fpool", {}).get("enabled") is True, (
+            "g4fpool should remain the enabled free G4F-family route"
+        )
 
     def test_g4f_used_in_router_models(self, router_config):
         """Verify G4F is used in router_models candidates."""

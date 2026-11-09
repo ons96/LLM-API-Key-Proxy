@@ -477,8 +477,15 @@ class TestMoEMode:
     """Test MoE (Mixture of Experts) mode functionality."""
 
     @pytest.fixture
-    def moe_router(self):
-        """Router with MoE configuration."""
+    def moe_router(self, monkeypatch):
+        """Router with MoE configuration.
+
+        The real RouterCore checks provider env vars while selecting candidates.
+        These are mock expert models, so set dummy credentials instead of letting
+        the test depend on the developer's local shell.
+        """
+        monkeypatch.setenv("GROQ_API_KEY", "test-key")
+        monkeypatch.setenv("GEMINI_API_KEY", "test-key")
         router = RouterCore()
         router.virtual_models = {
             "router/best-coding-moe": {

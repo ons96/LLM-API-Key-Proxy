@@ -92,6 +92,7 @@ FREE_PROVIDERS = [
     "github-models",
     "kilo",
     "modal",
+    "crax",
 ]
 RP_PROVIDERS = ["g4f", "together", "deepinfra"]
 

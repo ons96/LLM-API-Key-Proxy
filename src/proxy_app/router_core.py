@@ -47,6 +47,49 @@ def _load_provider_caps() -> Dict[str, Any]:
     return _provider_caps
 
 
+# Cached DB-derived static rate limits (RPM / daily tokens). These are the
+# lowest-priority defaults: router_config.yaml and per-candidate conditions
+# can still override any individual value.
+_provider_limits: Optional[Dict[str, Any]] = None
+_provider_limits_path = (
+    Path(__file__).resolve().parent.parent.parent / "config" / "provider_limits.yaml"
+)
+
+
+def _load_provider_limits() -> Dict[str, Any]:
+    """Load generated per-provider rate limits. Returns empty dict on failure."""
+    global _provider_limits
+    if _provider_limits is not None:
+        return _provider_limits
+
+    parsed: Dict[str, Any] = {}
+    try:
+        if _provider_limits_path.exists():
+            with open(_provider_limits_path) as f:
+                data = yaml.safe_load(f) or {}
+            raw = data.get("providers", {}) if isinstance(data, dict) else {}
+            if isinstance(raw, dict):
+                for provider, values in raw.items():
+                    if not isinstance(values, dict):
+                        continue
+                    clean: Dict[str, int] = {}
+                    for key in ("rpm", "tpm", "daily", "daily_tokens"):
+                        value = values.get(key)
+                        if (
+                            isinstance(value, int)
+                            and not isinstance(value, bool)
+                            and value > 0
+                        ):
+                            clean[key] = value
+                    if clean:
+                        parsed[str(provider)] = clean
+    except Exception as exc:
+        logger.warning(f"provider_limits.yaml load failed: {exc}")
+        parsed = {}
+
+    _provider_limits = parsed
+    return _provider_limits
+
 
 # --- #813 fast-skip: cached dead_providers filter ---
 _dead_providers_cache = None
@@ -1139,12 +1182,13 @@ class RouterCore:
         """Return effective rate limits (rpm/tpm/daily/daily_tokens) for provider/model.
 
         Priority order:
-        1) provider config base limits
-        2) provider config model_overrides
-        3) candidate conditions (max_*)
+        1) generated provider_limits.yaml (DB-derived defaults)
+        2) provider config base limits
+        3) provider config model_overrides
+        4) candidate conditions (max_*)
         """
 
-        limits: Dict[str, Any] = {}
+        limits: Dict[str, Any] = dict(_load_provider_limits().get(provider, {}))
         provider_cfg = self.provider_configs.get(provider, {})
         rate_limits = provider_cfg.get("rate_limits", {})
 
@@ -2635,6 +2679,7 @@ class RouterCore:
                     continue
 
             chunk_count = 0
+            stream_usage = None
             async for chunk in response:
                 chunk_count += 1
                 # Convert chunk to dict if necessary
@@ -2646,6 +2691,11 @@ class RouterCore:
                     chunk_dict = {k: v for k, v in chunk.__dict__.items() if not k.startswith("_")}
                 else:
                     chunk_dict = chunk
+
+                # OpenAI-compatible providers put usage on a final chunk with
+                # no choices when stream_options.include_usage is honored.
+                if isinstance(chunk_dict, dict) and chunk_dict.get("usage"):
+                    stream_usage = chunk_dict["usage"]
 
                 if chunk_dict.get("choices"):
                     pass  # We could track final response here if needed
@@ -2663,7 +2713,11 @@ class RouterCore:
 
             latency_ms = (time.time() - start_time) * 1000
             await self._update_metrics(
-                candidate.provider, candidate.model, latency_ms, True
+                candidate.provider,
+                candidate.model,
+                latency_ms,
+                True,
+                response={"usage": stream_usage} if stream_usage else None,
             )
 
             try:

@@ -7,8 +7,11 @@
 # 8192 but NIM hosts 131072+; gemini was 32768 but 2.5 Pro is 2M; several
 # NewAPI relays were 8192 but host 128K+).
 #
-# rpm_limit / tpm_limit = 0 means "unknown, no enforcement" (YAGNI until we
-# have real per-provider numbers from telemetry).
+# This file only controls context-size caps. Active RPM and daily-token limits
+# live in config/provider_limits.yaml, generated from llm-provider-manager's
+# llm_providers.db by scripts/generate_provider_limits.py. The rpm_limit /
+# tpm_limit fields below are legacy placeholders and are not read by
+# RouterCore._compute_rate_limits().
 
 # --- Direct first-party APIs ------------------------------------------------
 gemini:

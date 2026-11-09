@@ -150,7 +150,7 @@ class DynamicScoringEngine:
         # ponytail: FREE_PROVIDERS matches generate_virtual_models.py list.
         free_providers = {
             "groq", "cerebras", "gemini", "together", "g4f",
-            "nvidia", "github-models", "kilo", "modal",
+            "nvidia", "github-models", "kilo", "modal", "crax",
         }
         free_scores = []
         for key, model_data in rankings.items():

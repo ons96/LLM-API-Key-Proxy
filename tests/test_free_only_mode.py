@@ -95,12 +95,16 @@ class TestFreeOnlyMode:
         free_models = gemini_config.get("free_tier_models", [])
         assert len(free_models) > 0, "Gemini should have free tier models defined"
 
-    def test_g4f_provider_enabled_for_free_mode(self, router_config):
-        """Verify G4F provider is enabled (it's always free)."""
-        g4f_config = router_config.get("providers", {}).get("g4f", {})
+    def test_g4f_provider_disabled_for_free_mode(self, router_config):
+        """G4F is disabled after a paywall finding; g4fpool stays the free route."""
+        providers = router_config.get("providers", {})
+        g4f_config = providers.get("g4f", {})
 
-        assert g4f_config.get("enabled") is True, (
-            "G4F should be enabled as it provides free access"
+        assert g4f_config.get("enabled") is False, (
+            "G4F is observed paywalled and must not be enabled in free-only mode"
+        )
+        assert providers.get("g4fpool", {}).get("enabled") is True, (
+            "g4fpool should remain the enabled free G4F-family route"
         )
 
     def test_search_providers_free_tier(self, router_config):

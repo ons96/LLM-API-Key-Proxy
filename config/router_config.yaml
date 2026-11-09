@@ -831,10 +831,16 @@ providers:
     env_var: CRAX_API_KEY
     base_url: https://gpt.crax.lol/v1
     enabled: true
-    # Unverified as of 2026-10-20: no free model list captured. Empty list keeps
-    # free-only mode fail-closed instead of implicitly trusting the provider.
+    # Verified 2026-11-09: 65 live; 20 HTTP 200, 16 text, 4 empty, 45 upstream
+    # 403. Only these five zero-rate models returned text; priced models and
+    # blocked/empty models stay out of free-only routing.
     free_tier: true
-    free_tier_models: []
+    free_tier_models:
+    - gpt-6-luna
+    - gpt-5.4-mini
+    - mistral-small-2603
+    - gpt-oss-120b
+    - gemma4-31b
 search:
   default_enabled: true
   max_additional_searches: 2
