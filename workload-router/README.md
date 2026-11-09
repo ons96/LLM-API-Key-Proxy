@@ -23,6 +23,11 @@ the live request path:
 
 Design: `docs/workload-router-architecture.md`. Session checkpoints: `STATE.md`.
 
+**Current design delta (read before changing routing behaviour):
+`docs/DESIGN-v2-verified-routing.md`** — verified-correct objective, cascade,
+shadow-priced quota, credit hazard model, placement. Reviewer instructions are
+in its section 0.
+
 ## New-API sidecar local verification
 
 The separate `newapi_server.py` entrypoint is opt-in and requires a strict
