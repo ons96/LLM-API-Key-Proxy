@@ -841,6 +841,29 @@ providers:
     - mistral-small-2603
     - gpt-oss-120b
     - gemma4-31b
+    # Verified working but priced (inRate/outRate > 0). Kept out of the free-only
+    # chain deliberately; use these only through a paid/NewAPI route. Crax serves
+    # the base deepseek-v4.1-flash id, not a -1017 alias.
+    paid_tier_models:
+    - glm-5.3
+    - qwen3.8-max
+    - deepseek-v4.1-flash
+    # Blocked frontier ids to retry periodically. The ask-* guest aliases for GLM
+    # 5.3 and Qwen 3.8 Max are zero-rate but returned 403 on 2026-11-09; if either
+    # recovers, move it into free_tier_models instead of paying for the base id.
+    watch_models:
+    - claude-opus-5.5
+    - gpt-5.6
+    - gpt-6.1-sol
+    - gpt-6.1-terra
+    - gpt-6-astra
+    - gpt-6-sol
+    - gemini-3.8-flash
+    - gemini-3.1-pro-preview
+    - grok-4.7
+    - kimi-k3
+    - ask-glm-5.3
+    - ask-qwen3.8-max
 search:
   default_enabled: true
   max_additional_searches: 2
