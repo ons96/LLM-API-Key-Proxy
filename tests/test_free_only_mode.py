@@ -96,16 +96,32 @@ class TestFreeOnlyMode:
         assert len(free_models) > 0, "Gemini should have free tier models defined"
 
     def test_g4f_provider_disabled_for_free_mode(self, router_config):
-        """G4F is disabled after a paywall finding; g4fpool stays the free route."""
+        """G4F and g4fpool are disabled after paywall/credit findings."""
         providers = router_config.get("providers", {})
         g4f_config = providers.get("g4f", {})
+        g4fpool_config = providers.get("g4fpool", {})
 
         assert g4f_config.get("enabled") is False, (
             "G4F is observed paywalled and must not be enabled in free-only mode"
         )
-        assert providers.get("g4fpool", {}).get("enabled") is True, (
-            "g4fpool should remain the enabled free G4F-family route"
+        assert g4fpool_config.get("enabled") is False, (
+            "g4fpool returned HTTP 402 No cake credits and must not be routed"
         )
+        reason = str(g4fpool_config.get("_auto_disabled_reason", "")).lower()
+        assert "402" in reason or "cake" in reason, (
+            "g4fpool disable reason should record the credit gate"
+        )
+
+    def test_crax_metered_free_daily_models_are_routable(self, router_config):
+        """Crax nonzero-rate ids draw from the free daily allowance."""
+        crax = router_config.get("providers", {}).get("crax", {})
+        free_models = crax.get("free_tier_models", [])
+
+        assert "paid_tier_models" not in crax, (
+            "Crax models are free-daily metered, not a separate paid tier"
+        )
+        for model in ("glm-5.3", "qwen3.8-max", "deepseek-v4.1-flash"):
+            assert model in free_models, f"{model} should be routable in free-only mode"
 
     def test_search_providers_free_tier(self, router_config):
         """Verify search providers are configured for free tier."""

@@ -363,10 +363,11 @@ providers:
     - midijourney
     - claude-fast
   g4fpool:
-    enabled: true
+    enabled: false
     env_var: G4F_API_KEY
     base_url: https://g4f.space/v1
     free_tier: true
+    _auto_disabled_reason: "HTTP 402 No cake credits (proof-of-work/login required) on 2026-11-09; keep this block for easy re-enable."
     free_tier_models:
     - gemini-3.8-flash
     - qwen/qwen3.8-27b
@@ -832,8 +833,7 @@ providers:
     base_url: https://gpt.crax.lol/v1
     enabled: true
     # Verified 2026-11-09: 65 live; 20 HTTP 200, 16 text, 4 empty, 45 upstream
-    # 403. Only these five zero-rate models returned text; priced models and
-    # blocked/empty models stay out of free-only routing.
+    # 403. Five zero-rate ids and three free-daily metered ids returned text.
     free_tier: true
     free_tier_models:
     - gpt-6-luna
@@ -841,16 +841,16 @@ providers:
     - mistral-small-2603
     - gpt-oss-120b
     - gemma4-31b
-    # Verified working but priced (inRate/outRate > 0). Kept out of the free-only
-    # chain deliberately; use these only through a paid/NewAPI route. Crax serves
-    # the base deepseek-v4.1-flash id, not a -1017 alias.
-    paid_tier_models:
+    # These three have nonzero inRate/outRate but draw from Crax's free daily
+    # allowance (DB: 40M tokens/day, 200 RPM; user reports 20M). No card is on
+    # the account, so they are free-daily, not billed. The provider returns a
+    # quota error at the cap and the router falls back.
     - glm-5.3
     - qwen3.8-max
     - deepseek-v4.1-flash
     # Blocked frontier ids to retry periodically. The ask-* guest aliases for GLM
     # 5.3 and Qwen 3.8 Max are zero-rate but returned 403 on 2026-11-09; if either
-    # recovers, move it into free_tier_models instead of paying for the base id.
+    # recovers, add it here. They are separate from the metered ids above.
     watch_models:
     - claude-opus-5.5
     - gpt-5.6

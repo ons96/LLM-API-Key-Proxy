@@ -150,14 +150,19 @@ class TestG4FConfiguration:
             return yaml.safe_load(f)
 
     def test_g4f_provider_disabled(self, router_config):
-        """Verify G4F is disabled and its paywalled pool is not routed."""
+        """Verify G4F and its paywalled pool are not routed."""
         providers = router_config.get("providers", {})
         g4f_config = providers.get("g4f", {})
+        g4fpool_config = providers.get("g4fpool", {})
         assert g4f_config.get("enabled") is False, (
             "G4F is observed paywalled and must stay disabled"
         )
-        assert providers.get("g4fpool", {}).get("enabled") is True, (
-            "g4fpool should remain the enabled free G4F-family route"
+        assert g4fpool_config.get("enabled") is False, (
+            "g4fpool returned HTTP 402 No cake credits and must stay disabled"
+        )
+        reason = str(g4fpool_config.get("_auto_disabled_reason", "")).lower()
+        assert "402" in reason or "cake" in reason, (
+            "g4fpool disable reason should record the credit gate"
         )
 
     def test_g4f_used_in_router_models(self, router_config):

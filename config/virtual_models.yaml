@@ -155,9 +155,11 @@ virtual_models:
     - provider: crowllm
       model: minimax-m2.5:free
       priority: 6
-    - provider: g4fpool
-      model: gemini-claude-opus-4-6-thinking
-      priority: 7
+    # g4fpool disabled 2026-11-09: HTTP 402 cake credits. Re-enable this
+    # candidate together with providers.g4fpool.
+    # - provider: g4fpool
+    #   model: gemini-claude-opus-4-6-thinking
+    #   priority: 7
     settings:
       timeout_ms: 300000
       retry_on_rate_limit: true
@@ -170,9 +172,11 @@ virtual_models:
     - provider: cliproxyapi
       model: gemini-2.5-flash
       priority: 2
-    - provider: g4fpool
-      model: gemini-3.8-flash
-      priority: 3
+    # g4fpool disabled 2026-11-09: HTTP 402 cake credits. Re-enable this
+    # candidate together with providers.g4fpool.
+    # - provider: g4fpool
+    #   model: gemini-3.8-flash
+    #   priority: 3
     - provider: jasper
       model: nemotron-3-super-120b-a12b
       priority: 4
@@ -191,9 +195,11 @@ virtual_models:
     - provider: cliproxyapi
       model: gemini-2.5-flash
       priority: 1
-    - provider: g4fpool
-      model: qwen/qwen3.8-27b
-      priority: 2
+    # g4fpool disabled 2026-11-09: HTTP 402 cake credits. Re-enable this
+    # candidate together with providers.g4fpool.
+    # - provider: g4fpool
+    #   model: qwen/qwen3.8-27b
+    #   priority: 2
     - provider: jasper
       model: nemotron-3-super-120b-a12b
       priority: 3
