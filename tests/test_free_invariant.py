@@ -203,6 +203,52 @@ def test_catalog_artifact_is_present_and_parsable(catalog):
     assert catalog["totals"]["models"] > 0
 
 
+def test_router_config_can_augment_catalog_free_models(tmp_path):
+    """An explicit config allowlist survives a catalog rebuild that says paid.
+
+    Crax's nonzero-rate ids are free-daily metered, but the DB catalog marks
+    them non-free. Without this merge, the next catalog build would silently
+    remove three working models from the free-only policy.
+    """
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    catalog = {
+        "schema_version": 1,
+        "providers": [
+            {
+                "provider_id": "crax",
+                "provider_type": "free_daily",
+                "quota_tier": 1,
+                "models": [
+                    {"model_id": "gpt-6-luna", "is_free": True},
+                    {"model_id": "glm-5.3", "is_free": False},
+                ],
+            }
+        ],
+    }
+    (config_dir / "catalog.json").write_text(json.dumps(catalog), encoding="utf-8")
+    router_config = {
+        "providers": {
+            "crax": {
+                "enabled": True,
+                "free_tier": True,
+                "free_tier_models": ["glm-5.3"],
+            }
+        }
+    }
+
+    try:
+        cache = free_policy.load_tiers(
+            tmp_path, router_config=router_config, force=True
+        )
+        allowed, reason = free_policy.allowed_in_free_mode(
+            cache, "crax", "glm-5.3", free_only=True
+        )
+        assert allowed is True, reason
+    finally:
+        free_policy.load_tiers(REPO_ROOT, force=True)
+
+
 def test_underscore_and_hyphen_provider_ids_resolve_identically(tiers):
     """The DB writes 'g4f' and config says 'g4f'; the DB writes 'nous-inference'
     while config says 'nous_inference'. Both spellings must reach the same tier,

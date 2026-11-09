@@ -178,6 +178,14 @@ def load_tiers(
                 models.pop(name, None)
                 continue
             if name in tiers:
+                # The catalog supplies tier/type, but an explicit provider
+                # free_tier_models entry is an operator override. Keep those
+                # ids visible when a rebuilt catalog marks a metered model as
+                # non-free (Crax's free-daily ids are the current example).
+                if cfg.get("free_tier_models"):
+                    models.setdefault(name, set()).update(
+                        cfg.get("free_tier_models") or []
+                    )
                 continue
             if cfg.get("free_tier") or cfg.get("free_tier_models"):
                 tiers[name] = 0
