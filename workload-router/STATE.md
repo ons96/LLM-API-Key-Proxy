@@ -1938,3 +1938,26 @@ Limits and next:
   request hit a transient `invalid_response`; the real OpenCode process may
   need a config reload; and the short-lived token prevents unattended restart.
   This is local canary evidence, not production readiness.
+
+## Checkpoint: S1 attempt grading (local only, not pushed)
+
+`router_server.py` no longer records `success` when a provider stream or
+completion ends cleanly. Each chat completion issues a 32-hex
+`X-Router-Attempt-Id`; the attempt stays pending until the client reports a
+verdict through `POST /v1/router/outcome` with
+`{attempt_id, grade, verdict}`. The verdict enum is closed
+(`pass`, `fail_build`, `fail_lint`, `fail_test`, `fail_scope`, `fail_tamper`,
+`timeout`, `unknown`); unknown ids, booleans sent as strings, free-text
+verdicts and regrades are rejected. Legacy `{deployment, outcome}` payloads
+still work so old clients keep functioning, but they are no longer treated as
+ground truth. Only `pass` may carry `grade=true`, so a client without an oracle
+cannot report `unknown` (or any failure verdict) as a success.
+
+Tests: `415 passed` (was 402); new `tests/test_attempts.py` covers id
+uniqueness, the closed enum, regrade rejection, boolean typing, grade/verdict
+agreement and prompt-free persistence, plus an HTTP round-trip in
+`tests/test_provider_faults.py`.
+
+Known gap: `newapi_server.py` / `quota_ledger` still grades only through the
+in-process `grader` callback. It needs the same attempt-id protocol before the
+sidecar can learn from client verification.

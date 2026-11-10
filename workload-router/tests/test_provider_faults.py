@@ -143,11 +143,15 @@ def test_http_faults_fail_over_within_group_and_skip_cooldown(chain_router, fail
     status, body, headers = chat(server, stream=stream)
     assert status == 200
     assert headers["X-Router-Deployment"] == "second"
+    assert len(headers["X-Router-Attempt-Id"]) == 32
     assert [call["model"] for call in calls] == ["first", "second"]
     assert router.health.error_class("first") == category
     assert router.health.retry_after("first") >= 119 if failure != "timeout" else True
     assert router.state.outcome_count("operational_failure") == 1
-    assert router.state.outcome_count("success") == 1
+    # Dispatch is not correctness: the attempt stays ungraded until the client
+    # reports a verified verdict.
+    assert router.state.outcome_count("success") == 0
+    assert router.state.pending_attempts() == 1
     assert "private upstream message" not in body
     assert chat(server, stream=stream)[0] == 200
     assert [call["model"] for call in calls] == ["first", "second", "second"]
@@ -195,7 +199,10 @@ def test_short_warm_retry_recovers_without_cold_fallback(chain_router, stream):
     assert [call["model"] for call in calls] == ["first", "first"]
     assert router.health.is_healthy("first")
     assert router.state.outcome_count("operational_failure") == 1
-    assert router.state.outcome_count("success") == 1
+    # Dispatch is not correctness: the attempt stays ungraded until the client
+    # reports a verified verdict.
+    assert router.state.outcome_count("success") == 0
+    assert router.state.pending_attempts() == 1
 
 
 def test_router_controls_do_not_leak_into_real_upstream_request(chain_router):
@@ -285,3 +292,37 @@ def test_native_usage_updates_cache_observations(chain_router):
     assert chat(server, stream=True)[0] == 200
     hints = router.state.cache_hints("fault-smoke", "hello")
     assert hints["first"].cached_tokens == 5000
+
+
+def test_attempt_id_is_issued_and_client_verdict_grades_it(chain_router):
+    """S1 contract: HTTP 200 records no success; only the client verdict does."""
+    server, router, scripts, calls = chain_router
+    status, body, headers = chat(server)
+    assert status == 200
+    attempt_id = headers["X-Router-Attempt-Id"]
+    assert len(attempt_id) == 32
+    assert router.state.outcome_count("success") == 0
+    assert router.state.pending_attempts() == 1
+
+    def post(payload):
+        connection = HTTPConnection(*server.server_address, timeout=3)
+        connection.request("POST", "/v1/router/outcome", json.dumps(payload),
+                           {"Content-Type": "application/json", "X-Session-Id": "fault-smoke"})
+        response = connection.getresponse()
+        result = response.status, json.loads(response.read().decode())
+        connection.close()
+        return result
+
+    assert post({"attempt_id": attempt_id, "grade": True, "verdict": "pass"}) == (
+        200, {"recorded": "graded", "attempt_id": attempt_id, "verdict": "pass"})
+    assert router.state.pending_attempts() == 0
+    assert router.state.graded_attempts(True) == 1
+
+    # A second verdict for the same attempt is refused rather than double-counted.
+    assert post({"attempt_id": attempt_id, "grade": True, "verdict": "pass"})[0] == 400
+    assert router.state.graded_attempts() == 1
+
+    # Unknown attempts and free-text verdicts cannot poison telemetry.
+    assert post({"attempt_id": "0" * 32, "grade": True, "verdict": "pass"})[0] == 400
+    assert post({"attempt_id": attempt_id + "x", "grade": True, "verdict": "looks fine"})[0] == 400
+    assert post({"attempt_id": attempt_id, "grade": "yes", "verdict": "pass"})[0] == 400

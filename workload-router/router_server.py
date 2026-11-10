@@ -295,7 +295,7 @@ class RouterHandler(BaseHTTPRequestHandler):
             if payload.get("stream") is True:
                 try:
                     streamed = self._send_provider_stream(
-                        features, prompt, model, provider_request, record_provider_failure, cache_hints, preferred
+                        features, prompt, model, provider_request, record_provider_failure, cache_hints, preferred, session_id
                     )
                     if streamed is not None:
                         deployment_id, usage = streamed
@@ -305,7 +305,6 @@ class RouterHandler(BaseHTTPRequestHandler):
                         if _has_cache_fields(usage):
                             cached_tokens, cache_writes = _cache_usage(usage)
                             self.state.record_cache(session_id, deployment_id, prefix, cached_tokens, cache_writes, deployment.cache_ttl_seconds)
-                        self.state.record_outcome(session_id, deployment_id, "success")
                 except ProviderError as error:
                     # Completion-only adapters retain the compatibility stream
                     # contract; native adapters stream without buffering.
@@ -329,6 +328,7 @@ class RouterHandler(BaseHTTPRequestHandler):
                         result.message,
                         result.finish_reason,
                         result.usage,
+                        session_id,
                     )
                     self.state.record(session_id, prompt, self._deployment(result.deployment_id).capability.value, result.deployment_id, self._deployment(result.deployment_id).provider, self._deployment(result.deployment_id).config_fingerprint)
                     self.state.set_preferred(session_id, phase, result.deployment_id)
@@ -336,7 +336,6 @@ class RouterHandler(BaseHTTPRequestHandler):
                     deployment = self._deployment(result.deployment_id)
                     if _has_cache_fields(result.usage):
                         self.state.record_cache(session_id, result.deployment_id, prefix, cached_tokens, cache_writes, deployment.cache_ttl_seconds)
-                    self.state.record_outcome(session_id, result.deployment_id, "success")
                 return
             result = execute(
                 features,
@@ -350,12 +349,13 @@ class RouterHandler(BaseHTTPRequestHandler):
                 preferred,
             )
             message = result.message or {"role": "assistant", "content": result.content}
+            attempt_id = self.state.open_attempt(session_id, result.deployment_id)
             response = {
                 "id": "router-local",
                 "object": "chat.completion",
                 "model": model,
                 "choices": [{"index": 0, "message": message, "finish_reason": result.finish_reason or "stop"}],
-                "router": {"deployment": result.deployment_id, "attempts": result.attempts},
+                "router": {"deployment": result.deployment_id, "attempts": result.attempts, "attempt_id": attempt_id},
             }
             if result.usage is not None:
                 response["usage"] = result.usage
@@ -365,7 +365,6 @@ class RouterHandler(BaseHTTPRequestHandler):
             cached_tokens, cache_writes = _cache_usage(result.usage)
             if _has_cache_fields(result.usage):
                 self.state.record_cache(session_id, result.deployment_id, prefix, cached_tokens, cache_writes, deployment.cache_ttl_seconds)
-            self.state.record_outcome(session_id, result.deployment_id, "success")
             self._send_json(
                 200,
                 response,
@@ -373,6 +372,7 @@ class RouterHandler(BaseHTTPRequestHandler):
                     "X-Router-Deployment": result.deployment_id,
                     "X-Router-Group": deployment.chain_group,
                     "X-Router-Reason": plan.reason,
+                    "X-Router-Attempt-Id": attempt_id,
                 },
             )
         except (ValueError, TypeError, json.JSONDecodeError) as error:
@@ -395,6 +395,23 @@ class RouterHandler(BaseHTTPRequestHandler):
             if not isinstance(payload, dict):
                 raise ValueError("request body must be a JSON object")
             session_id = str(self.headers.get("X-Session-Id", "anonymous"))
+            attempt_id = payload.get("attempt_id")
+            if attempt_id is not None:
+                # Graded outcome: the client ran the oracle (build, tests, diff
+                # invariants) and reports the verdict for a specific attempt.
+                if not isinstance(attempt_id, str):
+                    raise ValueError("attempt_id must be a string")
+                grade = payload.get("grade")
+                verdict = payload.get("verdict")
+                if not isinstance(grade, bool):
+                    raise ValueError("grade must be a boolean")
+                if not isinstance(verdict, str):
+                    raise ValueError("verdict is required")
+                self.state.grade_attempt(attempt_id, grade, verdict)
+                if grade:
+                    self.stall_states.setdefault(session_id, StallState()).mark_progress()
+                self._send_json(200, {"recorded": "graded", "attempt_id": attempt_id, "verdict": verdict})
+                return
             deployment = payload.get("deployment")
             outcome = payload.get("outcome")
             error_class = payload.get("error_class")
@@ -441,6 +458,7 @@ class RouterHandler(BaseHTTPRequestHandler):
         message: dict[str, object] | None = None,
         finish_reason: str | None = None,
         usage: dict[str, object] | None = None,
+        session_id: str = "anonymous",
     ) -> None:
         """Emit a compatibility SSE stream from an adapter completion.
 
@@ -448,11 +466,13 @@ class RouterHandler(BaseHTTPRequestHandler):
         the streaming wire contract while chunking after the provider returns.
         True upstream token streaming remains a future adapter capability.
         """
+        attempt_id = self.state.open_attempt(session_id, deployment_id)
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Router-Deployment", deployment_id)
+        self.send_header("X-Router-Attempt-Id", attempt_id)
         self.end_headers()
         # Slice characters rather than words so code indentation and newlines
         # survive the compatibility streaming path unchanged.
@@ -486,6 +506,7 @@ class RouterHandler(BaseHTTPRequestHandler):
         on_failure,
         cache_hints,
         preferred,
+        session_id: str,
     ) -> tuple[str, dict[str, object] | None] | None:
         deployment, payloads = stream_execute(
             features,
@@ -498,11 +519,13 @@ class RouterHandler(BaseHTTPRequestHandler):
             cache_hints,
             preferred,
         )
+        attempt_id = self.state.open_attempt(session_id, deployment.deployment_id)
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.send_header("X-Router-Deployment", deployment.deployment_id)
         self.send_header("X-Router-Group", deployment.chain_group)
+        self.send_header("X-Router-Attempt-Id", attempt_id)
         self.end_headers()
         usage = None
         completed = False
