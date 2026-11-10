@@ -1976,3 +1976,22 @@ startup (in-place `ALTER TABLE`, no rebuild).
 Verification: `python3 -m pytest tests -o addopts= -q` -> 419 passed (415
 before this milestone). No provider call, no new dependency; fake adapters
 only, and the HTTP tests use a loopback server with no credentials.
+
+## Checkpoint: S2 client oracle (verified, 2026-11-10)
+
+`tools/verify_pristine.py` is the harness-agnostic oracle from
+`docs/verification-protocol.md` section 8. It grades a working-tree diff in a
+detached worktree at the base commit, applies only the non-test source diff,
+restores runner manifests from the base commit (so a patched Makefile or
+`scripts.test` cannot grade itself), and runs V4 (skip/tamper and path scope),
+V0 (`py_compile`) and V2 (the base commit's own runner, restricted to the
+changed test subset when it can be identified). It has a closed eight-value
+verdict enum, per-tier timeout, and an idempotent verdict cache keyed by
+diff + base sha + runner. `post_verdict()` sends only
+`{attempt_id, grade, verdict, oracle, duration_ms}`; it is deliberately not
+wired to the router or an OpenCode plugin yet.
+
+Verification: `python3 -m pytest tests -o addopts= -q` -> 428 passed (419 +
+9). The nine new tests are the eight section 8.7 acceptance tests plus the
+bounded-post test; fixtures use throwaway git repos and no provider or
+network access.
