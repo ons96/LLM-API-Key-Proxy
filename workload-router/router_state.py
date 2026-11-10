@@ -166,6 +166,12 @@ class RouterState:
             raise ValueError("grade must be a boolean")
         if not isinstance(verdict, str) or verdict not in VERDICTS:
             raise ValueError(f"unsupported verdict: {verdict}")
+        # Unknown is not success. Only a verified `pass` may carry a true grade;
+        # otherwise a client without an oracle could report `unknown` as a win.
+        if grade and verdict != "pass":
+            raise ValueError("grade must be false unless verdict is 'pass'")
+        if not grade and verdict == "pass":
+            raise ValueError("verdict 'pass' requires grade true")
         with self.lock:
             row = self.connection.execute(
                 "SELECT graded_at FROM attempts WHERE attempt_id = ?", (attempt_id,)

@@ -85,6 +85,23 @@ def test_grade_must_be_a_boolean():
         state.close()
 
 
+def test_grade_must_agree_with_verdict():
+    """Unknown is not success: only a verified `pass` may carry grade true."""
+    state = RouterState()
+    try:
+        for verdict in sorted(VERDICTS - {"pass"}):
+            attempt = state.open_attempt("session", "general")
+            with pytest.raises(ValueError, match="grade must be false"):
+                state.grade_attempt(attempt, True, verdict)
+        assert state.graded_attempts() == 0
+        attempt = state.open_attempt("session", "general")
+        with pytest.raises(ValueError, match="requires grade true"):
+            state.grade_attempt(attempt, False, "pass")
+        assert state.graded_attempts() == 0
+    finally:
+        state.close()
+
+
 def test_prompt_text_never_enters_attempt_rows(tmp_path):
     path = tmp_path / "router.db"
     state = RouterState(path)

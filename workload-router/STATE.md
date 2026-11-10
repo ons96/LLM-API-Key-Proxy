@@ -1950,11 +1950,13 @@ verdict through `POST /v1/router/outcome` with
 `timeout`, `unknown`); unknown ids, booleans sent as strings, free-text
 verdicts and regrades are rejected. Legacy `{deployment, outcome}` payloads
 still work so old clients keep functioning, but they are no longer treated as
-ground truth.
+ground truth. Only `pass` may carry `grade=true`, so a client without an oracle
+cannot report `unknown` (or any failure verdict) as a success.
 
-Tests: `414 passed` (was 402); new `tests/test_attempts.py` covers id
-uniqueness, the closed enum, regrade rejection, boolean typing and prompt-free
-persistence, plus an HTTP round-trip in `tests/test_provider_faults.py`.
+Tests: `415 passed` (was 402); new `tests/test_attempts.py` covers id
+uniqueness, the closed enum, regrade rejection, boolean typing, grade/verdict
+agreement and prompt-free persistence, plus an HTTP round-trip in
+`tests/test_provider_faults.py`.
 
 Known gap: `newapi_server.py` / `quota_ledger` still grades only through the
 in-process `grader` callback. It needs the same attempt-id protocol before the
