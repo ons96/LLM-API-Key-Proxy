@@ -369,7 +369,7 @@ class Handler(BaseHTTPRequestHandler):
                              "/v1/responses", "/v1/embeddings",
                              "/v1/model/parse-command", "/v1/cost-estimate",
                              "/v1/token-count", "/v1/model/switch",
-                             "/v1/model/detect-intent"}:
+                             "/v1/model/detect-intent", "/v1/router/outcome"}:
             self.send_json(404, {"error": "not found"})
             return
         stream = None
@@ -429,6 +429,17 @@ class Handler(BaseHTTPRequestHandler):
                 })
                 return
             runtime = self.server.runtime
+            if self.path == "/v1/router/outcome":
+                attempt_id = payload.get("attempt_id")
+                grade = payload.get("grade")
+                verdict = payload.get("verdict")
+                if not isinstance(attempt_id, str) or not attempt_id:
+                    raise ValueError("invalid attempt_id")
+                if not isinstance(grade, bool) or not isinstance(verdict, str):
+                    raise ValueError("invalid grade or verdict")
+                runtime.ledger.grade_attempt(attempt_id, grade, verdict)
+                self.send_json(200, {"recorded": "graded", "attempt_id": attempt_id})
+                return
             if self.path == "/v1/cost-estimate":
                 model = payload.get("model")
                 if not isinstance(model, str) or not model:
@@ -470,7 +481,8 @@ class Handler(BaseHTTPRequestHandler):
                     self.send_json(200, responses_object(result.decision_id, prepared.model,
                                                          result.completion, int(time.time())),
                                    {"X-Router-Deployment": result.route.route_id,
-                                    "X-Router-Decision": result.decision_id})
+                                    "X-Router-Decision": result.decision_id,
+                                    "X-Router-Attempt-Id": result.decision_id})
                 return
             prepared = prepare(payload, self.headers.get("X-Session-Id", ""),
                                self.headers.get("X-Route-Step", ""),
@@ -493,6 +505,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("Connection", "close")
                 self.send_header("X-Router-Deployment", stream.route.route_id)
                 self.send_header("X-Router-Decision", stream.identity)
+                self.send_header("X-Router-Attempt-Id", stream.identity)
                 self.end_headers()
                 self.response_committed = True
                 self.close_connection = True
@@ -512,7 +525,8 @@ class Handler(BaseHTTPRequestHandler):
                 if result.completion.usage is not None:
                     body["usage"] = result.completion.usage
                 self.send_json(200, body, {"X-Router-Deployment": result.route.route_id,
-                                           "X-Router-Decision": result.decision_id})
+                                           "X-Router-Decision": result.decision_id,
+                                           "X-Router-Attempt-Id": result.decision_id})
         except (ValueError, TypeError, UnicodeError, RecursionError):
             if not self.response_committed:
                 self.send_json(400, {"error": "invalid JSON, model, step or request limits"})
@@ -559,6 +573,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Connection", "close")
         self.send_header("X-Router-Deployment", stream.route.route_id)
         self.send_header("X-Router-Decision", identity)
+        self.send_header("X-Router-Attempt-Id", identity)
         self.end_headers()
         self.response_committed = True
         self.close_connection = True

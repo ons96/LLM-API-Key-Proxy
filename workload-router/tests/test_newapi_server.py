@@ -305,6 +305,42 @@ def test_completion_preserves_alias_and_settles(sidecar, model):
     assert runtime.ledger.decision(headers["X-Router-Decision"])["status"] == "success"
 
 
+def test_attempt_id_is_issued_and_client_verdict_grades_it(sidecar):
+    server, runtime, _, _ = sidecar
+    status, body, headers = call(server)
+    assert status == 200
+    attempt_id = headers["X-Router-Attempt-Id"]
+    assert attempt_id == headers["X-Router-Decision"]
+    ledger = runtime.ledger
+    route = next(row for row in ledger.routes() if row.route_id == "local")
+    assert ledger.decision(attempt_id)["status"] == "success"
+    assert ledger.decision(attempt_id)["quality"] is None
+    # Dispatch alone does not update the priors; only a verdict does.
+    assert ledger.evidence(route, "chat")[:2] == (2, 2)
+
+    def post(payload):
+        return call(server, "/v1/router/outcome", raw=json.dumps(payload))
+
+    status, body, _ = post({"attempt_id": attempt_id, "grade": True, "verdict": "pass"})
+    assert status == 200 and json.loads(body)["recorded"] == "graded"
+    assert ledger.evidence(route, "chat")[:2] == (3, 2)
+    assert ledger.decision(attempt_id)["verdict"] == "pass"
+
+    assert post({"attempt_id": attempt_id, "grade": True, "verdict": "pass"})[0] == 400
+    assert post({"attempt_id": "0" * 32, "grade": True, "verdict": "pass"})[0] == 400
+    assert post({"attempt_id": attempt_id, "grade": True, "verdict": "looks fine"})[0] == 400
+    assert post({"attempt_id": attempt_id, "grade": "yes", "verdict": "pass"})[0] == 400
+
+
+def test_stream_attempt_id_is_issued(sidecar):
+    server, runtime, _, _ = sidecar
+    status, _, headers = call(server, stream=True)
+    assert status == 200
+    attempt_id = headers["X-Router-Attempt-Id"]
+    assert attempt_id == headers["X-Router-Decision"]
+    assert runtime.ledger.decision(attempt_id)["status"] == "success"
+
+
 def test_native_stream_complete_and_late_failure(sidecar):
     server, runtime, calls, scripts = sidecar
     status, body, headers = call(server, stream=True)

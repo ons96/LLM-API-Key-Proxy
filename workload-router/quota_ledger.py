@@ -29,6 +29,12 @@ QUOTA_TYPES = {"unlimited", "rate_limited", "credit_based", "paid", "unknown"}
 # mechanism and is deliberately not overloaded with price information.
 FREE_CLASSES = {"free_unlimited", "free_limited", "free_credits", "paid", "unknown"}
 STATUSES = {"reserved", "started", "success", "failure", "cancelled"}
+# Closed client-verdict enum, identical to router_state.VERDICTS. Only `pass`
+# may carry grade=true: a clean HTTP 200 without a verdict is not correctness.
+VERDICTS = frozenset({
+    "pass", "fail_build", "fail_lint", "fail_test",
+    "fail_scope", "fail_tamper", "timeout", "unknown",
+})
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS providers (
     provider_id TEXT PRIMARY KEY, base_url TEXT, env_var TEXT, quota_type TEXT,
@@ -57,7 +63,7 @@ CREATE TABLE IF NOT EXISTS routing_decisions (
     input_tokens INTEGER, output_tokens INTEGER, usage_estimated INTEGER,
     credit_used REAL, ttft_ms REAL, reasoning_ttft_ms REAL, latency_ms REAL,
     tokens_per_second REAL, error_class TEXT, quality INTEGER,
-    streaming INTEGER NOT NULL DEFAULT 0, benchmark_id TEXT
+    streaming INTEGER NOT NULL DEFAULT 0, benchmark_id TEXT, verdict TEXT
 );
 CREATE INDEX IF NOT EXISTS decision_evidence ON routing_decisions(route_id, step, completed_at);
 CREATE INDEX IF NOT EXISTS decision_pending ON routing_decisions(status, created_at);
@@ -265,6 +271,10 @@ class QuotaLedger:
         self.db.execute("PRAGMA foreign_keys=ON")
         self.db.execute("PRAGMA busy_timeout=5000")
         self.db.executescript(SCHEMA)
+        # Add the client-verdict column to ledgers created before S1 grading.
+        columns = {row[1] for row in self.db.execute("PRAGMA table_info(routing_decisions)")}
+        if "verdict" not in columns:
+            self.db.execute("ALTER TABLE routing_decisions ADD COLUMN verdict TEXT")
         self.lock = threading.RLock()
 
     @contextmanager
@@ -508,7 +518,12 @@ class QuotaLedger:
             )
 
     def evidence(self, route: Route, step: str) -> tuple[float, float, float]:
-        """Graded correctness outranks HTTP success; operational failures still count."""
+        """Only a client verdict grades correctness.
+
+        A settled attempt with no verdict is neither a success nor a failure:
+        the priors stay put until the client reports build/test evidence.
+        Operational failures still count as failures on their own.
+        """
         with self.lock:
             rows = self.db.execute(
                 """SELECT quality, status, latency_ms FROM routing_decisions WHERE route_id=?
@@ -521,7 +536,7 @@ class QuotaLedger:
                        AND status IN ('success', 'failure') ORDER BY completed_at DESC LIMIT 200""",
                     (route.route_id,),
                 ).fetchall()
-        successes = sum(row["quality"] != 0 and row["status"] == "success" for row in rows)
+        successes = sum(row["quality"] == 1 and row["status"] == "success" for row in rows)
         failures = sum(row["quality"] == 0 or row["status"] == "failure" for row in rows)
         latencies = [row["latency_ms"] for row in rows if row["latency_ms"] is not None]
         latency = sum(latencies) / len(latencies) if latencies else route.latency_ms
@@ -533,6 +548,36 @@ class QuotaLedger:
         with self.transaction() as db:
             if db.execute("UPDATE routing_decisions SET quality=? WHERE id=? AND status IN ('success', 'failure')", (int(passed), identity)).rowcount != 1:
                 raise ValueError("attempt is not complete")
+
+    def grade_attempt(self, identity: str, grade: bool, verdict: str) -> None:
+        """Store one client verdict for a completed attempt.
+
+        Unknown is not success: only verdict `pass` may carry grade=true, so a
+        harness without an oracle cannot promote `unknown` to a win. Verdicts
+        are a closed enum and an attempt is graded at most once.
+        """
+        if not isinstance(grade, bool):
+            raise ValueError("grade must be a boolean")
+        if not isinstance(verdict, str) or verdict not in VERDICTS:
+            raise ValueError(f"unsupported verdict: {verdict}")
+        if grade and verdict != "pass":
+            raise ValueError("grade must be false unless verdict is 'pass'")
+        if not grade and verdict == "pass":
+            raise ValueError("verdict 'pass' requires grade true")
+        with self.transaction() as db:
+            row = db.execute(
+                "SELECT status, quality FROM routing_decisions WHERE id=?", (identity,)
+            ).fetchone()
+            if row is None:
+                raise ValueError("unknown attempt_id")
+            if row["quality"] is not None:
+                raise ValueError("attempt already graded")
+            if row["status"] != "success":
+                raise ValueError("attempt is not complete")
+            db.execute(
+                "UPDATE routing_decisions SET quality=?, verdict=? WHERE id=?",
+                (int(grade), verdict, identity),
+            )
 
     def decision(self, identity: str) -> dict:
         with self.lock:

@@ -1958,6 +1958,21 @@ uniqueness, the closed enum, regrade rejection, boolean typing, grade/verdict
 agreement and prompt-free persistence, plus an HTTP round-trip in
 `tests/test_provider_faults.py`.
 
-Known gap: `newapi_server.py` / `quota_ledger` still grades only through the
-in-process `grader` callback. It needs the same attempt-id protocol before the
-sidecar can learn from client verification.
+Formerly open gap, closed by the `S1 sidecar attempt protocol` checkpoint
+below: `newapi_server.py` / `quota_ledger` accept client verdicts.
+
+## Checkpoint: S1 sidecar attempt protocol (verified, 2026-11-10)
+
+`newapi_server.py` returns `X-Router-Attempt-Id` (the ledger decision id) on
+chat completions, native streams and both Responses paths. `POST
+/v1/router/outcome` accepts `{attempt_id, grade, verdict}` and stores it through
+`QuotaLedger.grade_attempt`: closed verdict enum shared with
+`router_state.VERDICTS`, one grade per attempt, `grade=true` only for `pass`.
+`evidence()` no longer treats a completed HTTP 200 as a success; ungraded
+attempts leave both Beta priors unchanged while operational failures still
+count as failures. Existing ledger files gain a nullable `verdict` column on
+startup (in-place `ALTER TABLE`, no rebuild).
+
+Verification: `python3 -m pytest tests -o addopts= -q` -> 419 passed (415
+before this milestone). No provider call, no new dependency; fake adapters
+only, and the HTTP tests use a loopback server with no credentials.

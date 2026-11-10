@@ -146,3 +146,53 @@ def test_free_classes_and_zero_customer_price_for_credits():
 def test_invalid_route_metadata(changes):
     with pytest.raises(ValueError):
         route(**changes)
+
+
+def test_client_verdict_is_the_only_success_evidence():
+    ledger = QuotaLedger()
+    candidate = route()
+    ledger.configure(candidate)
+    assert ledger.evidence(candidate, "chat")[:2] == (2, 2)
+
+    identity = reserve(ledger, candidate, now=1000)
+    ledger.start(identity, now=1000)
+    ledger.finish(identity, candidate, success=True, latency_ms=5, now=1001)
+    # A clean 200 with no client verdict is neither a success nor a failure.
+    assert ledger.evidence(candidate, "chat")[:2] == (2, 2)
+    assert ledger.decision(identity)["verdict"] is None
+
+    with pytest.raises(ValueError, match="unsupported verdict"):
+        ledger.grade_attempt(identity, True, "looks fine")
+    with pytest.raises(ValueError, match="grade must be false"):
+        ledger.grade_attempt(identity, True, "unknown")
+    with pytest.raises(ValueError, match="requires grade true"):
+        ledger.grade_attempt(identity, False, "pass")
+
+    ledger.grade_attempt(identity, True, "pass")
+    assert ledger.evidence(candidate, "chat")[:2] == (3, 2)
+    assert ledger.decision(identity)["verdict"] == "pass"
+    with pytest.raises(ValueError, match="already graded"):
+        ledger.grade_attempt(identity, False, "fail_test")
+
+    failed = reserve(ledger, candidate, now=2000)
+    ledger.start(failed, now=2000)
+    ledger.finish(failed, candidate, success=False, latency_ms=5,
+                  error_class="timeout", now=2001)
+    assert ledger.evidence(candidate, "chat")[:2] == (3, 3)
+    with pytest.raises(ValueError, match="not complete"):
+        ledger.grade_attempt(failed, False, "timeout")
+
+    pending = reserve(ledger, candidate, now=4000)
+    ledger.start(pending, now=4000)
+    with pytest.raises(ValueError, match="not complete"):
+        ledger.grade_attempt(pending, True, "pass")
+    with pytest.raises(ValueError, match="unknown attempt_id"):
+        ledger.grade_attempt("0" * 32, True, "pass")
+    ledger.close()
+
+
+def test_verdict_enum_matches_router_state():
+    from quota_ledger import VERDICTS as LEDGER_VERDICTS
+    from router_state import VERDICTS as STATE_VERDICTS
+
+    assert LEDGER_VERDICTS == STATE_VERDICTS
