@@ -2037,3 +2037,40 @@ canary with known upstream quota limits, is not enabled at boot, and has no
 sustained-load, restart or rollback evidence against the 1941-model legacy
 gateway. Do not retire :8000 until the S2 oracle is wired, the canary survives
 a reboot unaided, and a load/rollback drill passes.
+
+## Four-gate cutover check - 2026-11-12
+
+Ran the agreed gates against the live canary and locally. Result: **not ready**.
+
+1. Reboot survival: **FAIL**. The unit was `disabled`, and a cold start failed
+   with `catalog HTTP status 401` at `admin.audit()`. `NEWAPI_ADMIN_TOKEN` and
+   `NEWAPI_PROOF_ADMIN_TOKEN` both expired at 2026-11-05 05:40 UTC; every
+   preserved copy (`admin.token`, `sidecar.env`, and the pre-refresh backup)
+   carries the same expired `exp`. A reboot would leave the canary down.
+2. Real client: **PASS at code level**. `tools/verify_newapi.py --binary
+   /home/osees/new-api/bin/new-api --opencode $(command -v opencode)` printed
+   `passed: true`: three TOTP-audited channels started, 22 models, chat, coding
+   and 19 legacy aliases answered, and the installed OpenCode 1.19.5 completed
+   the scripted tool loop. This validates the code path, not the deployed
+   canary.
+3. Bounded load: **NOT RUN** against the canary because it was down. Local
+   `tools/resource_smoke.py` returned `{"health": 200, "route": 200,
+   "rss_kb": 26264}`; the verifier measured New-API at 132,768 KiB and the
+   sidecar plus fixture at 44,276 KiB.
+4. Rollback: **PARTIAL**. Stopping the canary left `llm-gateway`, `new-api`,
+   `zeroclaw` and `zeroclaw-search-router` active, and `:8000/health` returned
+   200. The canary could not be restarted because of gate 1.
+
+No VPS reboot was performed. `llm-gateway`, `new-api`, `zeroclaw*` are enabled
+at boot; the canary is not, and it is not wired into zeroclaw. Canary state
+after the check is `inactive`, `disabled`; all other services are `active`,
+`enabled`. `sidecar.env` was not modified by this check.
+
+Durable-token path found for the next attempt: log in at `POST /api/user/login`
+with `ROOT_PASSWORD` from `/opt/new-api/new-api.env`, verify the TOTP from
+`NEWAPI_PROOF_TOTP_SECRET_FILE`, then `POST /api/verify` with
+`{scope: "access_token.generate", context: {scopes, expires_at: 0}}` and
+`POST /api/user/access_tokens` with `X-Security-Proof`. `expires_at: 0` means
+never expires. New-API rate-limits this flow; do not retry a 429, wait for the
+window to clear. A degraded startup-audit mode was considered and rejected
+because it would serve private aliases without the strict-config audit.
