@@ -2019,3 +2019,21 @@ Verification: focused quota ledger 17 passed; oracle acceptance 9 passed; full
 suite 429 passed from `workload-router/` and from the worktree root
 (`python3 -m pytest workload-router/tests -o addopts= -q`). No provider call,
 no new dependency, no VPS change.
+
+## Cutover readiness check - 2026-11-12
+
+Read-only check of VPS 40 and the local client. `llm-gateway.service` is enabled
+and active on :8000 (218 MB RSS; `/v1/models` returns 1941 entries).
+`newapi-sidecar-canary.service` is active but **disabled** at boot, bound to
+loopback :8124 (3.5 MB RSS); `/etc/newapi-sidecar/routes.json` is root-owned,
+so the route list was not inspectable without privilege. The local :8124 tunnel
+is gone and both OpenCode providers (`vps-gateway`, `custom`) point at
+`http://localhost:8000/v1`. An authenticated sidecar probe returned `401
+invalid sidecar token` because no sidecar client key is present in the current
+client config; `/health` returned 200.
+
+Conclusion: production cutover was **not** performed. The sidecar is a narrow
+canary with known upstream quota limits, is not enabled at boot, and has no
+sustained-load, restart or rollback evidence against the 1941-model legacy
+gateway. Do not retire :8000 until the S2 oracle is wired, the canary survives
+a reboot unaided, and a load/rollback drill passes.
