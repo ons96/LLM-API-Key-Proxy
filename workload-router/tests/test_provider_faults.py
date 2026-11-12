@@ -326,3 +326,27 @@ def test_attempt_id_is_issued_and_client_verdict_grades_it(chain_router):
     assert post({"attempt_id": "0" * 32, "grade": True, "verdict": "pass"})[0] == 400
     assert post({"attempt_id": attempt_id + "x", "grade": True, "verdict": "looks fine"})[0] == 400
     assert post({"attempt_id": attempt_id, "grade": "yes", "verdict": "pass"})[0] == 400
+
+
+def test_unknown_verdict_may_omit_grade(chain_router):
+    """Protocol section 6: a no-oracle client sends `unknown` without a grade."""
+    server, router, _, _ = chain_router
+    status, _, headers = chat(server)
+    assert status == 200
+    attempt_id = headers["X-Router-Attempt-Id"]
+
+    connection = HTTPConnection(*server.server_address, timeout=3)
+    connection.request(
+        "POST", "/v1/router/outcome",
+        json.dumps({"attempt_id": attempt_id, "verdict": "unknown"}),
+        {"Content-Type": "application/json"},
+    )
+    response = connection.getresponse()
+    body = json.loads(response.read().decode())
+    connection.close()
+
+    assert response.status == 200 and body["recorded"] == "graded"
+    # The attempt is closed but neither prior moves, and it is not a success.
+    assert router.state.graded_attempts(False) == 1
+    assert router.state.graded_attempts(True) == 0
+    assert router.state.outcome_count("success") == 0

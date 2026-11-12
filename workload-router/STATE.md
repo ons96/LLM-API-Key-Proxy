@@ -2011,6 +2011,10 @@ Added `workload-router/conftest.py` so the suite also runs from the repo root;
 previously only `cd workload-router && pytest tests` put the modules on
 `sys.path`.
 
+The outcome boundary on both servers now accepts `{"verdict": "unknown"}`
+without a `grade` field, matching verification-protocol section 6; every other
+verdict still requires a boolean grade, and unknown stays prior-neutral.
+
 Verification: focused quota ledger 17 passed; oracle acceptance 9 passed; full
 suite 429 passed from `workload-router/` and from the worktree root
 (`python3 -m pytest workload-router/tests -o addopts= -q`). No provider call,

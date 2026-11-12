@@ -435,7 +435,13 @@ class Handler(BaseHTTPRequestHandler):
                 verdict = payload.get("verdict")
                 if not isinstance(attempt_id, str) or not attempt_id:
                     raise ValueError("invalid attempt_id")
-                if not isinstance(grade, bool) or not isinstance(verdict, str):
+                if not isinstance(verdict, str):
+                    raise ValueError("invalid grade or verdict")
+                # Protocol section 6: no-oracle clients may omit `grade` when
+                # reporting `unknown`; it is never a pass.
+                if grade is None and verdict == "unknown":
+                    grade = False
+                if not isinstance(grade, bool):
                     raise ValueError("invalid grade or verdict")
                 runtime.ledger.grade_attempt(attempt_id, grade, verdict)
                 self.send_json(200, {"recorded": "graded", "attempt_id": attempt_id})

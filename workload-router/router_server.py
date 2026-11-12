@@ -401,12 +401,16 @@ class RouterHandler(BaseHTTPRequestHandler):
                 # invariants) and reports the verdict for a specific attempt.
                 if not isinstance(attempt_id, str):
                     raise ValueError("attempt_id must be a string")
-                grade = payload.get("grade")
                 verdict = payload.get("verdict")
-                if not isinstance(grade, bool):
-                    raise ValueError("grade must be a boolean")
                 if not isinstance(verdict, str):
                     raise ValueError("verdict is required")
+                grade = payload.get("grade")
+                # Protocol section 6: a client without an oracle reports
+                # `unknown` and may omit `grade`. It can never be a pass.
+                if grade is None and verdict == "unknown":
+                    grade = False
+                if not isinstance(grade, bool):
+                    raise ValueError("grade must be a boolean")
                 self.state.grade_attempt(attempt_id, grade, verdict)
                 if grade:
                     self.stall_states.setdefault(session_id, StallState()).mark_progress()

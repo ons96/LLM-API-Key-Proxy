@@ -332,6 +332,30 @@ def test_attempt_id_is_issued_and_client_verdict_grades_it(sidecar):
     assert post({"attempt_id": attempt_id, "grade": "yes", "verdict": "pass"})[0] == 400
 
 
+def test_unknown_verdict_may_omit_grade(sidecar):
+    """Protocol section 6: a no-oracle client sends `unknown` without a grade."""
+    server, runtime, _, _ = sidecar
+    status, _, headers = call(server)
+    assert status == 200
+    attempt_id = headers["X-Router-Attempt-Id"]
+    ledger = runtime.ledger
+    route = next(row for row in ledger.routes() if row.route_id == "local")
+    assert ledger.evidence(route, "chat")[:2] == (2, 2)
+
+    status, body, _ = call(
+        server, "/v1/router/outcome",
+        raw=json.dumps({"attempt_id": attempt_id, "verdict": "unknown"}))
+
+    assert status == 200 and json.loads(body)["recorded"] == "graded"
+    assert ledger.evidence(route, "chat")[:2] == (2, 2)
+    decision = ledger.decision(attempt_id)
+    assert decision["verdict"] == "unknown" and decision["quality"] is None
+    # Closed: a later pass cannot overwrite the unknown verdict.
+    assert call(server, "/v1/router/outcome",
+                raw=json.dumps({"attempt_id": attempt_id, "grade": True,
+                                "verdict": "pass"}))[0] == 400
+
+
 def test_stream_attempt_id_is_issued(sidecar):
     server, runtime, _, _ = sidecar
     status, _, headers = call(server, stream=True)
