@@ -566,17 +566,22 @@ class QuotaLedger:
             raise ValueError("verdict 'pass' requires grade true")
         with self.transaction() as db:
             row = db.execute(
-                "SELECT status, quality FROM routing_decisions WHERE id=?", (identity,)
+                "SELECT status, quality, verdict FROM routing_decisions WHERE id=?",
+                (identity,),
             ).fetchone()
             if row is None:
                 raise ValueError("unknown attempt_id")
-            if row["quality"] is not None:
+            if row["verdict"] is not None or row["quality"] is not None:
                 raise ValueError("attempt already graded")
             if row["status"] != "success":
                 raise ValueError("attempt is not complete")
+            # `unknown` closes the attempt without moving either prior: no
+            # oracle is evidence of neither correctness nor failure. Storing
+            # it as quality=0 would penalise a route for a lack of evidence.
+            quality = None if verdict == "unknown" else int(grade)
             db.execute(
                 "UPDATE routing_decisions SET quality=?, verdict=? WHERE id=?",
-                (int(grade), verdict, identity),
+                (quality, verdict, identity),
             )
 
     def decision(self, identity: str) -> dict:

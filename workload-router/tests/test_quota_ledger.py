@@ -191,6 +191,29 @@ def test_client_verdict_is_the_only_success_evidence():
     ledger.close()
 
 
+def test_unknown_verdict_closes_attempt_without_moving_priors():
+    """No oracle is not evidence of failure: `unknown` must not inflate beta."""
+    ledger = QuotaLedger()
+    candidate = route()
+    ledger.configure(candidate)
+    identity = reserve(ledger, candidate, now=1000)
+    ledger.start(identity, now=1000)
+    ledger.finish(identity, candidate, success=True, latency_ms=5, now=1001)
+    assert ledger.evidence(candidate, "chat")[:2] == (2, 2)
+
+    ledger.grade_attempt(identity, False, "unknown")
+
+    # Neither alpha nor beta moves, but the attempt is closed and cannot be
+    # regraded into a pass later.
+    assert ledger.evidence(candidate, "chat")[:2] == (2, 2)
+    decision = ledger.decision(identity)
+    assert decision["verdict"] == "unknown"
+    assert decision["quality"] is None
+    with pytest.raises(ValueError, match="already graded"):
+        ledger.grade_attempt(identity, True, "pass")
+    ledger.close()
+
+
 def test_verdict_enum_matches_router_state():
     from quota_ledger import VERDICTS as LEDGER_VERDICTS
     from router_state import VERDICTS as STATE_VERDICTS
