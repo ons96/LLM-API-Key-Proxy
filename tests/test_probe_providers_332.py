@@ -234,3 +234,93 @@ class TestRecordCallIntegration:
         assert row[3] == 500
         assert row[4] == 120
         assert abs(row[5] - 45.3) < 0.1
+
+
+class TestSweepVerdicts:
+    """Only transport-level failure may mark a provider dead.
+
+    A bad key, empty quota, wrong model name or the provider's own 5xx leaves
+    the provider in the catalog — see docs/benchmark-sources-and-trust.md.
+    """
+
+    def test_success_is_verified(self):
+        assert probe_mod.classify_verdict(None, "") == "verified"
+
+    @pytest.mark.parametrize(
+        "reason,text",
+        [
+            ("connection_refused", "Connection error."),
+            ("dns_error", "Name or service not known"),
+            ("tls", "SSL: CERTIFICATE_VERIFY_FAILED"),
+            ("reset", "Connection reset by peer"),
+            ("unreachable", "Network is unreachable"),
+        ],
+    )
+    def test_transport_failures_mark_dead(self, reason, text):
+        assert probe_mod.classify_verdict(reason, text) == "dead"
+
+    def test_transport_exception_type_is_enough(self):
+        class APIConnectionError(Exception):
+            pass
+
+        assert probe_mod.classify_verdict("unknown", "", APIConnectionError("boom")) == "dead"
+
+    @pytest.mark.parametrize(
+        "reason,text",
+        [
+            ("auth_error", "Error code: 401 - invalid api key"),
+            ("auth_error", "Error code: 403 - key revoked"),
+            ("quota_exhausted", "Error code: 402 - insufficient balance"),
+            ("rate_limited", "Error code: 429 - rate limit exceeded"),
+            ("model_not_found", "Error code: 404 - no available channel"),
+            ("server_error", "Error code: 503 - upstream unavailable"),
+            ("timeout", "Request timed out."),
+        ],
+    )
+    def test_non_transport_failures_stay_in_catalog(self, reason, text):
+        assert probe_mod.classify_verdict(reason, text) == "unverified"
+
+    def test_missing_key_is_not_dead(self):
+        """Our key being wrong says nothing about the provider's API."""
+        result = probe_mod.probe_one("noauth", "m", "http://127.0.0.1:9/v1", "")
+        assert result["verdict"] in {"dead", "unverified"}
+        assert result["verdict"] != "verified"
+
+
+def test_blocklisted_provider_is_not_probed():
+    providers = {
+        "crax": {
+            "enabled": True,
+            "base_url": "https://crax.example/v1",
+            "no_api_key_required": True,
+            "free_tier_models": ["m1"],
+        }
+    }
+    assert probe_mod.select_targets(providers, blocked={"crax"}) == []
+    assert len(probe_mod.select_targets(providers)) == 1
+
+
+def test_sweep_report_writes_per_route_verdicts(tmp_path):
+    report_path = tmp_path / "sweep.json"
+    report = probe_mod.write_sweep_report(
+        report_path,
+        [
+            {"provider": "groq", "model": "llama", "verdict": "verified", "error_reason": None},
+            {"provider": "crax", "model": "m", "verdict": "dead", "error_reason": "connection_refused"},
+            {"provider": "kilo", "model": "m", "verdict": "unverified", "error_reason": "auth_error"},
+        ],
+    )
+    assert report["counts"] == {"verified": 1, "unverified": 1, "dead": 1}
+    on_disk = __import__("json").loads(report_path.read_text())
+    assert on_disk["routes"][1]["provider"] == "crax"
+    assert on_disk["counts"]["dead"] == 1
+
+
+def test_blocked_providers_load_from_yaml(tmp_path):
+    path = tmp_path / "dead.yaml"
+    path.write_text("blocked_providers:\n  Crax:\n    reason: down\n", encoding="utf-8")
+    assert probe_mod.load_blocked_providers(path) == {"crax"}
+
+
+def test_blocked_providers_missing_file_is_empty(tmp_path):
+    assert probe_mod.load_blocked_providers(tmp_path / "nope.yaml") == set()

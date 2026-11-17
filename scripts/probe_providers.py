@@ -20,6 +20,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -60,6 +61,84 @@ CANONICAL_PROMPT = (
 MAX_OUTPUT_TOKENS = 64
 REQUEST_TIMEOUT_S = 30
 
+# Transport-level markers: only these mean the provider's API is gone. A bad
+# key, an empty quota, a wrong model name or the provider's own 5xx all leave
+# the provider in the catalog — see workload-router/docs/benchmark-sources-and-trust.md.
+_TRANSPORT_MARKERS = (
+    "connection error",
+    "connectionerror",
+    "apiconnectionerror",
+    "apiconnection",
+    "connection refused",
+    "connectionrefused",
+    "connection reset",
+    "name or service not known",
+    "nodename nor servname",
+    "temporary failure in name resolution",
+    "network is unreachable",
+    "no route to host",
+    "certificate verify failed",
+    "ssl",
+    "server disconnected",
+    "remotedisconnected",
+)
+
+
+def classify_verdict(
+    error_reason: Optional[str],
+    error_text: str = "",
+    exc: Optional[BaseException] = None,
+) -> str:
+    """Return `verified`, `unverified` or `dead` for a single probe result.
+
+    `dead` is reserved for transport-level failure: DNS, refused connection,
+    TLS failure, reset. Those say the endpoint is gone and re-dispatching to it
+    wastes an attempt.
+
+    Never dead, because none of them is evidence the API is down:
+
+    - 401/403 — our key is bad or revoked
+    - 402 — our quota is exhausted
+    - 429 — we are rate limited
+    - 404 — our model mapping is wrong
+    - 5xx from the provider's application layer — their bug
+    - timeout — slow, not absent
+    """
+    if not error_reason:
+        return "verified"
+    haystack = f"{error_text} {type(exc).__name__ if exc is not None else ''}".lower()
+    if any(marker in haystack for marker in _TRANSPORT_MARKERS):
+        return "dead"
+    return "unverified"
+
+
+def load_blocked_providers(path: Optional[Path] = None) -> set:
+    """Provider keys listed under `blocked_providers` in dead_providers.yaml."""
+    target = path or (REPO_ROOT / "config" / "dead_providers.yaml")
+    try:
+        with open(target) as f:
+            cfg = yaml.safe_load(f) or {}
+    except (OSError, yaml.YAMLError):
+        return set()
+    blocked = cfg.get("blocked_providers") or {}
+    return {str(k).strip().lower() for k in blocked} if isinstance(blocked, dict) else set()
+
+
+def write_sweep_report(path: Path, records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Write per-route verdicts and return the summary (counts + records)."""
+    counts: Dict[str, int] = {"verified": 0, "unverified": 0, "dead": 0}
+    for record in records:
+        verdict = record.get("verdict", "unverified")
+        counts[verdict] = counts.get(verdict, 0) + 1
+    report = {
+        "checked_at_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "counts": counts,
+        "routes": records,
+    }
+    Path(path).write_text(json.dumps(report, indent=1, sort_keys=True), encoding="utf-8")
+    return report
+
+
 # Env var resolution helper for ${VAR} and ${VAR:-default} in YAML values.
 def _resolve_env(value: str) -> str:
     if not isinstance(value, str) or "${" not in value:
@@ -89,14 +168,18 @@ def select_targets(
     providers: Dict[str, Any],
     only: Optional[str] = None,
     max_models: Optional[int] = None,
+    blocked: Optional[set] = None,
 ) -> List[Tuple[str, str, str, str]]:
     """Build list of (provider_id, model, base_url, api_key) targets.
 
-    Skips: disabled, dead, search-only, providers without models.
+    Skips: disabled, dead, blocklisted, search-only, providers without models.
     """
     targets: List[Tuple[str, str, str, str]] = []
+    blocked = blocked or set()
     for pid, pdata in providers.items():
         if pid in SEARCH_ONLY:
+            continue
+        if pid.strip().lower() in blocked:
             continue
         if not pdata.get("enabled", False):
             continue
@@ -136,6 +219,7 @@ def probe_one(
     model: str,
     base_url: str,
     api_key: str,
+    timeout_s: float = REQUEST_TIMEOUT_S,
 ) -> Dict[str, Any]:
     """Send canonical prompt via streaming, measure TTFT + TPS + latency.
 
@@ -144,7 +228,7 @@ def probe_one(
     client = OpenAI(
         api_key=api_key or "dummy",
         base_url=base_url,
-        timeout=REQUEST_TIMEOUT_S,
+        timeout=timeout_s,
         max_retries=0,
     )
     start = time.perf_counter()
@@ -191,6 +275,7 @@ def probe_one(
             "input_tokens": 10,
             "output_tokens": output_tokens,
             "error_reason": None,
+            "verdict": "verified",
         }
     except Exception as exc:
         total_ms = int((time.perf_counter() - start) * 1000)
@@ -200,13 +285,15 @@ def probe_one(
         reason = err_type
         if "429" in err_str or "rate_limit" in err_str.lower():
             reason = "rate_limited"
-        elif "401" in err_str or "auth" in err_str.lower():
+        elif "402" in err_str or "insufficient" in err_str.lower():
+            reason = "quota_exhausted"
+        elif "401" in err_str or "403" in err_str or "auth" in err_str.lower():
             reason = "auth_error"
         elif "404" in err_str:
             reason = "model_not_found"
         elif "timeout" in err_str.lower():
             reason = "timeout"
-        elif "5" in err_str[:1] and err_str[:3].isdigit():
+        elif err_str[:3].isdigit() and err_str[:1] == "5":
             reason = "server_error"
         return {
             "provider": provider,
@@ -218,6 +305,7 @@ def probe_one(
             "input_tokens": None,
             "output_tokens": None,
             "error_reason": reason,
+            "verdict": classify_verdict(reason, err_str, exc),
         }
 
 
@@ -228,10 +316,19 @@ def run(
     max_models: Optional[int] = None,
     interval_s: float = 3.0,
     dry_run: bool = False,
+    sweep_report: Optional[Path] = None,
+    timeout_s: float = REQUEST_TIMEOUT_S,
 ) -> int:
     providers = load_provider_config(config_path)
-    targets = select_targets(providers, only=only, max_models=max_models)
-    log.info("selected %d probe targets (%d providers)", len(targets), len({t[0] for t in targets}))
+    blocked = load_blocked_providers()
+    targets = select_targets(providers, only=only, max_models=max_models, blocked=blocked)
+    records: List[Dict[str, Any]] = []
+    log.info(
+        "selected %d probe targets (%d providers, %d blocklisted skipped)",
+        len(targets),
+        len({t[0] for t in targets}),
+        len(blocked),
+    )
     if dry_run:
         for pid, model, base_url, _ in targets:
             print(f"{pid}\t{model}\t{base_url}")
@@ -250,7 +347,15 @@ def run(
     fail = 0
     for i, (pid, model, base_url, api_key) in enumerate(targets):
         log.info("[%d/%d] %s / %s", i + 1, len(targets), pid, model)
-        result = probe_one(pid, model, base_url, api_key)
+        result = probe_one(pid, model, base_url, api_key, timeout_s=timeout_s)
+        records.append(
+            {
+                "provider": pid,
+                "model": model,
+                "verdict": result.get("verdict", "unverified"),
+                "error_reason": result.get("error_reason"),
+            }
+        )
         tm.record_call(
             provider=result["provider"],
             model=result["model"],
@@ -277,6 +382,18 @@ def run(
         if i + 1 < len(targets):
             time.sleep(interval_s)
     log.info("done: %d ok, %d fail", ok, fail)
+    if sweep_report:
+        summary = write_sweep_report(sweep_report, records)
+        log.info(
+            "sweep report %s: verified=%d unverified=%d dead=%d",
+            sweep_report,
+            summary["counts"]["verified"],
+            summary["counts"]["unverified"],
+            summary["counts"]["dead"],
+        )
+        for record in records:
+            if record["verdict"] == "dead":
+                log.warning("  DEAD %s (%s)", record["provider"], record["error_reason"])
     return 0 if ok > 0 else 1
 
 
@@ -296,6 +413,8 @@ def main() -> int:
     parser.add_argument("--max-models", type=int, help="cap models per provider")
     parser.add_argument("--interval", type=float, default=3.0, help="seconds between probes")
     parser.add_argument("--dry-run", action="store_true", help="list targets, no calls")
+    parser.add_argument("--sweep-report", type=Path, help="write per-route verdicts as JSON")
+    parser.add_argument("--timeout", type=float, default=REQUEST_TIMEOUT_S, help="per-request seconds")
     args = parser.parse_args()
     return run(
         Path(args.config),
@@ -304,6 +423,8 @@ def main() -> int:
         max_models=args.max_models,
         interval_s=args.interval,
         dry_run=args.dry_run,
+        sweep_report=args.sweep_report,
+        timeout_s=args.timeout,
     )
 
 
