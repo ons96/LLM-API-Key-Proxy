@@ -2140,3 +2140,19 @@ because it would serve private aliases without the strict-config audit.
   marker, so an unmatched model inherits no prior.
 - Source decision only: no ingest code, no provider call, no network in tests.
   Nothing was deployed and VPS 40 was not modified.
+
+## Catalog breadth and prior precedence - 2026-11-17
+
+- Catalog size is a feature, not a defect: the owner wants the widest possible
+  route list so the system degrades to slow or weak models instead of failing.
+  This replaces the earlier "shrink the catalog" recommendation, and the
+  "add a provider only if it fixes scarcity" line is withdrawn.
+- Dead routes are archived rather than deleted. A route that fails its probe is
+  marked `dead` and excluded from dispatch, then re-probed weekly, so no request
+  is spent on a route already known to be down. Unverified routes are
+  dispatchable only when nothing verified is available.
+- Prior precedence is recorded in `docs/benchmark-sources-and-trust.md`: the
+  Artificial Analysis intelligence index is the primary broad-coverage prior,
+  with the coding/agentic index as corroboration where a model has one. The
+  coding index alone would leave most of a wide catalog without a prior.
+- No code or test change in this step; VPS 40 was not modified.

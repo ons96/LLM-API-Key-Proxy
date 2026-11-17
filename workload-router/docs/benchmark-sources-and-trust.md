@@ -125,6 +125,48 @@ Join on the existing alias data rather than inventing a matcher:
 - An unmatched model keeps its learned value and gets no prior. It must not
   inherit a similarly named model's score.
 
+## Prior policy
+
+Owner decision (2026-11-17): the **intelligence index is the primary prior**,
+not the coding index. Artificial Analysis now weights agentic work inside the
+intelligence index, and the coding index covers far fewer models, so using the
+coding index alone would leave most of a deliberately wide catalog without any
+prior at all.
+
+Precedence when several numbers exist for one model:
+
+1. `intelligenceIndex` - broad coverage, agentic-weighted.
+2. Coding / agentic index columns where the model has them - corroboration and
+   a tiebreak, never a replacement.
+3. Per-benchmark rows from the trusted list above, percentile-normalised.
+4. No prior at all - the model keeps its learned value and inherits nothing.
+
+`intelligenceIndexIsEstimated` marks a prior as low-confidence. An estimated row
+must never outrank a measured one at equal capability.
+
+## Catalog breadth
+
+The catalog is deliberately wide: the goal is never to run out of usable
+capacity, accepting a slow or weak model as the fallback. Breadth is therefore
+not something to prune, and the earlier "add a provider only if it fixes
+scarcity" advice is withdrawn.
+
+Breadth still needs a gate, or a wide catalog becomes a slow one:
+
+- `unverified` - newly added, has never answered a probe. Dispatchable only
+  when nothing verified is available.
+- `verified` - answered one cheap probe successfully. Normal dispatch.
+- `dead` - failed its probe or returned a hard provider error. Excluded from
+  dispatch entirely, so no request is spent on a route already known to be
+  down.
+- Re-probe `dead` and `unverified` rows weekly. Providers recover, and an API
+  key can be replaced; a route that is dead today can be capacity tomorrow.
+- Never delete a row. Archiving is a dispatch decision, not a data decision.
+
+This is what keeps a wide catalog from turning into retry fan-out: the existing
+`supacoder`, `jasper` and `crax` failures are routes being attempted while
+known-dead, which costs attempts and pollutes latency telemetry.
+
 ## Open items
 
 - Which artefact to pin: the 3.4 MB intelligence-index CSV (rich, slower to
