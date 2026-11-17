@@ -2119,3 +2119,24 @@ because it would serve private aliases without the strict-config audit.
   commit `9b5b5ac` (environment-dependent), so they are not regressions.
   `test_acceptance_5`, the `make` fixture issue, passes on this machine.
 - No VPS change, deployment, service restart, or credential access.
+
+## Benchmark source decision - 2026-11-17
+
+- Added `docs/benchmark-sources-and-trust.md`: the router consumes a pinned git
+  artifact produced by the existing `coding-agents-leaderboard` GitHub Action
+  (daily change-gated scrape, committed CSV) instead of scraping Artificial
+  Analysis itself, calling the AA API, or running a scheduled job on VPS 40.
+  There is no manual JSON import step anywhere in the path.
+- The document records which benchmarks must not be ranked on and why:
+  SWE-bench Verified (no accepted runs since 2026-02-26), Aider polyglot (stale
+  since 2025), MMLU (saturated and contaminated), LMArena (preference, not
+  coding ability), Terminal-Bench (scaffold-dependent) and Vals AI are excluded
+  or context-only. AA's own primary runs, SWE-rebench and BenchLM (capped
+  weight) are the usable signals; LiveCodeBench is a floor, not a ranking.
+- Reasoning effort is documented as a route dimension rather than a score
+  adjustment, so the ladder can escalate effort before escalating model.
+- Also fixes the naming of the model-identity join: reuse
+  `canonical_names.yaml`/`model_alias_mapping.json` and keep the `~` fuzzy
+  marker, so an unmatched model inherits no prior.
+- Source decision only: no ingest code, no provider call, no network in tests.
+  Nothing was deployed and VPS 40 was not modified.
