@@ -412,8 +412,23 @@ def main() -> int:
             found = [v for d in deps for v in d.get("vulns", [])]
             report["steps"]["advisories"] = "fail" if found else "pass"
             report["vulns"] = sorted({v.get("id") for v in found if v.get("id")})
+            # pip-audit resolves the tree, so a rejected top-level pin does not
+            # mean the top-level package is the vulnerable one. On 2026-11-17 all
+            # 13 advisories belonged to filelock while the message blamed
+            # litellm, which sent the reader to the wrong dependency.
+            flagged = {
+                f"{d.get('name')}=={d.get('version')}": sorted(
+                    {v.get("id") for v in d.get("vulns", []) if v.get("id")}
+                )
+                for d in deps
+                if d.get("vulns")
+            }
+            report["vuln_packages"] = flagged
             if found:
-                fail(f"known advisories for {name}=={version}: {report['vulns']}")
+                detail = "; ".join(
+                    f"{pkg} ({', '.join(ids)})" for pkg, ids in sorted(flagged.items())
+                )
+                fail(f"known advisories in the tree of {name}=={version}: {detail}")
             print("  advisories  ok   no OSV/PyPI advisory for this version")
         else:
             report["steps"]["advisories"] = "skipped"
