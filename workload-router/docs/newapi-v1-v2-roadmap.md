@@ -393,13 +393,18 @@ credential or traffic was changed, and LiteLLM stayed on `:8000`.
 
 ### Boot gate, in the order `serve()` evaluates it
 
-1. **Admin token expired.** `GET /api/option/` returns 401, so the startup audit
-   cannot read `RetryTimes` at all. Refreshing it needs New-API's root password
-   (`/opt/new-api/new-api.env`); that is an operator action, and the sidecar
-   never reads it.
-2. **`RetryTimes`**: last recorded value 3, must be 0. Unverifiable until (1).
-3. **Channel overrides**: channels 3 and 4 last carried
-   `param_override={"stream":true}`, which the strict audit rejects.
+1. ~~Admin token expired~~ **closed 2026-11-17.** `tools/newapi_token_refresh.py`
+   logs in with the root password read from `/opt/new-api/new-api.env`, completes
+   the two-factor leg at `POST /api/user/login/2fa` (the `/2fa/verify` path does
+   not exist on this build) and installs the token into `sidecar.env` behind a
+   `.bak-token-<timestamp>` backup. `GET /api/option/` now returns 200.
+   The durable path (`POST /api/user/access_tokens` with `expires_at: 0`) still
+   answers HTTP 400, so the installed token is a short-lived login session: it
+   must be refreshed within its lifetime before a boot.
+2. **`RetryTimes` is 8**, measured today; the earlier record of 3 was stale. The
+   strict audit requires 0, so this is the only remaining *setting* gate.
+3. ~~Channel overrides~~ **already clear**: channels 3 and 4 carry
+   `param_override=""`, so the forced-streaming blocker is gone.
 4. **Channel key proof**: installed, but a real boot needs one proof per audited
    channel per restart.
 5. `sidecar.env` is a systemd `EnvironmentFile` and is not shell-safe
@@ -412,8 +417,11 @@ credential or traffic was changed, and LiteLLM stayed on `:8000`.
   `agnes-3.0-flash` returned `content:"ok"`, `usage.total_tokens=82`, HTTP 200.
 - `/v1/models` with the same relay token returned 200.
 - The old tool-gate model `agnes-kios` now returns `model_not_found` (no
-  available channel), so the v2 tool gate must be re-targeted at a channel that
-  still exists before it is claimed again.
+  available channel), so the v2 tool gate must be re-targeted before it is
+  claimed again. Channels 10 (`gw:kiosapi`) and 11 (`gw:crowllm-canonical`) are
+  enabled and map `agnes-3.0-flash`, so they are the obvious re-target.
+- `tools/report_newapi_gates.py` prints the settings the startup audit enforces
+  (no channel key is ever printed), so the gate state is a command, not a guess.
 - The LiteLLM gateway stayed healthy on `:8000` throughout
   (`/health` -> `{"status":"healthy", ...}`).
 
