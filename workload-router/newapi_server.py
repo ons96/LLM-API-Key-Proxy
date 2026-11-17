@@ -25,8 +25,8 @@ from model_management import (
 )
 from provider_adapter import ProviderError
 from provider_status import ProviderStatusError, ProviderStatusStore
-from quota_ledger import QuotaLedger, token_count
-from route_policy import input_token_bound
+from quota_ledger import QuotaLedger, nonnegative, token_count
+from route_policy import Weights, input_token_bound
 from router_state import RouterState
 
 
@@ -291,7 +291,7 @@ class Handler(BaseHTTPRequestHandler):
             })
         elif path == "/v1/router/diagnostics":
             self.send_json(200, {**self.server.runtime.ledger.diagnostics(),
-                                 "free_only": self.server.runtime.free_only})
+                                 **self.server.runtime.catalog_audit()})
         else:
             self.send_json(404, {"error": "not found"})
 
@@ -722,8 +722,15 @@ def serve() -> None:
                 "provider status stale seconds")
             provider_status = ProviderStatusStore(status_path,
                                                   stale_after_seconds=stale_seconds)
+        # lambda_T is owner policy, so it only ever comes from config: unset
+        # keeps the profile defaults in Weights (0.003 coding / 0.001 chat).
+        # Units are currency per second of wall-clock.
+        lambda_t = os.environ.get("SIDECAR_LAMBDA_T", "").strip()
+        weights = (Weights(time_value=nonnegative(float(lambda_t), "SIDECAR_LAMBDA_T"))
+                   if lambda_t else Weights())
         runtime = Runtime(ledger, state, base_url, _env("NEWAPI_API_KEY"),
-                          free_only=env_flag("SIDECAR_FREE_ONLY", True))
+                          free_only=env_flag("SIDECAR_FREE_ONLY", True),
+                          weights=weights)
         _install_stop_handlers()
         with Server((os.environ.get("SIDECAR_HOST", "127.0.0.1"), int(_env("SIDECAR_PORT"))),
                     runtime, _env("SIDECAR_API_KEY"), embedding_aliases=aliases,
