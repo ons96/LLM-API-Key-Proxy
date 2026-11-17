@@ -50,3 +50,13 @@ Owner decision 2026-11-17: of the failing providers, only **nous-inference** is 
 1. Fetch `nous-inference`'s live `/v1/models` and replace the six stale ids in its `free_tier_models`.
 2. Re-probe just that provider: `python scripts/probe_providers.py --provider nous-inference --max-models 0`.
 3. Leave everything else alone until the next weekly re-probe of `dead` + `unverified`.
+
+## Resolution - same day
+
+`nous-inference` advertises 410 models, but only **2 answer a real completion** with
+this key: `tencent/hy4-flash:free` and `meituan/longcat-2.5:free`. Six of its original
+eight ids returned 404, and 12 of 14 fresh candidates failed the same way (404 or
+400), so the entry now lists exactly the two that work instead of advertising
+routes the upstream does not serve. VPS config backed up as
+`router_config.yaml.bak-nous2-20261117T225901Z`. The provider stays in the
+catalog: two working free routes are still capacity.
