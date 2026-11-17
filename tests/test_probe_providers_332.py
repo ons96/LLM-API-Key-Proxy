@@ -324,3 +324,38 @@ def test_blocked_providers_load_from_yaml(tmp_path):
 
 def test_blocked_providers_missing_file_is_empty(tmp_path):
     assert probe_mod.load_blocked_providers(tmp_path / "nope.yaml") == set()
+
+
+def test_blocked_providers_accepts_list_shape(tmp_path):
+    """The YAML has carried both a mapping and a plain list of names."""
+    path = tmp_path / "dead.yaml"
+    path.write_text("blocked_providers:\n  - crax\n  - Supacoder\n", encoding="utf-8")
+    assert probe_mod.load_blocked_providers(path) == {"crax", "supacoder"}
+
+
+def test_free_suffix_models_are_probed(tmp_path):
+    """Concrete ``:free`` ids are real endpoints, so the sweep must include them."""
+    providers = {
+        "openrouter": {
+            "enabled": True,
+            "base_url": "https://openrouter.ai/api/v1",
+            "no_api_key_required": True,
+            "free_tier_models": ["deepseek/deepseek-chat:free", "openrouter/auto"],
+        }
+    }
+    targets = probe_mod.select_targets(providers)
+    assert [t[1] for t in targets] == ["deepseek/deepseek-chat:free"]
+
+
+def test_blocked_providers_accepts_record_list_shape(tmp_path):
+    """The live VPS file is a list of {provider, reason, last_confirmed_dead}."""
+    path = tmp_path / "dead.yaml"
+    path.write_text(
+        "blocked_providers:\n"
+        "  - provider: crax\n"
+        "    reason: connection refused\n"
+        "  - provider: Supacoder\n"
+        "    reason: 403\n",
+        encoding="utf-8",
+    )
+    assert probe_mod.load_blocked_providers(path) == {"crax", "supacoder"}

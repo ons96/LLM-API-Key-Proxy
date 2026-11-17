@@ -121,7 +121,21 @@ def load_blocked_providers(path: Optional[Path] = None) -> set:
     except (OSError, yaml.YAMLError):
         return set()
     blocked = cfg.get("blocked_providers") or {}
-    return {str(k).strip().lower() for k in blocked} if isinstance(blocked, dict) else set()
+    # The file has carried three shapes: a mapping of name -> reason, a plain
+    # list of names, and a list of {"provider", "reason", ...} records (the
+    # live VPS file). Accept all three rather than silently skipping nothing.
+    if isinstance(blocked, dict):
+        names = blocked.keys()
+    elif isinstance(blocked, (list, tuple, set)):
+        names = [
+            (entry.get("provider") or entry.get("name") or entry.get("key"))
+            if isinstance(entry, dict)
+            else entry
+            for entry in blocked
+        ]
+    else:
+        return set()
+    return {str(name).strip().lower() for name in names if str(name).strip()}
 
 
 def write_sweep_report(path: Path, records: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -200,12 +214,10 @@ def select_targets(
             continue
         models = pdata.get("free_tier_models") or []
         # Filter out auto/free meta-models that aren't real endpoints.
+        # Drop only auto-routing meta models; keep concrete ``:free`` model ids,
+        # which are real endpoints on OpenRouter-style relays.
         models = [
-            m
-            for m in models
-            if m
-            and "auto" not in m.lower().split("/")[-1]
-            and not m.endswith(":free")
+            m for m in models if m and "auto" not in str(m).lower().split("/")[-1]
         ]
         if max_models:
             models = models[:max_models]
