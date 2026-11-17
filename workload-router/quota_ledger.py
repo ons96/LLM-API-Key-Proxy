@@ -22,7 +22,7 @@ from typing import Iterator
 import uuid
 
 
-AXES = {"rpm", "rpd", "tpm", "tpd", "credits", "money_day"}
+AXES = {"rpm", "rpd", "tpm", "tpd", "credits", "money_day", "money_month"}
 QUOTA_TYPES = {"unlimited", "rate_limited", "credit_based", "paid", "unknown"}
 # The canonical provider vocabulary also uses free_daily/free_one_time/no_key.
 # These are the sidecar's funding classes; quota_type remains the feasibility
@@ -156,6 +156,7 @@ class Route:
     credit_output_price: float | None = None
     credit_balance: float | None = None
     daily_budget: float | None = None
+    monthly_budget: float | None = None
     shadow_price: float = 1.0
     latency_ms: float = 2000.0
     prior_success: float = 2.0
@@ -187,7 +188,8 @@ class Route:
             if getattr(self, name) is not None and not isinstance(getattr(self, name), bool):
                 raise ValueError(f"{name} must be a boolean or unknown")
         for name in ("input_price", "output_price", "cached_input_price",
-                     "credit_input_price", "credit_output_price", "credit_balance", "daily_budget"):
+                     "credit_input_price", "credit_output_price", "credit_balance",
+                     "daily_budget", "monthly_budget"):
             if getattr(self, name) is not None:
                 nonnegative(getattr(self, name), name)
         for name in ("shadow_price", "latency_ms", "prior_success", "prior_failure", "cache_ttl_seconds", "prefill_ms_per_token", "handoff_ms"):
@@ -313,6 +315,8 @@ class QuotaLedger:
                 scopes[1][2]["credits"] = route.credit_balance
             if route.daily_budget is not None:
                 scopes[1][2]["money_day"] = route.daily_budget
+            if route.monthly_budget is not None:
+                scopes[1][2]["money_month"] = route.monthly_budget
             for model, key, limits in scopes:
                 for axis, value in limits.items():
                     db.execute(
@@ -349,12 +353,29 @@ class QuotaLedger:
         ).fetchall()
 
     @staticmethod
-    def _start(axis: str, now: float, offset: int) -> float:
+    def _window(axis: str, now: float, offset: int) -> tuple[float, float]:
+        """Start of the window holding `now`, and when its usage stops counting.
+
+        Request and token windows are calendar days by default. A money month is
+        a UTC calendar month because that is how providers bill, and it ignores
+        `day_offset` rather than shifting the month boundary. Rolling minute
+        axes report the next minute as their reset so a retry hint is never
+        zero. Adding a weekly or five-hour money cap is one branch here plus the
+        field that feeds it.
+        """
         if axis in {"rpm", "tpm"}:
-            return now - 60
+            return now - 60, now + 60
         if axis in {"rpd", "tpd", "money_day"}:
-            return math.floor((now - offset) / 86400) * 86400 + offset
-        return 0.0
+            start = math.floor((now - offset) / 86400) * 86400 + offset
+            return start, start + 86400
+        if axis == "money_month":
+            moment = datetime.fromtimestamp(now, timezone.utc)
+            start = datetime(moment.year, moment.month, 1, tzinfo=timezone.utc).timestamp()
+            following = (datetime(moment.year + 1, 1, 1, tzinfo=timezone.utc)
+                         if moment.month == 12 else
+                         datetime(moment.year, moment.month + 1, 1, tzinfo=timezone.utc))
+            return start, following.timestamp()
+        return 0.0, now + 86400
 
     def _usage(self, scope: tuple[str, str, str], axis: str, start: float) -> float:
         # Outstanding started attempts remain charged beyond a window boundary.
@@ -402,12 +423,13 @@ class QuotaLedger:
             ceiling = min(values)
             axis = limit["window_type"]
             scope = (limit["provider_id"], limit["model_id"], limit["key_id"])
-            used = self._usage(scope, axis, self._start(axis, now, limit["day_offset"]))
+            window_start, window_reset = self._window(axis, now, limit["day_offset"])
+            used = self._usage(scope, axis, window_start)
             projected = used + amounts[axis]
             pressure = max(pressure, projected / ceiling if ceiling else 1.0)
             if projected > ceiling or ceiling == 0:
-                delay = 60.0 if axis in {"rpm", "tpm"} else 86400.0
-                return Capacity(False, f"exhausted_{axis}", min(1.0, pressure), delay)
+                return Capacity(False, f"exhausted_{axis}", min(1.0, pressure),
+                                max(1.0, window_reset - now))
         return Capacity(True, pressure=min(1.0, pressure))
 
     @staticmethod
@@ -415,7 +437,8 @@ class QuotaLedger:
         cost = route.money(input_tokens, output_tokens)
         credit = route.credit_money(input_tokens, output_tokens)
         return {"rpm": 1.0, "rpd": 1.0, "tpm": input_tokens + output_tokens,
-                "tpd": input_tokens + output_tokens, "credits": credit, "money_day": cost}
+                "tpd": input_tokens + output_tokens, "credits": credit,
+                "money_day": cost, "money_month": cost}
 
     def capacity(self, route: Route, input_tokens: int, output_tokens: int, now: float | None = None) -> Capacity:
         token_count(input_tokens, "input_tokens")

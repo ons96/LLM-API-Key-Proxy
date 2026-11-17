@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from datetime import datetime, timezone
 import time
 
 import pytest
@@ -265,6 +266,68 @@ def test_unknown_cost_is_null_and_cannot_poison_totals():
     ledger.finish(identity, candidate, success=True, latency_ms=1, now=current)
     assert ledger.decision(identity)["cost_money"] is None
     assert ledger.cost_report(days=1)["cost_money"] == 0
+    ledger.close()
+
+
+def utc(year, month, day):
+    return datetime(year, month, day, tzinfo=timezone.utc).timestamp()
+
+
+def spend(ledger, candidate, tokens, now):
+    """Settle one attempt, so its usage stops being charged as pending."""
+    identity = ledger.reserve(candidate, tokens, 0, profile="auto-chat",
+                              step="chat", now=now)
+    if identity is None:
+        return None
+    ledger.start(identity, now=now)
+    ledger.finish(identity, candidate, success=True,
+                  usage={"prompt_tokens": tokens, "completion_tokens": 0},
+                  latency_ms=1, now=now)
+    return identity
+
+
+def test_daily_and_monthly_money_caps_are_independent():
+    ledger = QuotaLedger()
+    # No request or token caps here: this test is only about the money windows.
+    candidate = route(quota_type="paid", input_price=1_000_000, output_price=0,
+                      limits={}, daily_budget=5, monthly_budget=6)
+    ledger.configure(candidate)
+    day_one = utc(2023, 11, 14)
+    assert spend(ledger, candidate, 5, day_one) is not None
+    assert ledger.capacity(candidate, 1, 0, now=day_one).reason == "exhausted_money_day"
+    # Tomorrow the daily cap resets, but only $1 of the month is left.
+    day_two = utc(2023, 11, 15)
+    assert spend(ledger, candidate, 1, day_two) is not None
+    assert ledger.capacity(candidate, 1, 0, now=day_two).reason == "exhausted_money_month"
+    # The next calendar month clears it again: the cap is a window, not a total.
+    assert ledger.capacity(candidate, 1, 0, now=utc(2023, 12, 1)).feasible
+    ledger.close()
+
+
+def test_monthly_cap_is_optional_and_daily_alone_still_works():
+    ledger = QuotaLedger()
+    daily = route(quota_type="paid", input_price=1_000_000, output_price=0,
+                  limits={}, daily_budget=5)
+    ledger.configure(daily)
+    for day in (14, 15, 16):
+        assert spend(ledger, daily, 5, utc(2023, 11, day)) is not None
+    assert ledger.db.execute(
+        "SELECT COUNT(*) FROM quota_limits WHERE window_type='money_month'").fetchone()[0] == 0
+    ledger.close()
+
+
+def test_monthly_only_budget_binds_without_a_daily_cap():
+    ledger = QuotaLedger()
+    candidate = route(quota_type="paid", input_price=1_000_000, output_price=0,
+                      limits={}, monthly_budget=2)
+    ledger.configure(candidate)
+    assert spend(ledger, candidate, 1, utc(2023, 11, 2)) is not None
+    assert ledger.reserve(candidate, 2, 0, profile="auto-chat", step="chat",
+                          now=utc(2023, 11, 3)) is None
+    exhausted = ledger.capacity(candidate, 2, 0, now=utc(2023, 11, 3))
+    assert exhausted.reason == "exhausted_money_month"
+    # The retry hint points at the month boundary instead of a flat day.
+    assert exhausted.retry_after == pytest.approx(utc(2023, 12, 1) - utc(2023, 11, 3))
     ledger.close()
 
 

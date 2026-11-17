@@ -68,9 +68,14 @@ your graded traces, not arithmetic.
    but the bandit needs them as separate counts, or a flaky provider and a wrong
    model stay indistinguishable. `error_class` and `verdict` are already stored;
    nothing reads them.
-4. **`money_day` is daily, but §6.5 promises a monthly cap.** `_start()` floors
-   to 86400, so `daily_budget=5` is $5/day, not $5/month. A monthly policy
-   cannot be expressed today, and the prose says it can.
+4. ~~**`money_day` is daily, but §6.5 promises a monthly cap.**~~ Fixed in the
+   S0 follow-up: `monthly_budget` is a separate UTC calendar-month axis, and
+   both caps are enforced independently, so the stricter one binds. What is
+   still missing is *pacing*: nothing re-prices a dollar when the month is
+   nearly spent. The formula is `monthly_remaining / days_remaining`, and it
+   belongs in S4's shadow price rather than in a rewritten limit - rewriting
+   would refuse a legal spend on day 3 and erase the difference between "out
+   today" and "out this month".
 5. **Verification time is not in the ledger.** `latency_ms` is provider time; the
    protocol's `duration_ms` on the outcome POST is not stored. `E[T]` in the
    ladder includes verification, so S3's gate is unfalsifiable until that number
@@ -147,8 +152,11 @@ Settled:
   one-time grant is worth using when the model or the grant is genuinely better
   (§6.3's `a > 0`), never as the only foundation.
 - **Dollar caps**: daily and monthly, blank = no limit, both checked so the
-  stricter one binds; monthly resets on the calendar month. Needs a
-  `money_month` axis, scheduled with S4 because it only matters once `$ > 0`.
+  stricter one binds; monthly resets on the calendar month. Implemented here as
+  the `money_month` axis (a UTC calendar month, ignoring `day_offset`). Pacing -
+  "if the month only has $10 left, today's real budget is $10/days_left" - is
+  deliberately not folded into the limit: it is the price of a dollar in S4, so
+  a derived average never refuses a spend the real cap allows.
 - **Verification time** is captured before S3, not after.
 - **A credit route with a real per-token price** is treated as paid, so
   free-only excludes it without a catalogue cleanup.
