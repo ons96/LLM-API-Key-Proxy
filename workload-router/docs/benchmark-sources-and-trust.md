@@ -177,3 +177,38 @@ known-dead, which costs attempts and pollutes latency telemetry.
   a second checkout at runtime.
 - No ingest code exists yet; this document is the source decision it will
   follow.
+
+## Starting balances are not queryable — learn them from refusals
+
+Probed 24 enabled providers with their real keys on 2026-11-17 against
+`/api/user/self`, `/api/v1/key` and `/user/balance`: 3 returned HTTP 200 and
+none returned a numeric balance field. The relays authenticate their balance
+dashboards by session cookie, not by API key, so balances cannot be harvested
+with the keys we hold.
+
+Decision: do not track starting balances.
+
+- Usage comes from `telemetry.db` (`llm_events`, per-provider tokens and cost).
+- Exhaustion is learned from the provider's own refusal: 402/403
+  "insufficient balance" marks that route exhausted until its reset window.
+- The moment of refusal is more accurate than any cached number, and costs no
+  extra requests.
+
+## What may be marked dead
+
+Only a transport-level failure is evidence that a provider's API is gone:
+
+- DNS failure, connection refused, TLS failure, or the gateway edge reporting
+  the host unreachable.
+
+These are **not** dead and must never be archived out of dispatch:
+
+- 401/403 — our key is bad or revoked
+- 402/429 — quota exhausted or rate limited
+- 404 model-not-found — our `free_tier_models` mapping is wrong
+- 5xx from the provider's application layer
+
+Those mark the route `unverified` or raise a config task; the provider stays in
+the catalog and keeps its models. "Dead" is a dispatch filter, not a deletion:
+dead routes are excluded from dispatch and re-probed weekly, and the provider
+entry is never removed.
