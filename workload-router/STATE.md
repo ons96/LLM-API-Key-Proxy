@@ -2074,3 +2074,26 @@ with `ROOT_PASSWORD` from `/opt/new-api/new-api.env`, verify the TOTP from
 never expires. New-API rate-limits this flow; do not retry a 429, wait for the
 window to clear. A degraded startup-audit mode was considered and rejected
 because it would serve private aliases without the strict-config audit.
+
+## S0 cost vector split - 2026-11-17
+
+- Split the score's blended money term into `cost_money` and `cost_opportunity`,
+  stored both per attempt, and stored `elapsed_s` at settlement. They are summed
+  only inside `Scored.effective_money`, so ranking is numerically identical to
+  revision 2 while `QuotaLedger.cost_report(days)` can return dollars,
+  opportunity and time as three numbers. Diagnostics expose `cost_7d`.
+- `cost_opportunity` is still the revision-2 utilisation term
+  (`quota_lambda * pressure`), not the displacement shadow price of design v2
+  §6, so every report labels itself `pricing: "utilisation"` until S4.
+- Added `Weights.time_value` as the single lambda_T override, plus
+  `SIDECAR_LAMBDA_T` to set it. Unset keeps the profile defaults (0.003 coding,
+  0.001 chat); no value is chosen in code. Units are currency per second.
+- `free_only` is audited rather than assumed: priced routes are logged once at
+  startup and listed by `/v1/router/diagnostics`, and remain excluded from
+  scoring. It is deliberately not a startup error; the reason and the
+  contradiction with design §14 Q9 are in `docs/DESIGN-v3-review-notes.md`.
+- Full suite: **435 passed, 3 failed**. The three failures are
+  `test_verify_pristine.py` acceptance 3, 7 and 8, which fail identically at base
+  commit `9b5b5ac` (environment-dependent), so they are not regressions.
+  `test_acceptance_5`, the `make` fixture issue, passes on this machine.
+- No VPS change, deployment, service restart, or credential access.
