@@ -131,6 +131,18 @@ def test_429_once_each_and_conservative_failed_charge(runtime, monkeypatch):
     assert runtime.ledger.db.execute("SELECT learned FROM quota_limits WHERE learned IS NOT NULL").fetchone()[0] == 2
 
 
+def test_reserved_attempt_stores_the_split_cost_vector(runtime):
+    from route_policy import Scored
+
+    candidate = route()
+    item = Scored(candidate, 0.0, 0.25, 0.5, 1.0, 0.0, 2.0, 2.0, 0.0)
+    identity = runtime.reserve(item, request(), None)
+    decision = runtime.ledger.decision(identity)
+    assert decision["cost_money"] == pytest.approx(0.25)
+    assert decision["cost_opportunity"] == pytest.approx(0.5)
+    assert decision["elapsed_s"] is None
+
+
 def test_grader_fault_settles_then_raises(runtime, monkeypatch):
     install(runtime, monkeypatch, {"sc.a": ProviderCompletion({"content": "ok"})}, [])
     def broken(_result):

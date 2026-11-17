@@ -1,9 +1,10 @@
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+import time
 
 import pytest
 
-from quota_ledger import QuotaLedger, Route
+from quota_ledger import QuotaLedger, Route, cost_or_none
 
 
 def route(**changes):
@@ -219,3 +220,63 @@ def test_verdict_enum_matches_router_state():
     from router_state import VERDICTS as STATE_VERDICTS
 
     assert LEDGER_VERDICTS == STATE_VERDICTS
+
+
+def test_cost_vector_is_stored_per_attempt_and_reported_as_three_numbers():
+    ledger = QuotaLedger()
+    candidate = route()
+    ledger.configure(candidate)
+    current = time.time()
+    identity = ledger.reserve(candidate, 100, 100, profile="auto-chat", step="chat",
+                              cost_money=0.25, cost_opportunity=0.5, now=current)
+    ledger.start(identity, now=current)
+    ledger.finish(identity, candidate, success=True, latency_ms=4200, now=current)
+    decision = ledger.decision(identity)
+    assert decision["cost_money"] == pytest.approx(0.25)
+    assert decision["cost_opportunity"] == pytest.approx(0.5)
+    assert decision["elapsed_s"] == pytest.approx(4.2)
+
+    report = ledger.cost_report(days=7)
+    assert report["attempts"] == 1
+    assert report["pricing"] == "utilisation"
+    assert report["cost_money"] == pytest.approx(0.25)
+    assert report["cost_opportunity"] == pytest.approx(0.5)
+    assert report["elapsed_s"] == pytest.approx(4.2)
+    assert report["by_free_class"]["free_limited"]["attempts"] == 1
+    assert ledger.diagnostics()["cost_7d"]["attempts"] == 1
+    with pytest.raises(ValueError):
+        ledger.cost_report(days=0)
+    ledger.close()
+
+
+def test_unknown_cost_is_null_and_cannot_poison_totals():
+    assert cost_or_none(float("inf"), "cost_money") is None
+    assert cost_or_none(0.5, "cost_opportunity") == 0.5
+    for invalid in (-0.5, float("nan"), "0.5", True):
+        with pytest.raises(ValueError):
+            cost_or_none(invalid, "cost_money")
+    ledger = QuotaLedger()
+    candidate = route()
+    ledger.configure(candidate)
+    current = time.time()
+    identity = ledger.reserve(candidate, 10, 10, profile="auto-chat", step="chat",
+                              cost_money=float("inf"), now=current)
+    ledger.start(identity, now=current)
+    ledger.finish(identity, candidate, success=True, latency_ms=1, now=current)
+    assert ledger.decision(identity)["cost_money"] is None
+    assert ledger.cost_report(days=1)["cost_money"] == 0
+    ledger.close()
+
+
+def test_ledger_migrates_to_the_cost_vector_columns(tmp_path):
+    database = tmp_path / "old.db"
+    original = QuotaLedger(database)
+    # Simulate a ledger written before S0, keeping every other column and index.
+    for column in ("cost_money", "cost_opportunity", "elapsed_s"):
+        original.db.execute(f"ALTER TABLE routing_decisions DROP COLUMN {column}")
+    original.close()
+
+    reopened = QuotaLedger(database)
+    columns = {row[1] for row in reopened.db.execute("PRAGMA table_info(routing_decisions)")}
+    assert {"verdict", "cost_money", "cost_opportunity", "elapsed_s"} <= columns
+    reopened.close()

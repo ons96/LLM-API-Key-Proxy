@@ -38,30 +38,62 @@ class Work:
 
 @dataclass(frozen=True)
 class Weights:
+    """Policy knobs; `time_value` is lambda_T, the money/time exchange rate.
+
+    Design v2 §2.1 defines one lambda_T in currency per second. It is a policy
+    value the owner sets and never something the router learns, so code must not
+    pick it. Left unset, the profile defaults apply (0.003 coding, 0.001 chat,
+    which is what revision 2 scored); set, one value overrides both profiles.
+    """
+
     coding_time_value: float = 0.003
     chat_time_value: float = 0.001
     quota_lambda: float = 0.01
     escalation_cost: float = 0.03
     top_n: int = 3
+    time_value: float | None = None
 
     def __post_init__(self) -> None:
         for name in ("coding_time_value", "chat_time_value", "quota_lambda", "escalation_cost"):
             nonnegative(getattr(self, name), name)
+        if self.time_value is not None:
+            nonnegative(self.time_value, "time_value")
         if token_count(self.top_n, "top_n") < 1:
             raise ValueError("top_n must be positive")
 
 
 @dataclass(frozen=True)
 class Scored:
+    """One route's cost vector, kept apart until the moment it is scored.
+
+    `cost_money` is out-of-pocket `$`, `cost_opportunity` is the shadow value of
+    quota and credits `O`, and `seconds` is wall-clock `T`. They are summed only
+    inside `effective_money`, so a report can still read dollars, opportunity
+    and time as three separate numbers (design v2 §2.1).
+    """
+
     route: Route
     score: float
-    effective_money: float
+    cost_money: float
+    cost_opportunity: float
     seconds: float
     failure_probability: float
     alpha: float
     beta: float
     pressure: float
     reason: str = "available"
+
+    @property
+    def effective_money(self) -> float:
+        """The blended money term the score uses; never stored in this form."""
+        return self.cost_money + self.cost_opportunity
+
+
+def time_value_for(weights: Weights, profile: str) -> float:
+    """lambda_T for a profile: the explicit override, else the default."""
+    if weights.time_value is not None:
+        return weights.time_value
+    return weights.coding_time_value if profile == "auto-coding" else weights.chat_time_value
 
 
 def score_route(route: Route, work: Work, ledger: QuotaLedger, *,
@@ -95,23 +127,30 @@ def score_route(route: Route, work: Work, ledger: QuotaLedger, *,
     failure = beta / (alpha + beta)
     cached = min(work.input_tokens, max(0, cached_tokens)) if work.profile == "auto-coding" else 0
     money = route.money(work.input_tokens, work.output_tokens, cached)
+    # Split the cost vector (§2.1) without changing the ranking: the two terms
+    # still add up to the single blended number revision 2 scored. Summing them
+    # here, at decision time, is the only place they are ever combined.
     if route.quota_type == "credit_based":
-        # Free credits have a zero customer price. Their notional credit value
-        # is what makes one-time allowances deplete and rank below unlimited
-        # routes; the customer-facing cost estimate still uses `money`.
-        effective = (route.credit_money(work.input_tokens, work.output_tokens)
-                     * route.shadow_price + weights.quota_lambda * capacity.pressure)
+        # Free credits have a zero customer price, so all of their cost is
+        # opportunity: the notional credit tariff that depletes the allowance,
+        # scaled by the route's shadow price. Customer-facing estimates still
+        # use `money`, and the credit itself is stored as `credit_used`.
+        cost_money = 0.0
+        cost_opportunity = (route.credit_money(work.input_tokens, work.output_tokens)
+                            * route.shadow_price + weights.quota_lambda * capacity.pressure)
     elif route.quota_type == "unlimited" and not (route.limits or route.provider_limits):
-        effective = 0.0
+        cost_money = cost_opportunity = 0.0
     else:
-        effective = money + weights.quota_lambda * capacity.pressure
+        cost_money = money
+        cost_opportunity = weights.quota_lambda * capacity.pressure
+    effective = cost_money + cost_opportunity
     seconds = latency_ms / 1000
     if work.profile == "auto-coding" and preferred_id is not None and preferred_id != route.route_id:
         seconds += (route.handoff_ms + lost_cached_tokens * route.prefill_ms_per_token) / 1000
-    time_value = weights.coding_time_value if work.profile == "auto-coding" else weights.chat_time_value
+    time_value = time_value_for(weights, work.profile)
     score = (effective + seconds * time_value + failure * weights.escalation_cost) / (1 - failure)
-    return Scored(route, score if reason == "available" else math.inf, effective,
-                  seconds, failure, alpha, beta, capacity.pressure, reason)
+    return Scored(route, score if reason == "available" else math.inf, cost_money,
+                  cost_opportunity, seconds, failure, alpha, beta, capacity.pressure, reason)
 
 
 def rank_routes(routes: list[Route], work: Work, ledger: QuotaLedger, *,
@@ -130,7 +169,7 @@ def rank_routes(routes: list[Route], work: Work, ledger: QuotaLedger, *,
                      key=lambda item: (item.score, item.route.route_id))
     if explore and len(ordered) > 1:
         generator = rng or random
-        value = weights.coding_time_value if work.profile == "auto-coding" else weights.chat_time_value
+        value = time_value_for(weights, work.profile)
 
         def sampled(item: Scored) -> float:
             success = max(1e-9, generator.betavariate(item.alpha, item.beta))
@@ -140,6 +179,27 @@ def rank_routes(routes: list[Route], work: Work, ledger: QuotaLedger, *,
         ordered.remove(winner)
         ordered.insert(0, winner)
     return ordered
+
+
+def is_priced(route: Route) -> bool:
+    """True when a customer-facing price is non-zero, i.e. `$ > 0` (§6.5)."""
+    return any((price or 0) > 0
+               for price in (route.input_price, route.output_price, route.cached_input_price))
+
+
+def free_only_audit(routes: list[Route], free_only: bool = True) -> dict:
+    """Report the priced routes a free-only process excludes, without hiding them.
+
+    Revision 3 asked for a startup error here. Priced routes are also the only
+    thing `/v1/cost-estimate` can quote, and the scorer already makes them
+    unreachable under `free_only`, so this is an audit for startup logging and the
+    diagnostics endpoint instead of a boot failure that would take the sidecar
+    down over one catalog row.
+    """
+    priced = [route.route_id for route in routes if is_priced(route)]
+    return {"free_only": free_only,
+            "priced_routes": priced if free_only else [],
+            "excluded": len(priced) if free_only else 0}
 
 
 def input_token_bound(payload: dict) -> int:

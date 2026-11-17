@@ -63,7 +63,8 @@ CREATE TABLE IF NOT EXISTS routing_decisions (
     input_tokens INTEGER, output_tokens INTEGER, usage_estimated INTEGER,
     credit_used REAL, ttft_ms REAL, reasoning_ttft_ms REAL, latency_ms REAL,
     tokens_per_second REAL, error_class TEXT, quality INTEGER,
-    streaming INTEGER NOT NULL DEFAULT 0, benchmark_id TEXT, verdict TEXT
+    streaming INTEGER NOT NULL DEFAULT 0, benchmark_id TEXT, verdict TEXT,
+    cost_money REAL, cost_opportunity REAL, elapsed_s REAL
 );
 CREATE INDEX IF NOT EXISTS decision_evidence ON routing_decisions(route_id, step, completed_at);
 CREATE INDEX IF NOT EXISTS decision_pending ON routing_decisions(status, created_at);
@@ -106,6 +107,16 @@ def token_count(value: object, name: str) -> int:
     if number != int(number):
         raise ValueError(f"{name} must be an integer")
     return int(number)
+
+
+def cost_or_none(value: object, name: str) -> float | None:
+    """Store an unknown (infinite) cost as NULL so it cannot poison SUM()."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{name} must be a finite non-negative number")
+    number = float(value)
+    if math.isnan(number) or number < 0:
+        raise ValueError(f"{name} must be a finite non-negative number")
+    return None if math.isinf(number) else number
 
 
 def _percentile(values: list[float], fraction: float) -> float:
@@ -275,6 +286,11 @@ class QuotaLedger:
         columns = {row[1] for row in self.db.execute("PRAGMA table_info(routing_decisions)")}
         if "verdict" not in columns:
             self.db.execute("ALTER TABLE routing_decisions ADD COLUMN verdict TEXT")
+        # S0 cost vector: money, opportunity and elapsed time stay separate per
+        # attempt and are only blended at decision time (design v2 §2.1).
+        for column in ("cost_money", "cost_opportunity", "elapsed_s"):
+            if column not in columns:
+                self.db.execute(f"ALTER TABLE routing_decisions ADD COLUMN {column} REAL")
         self.lock = threading.RLock()
 
     @contextmanager
@@ -411,6 +427,7 @@ class QuotaLedger:
                 profile: str, step: str, session_id: str = "", score: float | None = None,
                 baseline_tokens: int = 0, compressed_tokens: int = 0,
                 streaming: bool = False, benchmark_id: str | None = None,
+                cost_money: float = 0.0, cost_opportunity: float = 0.0,
                 now: float | None = None) -> str | None:
         """Check and reserve every per-key/shared-pool axis in one transaction."""
         token_count(input_tokens, "input_tokens")
@@ -425,11 +442,13 @@ class QuotaLedger:
                 """INSERT INTO routing_decisions
                    (id, route_id, provider_id, model_id, key_id, channel_id, session_hash,
                     profile, step, created_at, status, score, baseline_tokens, compressed_tokens,
-                    reserved_input, reserved_output, streaming, benchmark_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, ?, ?, ?, ?, ?, ?)""",
+                    reserved_input, reserved_output, streaming, benchmark_id,
+                    cost_money, cost_opportunity)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'reserved', ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (identity, route.route_id, route.provider_id, route.model_id, route.key_id,
                  route.channel_id, session_hash, profile, step, current, score,
-                 baseline_tokens, compressed_tokens, input_tokens, output_tokens, int(streaming), benchmark_id),
+                 baseline_tokens, compressed_tokens, input_tokens, output_tokens, int(streaming), benchmark_id,
+                 cost_or_none(cost_money, "cost_money"), cost_or_none(cost_opportunity, "cost_opportunity")),
             )
             scopes = {(route.provider_id, route.model_id, route.key_id, axis) for axis in AXES}
             # Keep pool history even when the operator adds a shared ceiling later.
@@ -490,10 +509,10 @@ class QuotaLedger:
             db.execute(
                 """UPDATE routing_decisions SET completed_at=?, status=?, input_tokens=?, output_tokens=?,
                    usage_estimated=?, credit_used=?, ttft_ms=?, reasoning_ttft_ms=?, latency_ms=?,
-                   tokens_per_second=?, error_class=?, quality=? WHERE id=?""",
+                   tokens_per_second=?, error_class=?, quality=?, elapsed_s=? WHERE id=?""",
                 (current, "success" if success else "failure", actual_input, actual_output,
                  int(estimated), amounts["credits"], ttft_ms, reasoning_ttft_ms, latency_ms,
-                 tps, error_class, None if quality is None else int(quality), identity),
+                 tps, error_class, None if quality is None else int(quality), latency_ms / 1000, identity),
             )
 
     def cooldown(self, route: Route, error_class: str, *, retry_after: float | None = None,
@@ -591,6 +610,49 @@ class QuotaLedger:
                 raise KeyError(identity)
             return dict(row)
 
+    def cost_report(self, days: float = 7) -> dict:
+        """Dollars, opportunity and wall-clock for one window, as three numbers.
+
+        Costs are the decision-time estimate stored with each attempt, so they
+        describe what the router believed it was spending. `credit_used` and the
+        usage columns hold the provider-reported actuals.
+        """
+        if (isinstance(days, bool) or not isinstance(days, (int, float))
+                or not math.isfinite(days) or not 1 <= days <= 365):
+            raise ValueError("days must be a finite number between 1 and 365")
+        cutoff = time.time() - days * 86400
+        classes = {route.route_id: route.free_class for route in self.routes()}
+        with self.lock:
+            rows = self.db.execute(
+                """SELECT route_id, COUNT(*) AS attempts, SUM(cost_money) AS cost_money,
+                          SUM(cost_opportunity) AS cost_opportunity, SUM(elapsed_s) AS elapsed_s
+                   FROM routing_decisions
+                   WHERE created_at >= ? AND status IN ('success', 'failure')
+                   GROUP BY route_id""",
+                (cutoff,),
+            ).fetchall()
+        totals = {"attempts": 0, "cost_money": 0.0, "cost_opportunity": 0.0, "elapsed_s": 0.0}
+        by_class: dict[str, dict[str, float]] = {}
+        for row in rows:
+            bucket = by_class.setdefault(classes.get(row["route_id"], "unknown"),
+                                         {"attempts": 0, "cost_money": 0.0,
+                                          "cost_opportunity": 0.0, "elapsed_s": 0.0})
+            for key in totals:
+                value = row[key] or 0
+                totals[key] += value
+                bucket[key] += value
+        return {"window_days": float(days), "attempts": totals["attempts"],
+                # `O` is the utilisation-priced revision-2 term until S4 replaces
+                # it with a displacement shadow price (§6). Never read it as that.
+                "pricing": "utilisation",
+                "cost_money": round(totals["cost_money"], 9),
+                "cost_opportunity": round(totals["cost_opportunity"], 9),
+                "elapsed_s": round(totals["elapsed_s"], 3),
+                "by_free_class": {name: {**values, "cost_money": round(values["cost_money"], 9),
+                                         "cost_opportunity": round(values["cost_opportunity"], 9),
+                                         "elapsed_s": round(values["elapsed_s"], 3)}
+                                  for name, values in sorted(by_class.items())}}
+
     def diagnostics(self) -> dict:
         with self.lock:
             counts = dict(self.db.execute("SELECT status, COUNT(*) FROM routing_decisions GROUP BY status"))
@@ -599,7 +661,7 @@ class QuotaLedger:
                 classes[route.free_class] = classes.get(route.free_class, 0) + 1
             return {"attempts": counts, "catalog_models": self.db.execute("SELECT COUNT(*) FROM models WHERE active=1").fetchone()[0],
                     "active_cooldowns": self.db.execute("SELECT COUNT(*) FROM cooldowns WHERE until_at>?", (time.time(),)).fetchone()[0],
-                    "free_classes": dict(sorted(classes.items()))}
+                    "free_classes": dict(sorted(classes.items())), "cost_7d": self.cost_report(7)}
 
     def tps_stats(self, days: float = 7, min_samples: int = 5) -> list[dict]:
         """Aggregate successful stream TPS by provider/model from local evidence.

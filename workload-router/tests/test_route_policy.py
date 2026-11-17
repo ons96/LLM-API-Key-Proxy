@@ -5,7 +5,7 @@ import random
 import pytest
 
 from quota_ledger import QuotaLedger
-from route_policy import Work, Weights, compact_json_tools, input_token_bound, rank_routes, score_route
+from route_policy import Work, Weights, compact_json_tools, free_only_audit, input_token_bound, rank_routes, score_route
 from test_quota_ledger import route
 
 
@@ -118,3 +118,64 @@ def test_multimodal_and_nonfinite_requests_rejected():
         input_token_bound({"messages": [{"role": "user", "content": [{"type": "image_url"}]}]})
     with pytest.raises(ValueError):
         input_token_bound({"messages": [{"role": "user", "content": "hello"}], "temperature": float("nan")})
+
+
+def test_cost_vector_is_split_and_only_blended_for_the_score():
+    ledger = QuotaLedger()
+    credits = route(quota_type="credit_based", credit_balance=100, input_price=1_000_000,
+                    output_price=1_000_000, shadow_price=2, limits={"rpm": 10})
+    ledger.configure(credits)
+    work = Work("auto-coding", "implement", 10, 10, tools=True)
+    scored = score_route(credits, work, ledger)
+    # Free credits spend no dollars, so their whole cost is the opportunity
+    # value of the allowance they deplete.
+    assert scored.cost_money == 0
+    assert scored.cost_opportunity == pytest.approx(40 + 0.01 * 0.2)
+    assert scored.effective_money == pytest.approx(40 + 0.01 * 0.2)
+    assert scored.effective_money == pytest.approx(scored.cost_money + scored.cost_opportunity)
+
+    paid = replace(credits, route_id="paid", provider_id="p2", model_id="m2",
+                   alias="sc.paid", channel_id=2, quota_type="paid",
+                   credit_balance=None, credit_input_price=None,
+                   credit_output_price=None)
+    ledger.configure(paid)
+    cash = score_route(paid, work, ledger, free_only=False)
+    assert cash.cost_money == pytest.approx(20)
+    assert cash.cost_opportunity == pytest.approx(0.01 * 0.1)
+    assert cash.effective_money == pytest.approx(cash.cost_money + cash.cost_opportunity)
+    assert cash.score == pytest.approx(
+        (cash.effective_money + cash.seconds * 0.003 + cash.failure_probability * 0.03)
+        / (1 - cash.failure_probability))
+    # The same paid route stays unreachable under the default free-only policy.
+    assert math.isinf(score_route(paid, work, ledger).score)
+
+
+def test_lambda_t_is_one_explicit_exchange_rate_for_both_profiles():
+    ledger = QuotaLedger()
+    candidate = route(quota_type="unlimited", limits={}, latency_ms=1000)
+    ledger.configure(candidate)
+    coding = Work("auto-coding", "implement", 10, 10)
+    chat = Work("auto-chat", "chat", 10, 10)
+    flat = Weights(escalation_cost=0)
+    # Unset, revision 2's profile defaults still apply, so nothing moves.
+    assert score_route(candidate, coding, ledger, weights=flat).score == pytest.approx(0.003 / 0.5)
+    assert score_route(candidate, chat, ledger, weights=flat).score == pytest.approx(0.001 / 0.5)
+    # One owner-set value overrides both profiles: lambda_T is a single knob.
+    owner = Weights(escalation_cost=0, time_value=0.05)
+    assert score_route(candidate, coding, ledger, weights=owner).score == pytest.approx(0.05 / 0.5)
+    assert score_route(candidate, chat, ledger, weights=owner).score == pytest.approx(0.05 / 0.5)
+    with pytest.raises(ValueError):
+        Weights(time_value=-1)
+    with pytest.raises(ValueError):
+        Weights(time_value=float("inf"))
+
+
+def test_free_only_audit_reports_priced_routes_instead_of_raising():
+    free = route(quota_type="unlimited", limits={})
+    priced = replace(free, route_id="paid", alias="sc.paid", channel_id=2,
+                     quota_type="paid", input_price=1, output_price=2)
+    assert free_only_audit([free]) == {"free_only": True, "priced_routes": [], "excluded": 0}
+    assert free_only_audit([free, priced]) == {"free_only": True,
+                                               "priced_routes": ["paid"], "excluded": 1}
+    assert free_only_audit([free, priced], False) == {"free_only": False,
+                                                      "priced_routes": [], "excluded": 0}

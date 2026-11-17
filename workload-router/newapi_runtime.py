@@ -17,7 +17,7 @@ from provider_adapter import (
     close_stream, validate_stream_payload,
 )
 from quota_ledger import QuotaLedger, Route, nonnegative, token_count
-from route_policy import STEPS, Scored, Weights, Work, compact_json_tools, rank_routes
+from route_policy import STEPS, Scored, Weights, Work, compact_json_tools, free_only_audit, rank_routes
 from router_core import Capability, Deployment, RequestFeatures, classify
 from router_state import RouterState
 
@@ -471,6 +471,10 @@ class Runtime:
         if not isinstance(free_only, bool) or not isinstance(explore, bool):
             raise ValueError("runtime flags must be booleans")
         self.free_only, self.explore, self.weights = free_only, explore, weights
+        if self.free_only:
+            priced = free_only_audit(self.ledger.routes())["excluded"]
+            if priced:
+                LOG.warning("free_only is on; %d priced route(s) stay excluded", priced)
         self.timeout, self.deadline = timeout, deadline
         self.max_attempts = token_count(max_attempts, "max_attempts")
 
@@ -506,13 +510,19 @@ class Runtime:
         return Deployment(route.route_id, Capability.FAST_GENERAL,
                           route.context_window or 1, provider=route.provider_id, model=route.alias)
 
+    def catalog_audit(self) -> dict:
+        """Report priced routes rather than letting free_only hide them."""
+        return free_only_audit(self.ledger.routes(), self.free_only)
+
     def reserve(self, item: Scored, prepared: Prepared, benchmark_id: str | None) -> str | None:
         work = prepared.work
         return self.ledger.reserve(item.route, work.input_tokens, work.output_tokens,
                                    profile=work.profile, step=work.step, session_id=work.session_id,
                                    score=item.score, baseline_tokens=prepared.baseline_tokens,
                                    compressed_tokens=prepared.compressed_tokens,
-                                   streaming=work.streaming, benchmark_id=benchmark_id)
+                                   streaming=work.streaming, benchmark_id=benchmark_id,
+                                   cost_money=item.cost_money,
+                                   cost_opportunity=item.cost_opportunity)
 
     def failed(self, identity: str, route: Route, exc: ProviderError, started: float, *,
                ttft: float | None = None, reasoning_ttft: float | None = None) -> None:
