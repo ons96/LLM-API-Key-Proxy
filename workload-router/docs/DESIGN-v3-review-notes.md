@@ -53,12 +53,14 @@ your graded traces, not arithmetic.
 
 ## 2. Gaps the design does not cover
 
-1. **Credit routes drop their customer price from the score.** For
-   `quota_type="credit_based"`, `score_route` computes `money` and discards it
-   (`cost_money = 0`), while `_amounts()` still charges the `money_day` axis. A
-   credit route with a real price is ranked as free but budget-capped as paid -
-   rank and feasibility disagree. I preserved that to keep S0 behaviour-neutral,
-   but §2.2 ("a multiplier is just a price") makes such routes reachable.
+1. **Nothing enforces the credit-price convention.** For
+   `quota_type="credit_based"`, `score_route` sets `cost_money = 0` and prices
+   the credit tariff as `O`, while `_amounts()` still charges the `money_day`
+   axis. That is correct when the convention holds (customer price 0, provider
+   tariff in `credit_*_price`) and contradictory when it does not (ranked free,
+   budgeted as paid). The fix is a configure-time warning naming the route, not
+   an exclusion: a priced credit route is usually a metadata mistake, and the
+   owner's own providers are credit-funded at a real tariff.
 2. **`pressure` collapses every axis, so S3's ladder cannot reserve per axis.**
    §6.4 requires per-axis lambda (rpm/tpm/rpd/tpd) and per-axis reservation;
    `Capacity` exposes one `max()` float. S3 needs `pressure_by_axis` from the
@@ -76,10 +78,10 @@ your graded traces, not arithmetic.
    belongs in S4's shadow price rather than in a rewritten limit - rewriting
    would refuse a legal spend on day 3 and erase the difference between "out
    today" and "out this month".
-5. **Verification time is not in the ledger.** `latency_ms` is provider time; the
-   protocol's `duration_ms` on the outcome POST is not stored. `E[T]` in the
-   ladder includes verification, so S3's gate is unfalsifiable until that number
-   is captured.
+5. ~~**Verification time is not in the ledger.**~~ Fixed: the outcome POST's
+   `duration_ms` is stored as `oracle_ms`, reported beside provider time as
+   `oracle_s`, and never folded into `elapsed_s`. What is still missing is S3
+   actually using it in `E[T]`.
 6. **`free_only` means two different things.** The sidecar (ledger) excludes
    priced routes at score time; `provider_metadata.load_provider_group_deployments`
    drops them at load time with a `continue`. Same flag, different layer, and the
@@ -158,8 +160,14 @@ Settled:
   deliberately not folded into the limit: it is the price of a dollar in S4, so
   a derived average never refuses a spend the real cap allows.
 - **Verification time** is captured before S3, not after.
-- **A credit route with a real per-token price** is treated as paid, so
-  free-only excludes it without a catalogue cleanup.
+- **Credit-funded routes are not paid routes** (revised after the owner's
+  provider example: a $4/1M model funded by a large balance plus daily check-ins
+  costs no cash). Convention: customer `input_price`/`output_price` stay 0, the
+  provider's tariff goes in `credit_*_price`, and `O` prices depletion.
+  `credit_renewal` is now a field: `daily` meters the balance on a day window so
+  a check-in grant refills instead of draining forever, `none` keeps a one-time
+  grant as a lifetime total. Excluding by price would have locked out exactly
+  the providers the owner wants.
 
 Still not modelled, and why:
 
@@ -181,3 +189,45 @@ One consequence worth knowing: quota and time now move together, so raising
 `SIDECAR_LAMBDA_T` makes the router both faster-preferring and more willing to
 burn quota, in the same proportion. Tuning one no longer silently unbalances
 the other.
+
+## 6. Which way the ladder runs (answer 4)
+
+Cheap-first is not a law; it is what the arithmetic says, and the arithmetic was
+missing its largest term.
+
+The scorer never ranks by price per token. It divides by `s`, the probability
+that one attempt is correct, so it ranks by expected cost per *completed* task.
+A model that is expensive per token but reliable already wins outright on that
+basis - that half of the owner's intuition is satisfied by the formula as it
+stands.
+
+The open question is the *order* of a ladder. For a cheap tier A then a strong
+tier B, cascading beats one-shot B only when
+
+    T_A + v  <  s_A * T_B
+
+where `T` is provider time and `v` is verification time, paid by every attempt.
+With the appendix's own numbers (`T_A = 4 s`, `T_B = 40 s`, `s_A = 0.55`):
+
+| `v` per attempt | cascade A->B | one-shot B | winner |
+|---|---|---|---|
+| 0 s | 4 + 0.45x40 = 22 s | 40 s | cascade |
+| 30 s | 34 + 0.45x70 = 65.5 s | 70 s | cascade, barely |
+| 60 s | 64 + 0.45x100 = 109 s | 100 s | one-shot |
+
+So the direction depends mostly on how long the oracle takes - which is why
+`oracle_ms` is stored now, before the ladder exists, rather than after.
+
+Recommendation for S3: do not hardcode either direction. Enumerate the feasible
+tiers (<= 4, so <= 24 orderings), score every prefix of every ordering on
+`lambda_T*E[T] + E[O] + E[M]`, and take the winner. "Start strong and stop" is
+then a prefix of length one, and "cheap first" is an output rather than an
+assumption. Two caveats: attempts are not independent (a compiler error makes
+the next attempt more likely to succeed than `s` suggests), and that is why the
+choice has to be replayed against stored traces rather than settled on paper.
+
+On benchmark seeding (the owner's other suggestion): agreed in principle as the
+cold-start prior, and S8 already specifies the shape (bounded pseudo-counts,
+`prior_source`, expiry). It is blocked on data, not on code: the source list,
+and whether the import is a manual JSON file or a scheduled fetch, are still
+open - and inventing scores is worse than starting from `2, 2`.

@@ -22,7 +22,7 @@ from typing import Iterator
 import uuid
 
 
-AXES = {"rpm", "rpd", "tpm", "tpd", "credits", "money_day", "money_month"}
+AXES = {"rpm", "rpd", "tpm", "tpd", "credits", "credits_day", "money_day", "money_month"}
 QUOTA_TYPES = {"unlimited", "rate_limited", "credit_based", "paid", "unknown"}
 # The canonical provider vocabulary also uses free_daily/free_one_time/no_key.
 # These are the sidecar's funding classes; quota_type remains the feasibility
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS routing_decisions (
     credit_used REAL, ttft_ms REAL, reasoning_ttft_ms REAL, latency_ms REAL,
     tokens_per_second REAL, error_class TEXT, quality INTEGER,
     streaming INTEGER NOT NULL DEFAULT 0, benchmark_id TEXT, verdict TEXT,
-    cost_money REAL, cost_opportunity REAL, elapsed_s REAL
+    cost_money REAL, cost_opportunity REAL, elapsed_s REAL, oracle_ms REAL
 );
 CREATE INDEX IF NOT EXISTS decision_evidence ON routing_decisions(route_id, step, completed_at);
 CREATE INDEX IF NOT EXISTS decision_pending ON routing_decisions(status, created_at);
@@ -155,6 +155,9 @@ class Route:
     credit_input_price: float | None = None
     credit_output_price: float | None = None
     credit_balance: float | None = None
+    # "none" is a one-time grant that never comes back; "daily" is a check-in
+    # balance that refills, so it is metered on a day window instead of drained.
+    credit_renewal: str = "none"
     daily_budget: float | None = None
     monthly_budget: float | None = None
     shadow_price: float = 1.0
@@ -178,6 +181,8 @@ class Route:
                 raise ValueError(f"invalid {name}")
         if self.quota_type not in QUOTA_TYPES:
             raise ValueError("unknown quota_type")
+        if self.credit_renewal not in {"none", "daily"}:
+            raise ValueError("unknown credit_renewal")
         if token_count(self.channel_id, "channel_id") < 1:
             raise ValueError("channel_id must be positive")
         for name in ("context_window", "output_limit"):
@@ -290,7 +295,7 @@ class QuotaLedger:
             self.db.execute("ALTER TABLE routing_decisions ADD COLUMN verdict TEXT")
         # S0 cost vector: money, opportunity and elapsed time stay separate per
         # attempt and are only blended at decision time (design v2 §2.1).
-        for column in ("cost_money", "cost_opportunity", "elapsed_s"):
+        for column in ("cost_money", "cost_opportunity", "elapsed_s", "oracle_ms"):
             if column not in columns:
                 self.db.execute(f"ALTER TABLE routing_decisions ADD COLUMN {column} REAL")
         self.lock = threading.RLock()
@@ -312,7 +317,10 @@ class QuotaLedger:
             db.execute("INSERT OR REPLACE INTO routes VALUES (?, ?)", (route.route_id, json.dumps(asdict(route))))
             scopes = [(route.model_id, route.key_id, route.limits), ("*", "*", dict(route.provider_limits))]
             if route.credit_balance is not None:
-                scopes[1][2]["credits"] = route.credit_balance
+                # A refilling balance is a window, not a total: metering it on
+                # `credits` would drain it forever and wrongly avoid the route.
+                renewal_axis = "credits_day" if route.credit_renewal == "daily" else "credits"
+                scopes[1][2][renewal_axis] = route.credit_balance
             if route.daily_budget is not None:
                 scopes[1][2]["money_day"] = route.daily_budget
             if route.monthly_budget is not None:
@@ -365,7 +373,7 @@ class QuotaLedger:
         """
         if axis in {"rpm", "tpm"}:
             return now - 60, now + 60
-        if axis in {"rpd", "tpd", "money_day"}:
+        if axis in {"rpd", "tpd", "money_day", "credits_day"}:
             start = math.floor((now - offset) / 86400) * 86400 + offset
             return start, start + 86400
         if axis == "money_month":
@@ -438,7 +446,7 @@ class QuotaLedger:
         credit = route.credit_money(input_tokens, output_tokens)
         return {"rpm": 1.0, "rpd": 1.0, "tpm": input_tokens + output_tokens,
                 "tpd": input_tokens + output_tokens, "credits": credit,
-                "money_day": cost, "money_month": cost}
+                "credits_day": credit, "money_day": cost, "money_month": cost}
 
     def capacity(self, route: Route, input_tokens: int, output_tokens: int, now: float | None = None) -> Capacity:
         token_count(input_tokens, "input_tokens")
@@ -591,17 +599,24 @@ class QuotaLedger:
             if db.execute("UPDATE routing_decisions SET quality=? WHERE id=? AND status IN ('success', 'failure')", (int(passed), identity)).rowcount != 1:
                 raise ValueError("attempt is not complete")
 
-    def grade_attempt(self, identity: str, grade: bool, verdict: str) -> None:
+    def grade_attempt(self, identity: str, grade: bool, verdict: str,
+                      oracle_ms: float | None = None) -> None:
         """Store one client verdict for a completed attempt.
 
         Unknown is not success: only verdict `pass` may carry grade=true, so a
         harness without an oracle cannot promote `unknown` to a win. Verdicts
         are a closed enum and an attempt is graded at most once.
+
+        `oracle_ms` is the verification time the client measured. It is stored
+        beside provider time rather than added to it, because the ladder needs
+        the two separately (design v2 §2.1, §4.1).
         """
         if not isinstance(grade, bool):
             raise ValueError("grade must be a boolean")
         if not isinstance(verdict, str) or verdict not in VERDICTS:
             raise ValueError(f"unsupported verdict: {verdict}")
+        if oracle_ms is not None:
+            nonnegative(oracle_ms, "oracle_ms")
         if grade and verdict != "pass":
             raise ValueError("grade must be false unless verdict is 'pass'")
         if not grade and verdict == "pass":
@@ -622,8 +637,8 @@ class QuotaLedger:
             # it as quality=0 would penalise a route for a lack of evidence.
             quality = None if verdict == "unknown" else int(grade)
             db.execute(
-                "UPDATE routing_decisions SET quality=?, verdict=? WHERE id=?",
-                (quality, verdict, identity),
+                "UPDATE routing_decisions SET quality=?, verdict=?, oracle_ms=? WHERE id=?",
+                (quality, verdict, None if oracle_ms is None else float(oracle_ms), identity),
             )
 
     def decision(self, identity: str) -> dict:
@@ -648,18 +663,21 @@ class QuotaLedger:
         with self.lock:
             rows = self.db.execute(
                 """SELECT route_id, COUNT(*) AS attempts, SUM(cost_money) AS cost_money,
-                          SUM(cost_opportunity) AS cost_opportunity, SUM(elapsed_s) AS elapsed_s
+                          SUM(cost_opportunity) AS cost_opportunity, SUM(elapsed_s) AS elapsed_s,
+                          SUM(oracle_ms) AS oracle_ms
                    FROM routing_decisions
                    WHERE created_at >= ? AND status IN ('success', 'failure')
                    GROUP BY route_id""",
                 (cutoff,),
             ).fetchall()
-        totals = {"attempts": 0, "cost_money": 0.0, "cost_opportunity": 0.0, "elapsed_s": 0.0}
+        totals = {"attempts": 0, "cost_money": 0.0, "cost_opportunity": 0.0,
+                  "elapsed_s": 0.0, "oracle_ms": 0.0}
         by_class: dict[str, dict[str, float]] = {}
         for row in rows:
             bucket = by_class.setdefault(classes.get(row["route_id"], "unknown"),
                                          {"attempts": 0, "cost_money": 0.0,
-                                          "cost_opportunity": 0.0, "elapsed_s": 0.0})
+                                          "cost_opportunity": 0.0, "elapsed_s": 0.0,
+                                          "oracle_ms": 0.0})
             for key in totals:
                 value = row[key] or 0
                 totals[key] += value
@@ -671,9 +689,15 @@ class QuotaLedger:
                 "cost_money": round(totals["cost_money"], 9),
                 "cost_opportunity": round(totals["cost_opportunity"], 9),
                 "elapsed_s": round(totals["elapsed_s"], 3),
-                "by_free_class": {name: {**values, "cost_money": round(values["cost_money"], 9),
+                # Verification is reported beside provider time, not folded into
+                # it: time-to-correct-result is the sum, and keeping them apart
+                # is what lets S3 tell a slow model from a slow test suite.
+                "oracle_s": round(totals["oracle_ms"] / 1000, 3),
+                "by_free_class": {name: {"attempts": values["attempts"],
+                                         "cost_money": round(values["cost_money"], 9),
                                          "cost_opportunity": round(values["cost_opportunity"], 9),
-                                         "elapsed_s": round(values["elapsed_s"], 3)}
+                                         "elapsed_s": round(values["elapsed_s"], 3),
+                                         "oracle_s": round(values["oracle_ms"] / 1000, 3)}
                                   for name, values in sorted(by_class.items())}}
 
     def diagnostics(self) -> dict:

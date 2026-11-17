@@ -216,6 +216,11 @@ def test_unknown_verdict_closes_attempt_without_moving_priors():
     ledger.close()
 
 
+def test_credit_renewal_is_a_closed_enum():
+    with pytest.raises(ValueError, match="credit_renewal"):
+        route(quota_type="credit_based", credit_balance=1, credit_renewal="weekly")
+
+
 def test_verdict_enum_matches_router_state():
     from quota_ledger import VERDICTS as LEDGER_VERDICTS
     from router_state import VERDICTS as STATE_VERDICTS
@@ -284,6 +289,54 @@ def spend(ledger, candidate, tokens, now):
                   usage={"prompt_tokens": tokens, "completion_tokens": 0},
                   latency_ms=1, now=now)
     return identity
+
+
+def test_oracle_time_is_stored_beside_provider_time():
+    ledger = QuotaLedger()
+    candidate = route(limits={"rpm": 10})
+    ledger.configure(candidate)
+    current = time.time()
+    identity = ledger.reserve(candidate, 10, 10, profile="auto-chat", step="chat", now=current)
+    ledger.start(identity, now=current)
+    ledger.finish(identity, candidate, success=True, latency_ms=4000, now=current)
+    # Nothing is invented when the client reports no timing.
+    assert ledger.decision(identity)["oracle_ms"] is None
+
+    ledger.grade_attempt(identity, True, "pass", 31_000)
+    assert ledger.decision(identity)["oracle_ms"] == 31_000
+    report = ledger.cost_report(days=1)
+    # Time-to-correct-result is the sum, but the two stay separately readable.
+    assert report["elapsed_s"] == pytest.approx(4.0)
+    assert report["oracle_s"] == pytest.approx(31.0)
+    with pytest.raises(ValueError):
+        ledger.grade_attempt(identity, True, "pass", 1)
+
+    other = ledger.reserve(candidate, 10, 10, profile="auto-chat", step="chat", now=current)
+    ledger.start(other, now=current)
+    ledger.finish(other, candidate, success=True, latency_ms=1, now=current)
+    with pytest.raises(ValueError, match="oracle_ms"):
+        ledger.grade_attempt(other, True, "pass", -1)
+    ledger.close()
+
+
+def test_daily_renewing_credits_refill_instead_of_draining():
+    ledger = QuotaLedger()
+    base = route(quota_type="credit_based", credit_balance=100,
+                 credit_input_price=1_000_000, credit_output_price=0, limits={})
+    one_time = base
+    daily = replace(base, route_id="daily", provider_id="p2", model_id="m2", key_id="key2",
+                    alias="sc.daily", channel_id=3, credit_renewal="daily")
+    for candidate in (one_time, daily):
+        ledger.configure(candidate)
+    day_one = utc(2023, 11, 14)
+    # 100 tokens at $1M per 1M tokens spends the whole balance.
+    assert spend(ledger, one_time, 100, day_one) is not None
+    assert spend(ledger, daily, 100, day_one) is not None
+    next_day = utc(2023, 11, 15)
+    # A one-time grant is gone; a check-in balance refills overnight.
+    assert ledger.capacity(one_time, 1, 0, now=next_day).reason == "exhausted_credits"
+    assert ledger.capacity(daily, 1, 0, now=next_day).feasible
+    ledger.close()
 
 
 def test_daily_and_monthly_money_caps_are_independent():

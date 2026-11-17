@@ -2101,11 +2101,20 @@ because it would serve private aliases without the strict-config audit.
   moved to `QuotaLedger._window()`, which also makes the retry hint point at the
   real reset instead of a flat 60/86400 seconds. Pacing (`remaining / days_left`)
   is left for S4: it prices a dollar, it does not refuse one.
+- Stores client-reported verification time: `duration_ms` on
+  `/v1/router/outcome` becomes `oracle_ms`, reported as `oracle_s` beside
+  `elapsed_s` instead of being added to it. The ladder cannot choose a direction
+  without measuring `v`, and `v` was the one input nothing recorded.
+- `credit_renewal` separates a one-time grant (`none`, metered on the lifetime
+  `credits` axis) from a daily check-in balance (`daily`, metered on a day
+  window), so a refilling balance stops looking exhausted after one spend.
+  Consumer prices stay 0 for credit-funded routes; the provider tariff lives in
+  `credit_*_price`.
 - `free_only` is audited rather than assumed: priced routes are logged once at
   startup and listed by `/v1/router/diagnostics`, and remain excluded from
   scoring. It is deliberately not a startup error; the reason and the
   contradiction with design §14 Q9 are in `docs/DESIGN-v3-review-notes.md`.
-- Full suite: **439 passed, 3 failed**. The three failures are
+- Full suite: **443 passed, 3 failed**. The three failures are
   `test_verify_pristine.py` acceptance 3, 7 and 8, which fail identically at base
   commit `9b5b5ac` (environment-dependent), so they are not regressions.
   `test_acceptance_5`, the `make` fixture issue, passes on this machine.

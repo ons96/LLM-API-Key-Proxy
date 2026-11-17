@@ -332,6 +332,28 @@ def test_attempt_id_is_issued_and_client_verdict_grades_it(sidecar):
     assert post({"attempt_id": attempt_id, "grade": "yes", "verdict": "pass"})[0] == 400
 
 
+def test_outcome_records_verification_time(sidecar):
+    server, runtime, _, _ = sidecar
+    status, _, headers = call(server)
+    assert status == 200
+    attempt_id = headers["X-Router-Attempt-Id"]
+    status, body, _ = call(server, "/v1/router/outcome", raw=json.dumps({
+        "attempt_id": attempt_id, "grade": True, "verdict": "pass",
+        "oracle": "V2", "duration_ms": 4120}))
+    assert status == 200 and json.loads(body)["recorded"] == "graded"
+    assert runtime.ledger.decision(attempt_id)["oracle_ms"] == 4120
+    assert runtime.ledger.cost_report(days=1)["oracle_s"] == pytest.approx(4.12)
+
+    # A malformed or negative duration must not be stored as a real sample.
+    status, _, headers = call(server)
+    fresh = headers["X-Router-Attempt-Id"]
+    for duration in ("4s", True, -5):
+        assert call(server, "/v1/router/outcome", raw=json.dumps({
+            "attempt_id": fresh, "grade": True, "verdict": "pass",
+            "duration_ms": duration}))[0] == 400
+    assert runtime.ledger.decision(fresh)["oracle_ms"] is None
+
+
 def test_unknown_verdict_may_omit_grade(sidecar):
     """Protocol section 6: a no-oracle client sends `unknown` without a grade."""
     server, runtime, _, _ = sidecar

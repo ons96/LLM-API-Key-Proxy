@@ -443,7 +443,14 @@ class Handler(BaseHTTPRequestHandler):
                     grade = False
                 if not isinstance(grade, bool):
                     raise ValueError("invalid grade or verdict")
-                runtime.ledger.grade_attempt(attempt_id, grade, verdict)
+                # The client owns verification, so it also owns the only
+                # measurement of how long verification took.
+                oracle_ms = payload.get("duration_ms")
+                if oracle_ms is not None and (
+                    isinstance(oracle_ms, bool) or not isinstance(oracle_ms, (int, float))
+                ):
+                    raise ValueError("invalid duration_ms")
+                runtime.ledger.grade_attempt(attempt_id, grade, verdict, oracle_ms)
                 self.send_json(200, {"recorded": "graded", "attempt_id": attempt_id})
                 return
             if self.path == "/v1/cost-estimate":
