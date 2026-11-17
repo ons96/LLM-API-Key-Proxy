@@ -2088,11 +2088,18 @@ because it would serve private aliases without the strict-config audit.
 - Added `Weights.time_value` as the single lambda_T override, plus
   `SIDECAR_LAMBDA_T` to set it. Unset keeps the profile defaults (0.003 coding,
   0.001 chat); no value is chosen in code. Units are currency per second.
+- Priced quota through that same exchange rate: `allowance_seconds` is how many
+  seconds of waiting one whole provider allowance is worth, and the quota price
+  per unit of pressure is `lambda_T * allowance_seconds` (defaults reproduce the
+  old 0.01 exactly). `SIDECAR_ALLOWANCE_SECONDS` tunes it. This is the part of
+  "quota value depends on scarcity" that S0 can hold; allowance expiry and
+  substitutable supply stay in S4, and `escalation_cost` remains a separate
+  policy number.
 - `free_only` is audited rather than assumed: priced routes are logged once at
   startup and listed by `/v1/router/diagnostics`, and remain excluded from
   scoring. It is deliberately not a startup error; the reason and the
   contradiction with design §14 Q9 are in `docs/DESIGN-v3-review-notes.md`.
-- Full suite: **435 passed, 3 failed**. The three failures are
+- Full suite: **436 passed, 3 failed**. The three failures are
   `test_verify_pristine.py` acceptance 3, 7 and 8, which fail identically at base
   commit `9b5b5ac` (environment-dependent), so they are not regressions.
   `test_acceptance_5`, the `make` fixture issue, passes on this machine.

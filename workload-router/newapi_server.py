@@ -724,10 +724,17 @@ def serve() -> None:
                                                   stale_after_seconds=stale_seconds)
         # lambda_T is owner policy, so it only ever comes from config: unset
         # keeps the profile defaults in Weights (0.003 coding / 0.001 chat).
-        # Units are currency per second of wall-clock.
+        # `allowance_seconds` is the same exchange rate from the quota side: how
+        # many seconds of waiting one whole provider allowance is worth.
+        policy: dict[str, float] = {}
         lambda_t = os.environ.get("SIDECAR_LAMBDA_T", "").strip()
-        weights = (Weights(time_value=nonnegative(float(lambda_t), "SIDECAR_LAMBDA_T"))
-                   if lambda_t else Weights())
+        if lambda_t:
+            policy["time_value"] = nonnegative(float(lambda_t), "SIDECAR_LAMBDA_T")
+        allowance = os.environ.get("SIDECAR_ALLOWANCE_SECONDS", "").strip()
+        if allowance:
+            policy["allowance_seconds"] = nonnegative(
+                float(allowance), "SIDECAR_ALLOWANCE_SECONDS")
+        weights = Weights(**policy)
         runtime = Runtime(ledger, state, base_url, _env("NEWAPI_API_KEY"),
                           free_only=env_flag("SIDECAR_FREE_ONLY", True),
                           weights=weights)

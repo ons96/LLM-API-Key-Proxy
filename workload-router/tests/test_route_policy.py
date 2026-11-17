@@ -5,7 +5,7 @@ import random
 import pytest
 
 from quota_ledger import QuotaLedger
-from route_policy import Work, Weights, compact_json_tools, free_only_audit, input_token_bound, rank_routes, score_route
+from route_policy import Work, Weights, compact_json_tools, free_only_audit, input_token_bound, quota_lambda_for, rank_routes, score_route
 from test_quota_ledger import route
 
 
@@ -168,6 +168,38 @@ def test_lambda_t_is_one_explicit_exchange_rate_for_both_profiles():
         Weights(time_value=-1)
     with pytest.raises(ValueError):
         Weights(time_value=float("inf"))
+
+
+def test_quota_price_is_derived_from_the_time_exchange_rate():
+    ledger = QuotaLedger()
+    limited = route(quota_type="unlimited", limits={"rpm": 1}, latency_ms=1000)
+    ledger.configure(limited)
+    coding = Work("auto-coding", "implement", 10, 10)
+    chat = Work("auto-chat", "chat", 10, 10)
+    # One whole allowance still costs 0.01 on both profiles, but it is now
+    # derived from lambda_T instead of being a second, unrelated constant.
+    assert score_route(limited, coding, ledger).cost_opportunity == pytest.approx(0.01)
+    assert score_route(limited, chat, ledger).cost_opportunity == pytest.approx(0.01)
+    assert quota_lambda_for(Weights(), "auto-coding") == pytest.approx(0.003 * 10 / 3)
+    assert quota_lambda_for(Weights(), "auto-chat") == pytest.approx(0.001 * 10)
+
+    # Raising lambda_T makes the router faster-preferring and more willing to
+    # spend quota in the same proportion, which is why it is one number.
+    fast_clock = Weights(time_value=0.006)
+    assert quota_lambda_for(fast_clock, "auto-coding") == pytest.approx(0.02)
+    assert score_route(limited, coding, ledger,
+                       weights=fast_clock).cost_opportunity == pytest.approx(0.02)
+
+    # `allowance_seconds` is the plain knob: seconds of waiting one whole
+    # allowance is worth. Zero means quota is free to burn.
+    assert score_route(limited, coding, ledger,
+                       weights=Weights(allowance_seconds=10 / 6)).cost_opportunity == pytest.approx(0.005)
+    assert score_route(limited, coding, ledger,
+                       weights=Weights(allowance_seconds=0)).cost_opportunity == 0
+    assert score_route(limited, coding, ledger,
+                       weights=Weights(quota_lambda=0.05)).cost_opportunity == pytest.approx(0.05)
+    with pytest.raises(ValueError):
+        Weights(allowance_seconds=-1)
 
 
 def test_free_only_audit_reports_priced_routes_instead_of_raising():

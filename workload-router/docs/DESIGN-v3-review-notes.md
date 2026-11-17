@@ -117,3 +117,59 @@ the doc itself says is missing. That is the critical path, not S3 code.
    `duration_ms` before the ladder means anything.
 5. **Credit routes with a non-zero price**: forbid the combination, or score the
    money (gap 1)?
+
+## 5. Answers received (2026-11-17), and what they change
+
+This supersedes questions 1, 2, 3 and 5 in section 4; question 4 is settled in
+the same list.
+
+Owner's goal, restated: **maximise completed tasks per unit of time, at the
+lowest real cost.** Never pay out of pocket; renewable free tiers first;
+one-time-credit providers as overflow, never as the foundation.
+
+Settled:
+
+- **lambda_T stays at 0.003, and the question behind it was the wrong one.** The
+  owner's answer to "wait 30 s or burn a whole allowance" depends on how big the
+  allowance is and how many other providers could take the work. That is a
+  scarcity question, not a wage. So the exchange rate is now stated once, in
+  seconds: `allowance_seconds` is how much waiting one whole allowance is worth,
+  and the quota price is derived from it (`lambda_T x allowance_seconds`)
+  instead of being a second constant that drifts. Defaults reproduce the old
+  0.01 exactly (3.3 s coding, 10 s chat). Config: `SIDECAR_LAMBDA_T` and
+  `SIDECAR_ALLOWANCE_SECONDS`.
+- **Paid routes**: ledger-visible, excluded from scoring (unchanged). `$` stays
+  pinned at zero - the owner will not spend from their own wallet - while
+  provider credits are fine to spend and are priced as `O`. No route needs
+  excluding for being "credit-based"; only a route that would bill the owner
+  does.
+- **One-time credits**: a preference, not a ban. Renewable free tiers first; a
+  one-time grant is worth using when the model or the grant is genuinely better
+  (§6.3's `a > 0`), never as the only foundation.
+- **Dollar caps**: daily and monthly, blank = no limit, both checked so the
+  stricter one binds; monthly resets on the calendar month. Needs a
+  `money_month` axis, scheduled with S4 because it only matters once `$ > 0`.
+- **Verification time** is captured before S3, not after.
+- **A credit route with a real per-token price** is treated as paid, so
+  free-only excludes it without a catalogue cleanup.
+
+Still not modelled, and why:
+
+1. **How big the allowance is.** `pressure` is used/ceiling, so a small allowance
+   saturates quickly and is priced as dear - which matches "a small allowance is
+   easy to burn". What it cannot see is *time to reset*: an allowance resetting
+   in ten minutes should be worth nothing. That is the S4 forecast.
+2. **How many alternative providers exist.** Nothing in the score knows that
+   five other routes could absorb this task, which is exactly when burning one
+   provider's quota is cheap. The principled fix is the shadow auction (§6.2):
+   price falls when substitutable supply is large. It needs the demand
+   forecast, so it is S4, not a per-request divisor - a divisor would also
+   ignore per-axis admission, which does not exist yet.
+3. **Throughput.** "Completed tasks per hour" needs the ladder to know how many
+   attempts a task really costs; dividing by `s` is S0's approximation of
+   expected effort per completed task.
+
+One consequence worth knowing: quota and time now move together, so raising
+`SIDECAR_LAMBDA_T` makes the router both faster-preferring and more willing to
+burn quota, in the same proportion. Tuning one no longer silently unbalances
+the other.

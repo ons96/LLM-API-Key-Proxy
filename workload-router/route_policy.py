@@ -44,20 +44,31 @@ class Weights:
     value the owner sets and never something the router learns, so code must not
     pick it. Left unset, the profile defaults apply (0.003 coding, 0.001 chat,
     which is what revision 2 scored); set, one value overrides both profiles.
+
+    Quota is priced through that same exchange rate rather than by a second
+    independent constant: `allowance_seconds` is how many seconds of waiting one
+    whole provider allowance is worth, so one unit of quota pressure costs
+    `lambda_T * allowance_seconds`. The defaults reproduce revision 2's quota
+    price exactly, and raising lambda_T now moves speed and quota appetite
+    together instead of unbalancing them.
     """
 
     coding_time_value: float = 0.003
     chat_time_value: float = 0.001
-    quota_lambda: float = 0.01
+    # Explicit override for the quota price per unit of pressure. Normally left
+    # unset so it stays derived from `allowance_seconds`.
+    quota_lambda: float | None = None
+    allowance_seconds: float | None = None
     escalation_cost: float = 0.03
     top_n: int = 3
     time_value: float | None = None
 
     def __post_init__(self) -> None:
-        for name in ("coding_time_value", "chat_time_value", "quota_lambda", "escalation_cost"):
+        for name in ("coding_time_value", "chat_time_value", "escalation_cost"):
             nonnegative(getattr(self, name), name)
-        if self.time_value is not None:
-            nonnegative(self.time_value, "time_value")
+        for name in ("quota_lambda", "allowance_seconds", "time_value"):
+            if getattr(self, name) is not None:
+                nonnegative(getattr(self, name), name)
         if token_count(self.top_n, "top_n") < 1:
             raise ValueError("top_n must be positive")
 
@@ -96,6 +107,28 @@ def time_value_for(weights: Weights, profile: str) -> float:
     return weights.coding_time_value if profile == "auto-coding" else weights.chat_time_value
 
 
+# Seconds of waiting that one whole provider allowance is worth, per profile.
+# These are the revision-2 ratios (0.01 quota price at the default time values),
+# now stated once instead of living as an unrelated second constant.
+DEFAULT_ALLOWANCE_SECONDS = {"auto-coding": 10 / 3, "auto-chat": 10.0}
+
+
+def quota_lambda_for(weights: Weights, profile: str) -> float:
+    """Price of one unit of quota pressure, in the score's currency.
+
+    Derived from lambda_T and `allowance_seconds` unless a caller overrides
+    `quota_lambda` directly, so the time and quota exchange rates cannot drift
+    apart. Full scarcity pricing (remaining window, substitutable providers)
+    replaces this term in S4; this makes the trade-off explicit, not precise.
+    """
+    if weights.quota_lambda is not None:
+        return weights.quota_lambda
+    allowance = weights.allowance_seconds
+    if allowance is None:
+        allowance = DEFAULT_ALLOWANCE_SECONDS.get(profile, 10 / 3)
+    return time_value_for(weights, profile) * allowance
+
+
 def score_route(route: Route, work: Work, ledger: QuotaLedger, *,
                 free_only: bool = True, weights: Weights = Weights(),
                 preferred_id: str | None = None, cached_tokens: int = 0,
@@ -127,6 +160,7 @@ def score_route(route: Route, work: Work, ledger: QuotaLedger, *,
     failure = beta / (alpha + beta)
     cached = min(work.input_tokens, max(0, cached_tokens)) if work.profile == "auto-coding" else 0
     money = route.money(work.input_tokens, work.output_tokens, cached)
+    quota_lambda = quota_lambda_for(weights, work.profile)
     # Split the cost vector (§2.1) without changing the ranking: the two terms
     # still add up to the single blended number revision 2 scored. Summing them
     # here, at decision time, is the only place they are ever combined.
@@ -137,12 +171,12 @@ def score_route(route: Route, work: Work, ledger: QuotaLedger, *,
         # use `money`, and the credit itself is stored as `credit_used`.
         cost_money = 0.0
         cost_opportunity = (route.credit_money(work.input_tokens, work.output_tokens)
-                            * route.shadow_price + weights.quota_lambda * capacity.pressure)
+                            * route.shadow_price + quota_lambda * capacity.pressure)
     elif route.quota_type == "unlimited" and not (route.limits or route.provider_limits):
         cost_money = cost_opportunity = 0.0
     else:
         cost_money = money
-        cost_opportunity = weights.quota_lambda * capacity.pressure
+        cost_opportunity = quota_lambda * capacity.pressure
     effective = cost_money + cost_opportunity
     seconds = latency_ms / 1000
     if work.profile == "auto-coding" and preferred_id is not None and preferred_id != route.route_id:
