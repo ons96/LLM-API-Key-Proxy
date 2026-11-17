@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import time
+from pathlib import Path
 from typing import Dict, Any, List
 import litellm
 
@@ -19,6 +20,34 @@ _SECRET_IN_ERROR = re.compile(
 def _safe_error(error: object) -> str:
     """Prevent provider credentials from being copied into gateway logs."""
     return _SECRET_IN_ERROR.sub(r"\1=[REDACTED]", str(error))
+
+
+def _blocked_provider_names(path: str | None = None) -> set[str]:
+    """Provider names listed in `config/dead_providers.yaml`.
+
+    The health checker pings every adapter, so a blocklisted provider would
+    otherwise be tried (and logged as a failure) on every interval. Dispatch
+    filtering is a separate concern; this only keeps dead providers out of the
+    ping loop.
+    """
+    import yaml
+
+    candidate = path or os.environ.get("DEAD_PROVIDERS_PATH") or str(
+        Path(__file__).resolve().parent.parent.parent
+        / "config"
+        / "dead_providers.yaml"
+    )
+    try:
+        with open(candidate) as handle:
+            data = yaml.safe_load(handle) or {}
+    except Exception:
+        return set()
+    names: set[str] = set()
+    for entry in data.get("blocked_providers", []) or []:
+        name = str((entry or {}).get("provider") or "").strip().lower()
+        if name:
+            names.add(name)
+    return names
 
 
 class HealthChecker:
@@ -62,6 +91,7 @@ class HealthChecker:
             for s in os.environ.get("HEALTH_CHECK_SKIP", SKIP_DEFAULT).split(",")
             if s.strip()
         }
+        skip |= _blocked_provider_names()
         if skip:
             logger.info(f"Health checks skipping {len(skip)} providers: {sorted(skip)}")
 
