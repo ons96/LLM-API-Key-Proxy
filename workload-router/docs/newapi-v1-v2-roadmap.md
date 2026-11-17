@@ -370,3 +370,75 @@ not live-provider, load or canary proof.
 - `newapi-design.md` — strict sidecar accounting and audit contract.
 - `../../docs/new-api-deploy.md` — VPS layout, version and rollback.
 - `../STATE.md` — chronological checkpoints.
+
+## Readiness recheck - 2026-11-17
+
+Read-only except for staging a release artifact. No New-API setting, channel,
+credential or traffic was changed, and LiteLLM stayed on `:8000`.
+
+### What is already deployed
+
+- `newapi-sidecar-canary.service` is installed, **disabled**, bound to loopback
+  `:8124`, `MemoryMax=128M`, `User=newapi`, pointed at
+  `/opt/newapi-sidecar/releases/ec88ffd`.
+- `/etc/newapi-sidecar/sidecar.env` (0600) carries every required variable,
+  including `NEWAPI_CHANNEL_KEY_PROOF_COMMAND` and the TOTP proof wiring.
+- `/opt/newapi-sidecar/bin/channel-proof` and
+  `/etc/newapi-channel-proof/totp.seed` (0600) exist, so the helper documented in
+  `channel-proof-helper.md` is installed.
+- Release `7b9028f` was staged to `/opt/newapi-sidecar/releases/7b9028f` and the
+  provider-free suite was run against the artifact: 457 passed, 3 failed. The
+  three failures are pre-existing in `tests/test_verify_pristine.py`
+  (acceptance 3, 7, 8) and reproduce unchanged on the unmodified HEAD tree.
+
+### Boot gate, in the order `serve()` evaluates it
+
+1. **Admin token expired.** `GET /api/option/` returns 401, so the startup audit
+   cannot read `RetryTimes` at all. Refreshing it needs New-API's root password
+   (`/opt/new-api/new-api.env`); that is an operator action, and the sidecar
+   never reads it.
+2. **`RetryTimes`**: last recorded value 3, must be 0. Unverifiable until (1).
+3. **Channel overrides**: channels 3 and 4 last carried
+   `param_override={"stream":true}`, which the strict audit rejects.
+4. **Channel key proof**: installed, but a real boot needs one proof per audited
+   channel per restart.
+5. `sidecar.env` is a systemd `EnvironmentFile` and is not shell-safe
+   (`NEWAPI_CHANNEL_KEY_PROOF_COMMAND` contains spaces), so sourcing it in a
+   shell executes the helper. Use systemd, or a names-only reader.
+
+### Live evidence, 2026-11-17
+
+- New-API on `:8001` served a real completion through the relay token:
+  `agnes-3.0-flash` returned `content:"ok"`, `usage.total_tokens=82`, HTTP 200.
+- `/v1/models` with the same relay token returned 200.
+- The old tool-gate model `agnes-kios` now returns `model_not_found` (no
+  available channel), so the v2 tool gate must be re-targeted at a channel that
+  still exists before it is claimed again.
+- The LiteLLM gateway stayed healthy on `:8000` throughout
+  (`/health` -> `{"status":"healthy", ...}`).
+
+### LiteLLM removal gate
+
+`tools/litellm_parity.py` turns the removal gate into a checked inventory
+instead of a prose list. It scans the gateway source for `litellm.<symbol>`,
+reports each symbol's disposition (replaced / partial / gap / retired), and
+**exits non-zero** when a symbol appears without a declared disposition or with
+a `gap`.
+
+Current reading: **143 sites across 25 symbols, one blocking gap.**
+
+| Disposition | Symbols |
+| --- | --- |
+| gap (blocks removal) | `drop_params` (2 sites) |
+| partial | `ContextWindowExceededError`, `aembedding`, `callbacks`, `completion_cost`, `get_model_info` |
+| replaced | `acompletion` (18), `ModelResponse` (47), `Choices`, `Message`, `Usage`, `EmbeddingResponse`, `RateLimitError` (11), `ServiceUnavailableError` (8), `InternalServerError` (8), `APIConnectionError`, `AuthenticationError`, `Timeout`, `OpenAIError`, `InvalidRequestError` |
+| retired with the library | `exceptions`, `types`, `integrations`, `litellm_core_utils`, `set_verbose` |
+
+`drop_params` is the only symbol with no sidecar behaviour behind it: the sidecar
+forwards request parameters to New-API without LiteLLM's per-provider dropping,
+so an unsupported parameter reaches the upstream instead of being removed. It
+closes either as a bounded allowlist in `newapi_runtime.py` or as an explicit
+accepted difference recorded in `DISPOSITIONS`.
+
+`tests/test_litellm_parity.py` (11 tests) also guards the real tree, so a new
+`litellm.*` call fails until someone declares what replaces it.
