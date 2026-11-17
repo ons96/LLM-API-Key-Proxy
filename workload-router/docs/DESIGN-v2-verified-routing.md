@@ -1,8 +1,24 @@
-# Design v2 — Routing for *verified-correct* results at zero marginal cost
+# Design v2 — Routing for *verified-correct* results at minimum real cost
 
-Status: proposal, not implemented. Supersedes the scoring and quota sections of
-`docs/specs/p0-router.md` and `docs/free-tier-classes.md` where they conflict.
-Written 2026-11-09 against branch `feat/newapi-sidecar`.
+Status: proposal, partly implemented (S1 and S2 landed; see `STATE.md`).
+Supersedes the scoring and quota sections of `docs/specs/p0-router.md` and
+`docs/free-tier-classes.md` where they conflict. Written 2026-11-09 against
+branch `feat/newapi-sidecar`. **Revised 2026-11-17 (revision 3)**: money is now
+a first-class objective rather than a hard constraint, priors may be seeded from
+external benchmarks, and the cost vector is split so the three components stay
+separately observable.
+
+### Revision log
+
+| Rev | Date | Change |
+|---|---|---|
+| 1 | 2026-11-09 | Initial delta: verified-correct objective, cascade, shadow prices, credits, placement |
+| 2 | 2026-11-10 | Added invariants (§2.3), §4.5 exploration budget, §5.4 learning cadence, Appendix B/C |
+| 3 | 2026-11-17 | §2 objective rewritten as a three-component cost vector with an explicit money↔time exchange rate; §6.5 paid routes and quota multipliers; §7.4 benchmark seed priors; §13 stages S0/S8 |
+
+Revisions amend this file in place on purpose. A second design document is how
+this project ended up with five routers; if a revision is large enough to need
+its own file, it also needs a reason why the old one cannot be edited.
 
 ---
 
@@ -19,6 +35,8 @@ a working P0/P1 router. Read this in this order:
 Rules for whoever implements this:
 
 - Section 14 lists decisions that are **not yours to make**; ask the owner.
+- Section 2.1 defines the three cost components; do not collapse them into one
+  stored number (§2.1).
 - Section 12 says which sibling repos are frozen. Do not "improve" them.
 - Do not add a dependency that needs more than ~64 MB RSS on the target host.
 - Do not add an LLM call to the routing path. Ever. Section 5 explains why.
@@ -80,41 +98,91 @@ enforcement by construction — is sound and should be kept.
 
 ## 2. The objective, stated correctly
 
-The owner's goal is not "lowest cost per token". It is:
+The owner's goal is:
 
-> minimise wall-clock time to a *correct* result, and minimise consumed resource,
-> subject to never spending real money.
+> the fastest time to a *correct* result, at the lowest real cost — where "cost"
+> is three separately-visible things, and only one of them is money.
 
-Both terms must be measured **to completion**, including retries and
-verification. Define, for request `i` and route `m`:
+Revision 3 changes this from a constraint to an objective. Revision 1 said
+"subject to never spending real money", which was right for a free-only router
+but wrong as an architecture: it made paid routes unrepresentable, and it hid
+the fact that free quota already has a price. The owner may not pay today; the
+model must still be able to price a route correctly if they ever do.
 
-- `s(i,m)` — probability that one attempt produces output that passes
-  verification (not "returns 200")
-- `T(i,m)` — elapsed time of one attempt, including queueing, prefill, decode,
-  and the verification run
-- `C(i,m)` — shadow-priced resource cost of one attempt
+### 2.1 The cost vector
 
-Then the expected cost of *finishing* is `C/s` and the expected time is `T/s`
-(geometric). Rank by
+For one attempt on route `m`:
+
+| Component | Symbol | Unit | Meaning |
+|---|---|---|---|
+| Out-of-pocket | `$` | currency | money actually leaving the owner's account this month |
+| Opportunity | `O` | currency-equivalent | value of quota/credits consumed and thus unavailable later (§6) |
+| Wall-clock | `T` | seconds | queue + prefill + decode + verification |
+
+These are **never summed at storage time**. Each request records all three
+separately (`cost_money`, `cost_opportunity`, `elapsed_s`) so the owner can ask
+"what did this month cost me in dollars" and "what did I waste in quota" and get
+two different answers. A single blended number destroys the only diagnostic that
+matters when the router starts making bad choices.
+
+They are converted into one ranking score only at decision time, through one
+explicit exchange rate:
 
 ```
-score(i,m) = ( w_t · T(i,m) + w_c · C(i,m) ) / s(i,m)
+score = ( λ_$ · $ + λ_O · O + λ_T · T ) / s        # s = P(correct)
 ```
 
-which is what `score_route()` already computes, **provided** `s`, `T`, `C` mean
-these things. Today they do not. Fixing the three inputs above is most of the
-work in this document; the formula itself is fine.
+`λ_T` is the owner's value of one second of their time, in currency per second.
+`λ_$ = λ_O = 1` (dollars are dollars). `λ_T` is the only free parameter, and it
+is a *policy* knob, not a learned one — it answers "is a 40-minute wait worth
+saving two dollars", which is a human question.
 
-Two consequences worth stating because they invert intuition:
+Two settings that must both work without changing code:
 
-- **A free model that needs two retries is more expensive than a paid one that
-  doesn't.** Since money is pinned to zero here, this shows up purely as time.
-  Ranking by quality-per-attempt is not a nicety, it is the whole objective.
-- **Verification time counts.** If your test suite takes 90 s, a model that is
-  30 s faster per attempt wins only if it does not add attempts. Oracles must be
-  fast or sampled (section 3.3).
+- **Free-only (today).** `λ_T = 0.003` currency-units/second, every `$` is 0
+  because no route has a non-zero `input_price`, and `O` carries all the signal.
+  Behaviour is identical to revision 2.
+- **Owner starts paying.** Set `λ_T` to a real hourly rate and let paid routes
+  appear in the catalog. Nothing else changes; the score already contains the
+  term.
 
-### 2.1 Invariants that must not be traded away
+The old single-scalar form `(w_t·T + w_c·C)/s` was this formula with the three
+components pre-blended. It ranks correctly but cannot answer "how much money did
+this cost me", which is why the components are now stored apart.
+
+Consequences worth stating because they invert intuition:
+
+- **A free model that needs two retries can be more expensive than a paid one
+  that doesn't.** Today this shows up purely in `T`; once `λ_T > 0` and a paid
+  route exists, it shows up in `$` too, and the comparison is automatic.
+- **Verification time counts in `T`.** If the test suite takes 90 s, a model
+  that is 30 s faster per attempt wins only if it does not add attempts (§3.3).
+- **Opportunity cost is not proportional to spend.** It is zero when the quota
+  would have expired unused, and it is zero when a credit's model is no better
+  than the free alternative (§6.3). A big number in `O` is a claim about
+  displacement, not about size.
+
+### 2.2 Prices, multipliers and quotas are the same field
+
+Providers differ in how they meter: per-token price, "this model costs 3×
+credits", a daily request cap, a rolling window. All of them are one concept —
+*resource consumed per attempt* — expressed through `Route`'s existing fields:
+
+| Provider mechanic | Where it goes | Notes |
+|---|---|---|
+| per-token price | `input_price` / `output_price` | `$`; zero for every free route |
+| model multiplier (2×, 3×) | scaled `credit_input_price` / `credit_output_price` | no new field needed |
+| credit balance, one-time | `credit_balance` + `credit_*_price` | `O` via §6.3 |
+| daily/weekly request cap | `rpm`, `rpd` in `limits` | `O` via §6.2, per-axis |
+| daily/weekly token cap | `tpm`, `tpd` in `limits` | same |
+| monthly dollar budget | `daily_budget`, `money_day` axis | becomes live when `$ > 0` |
+
+The rule: **a multiplier is a price, not a new kind of route.** A provider that
+doubles credit cost for a premium model is modelled by doubling that route's
+credit tariff. Do not add a `multiplier` column; it would duplicate `price` and
+then drift from it.
+
+### 2.3 Invariants that must not be traded away
 
 These four are cheap to hold and expensive to lose. Any implementation that
 breaks one is wrong regardless of what it improves:
@@ -251,16 +319,19 @@ task. That is why escalation is nearly always cheaper than restarting at a
 higher tier from scratch, and why a cascade on top of *any* router beats a
 better router without one.
 
-Expected values for a ladder of attempts `1..k` with per-tier `(s, T, C)`:
+Expected values for a ladder of attempts `1..k` with per-tier `(s, T, O, M)`,
+where `M` is out-of-pocket money and `O` is opportunity cost:
 
 ```
 E[T] = Σ_j  T_j · Π_{i<j} (1 − s_i)
-E[C] = Σ_j  C_j · Π_{i<j} (1 − s_i)
+E[O] = Σ_j  O_j · Π_{i<j} (1 − s_i)
+E[M] = Σ_j  M_j · Π_{i<j} (1 − s_i)
 ```
 
 You do not need to solve this. With ≤4 tiers, enumerate the ladder in the
 policy module (a 20-line DP) and pick the entry tier minimising
-`w_t·E[T] + w_c·E[C]`.
+`λ_T·E[T] + E[O] + E[M]` (§2.1). Keeping the three expectations separate is what
+lets the gate in S3 assert on time and opportunity independently.
 
 ### 4.2 When to start high instead of cascading
 
@@ -302,7 +373,7 @@ error-message-driven debugging. That is the majority of agentic coding traffic.
 - Latency variance: p95 time-to-green gets worse than "one good model" because
   failures are paid in full. Track p95 T2G, not just mean.
 - Credit burn: on `free_credits` routes a failed attempt still spends. That is
-  a real cost and must be in `C`.
+  a real cost and must be in `O` (§2.1).
 - Harness interaction: if the harness also retries, you get 2×N attempts.
   Disable harness-level retry (or set it to 1) when the router owns failover.
 
@@ -551,12 +622,12 @@ not a recovery. So "use it or lose it" is only valid when `a > 0`.
 
 ### 6.4 Decision table
 
-| Class | Quota mechanism | `C` in the score | Priority behaviour |
+| Class | Quota mechanism | `O` (and `$`) in the score | Priority behaviour |
 |---|---|---|---|
-| `free_unlimited` | none (rate caps only) | 0 money, `λ_rmp` for RPM/TPM caps | baseline floor; never deprioritised below `unknown` |
-| `free_limited` | daily/weekly window, no carryover | 0 money + `λ(t)` from 6.2 | rises only when `Q < D`; automatically falls near reset |
-| `free_credits` | one-time or finite balance | notional credit tariff + `λ_option(t)` from 6.3 | gated by `a(m,class) > 0`; hazard-discounted |
-| `paid` | real money | real price | excluded (free-only enforced) |
+| `free_unlimited` | none (rate caps only) | `$`=0, `O`=`λ` for RPM/TPM caps | baseline floor; never deprioritised below `unknown` |
+| `free_limited` | daily/weekly window, no carryover | `$`=0, `O`=`λ(t)` from 6.2 | rises only when `Q < D`; automatically falls near reset |
+| `free_credits` | one-time or finite balance | `O` = credit tariff + `λ_option(t)` from 6.3 | gated by `a(m,class) > 0`; hazard-discounted |
+| `paid` | real money | `$` = real price, `O` = quota if the key has one | **allowed when `free_only` is off** (§6.5) |
 | `unknown` | unknown | ∞ | hard-infeasible; never silently free |
 
 One extra axis that is currently missing and cheap: **rate-limit admission
@@ -564,6 +635,39 @@ control**. A route with 4 RPM remaining is not "available at pressure 0.8", it
 is available *four times per minute*, and a cascade will burn those four in ten
 seconds. `λ` must be per-axis (`rpm`, `tpm`, `rpd`, `tpd`) and the cascade should
 reserve attempts against the axis it will need, or it will strand itself mid-ladder.
+
+### 6.5 Paid routes, and why the flag must not be a hardcode
+
+Revision 2 made `paid` unrepresentable when `free_only` was on, which was right
+for today but left no path to tomorrow. The correct shape is a **policy switch,
+not a schema difference**:
+
+- `free_only = true` (default): `score_route` returns `reason="paid_excluded"`
+  for any route whose `$ > 0`. Nothing else changes.
+- `free_only = false`: paid routes compete on the same score, and `$` is real.
+  A monthly cap is enforced by the existing `money_day` axis and
+  `daily_budget`, so "I will spend at most $5/month" is a quota, not a new code
+  path.
+
+What this buys, beyond future-proofing:
+
+1. **Mixing is already the normal case.** A paid route and a free route of the
+   same model are two routes; the scorer already prefers the cheaper one at
+   equal quality. No special case needed.
+2. **It makes the opportunity cost honest.** With `free_only` hardcoded, `O`
+   had no comparison point, so "this credit is worth $0.004/1k tokens" was a
+   number with no units of consequence. With paid routes representable, `O` is
+   directly comparable to a real price, which is what makes §6.3's
+   "advantage" test computable rather than philosophical.
+3. **It is the only way to answer "should I ever pay?"** If paid routes are
+   excluded at the schema level, the router can never report "a $0.30 model
+   would have saved you 40 minutes", which is the actual decision the owner
+   faces when a day is going badly.
+
+Guardrail: a paid route must never be reachable by accident. `free_only` is
+read from config at startup and logged once at boot; a route with `$ > 0` in a
+free-only process is a startup error, not a silent exclusion, so a config
+mistake surfaces immediately instead of quietly changing what gets spent.
 
 ---
 
@@ -600,10 +704,64 @@ gets copy-pasted into the wrong branch.
 
 Keep one route pinned as the floor: a model that is not the smartest but is
 almost always reachable (the owner's current answer is MiniMax 3.1 Flash on
-NIM). It is what the cascade falls back to when everything better is stalling,
+NIM). It is what the cascade falls back to when everything else is stalling,
 and it is what makes "route to the best available" meaningful instead of
 "route to the best on paper and wait 45 s". Give it a dedicated role in config
 (`baseline: true`) rather than expressing it as a weight.
+
+### 7.3 Cold start: seed priors from benchmarks, then let reality win
+
+A fresh ledger knows nothing, so the first ~20 attempts per route are pure
+exploration — which is exactly when a bad first pick costs the most, because
+the owner is watching. `Route.prior_success` / `prior_failure` already exist for
+this and are currently `2.0`/`2.0` for everything, i.e. an uninformative
+placeholder. Fill them.
+
+Two sources, and they must not be mixed:
+
+| Source | What it can tell you | What it cannot |
+|---|---|---|
+| Public leaderboards (Artificial Analysis, LiveCodeBench, SWE-bench, LMArena) | relative *model quality* on coding/reasoning | anything about provider latency, rate limits, or availability |
+| Your own telemetry | this provider's actual `s`, `T`, `p50/p90`, 429 rate, by hour | whether a model is good at tasks you never send it |
+
+So the seed is a **model-quality prior expressed as pseudo-counts**, and the
+provider dimension starts truly unknown:
+
+```
+prior_success(m) = 1 + k · q(m)        # q in [0,1], normalised within family
+prior_failure(m) = 1 + k · (1 − q(m))
+k = 4                                  # weight of the seed, in pseudo-observations
+```
+
+`k = 4` means roughly eight real graded attempts outweigh the benchmark
+completely. That is deliberate: a leaderboard is a guess, and guesses must lose
+to evidence quickly. Tuning `k` up (8–10) buys stability on new routes at the
+cost of a slow start; down (2) buys speed at the cost of thrash. Do not go
+above ~10, or a retired model with a great historical score will keep winning.
+
+Three rules that matter more than the numbers:
+
+1. **Never seed latency from a leaderboard.** Vendor-reported tok/s is measured
+   on their hardware, in their region, at their off-peak. Seed `T` only from
+   your own `p50` per `(route, step, hour-of-week)`, and until there is data,
+   fall back to `Route.latency_ms` and let it be wrong for a day.
+2. **Staleness is a first-class field.** Store `prior_source` and
+   `prior_fetched_at` per route. When a provider retires or replaces a model
+   (monthly, in this ecosystem), the old prior is worse than no prior, because
+   it is confidently wrong. Refresh on a schedule and drop priors older than
+   ~90 days rather than carrying them.
+3. **Normalise within a family, not across the world.** A "coding score" and a
+   "chat preference score" are not on the same scale, and neither maps to
+   `P(correct)` directly. Use the ranking to order models inside a capability
+   class, then map the ordering to `q ∈ [0, 1]`, so a family with an inflated
+   scale cannot dominate a family with a conservative one.
+
+**Benchmark data should also be used to check the router, not just to seed it.**
+If a model ranks far above another on benchmarks and your telemetry says the
+opposite for a specific task class, one of two things is true: your task class is
+genuinely different (common — leaderboards test from-scratch problems, you send
+edits), or your oracle is measuring the wrong thing. Record the disagreement;
+it is the most useful signal the system produces about its own validity.
 
 ---
 
@@ -765,13 +923,24 @@ re-litigating. That is a 10-minute task that saves weeks.
 
 ## 13. Roadmap
 
-Each stage has a gate; do not start the next until the gate passes.
+Each stage has a gate; do not start the next until the gate passes. Status as of
+revision 3: **S1 and S2 are implemented** (see `STATE.md`); S0 is new; S8 is new.
+
+**S0 — Cost vector split (1 day, do before S3).**
+Store `cost_money`, `cost_opportunity`, `elapsed_s` separately per attempt
+instead of the single blended `effective` number; add `λ_T` as config. Keep
+`free_only` as a startup-validated policy flag that errors on a priced route
+rather than silently excluding it (§6.5). Gate: a report can print dollars,
+opportunity and time for the same week as three numbers, and a `free_only=true`
+process refuses to start when a route has `$ > 0`.
 
 **S1 — Truthful telemetry (1–2 days).**
 Stop stamping `success` at HTTP 200. Add `X-Router-Attempt-Id`, accept graded
 outcomes, add `verdict` enum, store `timeout` as a failure with elapsed time.
 Gate: a scripted fake provider returns confidently-wrong output; the ledger
 records it as failure, and `evidence()`'s alpha/beta move accordingly.
+*(Implemented: `router_server.py` and `newapi_server.py` both issue attempt ids
+and grade via verdict; unknown is prior-neutral.)*
 
 **S2 — Client oracle (2–4 days).**
 OpenCode plugin: run V0 + V4 always, V2 on the changed subset, from a pristine
@@ -779,11 +948,13 @@ worktree; post the grade. Handle the Python/node/Go/rust toolchain detection
 from the repo's own config. Gate: the eight acceptance tests in
 `verification-protocol.md` §8.7 pass, then 20 real tasks on the owner's repo
 grade the same as a human read; no test-tamper patch is ever graded pass.
+*(Script implemented: `tools/verify_pristine.py`. **Plugin still missing** — this
+is the blocker for automatic learning.)*
 
 **S3 — Ladder (3–5 days).**
 Entry-tier DP, semantic-vs-operational failure split, attempt reservation per
 rate-limit axis, escalation with structured failure evidence only. Gate:
-replay shows E[T] and E[C] as computed; live p90 T2G improves versus S1
+replay shows E[T] and E[O] as computed; live p90 T2G improves versus S1
 baseline on the same task set.
 
 **S4 — Shadow prices (2–3 days).**
@@ -804,6 +975,13 @@ given the same snapshot.
 **S7 — Learned nudge (optional, only after 2000 graded outcomes).**
 Logistic regression tie-breaker, offline train, JSON export. Gate: beats rules
 by a measurable margin on held-out weeks, otherwise delete it.
+
+**S8 — Benchmark seed priors (1–2 days, can run in parallel with S3).**
+Import model-quality scores into `prior_success`/`prior_failure` as bounded
+pseudo-counts (§7.3), store `prior_source` + `prior_fetched_at`, refresh on a
+schedule, expire after ~90 days. Gate: a route with a strong benchmark prior but
+a poor live record loses within ~8 graded attempts; retiring a model's prior
+never leaves it winning.
 
 ---
 
@@ -826,6 +1004,18 @@ by a measurable margin on held-out weeks, otherwise delete it.
 6. **Provider list**: I need the actual provider→model→limit table (or a pointer
    to `llm_providers.db`) before S4, because the forecast and λ need real
    windows (daily vs weekly vs rolling) and real per-axis caps.
+7. **What is one hour of your time worth, in currency?** This sets `λ_T` in
+   §2.1 and is the only value in the system that cannot be measured or learned.
+   Until it is set, the router cannot compare "wait 40 s" against "spend $0.30",
+   and every S0 report will show the two axes side by side without a winner.
+8. **Which benchmark sources may be ingested?** §7.3 assumes Artificial
+   Analysis / LiveCodeBench / SWE-bench style rankings can be fetched on a
+   schedule. Confirm the ones you trust, and whether a manual JSON import is
+   preferred over scraping.
+9. **Should paid routes be visible while free-only is on?** §6.5 keeps them
+   scoreable but excluded. A "what would it have cost" line in the weekly
+   report is nearly free to compute and answers "should I ever pay?", but it
+   requires storing prices for routes that are deliberately not used.
 
 ---
 
@@ -835,13 +1025,15 @@ by a measurable margin on held-out weeks, otherwise delete it.
 
 Task: fix a failing test in one file. Routes:
 
-| Route | `s` | `T` | `C` (λ·tokens) |
+| Route | `s` | `T` | `O` (opportunity) |
 |---|---|---|---|
 | A: baseline, fast, dumber | 0.55 | 4 s | 10 |
 | B: smart, flaky | 0.85 | 18 s (p90 45 s) | 40 |
 
-Single-shot B: `T/s = 21 s`, cost 47.
-Cascade A→B: `E[T] = 4 + 0.45·18 = 12.1 s`, `E[C] = 10 + 0.45·40 = 28`.
+Single-shot B: `T/s = 21 s`, opportunity 47.
+Cascade A→B: `E[T] = 4 + 0.45·18 = 12.1 s`, `E[O] = 10 + 0.45·40 = 28`.
+(Both routes are free, so `M = 0` throughout and `λ_T` only shifts the balance
+between `T` and `O`.)
 
 Cascade wins on both axes. Now make B reliable-fast (`T = 8 s`, p90 9 s):
 single-shot B = 9.4 s / 47; cascade = 4 + 0.45·8 = 7.6 s / 28. Cascade still
@@ -885,9 +1077,12 @@ currently learns from HTTP 200, prices quota by utilisation instead of
 opportunity, and averages away the burstiness that defines free providers. Fix
 those three and add a client-side verification loop, and the rest of the
 architecture (cascade, shadow auction, hazard-discounted credits, client-side
-policy with a shared state snapshot) follows mechanically. Do not add models to
-the routing path, do not add dependencies that cost RAM, and do not build a
-second router in a sibling repo.
+policy with a shared state snapshot) follows mechanically. Keep the three cost
+components separately stored (§2.1), keep `free_only` a validated policy flag
+rather than a schema assumption (§6.5), and seed cold-start priors from
+benchmarks at low weight so real telemetry overrides them within days (§7.3).
+Do not add models to the routing path, do not add dependencies that cost RAM,
+and do not build a second router in a sibling repo.
 
 ---
 
