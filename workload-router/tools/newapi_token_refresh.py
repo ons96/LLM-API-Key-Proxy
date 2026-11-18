@@ -69,7 +69,17 @@ def _request(method: str, url: str, payload: dict | None = None,
     except RefreshError:
         raise
     except urllib.error.HTTPError as exc:
-        raise RefreshError("management API returned HTTP " + str(exc.code)) from None
+        # The server's own message is the only way to tell a bad field from a
+        # missing scope, and it never echoes a secret back.
+        detail = ""
+        try:
+            body = json.loads(exc.read(1024))
+            message = body.get("message") if isinstance(body, dict) else None
+            if isinstance(message, str) and message.strip():
+                detail = ": " + message.strip()[:120]
+        except (ValueError, OSError):
+            detail = ""
+        raise RefreshError("management API returned HTTP " + str(exc.code) + detail) from None
     except (urllib.error.URLError, OSError):
         raise RefreshError("management API is unreachable") from None
     try:
@@ -250,29 +260,52 @@ def durable_token(base: str, session: str, user_id: int, code: str,
     The mint is proof-gated (`access_token.generate`) and only a console
     session may obtain that proof, so the caller must be logged in. The proof
     is single-use: it is spent on this call and never stored.
+
+    On the pinned rc.36 build this endpoint takes no request body worth
+    sending: it rotates the account's static access key, which is exactly the
+    long-lived credential a boot needs. Newer builds accept name/scopes/
+    expires_at, and rc.36 ignores those fields.
     """
+    # `access_token.generate` is one of the scopes New-API binds to an empty
+    # context: anything in `context` answers "The action details are invalid."
     proof_body = _request("POST", base + "/api/verify", {
         "method": "2fa",
         "scope": "access_token.generate",
-        "context": {"scopes": {}, "expires_at": 0},
         "code": code,
     }, token=session, user_id=user_id)
     if proof_body.get("success") is not True:
-        raise RefreshError("two-factor verification rejected")
+        message = str(proof_body.get("message") or "")[:120]
+        raise RefreshError("two-factor verification rejected"
+                           + ((": " + message) if message else ""))
     data = proof_body.get("data")
     proof = data.get("proof_token") if isinstance(data, dict) else None
     if not isinstance(proof, str) or not proof.strip():
         raise RefreshError("two-factor verification returned no proof")
-    granted = list(scopes) if scopes is not None else grantable_scopes(base, session, user_id)
-    if not granted:
-        raise RefreshError("refusing to mint a token that grants nothing")
-    minted = _request("POST", base + "/api/user/access_tokens", {
-        "name": "sidecar-audit",
-        "expires_at": 0,
-        "scopes": granted,
-    }, token=session, user_id=user_id, extra_headers={"X-Security-Proof": proof.strip()})
+    granted: list[str] = []
+    if scopes is None:
+        # rc.36 has no scoped-token catalog: this scope rotates the account's
+        # static key and takes neither a context nor scopes. Newer builds
+        # expose the catalog, and its grant is forwarded when it exists.
+        try:
+            granted = grantable_scopes(base, session, user_id)
+        except RefreshError:
+            granted = []
+    else:
+        granted = list(scopes)
+        if not granted:
+            raise RefreshError("refusing to mint a token that grants nothing")
+    payload: dict = {"name": "sidecar-audit"}
+    if granted:
+        payload["scopes"] = granted
+    # rc.36 mounts the mint here; `/api/user/access_tokens` only exists on
+    # newer builds, where the same call is served under that path.
+    minted = _request("POST", base + "/api/user/token", payload,
+                      token=session, user_id=user_id,
+                      extra_headers={"X-Security-Proof": proof.strip()})
     if minted.get("success") is not True:
-        raise RefreshError("access-token creation rejected")
+        message = str(minted.get("message") or "")[:120]
+        raise RefreshError("access-token creation rejected"
+                           + ((": " + message) if message else ""))
     payload = minted.get("data")
     token = payload if isinstance(payload, str) else None
     if token is None and isinstance(payload, dict):

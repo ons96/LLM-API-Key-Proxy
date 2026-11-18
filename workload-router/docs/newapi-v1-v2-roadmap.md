@@ -476,8 +476,33 @@ The script therefore counts consecutive unsuccessful revives in its
 stops reviving for `SIDECAR_CANARY_RECOVER_COOLDOWN` seconds (default 1800)
 before trying again. A successful revive clears both.
 
-The durable token is still not mintable: `POST /api/user/access_tokens` answers
-400 even with the catalog scopes and `X-Security-Proof` in place. That is now a
-convenience gap, not a boot gap: without it every boot still spends one login.
+The durable token is still not mintable, but the reason is now known to be
+smaller than "the API refuses". rc.36 mounts the mint at `GET/POST
+/api/user/token`, not `/api/user/access_tokens` (that path falls through to
+`/api/user/:id`), and the `access_token.generate` proof is bound to an **empty**
+context: sending `{"scopes": ..., "expires_at": ...}` is what answered "The
+action details are invalid." The tool now sends no context and posts to the
+right path. The remaining 400 still needs a response body, and has not been
+retried since the retries below tripped New-API's critical limiter.
+
+That limiter is the real hazard found today. Repeated `/api/verify` calls made
+the next boot's channel-key read fail with `POST /api/channel/<id>/key` →
+`catalog HTTP status 429`, which is fatal to startup: the canary went `failed`
+with `start-limit-hit` even though both its token and its routes were fine.
+Recovery is to stop the canary, let the limiter cool, and start it once. Do not
+diagnose the durable token by retrying verify while the canary has to boot, and
+do not let a boot loop keep refreshing the limiter.
+
+With two routes loaded (`agnes-kios` + `agnes-crow`) a profile completion took
+**two attempts**, so live cross-provider failover works end to end. The ledger is
+back to one route while the limiter cools.
+
+Applying routes has its own version rule: a row written by release `7b9028f`'s
+operator carried `credit_renewal`, and the running `ec88ffd` crashed at boot with
+`Route.__init__() got an unexpected keyword argument 'credit_renewal'`, after
+which the unit exhausted its start limit. Always apply with the release the
+canary actually runs — the DB was restored from
+`sidecar.db.bak-2route-20261118T015940Z` both times.
+
 Database copies (`sidecar.db.bak-*`) preserve the earlier three-route and
 one-route shapes.

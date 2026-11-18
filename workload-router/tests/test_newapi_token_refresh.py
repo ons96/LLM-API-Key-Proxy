@@ -120,10 +120,40 @@ def test_durable_token_reads_string_and_object_payloads(monkeypatch):
     monkeypatch.setattr(refresh, "_request", fake)
     assert refresh.durable_token("http://127.0.0.1:8001", "s", 1, "123456",
                                  scopes=["channel:read"]) == "minted"
-    assert calls[-1].endswith("/api/user/access_tokens")
-    assert seen["payload"] == {"name": "sidecar-audit", "expires_at": 0,
-                               "scopes": ["channel:read"]}
+    assert calls[-1].endswith("/api/user/token")
+    assert seen["payload"] == {"name": "sidecar-audit", "scopes": ["channel:read"]}
     assert seen["headers"] == {"X-Security-Proof": "proof"}
+
+
+def test_durable_token_sends_no_context_for_the_generate_scope(monkeypatch):
+    """`access_token.generate` is bound to an empty context in New-API; any
+    context answers "The action details are invalid." and the mint 400s."""
+    seen = {}
+
+    def fake(method, url, payload=None, token="", user_id=None, extra_headers=None):
+        if url.endswith("/api/verify"):
+            seen["verify"] = payload
+            return {"success": True, "data": {"proof_token": "proof"}}
+        return {"success": True, "data": {"token": "minted"}}
+
+    monkeypatch.setattr(refresh, "_request", fake)
+    refresh.durable_token("http://127.0.0.1:8001", "s", 1, "123456", scopes=["option:read"])
+
+    assert "context" not in seen["verify"]
+
+
+def test_durable_token_reports_the_server_message(monkeypatch):
+    """A bare "HTTP 400" cannot distinguish a bad field from a missing scope."""
+
+    def fake(method, url, payload=None, token="", user_id=None, extra_headers=None):
+        if url.endswith("/api/verify"):
+            return {"success": True, "data": {"proof_token": "proof"}}
+        return {"success": False, "message": "invalid expires_at"}
+
+    monkeypatch.setattr(refresh, "_request", fake)
+    with pytest.raises(refresh.RefreshError, match="invalid expires_at"):
+        refresh.durable_token("http://127.0.0.1:8001", "s", 1, "123456",
+                              scopes=["option:read"])
 
 
 def test_grantable_scopes_flattens_the_console_catalog(monkeypatch):
@@ -146,6 +176,24 @@ def test_grantable_scopes_refuses_an_empty_catalog(monkeypatch):
                         lambda *a, **k: {"success": True, "data": {"groups": []}})
     with pytest.raises(refresh.RefreshError, match="no grantable scopes"):
         refresh.grantable_scopes("http://127.0.0.1:8001", "s", 1)
+
+
+def test_request_surfaces_the_server_message(monkeypatch):
+    import io
+    import urllib.error
+
+    error = urllib.error.HTTPError(
+        "http://127.0.0.1:8001/api/user/access_tokens", 400, "Bad Request", {},
+        io.BytesIO(b'{"success":false,"message":"missing field scope"}'),
+    )
+
+    class Opener:
+        def open(self, *args, **kwargs):
+            raise error
+
+    monkeypatch.setattr(refresh.urllib.request, "build_opener", lambda *a, **k: Opener())
+    with pytest.raises(refresh.RefreshError, match="missing field scope"):
+        refresh._request("POST", "http://127.0.0.1:8001/api/user/access_tokens", {})
 
 
 def test_durable_token_never_mints_without_a_grant(monkeypatch):
