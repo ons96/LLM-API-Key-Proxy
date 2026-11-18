@@ -425,65 +425,17 @@ credential or traffic was changed, and LiteLLM stayed on `:8000`.
    Consequence: a boot is a two-minute operation that must not share its window
    with any other step-up traffic, including a failed attempt.
 
-**Ledger state as of 2026-11-18 00:20Z:** the canary ledger holds one route,
-`bluesminds-canary`, to minimise proofs per boot. Two `cp` backups sit beside
-the database (`sidecar.db.bak-trim-*` with three routes, `sidecar.db.bak-single-*`
-with one), so restoring either earlier shape is a file copy.
+**Live as of 2026-11-18 00:46Z:** the canary is up on `127.0.0.1:8124`
+(`health` 200) with one strict route, `agnes-kios` (channel 10). A real
+completion through it returned HTTP 200: `content:"ok"`,
+`router.deployment="agnes-kios"`, one attempt, `usage.total_tokens=78`.
+The bluesminds route was dropped because its upstream timed out, and
+`router/tools` stays out because of the alias collision above. The unit is still
+`disabled`, so a reboot stops it.
 
-**Next attempt (no login while the lockout holds):** wait for a quiet window,
-then run the refresh and the boot back-to-back and touch nothing else:
-
-```bash
-sudo -n env NEWAPI_PROOF_BASE_URL=http://127.0.0.1:8001 \
-  NEWAPI_PROOF_TOTP_SECRET_FILE=/etc/newapi-channel-proof/totp.seed \
-  python3 /opt/newapi-sidecar/releases/7b9028f/tools/newapi_token_refresh.py \
-    --newapi-env /opt/new-api/new-api.env \
-    --target-env /etc/newapi-sidecar/sidecar.env --durable --apply
-sudo -n systemctl reset-failed newapi-sidecar-canary
-sudo -n systemctl start newapi-sidecar-canary
-```
-4. **Channel key proof**: installed, but a real boot needs one proof per audited
-   channel per restart.
-5. `sidecar.env` is a systemd `EnvironmentFile` and is not shell-safe
-   (`NEWAPI_CHANNEL_KEY_PROOF_COMMAND` contains spaces), so sourcing it in a
-   shell executes the helper. Use systemd, or a names-only reader.
-
-### Live evidence, 2026-11-17
-
-- New-API on `:8001` served a real completion through the relay token:
-  `agnes-3.0-flash` returned `content:"ok"`, `usage.total_tokens=82`, HTTP 200.
-- `/v1/models` with the same relay token returned 200.
-- The old tool-gate model `agnes-kios` now returns `model_not_found` (no
-  available channel), so the v2 tool gate must be re-targeted before it is
-  claimed again. Channels 10 (`gw:kiosapi`) and 11 (`gw:crowllm-canonical`) are
-  enabled and map `agnes-3.0-flash`, so they are the obvious re-target.
-- `tools/report_newapi_gates.py` prints the settings the startup audit enforces
-  (no channel key is ever printed), so the gate state is a command, not a guess.
-- The LiteLLM gateway stayed healthy on `:8000` throughout
-  (`/health` -> `{"status":"healthy", ...}`).
-
-### LiteLLM removal gate
-
-`tools/litellm_parity.py` turns the removal gate into a checked inventory
-instead of a prose list. It scans the gateway source for `litellm.<symbol>`,
-reports each symbol's disposition (replaced / partial / gap / retired), and
-**exits non-zero** when a symbol appears without a declared disposition or with
-a `gap`.
-
-Current reading: **143 sites across 25 symbols, one blocking gap.**
-
-| Disposition | Symbols |
-| --- | --- |
-| gap (blocks removal) | `drop_params` (2 sites) |
-| partial | `ContextWindowExceededError`, `aembedding`, `callbacks`, `completion_cost`, `get_model_info` |
-| replaced | `acompletion` (18), `ModelResponse` (47), `Choices`, `Message`, `Usage`, `EmbeddingResponse`, `RateLimitError` (11), `ServiceUnavailableError` (8), `InternalServerError` (8), `APIConnectionError`, `AuthenticationError`, `Timeout`, `OpenAIError`, `InvalidRequestError` |
-| retired with the library | `exceptions`, `types`, `integrations`, `litellm_core_utils`, `set_verbose` |
-
-`drop_params` is the only symbol with no sidecar behaviour behind it: the sidecar
-forwards request parameters to New-API without LiteLLM's per-provider dropping,
-so an unsupported parameter reaches the upstream instead of being removed. It
-closes either as a bounded allowlist in `newapi_runtime.py` or as an explicit
-accepted difference recorded in `DISPOSITIONS`.
-
-`tests/test_litellm_parity.py` (11 tests) also guards the real tree, so a new
-`litellm.*` call fails until someone declares what replaces it.
+The durable token is still not mintable: `POST /api/user/access_tokens` answers
+400 even with the catalog scopes and `X-Security-Proof` in place, so the
+installed credential is a ~15-minute login session. Until that is solved every
+boot needs one fresh login, and the refresh plus restart must run back-to-back
+with no other step-up traffic. Database copies (`sidecar.db.bak-*`) preserve
+the earlier three-route and one-route shapes.
