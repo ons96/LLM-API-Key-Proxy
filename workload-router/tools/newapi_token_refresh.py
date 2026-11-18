@@ -261,16 +261,23 @@ def durable_token(base: str, session: str, user_id: int, code: str,
     session may obtain that proof, so the caller must be logged in. The proof
     is single-use: it is spent on this call and never stored.
 
-    On the pinned rc.36 build this endpoint takes no request body worth
-    sending: it rotates the account's static access key, which is exactly the
-    long-lived credential a boot needs. Newer builds accept name/scopes/
-    expires_at, and rc.36 ignores those fields.
+    The pinned rc.48 build creates a scoped token that never expires when
+    `expires_at` is 0, and hashes the exact grant into the proof: the verify
+    context and the create body must therefore carry the same scopes.
     """
-    # `access_token.generate` is one of the scopes New-API binds to an empty
-    # context: anything in `context` answers "The action details are invalid."
+    granted: list[str] = []
+    if scopes is None:
+        # The catalog reports exactly what this account may grant, and an
+        # empty grant is fatal, so ask before spending a verification.
+        granted = grantable_scopes(base, session, user_id)
+    else:
+        granted = list(scopes)
+        if not granted:
+            raise RefreshError("refusing to mint a token that grants nothing")
     proof_body = _request("POST", base + "/api/verify", {
         "method": "2fa",
         "scope": "access_token.generate",
+        "context": {"scopes": granted, "expires_at": 0},
         "code": code,
     }, token=session, user_id=user_id)
     if proof_body.get("success") is not True:
@@ -281,27 +288,12 @@ def durable_token(base: str, session: str, user_id: int, code: str,
     proof = data.get("proof_token") if isinstance(data, dict) else None
     if not isinstance(proof, str) or not proof.strip():
         raise RefreshError("two-factor verification returned no proof")
-    granted: list[str] = []
-    if scopes is None:
-        # rc.36 has no scoped-token catalog: this scope rotates the account's
-        # static key and takes neither a context nor scopes. Newer builds
-        # expose the catalog, and its grant is forwarded when it exists.
-        try:
-            granted = grantable_scopes(base, session, user_id)
-        except RefreshError:
-            granted = []
-    else:
-        granted = list(scopes)
-        if not granted:
-            raise RefreshError("refusing to mint a token that grants nothing")
-    payload: dict = {"name": "sidecar-audit"}
-    if granted:
-        payload["scopes"] = granted
-    # rc.36 mounts the mint here; `/api/user/access_tokens` only exists on
-    # newer builds, where the same call is served under that path.
-    minted = _request("POST", base + "/api/user/token", payload,
-                      token=session, user_id=user_id,
-                      extra_headers={"X-Security-Proof": proof.strip()})
+    minted = _request("POST", base + "/api/user/access_tokens", {
+        "name": "sidecar-audit",
+        "expires_at": 0,
+        "scopes": granted,
+    }, token=session, user_id=user_id,
+       extra_headers={"X-Security-Proof": proof.strip()})
     if minted.get("success") is not True:
         message = str(minted.get("message") or "")[:120]
         raise RefreshError("access-token creation rejected"

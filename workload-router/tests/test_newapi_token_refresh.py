@@ -120,26 +120,30 @@ def test_durable_token_reads_string_and_object_payloads(monkeypatch):
     monkeypatch.setattr(refresh, "_request", fake)
     assert refresh.durable_token("http://127.0.0.1:8001", "s", 1, "123456",
                                  scopes=["channel:read"]) == "minted"
-    assert calls[-1].endswith("/api/user/token")
-    assert seen["payload"] == {"name": "sidecar-audit", "scopes": ["channel:read"]}
+    assert calls[-1].endswith("/api/user/access_tokens")
+    assert seen["payload"] == {"name": "sidecar-audit", "expires_at": 0,
+                               "scopes": ["channel:read"]}
     assert seen["headers"] == {"X-Security-Proof": "proof"}
 
 
-def test_durable_token_sends_no_context_for_the_generate_scope(monkeypatch):
-    """`access_token.generate` is bound to an empty context in New-API; any
-    context answers "The action details are invalid." and the mint 400s."""
+def test_durable_token_binds_the_proof_to_the_exact_grant(monkeypatch):
+    """rc.48 hashes {scopes, expires_at} into the proof; sending anything else
+    (including no context at all) answers "The action details are invalid." """
     seen = {}
 
     def fake(method, url, payload=None, token="", user_id=None, extra_headers=None):
         if url.endswith("/api/verify"):
             seen["verify"] = payload
             return {"success": True, "data": {"proof_token": "proof"}}
+        seen["mint"] = payload
         return {"success": True, "data": {"token": "minted"}}
 
     monkeypatch.setattr(refresh, "_request", fake)
     refresh.durable_token("http://127.0.0.1:8001", "s", 1, "123456", scopes=["option:read"])
 
-    assert "context" not in seen["verify"]
+    assert seen["verify"]["context"] == {"scopes": ["option:read"], "expires_at": 0}
+    assert seen["mint"] == {"name": "sidecar-audit", "expires_at": 0,
+                            "scopes": ["option:read"]}
 
 
 def test_durable_token_reports_the_server_message(monkeypatch):

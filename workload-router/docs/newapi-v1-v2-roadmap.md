@@ -476,14 +476,16 @@ The script therefore counts consecutive unsuccessful revives in its
 stops reviving for `SIDECAR_CANARY_RECOVER_COOLDOWN` seconds (default 1800)
 before trying again. A successful revive clears both.
 
-The durable token is still not mintable, but the reason is now known to be
-smaller than "the API refuses". rc.36 mounts the mint at `GET/POST
-/api/user/token`, not `/api/user/access_tokens` (that path falls through to
-`/api/user/:id`), and the `access_token.generate` proof is bound to an **empty**
-context: sending `{"scopes": ..., "expires_at": ...}` is what answered "The
-action details are invalid." The tool now sends no context and posts to the
-right path. The remaining 400 still needs a response body, and has not been
-retried since the retries below tripped New-API's critical limiter.
+The durable token is still not minted, but its contract is now known exactly.
+**This box runs `v1.0.0-rc.48`**, not rc.36 as the notes above assumed — that
+single wrong assumption produced every failed attempt. In rc.48
+`POST /api/user/access_tokens` takes `{name, scopes[], expires_at}`, where
+`expires_at: 0` means never, and `access_token.generate` hashes
+`{"scopes": [...], "expires_at": 0}` into the proof. A proof requested with no
+context, or with `scopes: {}`, answers "The action details are invalid." — which
+is exactly what the four earlier attempts did. `tools/newapi_token_refresh.py`
+now builds scopes from `/api/user/access_tokens/catalog`, sends that context to
+`/api/verify`, and creates the token with the same grant.
 
 That limiter is the real hazard found today. Repeated `/api/verify` calls made
 the next boot's channel-key read fail with `POST /api/channel/<id>/key` →
@@ -540,6 +542,48 @@ then booted on one proof.
 Operational rule from this: never run an audit or a durable-token experiment
 while an unattended canary has to boot, and if a boot is failing on 429, restart
 `new-api` rather than waiting or retrying.
+
+Database copies (`sidecar.db.bak-*`) preserve the earlier three-route and
+one-route shapes.
+
+## Resume here, 2026-11-18 03:00Z
+
+State when this session ended: gateway `:8000` 200, new-api `:8001` 200, canary
+`:8124` 200 with one strict route (`agnes-kios`), all units `enabled`, recovery
+timer active, and the reboot gate proven. LiteLLM was never touched.
+
+**Next action: one clean durable-token attempt.** The helper is fixed and
+deployed but was deliberately not run again before shutdown, because a failed
+attempt costs a rate-limited `/api/verify` and nothing would have been watching
+the canary afterwards.
+
+```bash
+sudo python3 /opt/newapi-sidecar/releases/7b9028f/tools/newapi_token_refresh.py \
+  --base-url http://127.0.0.1:8001 --newapi-env /opt/new-api/new-api.env \
+  --target-env /etc/newapi-sidecar/sidecar.env \
+  --totp-seed /etc/newapi-channel-proof/totp.seed --durable --apply
+```
+
+Expect `token_source=durable-access-token`, then `--if-live` should report the
+installed token live long after the ~15 minute session lifetime. If it instead
+says `minted token did not authenticate`, the conclusion is that rc.48 scoped
+tokens cannot drive the channel-key proof (`requireBrowserSession`), and the
+session-token path plus the boot-time refresh stays the design.
+
+Rules learned the hard way, do not relearn them:
+
+- If a canary boot fails with `catalog HTTP status 429`, restart `new-api`;
+  the limiter is in process and a restart clears it. Waiting does not.
+- Never run audits or token experiments while a boot is pending.
+- Apply route changes with the release the canary runs (`ec88ffd` today), not a
+  newer staged one: `7b9028f`'s operator writes `credit_renewal`, which
+  `ec88ffd` rejects at boot.
+- A second route (`agnes-crow`) needs a second channel-key proof per boot; it
+  worked and proved failover (`attempts: 2`), then was removed for headroom.
+
+Committed work: `51ae418` recovery timer and backoff, `edce1de` login backoff,
+`63d606e` token-helper contract and error reporting, `0ef2d05` live ladder and
+reboot evidence, plus the commit that follows this note.
 
 Database copies (`sidecar.db.bak-*`) preserve the earlier three-route and
 one-route shapes.
