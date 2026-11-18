@@ -1,0 +1,13 @@
+[Unit]
+Description=Watch the sidecar canary and revive it if systemd gives up
+
+[Timer]
+# A boot is when a failed start is most likely to go unnoticed, so check it
+# early as well as on the regular cadence.
+OnBootSec=2min
+OnCalendar=*:0/5
+AccuracySec=30s
+Unit=newapi-sidecar-canary-recover.service
+
+[Install]
+WantedBy=timers.target

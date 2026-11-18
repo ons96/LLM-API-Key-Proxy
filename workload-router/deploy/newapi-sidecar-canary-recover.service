@@ -1,0 +1,24 @@
+[Unit]
+Description=Revive the sidecar canary after systemd gives up on it
+Documentation=https://github.com/ons96/LLM-API-Key-Proxy/blob/s0-cost-vector/workload-router/docs/newapi-v1-v2-roadmap.md
+After=network.target new-api.service
+Wants=new-api.service
+# The timer is this unit's rate limiter: it cannot run more than once per
+# tick, so a start limit only adds a way to lock the unit out. A 300s limit
+# against a 300s tick did exactly that while this was being tested.
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/sbin/newapi-sidecar-canary-recover
+TimeoutStartSec=60
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true

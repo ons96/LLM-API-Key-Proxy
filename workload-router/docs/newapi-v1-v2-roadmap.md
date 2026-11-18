@@ -430,8 +430,8 @@ credential or traffic was changed, and LiteLLM stayed on `:8000`.
 completion through it returned HTTP 200: `content:"ok"`,
 `router.deployment="agnes-kios"`, one attempt, `usage.total_tokens=78`.
 The bluesminds route was dropped because its upstream timed out, and
-`router/tools` stays out because of the alias collision above. The unit is still
-`disabled`, so a reboot stops it.
+`router/tools` stays out because of the alias collision above. Both units are
+enabled, so this survives a reboot.
 
 **Boot survival, 2026-11-18 00:53Z.** `newapi-sidecar-canary-token.service`
 runs as root immediately before the canary: it reads the root password from
@@ -446,6 +446,26 @@ Verified by restarting `new-api`, which invalidates the previous session:
 `health` 200 and a real completion (`content:"ok"`, `agnes-kios`, one attempt,
 78 tokens). LiteLLM stayed 200. A real reboot has not been exercised; the
 restart covers the part that used to fail, the expired session.
+
+**Failure recovery, 2026-11-18 01:45Z.** `newapi-sidecar-canary-recover.timer`
+runs every five minutes and revives the canary only when it is `failed`; a
+deliberate `systemctl stop` leaves it `inactive` and is left alone.
+
+A plain crash loop does not need this. The start counter resets on a successful
+start, so four SIGKILLs in thirty seconds produced four restarts and the unit
+stayed up. The state that needs help is a start that keeps *failing* — a stale
+token or a rate-limited login — because those attempts never reach `active` and
+do hit `StartLimitBurst`, leaving the unit `failed` with nothing to restart it.
+That was reproduced: an exhausted token budget during a restart ended in
+`failed` with `start-limit-hit`, and the timer brought the canary back to
+`state=active`, `health` 200.
+
+The test found two bugs in the first cut, both fixed: the failed canary pulls
+the token refresh in on every attempt, so that unit reaches its own start limit
+and the revive must `reset-failed` it as well, or it restarts a canary the stale
+token immediately kills; and a 300s start limit on the recovery unit locks it
+out when its own ticks are 300s apart, so rate limiting is left to the timer
+(`StartLimitIntervalSec=0`).
 
 The durable token is still not mintable: `POST /api/user/access_tokens` answers
 400 even with the catalog scopes and `X-Security-Proof` in place. That is now a

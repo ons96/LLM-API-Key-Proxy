@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Revive the sidecar canary after systemd stops trying.
+#
+# systemd abandons the canary in two cases that look identical from outside:
+# StartLimitBurst crashes landing inside StartLimitIntervalSec, and a failed
+# pre-start token refresh, after which the canary's audit rejects every retry.
+# Both leave the unit `failed` with nothing left to restart it. This runs from
+# a timer and repairs exactly that state.
+#
+# A deliberate `systemctl stop` leaves the unit `inactive`, not `failed`, so an
+# operator stopping the canary for maintenance is left alone.
+set -uo pipefail
+
+unit=${SIDECAR_CANARY_UNIT:-newapi-sidecar-canary.service}
+delay=${SIDECAR_CANARY_RECOVER_DELAY:-2}
+
+state=$(systemctl show --property=ActiveState --value "$unit")
+if [ "$state" != failed ]; then
+    exit 0
+fi
+
+logger -t sidecar-canary-recover "$unit is failed, reviving"
+# Every attempt to start the canary pulls in the token refresh, so a canary
+# that keeps failing usually leaves that unit at its own start limit too.
+# Without this the revive starts a canary whose stale token fails the audit
+# again, which is the loop this service exists to break.
+systemctl reset-failed newapi-sidecar-canary-token.service
+# Clears the start rate-limit counter; without it the start below is refused
+# with "start request repeated too quickly".
+systemctl reset-failed "$unit"
+# Starting the canary pulls in the token refresh through its Wants=/After=
+# drop-in, so an expired session is renewed here exactly as it is at boot. That
+# step is non-blocking: a rate-limited login still gets the canary attempted.
+systemctl start "$unit"
+sleep "$delay"
+
+state=$(systemctl show --property=ActiveState --value "$unit")
+logger -t sidecar-canary-recover "$unit recovery finished state=$state"
+[ "$state" = active ]
