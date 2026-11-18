@@ -13,9 +13,35 @@ set -uo pipefail
 
 unit=${SIDECAR_CANARY_UNIT:-newapi-sidecar-canary.service}
 delay=${SIDECAR_CANARY_RECOVER_DELAY:-2}
+state_dir=${SIDECAR_CANARY_RECOVER_STATE_DIR:-/var/lib/newapi-sidecar-canary-recover}
+max_fails=${SIDECAR_CANARY_RECOVER_MAX_FAILS:-3}
+cooldown=${SIDECAR_CANARY_RECOVER_COOLDOWN:-1800}
 
 state=$(systemctl show --property=ActiveState --value "$unit")
 if [ "$state" != failed ]; then
+    exit 0
+fi
+
+# Every revive starts the token unit, and that unit spends one admin login
+# whenever the session is older than its ~30 minute lifetime. The login
+# endpoint answers 429 after repeated attempts and each further attempt extends
+# the block, so retrying every tick would keep the limiter warm for as long as
+# the canary is down. After max_fails unsuccessful revives, stay quiet for
+# cooldown seconds instead of hammering login.
+now=$(date +%s)
+cooldown_until=0
+fails=0
+if mkdir -p "$state_dir" 2>/dev/null; then
+    cooldown_until=$(cat "$state_dir/cooldown-until" 2>/dev/null || echo 0)
+    fails=$(cat "$state_dir/fails" 2>/dev/null || echo 0)
+else
+    # Recovery matters more than the backoff: keep reviving without state.
+    state_dir=""
+fi
+case $cooldown_until in '' | *[!0-9]*) cooldown_until=0 ;; esac
+case $fails in '' | *[!0-9]*) fails=0 ;; esac
+if [ "$now" -lt "$cooldown_until" ]; then
+    logger -t sidecar-canary-recover "cooling down until $cooldown_until, not reviving $unit"
     exit 0
 fi
 
@@ -35,5 +61,24 @@ systemctl start "$unit"
 sleep "$delay"
 
 state=$(systemctl show --property=ActiveState --value "$unit")
+if [ "$state" = active ]; then
+    if [ -n "$state_dir" ]; then
+        echo 0 > "$state_dir/fails"
+        echo 0 > "$state_dir/cooldown-until"
+    fi
+    logger -t sidecar-canary-recover "$unit recovery finished state=$state"
+    exit 0
+fi
+
+if [ -n "$state_dir" ]; then
+    fails=$((fails + 1))
+    echo "$fails" > "$state_dir/fails"
+    if [ "$fails" -ge "$max_fails" ]; then
+        echo $((now + cooldown)) > "$state_dir/cooldown-until"
+        echo 0 > "$state_dir/fails"
+        logger -t sidecar-canary-recover \
+            "$unit still $state after $fails revives, backing off ${cooldown}s"
+    fi
+fi
 logger -t sidecar-canary-recover "$unit recovery finished state=$state"
 [ "$state" = active ]

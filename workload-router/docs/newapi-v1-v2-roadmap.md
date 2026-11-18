@@ -467,6 +467,15 @@ token immediately kills; and a 300s start limit on the recovery unit locks it
 out when its own ticks are 300s apart, so rate limiting is left to the timer
 (`StartLimitIntervalSec=0`).
 
+The login session lasts about thirty minutes: the `--if-live` check at
+01:54Z rejected the token written at 01:24Z and spent a fresh login. Every
+revive starts the token unit, so a canary that cannot stay up would spend one
+admin login per tick, and each rejected attempt extends the login limiter.
+The script therefore counts consecutive unsuccessful revives in its
+`StateDirectory=` and, after `SIDECAR_CANARY_RECOVER_MAX_FAILS` (default 3),
+stops reviving for `SIDECAR_CANARY_RECOVER_COOLDOWN` seconds (default 1800)
+before trying again. A successful revive clears both.
+
 The durable token is still not mintable: `POST /api/user/access_tokens` answers
 400 even with the catalog scopes and `X-Security-Proof` in place. That is now a
 convenience gap, not a boot gap: without it every boot still spends one login.
