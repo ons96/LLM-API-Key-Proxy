@@ -51,12 +51,15 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def _request(method: str, url: str, payload: dict | None = None,
-             token: str = "", user_id: int | None = None) -> dict:
+             token: str = "", user_id: int | None = None,
+             extra_headers: dict | None = None) -> dict:
     headers = {"Content-Type": "application/json"}
     if token:
         headers["Authorization"] = "Bearer " + token
     if user_id:
         headers["New-API-User"] = str(user_id)
+    for name, value in (extra_headers or {}).items():
+        headers[name] = value
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
     request = urllib.request.Request(url, data=data, method=method, headers=headers)
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
@@ -211,8 +214,43 @@ def next_window_delay(now: float | None = None) -> float:
     return 30 - (moment % 30) + 1
 
 
-def durable_token(base: str, session: str, user_id: int, code: str) -> str:
-    """Exchange the 2FA code for a never-expiring access token."""
+def grantable_scopes(base: str, session: str, user_id: int) -> list[str]:
+    """Ask the console which `resource:action` scopes this login may grant.
+
+    The vocabulary is build-specific, so it is read instead of hardcoded. An
+    empty grant is fatal: New-API rejects a token that grants nothing.
+    """
+    body = _request("GET", base + "/api/user/access_tokens/catalog",
+                    token=session, user_id=user_id)
+    if body.get("success") is not True:
+        raise RefreshError("access-token catalog is unavailable")
+    data = body.get("data")
+    groups = data.get("groups") if isinstance(data, dict) else None
+    scopes: set[str] = set()
+    for group in groups or []:
+        if not isinstance(group, dict):
+            continue
+        for resource in group.get("resources") or []:
+            if not isinstance(resource, dict):
+                continue
+            name = resource.get("resource")
+            for action in resource.get("actions") or []:
+                verb = action.get("action") if isinstance(action, dict) else None
+                if isinstance(name, str) and isinstance(verb, str) and name and verb:
+                    scopes.add(name + ":" + verb)
+    if not scopes:
+        raise RefreshError("no grantable scopes were reported")
+    return sorted(scopes)
+
+
+def durable_token(base: str, session: str, user_id: int, code: str,
+                  scopes: list[str] | None = None) -> str:
+    """Exchange the 2FA code for a never-expiring access token.
+
+    The mint is proof-gated (`access_token.generate`) and only a console
+    session may obtain that proof, so the caller must be logged in. The proof
+    is single-use: it is spent on this call and never stored.
+    """
     proof_body = _request("POST", base + "/api/verify", {
         "method": "2fa",
         "scope": "access_token.generate",
@@ -225,12 +263,14 @@ def durable_token(base: str, session: str, user_id: int, code: str) -> str:
     proof = data.get("proof_token") if isinstance(data, dict) else None
     if not isinstance(proof, str) or not proof.strip():
         raise RefreshError("two-factor verification returned no proof")
-
+    granted = list(scopes) if scopes is not None else grantable_scopes(base, session, user_id)
+    if not granted:
+        raise RefreshError("refusing to mint a token that grants nothing")
     minted = _request("POST", base + "/api/user/access_tokens", {
         "name": "sidecar-audit",
         "expires_at": 0,
-        "scopes": {},
-    }, token=session, user_id=user_id)
+        "scopes": granted,
+    }, token=session, user_id=user_id, extra_headers={"X-Security-Proof": proof.strip()})
     if minted.get("success") is not True:
         raise RefreshError("access-token creation rejected")
     payload = minted.get("data")

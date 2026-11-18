@@ -81,7 +81,7 @@ def test_login_returns_flow_token_when_2fa_is_required(monkeypatch):
 def test_complete_2fa_returns_token_and_id(monkeypatch):
     seen = {}
 
-    def fake(method, url, payload=None, token="", user_id=None):
+    def fake(method, url, payload=None, token="", user_id=None, **kwargs):
         seen["url"] = url
         seen["payload"] = payload
         return {"success": True, "data": {"access_token": "jwt", "user": {"id": 7}}}
@@ -107,16 +107,56 @@ def test_login_reports_rejection_without_echoing_password(monkeypatch):
 
 def test_durable_token_reads_string_and_object_payloads(monkeypatch):
     calls = []
+    seen = {}
 
-    def fake(method, url, payload=None, token="", user_id=None):
+    def fake(method, url, payload=None, token="", user_id=None, extra_headers=None):
         calls.append(url)
         if url.endswith("/api/verify"):
             return {"success": True, "data": {"proof_token": "proof"}}
+        seen["payload"] = payload
+        seen["headers"] = extra_headers or {}
         return {"success": True, "data": {"token": "minted"}}
 
     monkeypatch.setattr(refresh, "_request", fake)
-    assert refresh.durable_token("http://127.0.0.1:8001", "s", 1, "123456") == "minted"
+    assert refresh.durable_token("http://127.0.0.1:8001", "s", 1, "123456",
+                                 scopes=["channel:read"]) == "minted"
     assert calls[-1].endswith("/api/user/access_tokens")
+    assert seen["payload"] == {"name": "sidecar-audit", "expires_at": 0,
+                               "scopes": ["channel:read"]}
+    assert seen["headers"] == {"X-Security-Proof": "proof"}
+
+
+def test_grantable_scopes_flattens_the_console_catalog(monkeypatch):
+    payload = {"success": True, "data": {"groups": [
+        {"group": "system", "resources": [
+            {"resource": "option", "actions": [{"action": "read"}, {"action": "write"}]},
+            {"resource": "channel", "actions": [{"action": "read"}, {"action": "reveal"}]},
+        ]},
+        {"group": "personal", "resources": [
+            {"resource": "profile", "actions": [{"action": "read"}]},
+        ]},
+    ]}}
+    monkeypatch.setattr(refresh, "_request", lambda *a, **k: payload)
+    assert refresh.grantable_scopes("http://127.0.0.1:8001", "s", 1) == [
+        "channel:read", "channel:reveal", "option:read", "option:write", "profile:read"]
+
+
+def test_grantable_scopes_refuses_an_empty_catalog(monkeypatch):
+    monkeypatch.setattr(refresh, "_request",
+                        lambda *a, **k: {"success": True, "data": {"groups": []}})
+    with pytest.raises(refresh.RefreshError, match="no grantable scopes"):
+        refresh.grantable_scopes("http://127.0.0.1:8001", "s", 1)
+
+
+def test_durable_token_never_mints_without_a_grant(monkeypatch):
+    def fake(method, url, payload=None, token="", user_id=None, extra_headers=None):
+        if url.endswith("/api/verify"):
+            return {"success": True, "data": {"proof_token": "proof"}}
+        raise AssertionError("mint must not be attempted")
+
+    monkeypatch.setattr(refresh, "_request", fake)
+    with pytest.raises(refresh.RefreshError, match="grants nothing"):
+        refresh.durable_token("http://127.0.0.1:8001", "s", 1, "123456", scopes=[])
 
 
 def test_main_check_mode_never_writes(tmp_path, monkeypatch, capsys):

@@ -401,10 +401,24 @@ credential or traffic was changed, and LiteLLM stayed on `:8000`.
    The durable path (`POST /api/user/access_tokens` with `expires_at: 0`) still
    answers HTTP 400, so the installed token is a short-lived login session: it
    must be refreshed within its lifetime before a boot.
-2. **`RetryTimes` is 8**, measured today; the earlier record of 3 was stale. The
-   strict audit requires 0, so this is the only remaining *setting* gate.
+2. ~~`RetryTimes`~~ **closed 2026-11-18.** It was 8, not the 3 on file; the
+   operator approved the change, it is now 0 (verified by re-reading the option).
+   A full option snapshot is kept at
+   `/etc/newapi-sidecar/options-before-retrytimes-*.json` for a one-call restore.
 3. ~~Channel overrides~~ **already clear**: channels 3 and 4 carry
    `param_override=""`, so the forced-streaming blocker is gone.
+4. **Alias collision (open).** `router/tools` is published by five channels
+   (3, 13, 14, 26, 27). The strict audit requires exactly one channel per alias,
+   so the `groq-tools` route can never pass while those channels overlap. The
+   canary ledger now carries the three collision-free routes
+   (`bluesminds-canary`, `agnes-kios`, `agnes-crow`); the DB was copied to
+   `sidecar.db.bak-trim-*` first. Choosing a canonical channel per alias is an
+   operator decision, not a sidecar one.
+5. **Step-up limiter (open).** `POST /api/verify` begins returning HTTP 429
+   after repeated logins and proofs within a short window, and every channel
+   proof needs a fresh code from it. Nothing in `/api/option/` exposes that
+   limiter, so it must be waited out; a boot has to be the only step-up traffic
+   in its window. With the ledger at three routes a boot needs three proofs.
 4. **Channel key proof**: installed, but a real boot needs one proof per audited
    channel per restart.
 5. `sidecar.env` is a systemd `EnvironmentFile` and is not shell-safe
