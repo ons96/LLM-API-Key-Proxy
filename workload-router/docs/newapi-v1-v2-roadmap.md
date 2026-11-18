@@ -398,9 +398,9 @@ credential or traffic was changed, and LiteLLM stayed on `:8000`.
    the two-factor leg at `POST /api/user/login/2fa` (the `/2fa/verify` path does
    not exist on this build) and installs the token into `sidecar.env` behind a
    `.bak-token-<timestamp>` backup. `GET /api/option/` now returns 200.
-   The durable path (`POST /api/user/access_tokens` with `expires_at: 0`) still
-   answers HTTP 400, so the installed token is a short-lived login session: it
-   must be refreshed within its lifetime before a boot.
+   The durable path (`POST /api/user/access_tokens` with `expires_at: 0`)
+   **closed 2026-11-18 02:22Z**: the mint needed the rc.48 proof context, not a
+   different endpoint. See "Resume here" at the end of this file.
 2. ~~`RetryTimes`~~ **closed 2026-11-18.** It was 8, not the 3 on file; the
    operator approved the change, it is now 0 (verified by re-reading the option).
    A full option snapshot is kept at
@@ -476,7 +476,8 @@ The script therefore counts consecutive unsuccessful revives in its
 stops reviving for `SIDECAR_CANARY_RECOVER_COOLDOWN` seconds (default 1800)
 before trying again. A successful revive clears both.
 
-The durable token is still not minted, but its contract is now known exactly.
+The durable token is minted and installed, and its contract is now known
+exactly.
 **This box runs `v1.0.0-rc.48`**, not rc.36 as the notes above assumed — that
 single wrong assumption produced every failed attempt. In rc.48
 `POST /api/user/access_tokens` takes `{name, scopes[], expires_at}`, where
@@ -552,10 +553,12 @@ State when this session ended: gateway `:8000` 200, new-api `:8001` 200, canary
 `:8124` 200 with one strict route (`agnes-kios`), all units `enabled`, recovery
 timer active, and the reboot gate proven. LiteLLM was never touched.
 
-**Next action: one clean durable-token attempt.** The helper is fixed and
-deployed but was deliberately not run again before shutdown, because a failed
-attempt costs a rate-limited `/api/verify` and nothing would have been watching
-the canary afterwards.
+**Durable token: done and proven.** `--durable --apply` minted a scoped token
+(`nap_...`, 47 characters, not a JWT) and installed it; `--if-live` then saw the
+installed token live without spending a login. A canary restart on that token
+came up `active` with `/health` 200 and a real completion (`agnes-kios`, one
+attempt, 79 tokens), so a boot no longer depends on the ~15 minute login
+session. The command, kept for a rebuild:
 
 ```bash
 sudo python3 /opt/newapi-sidecar/releases/7b9028f/tools/newapi_token_refresh.py \
@@ -564,11 +567,10 @@ sudo python3 /opt/newapi-sidecar/releases/7b9028f/tools/newapi_token_refresh.py 
   --totp-seed /etc/newapi-channel-proof/totp.seed --durable --apply
 ```
 
-Expect `token_source=durable-access-token`, then `--if-live` should report the
-installed token live long after the ~15 minute session lifetime. If it instead
-says `minted token did not authenticate`, the conclusion is that rc.48 scoped
-tokens cannot drive the channel-key proof (`requireBrowserSession`), and the
-session-token path plus the boot-time refresh stays the design.
+`sidecar.env.bak-token-*` still holds the previous session tokens if this ever
+needs to be undone. The tool's only remaining weakness is that a *rejected*
+grant is indistinguishable from a rejected proof in the log; both surface as
+`access-token creation rejected: <server message>`.
 
 Rules learned the hard way, do not relearn them:
 
