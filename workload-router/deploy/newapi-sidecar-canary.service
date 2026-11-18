@@ -1,0 +1,32 @@
+[Unit]
+Description=New-API quota sidecar canary (loopback 8124)
+After=network.target new-api.service
+Wants=new-api.service
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=newapi
+Group=newapi
+WorkingDirectory=/opt/newapi-sidecar/releases/ec88ffd
+EnvironmentFile=/etc/newapi-sidecar/sidecar.env
+ExecStart=/usr/bin/python3 /opt/newapi-sidecar/releases/ec88ffd/newapi_server.py
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/var/lib/newapi-sidecar
+MemoryMax=128M
+TasksMax=64
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target
