@@ -1,0 +1,35 @@
+[Unit]
+Description=Refresh the New-API admin token before the sidecar canary starts
+Documentation=https://github.com/ons96/LLM-API-Key-Proxy/blob/s0-cost-vector/workload-router/docs/newapi-v1-v2-roadmap.md
+After=network.target new-api.service
+Wants=new-api.service
+StartLimitIntervalSec=300
+StartLimitBurst=3
+# A login session lives about fifteen minutes, so the canary's strict audit
+# only passes when this runs immediately before the canary starts. One attempt
+# per start: New-API counts each login against its lockout, and retrying a
+# 401/403/429 makes the lockout longer.
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+RemainAfterExit=no
+Environment=NEWAPI_PROOF_BASE_URL=http://127.0.0.1:8001
+# Give New-API a moment to bind after boot; this probe is unauthenticated and
+# never consumes a login attempt.
+ExecStartPre=/bin/sh -c 'for i in 1 2 3 4 5 6; do curl -fsS -o /dev/null http://127.0.0.1:8001/api/status && exit 0; sleep 2; done; exit 0'
+ExecStart=/usr/bin/python3 /opt/newapi-sidecar/releases/7b9028f/tools/newapi_token_refresh.py --base-url http://127.0.0.1:8001 --newapi-env /opt/new-api/new-api.env --target-env /etc/newapi-sidecar/sidecar.env --totp-seed /etc/newapi-channel-proof/totp.seed --if-live --apply
+TimeoutStartSec=45
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/etc/newapi-sidecar
+
+[Install]
+WantedBy=multi-user.target

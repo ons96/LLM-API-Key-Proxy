@@ -198,3 +198,51 @@ def test_main_fails_closed_without_password(tmp_path, capsys):
     assert refresh.main(["--newapi-env", str(source),
                          "--target-env", str(tmp_path / "sidecar.env")]) == 1
     assert "root password not found" in capsys.readouterr().err
+
+
+def test_if_live_keeps_a_working_token_without_logging_in(tmp_path, monkeypatch, capsys):
+    source = tmp_path / "new-api.env"
+    source.write_text("ROOT_PASSWORD=pw\n")
+    target = tmp_path / "sidecar.env"
+    original = "NEWAPI_ADMIN_TOKEN=live\nNEWAPI_PROOF_ADMIN_USER_ID=3\n"
+    target.write_text(original)
+    monkeypatch.setattr(refresh, "login", lambda *a: pytest.fail("login must not run"))
+    seen = {}
+
+    def live(base, token, user_id):
+        seen.update(base=base, token=token, user_id=user_id)
+        return True
+
+    monkeypatch.setattr(refresh, "token_is_live", live)
+    assert refresh.main(["--newapi-env", str(source), "--target-env", str(target),
+                         "--if-live", "--apply"]) == 0
+    assert target.read_text() == original
+    assert seen == {"base": "http://127.0.0.1:8001", "token": "live", "user_id": 3}
+    assert "still live" in capsys.readouterr().out
+    assert not list(tmp_path.glob("sidecar.env.bak-token-*")), "no backup for a no-op"
+
+
+def test_if_live_logs_in_when_the_installed_token_is_dead(tmp_path, monkeypatch):
+    source = tmp_path / "new-api.env"
+    source.write_text("ROOT_PASSWORD=pw\n")
+    target = tmp_path / "sidecar.env"
+    target.write_text("NEWAPI_ADMIN_TOKEN=dead\nNEWAPI_PROOF_ADMIN_USER_ID=3\n")
+    monkeypatch.setattr(refresh, "login",
+                        lambda *a: {"token": "fresh", "user_id": 3, "flow_token": ""})
+    monkeypatch.setattr(refresh, "token_is_live", lambda base, token, user_id: token == "fresh")
+    assert refresh.main(["--newapi-env", str(source), "--target-env", str(target),
+                         "--if-live", "--apply"]) == 0
+    assert "NEWAPI_ADMIN_TOKEN=fresh" in target.read_text()
+
+
+def test_if_live_logs_in_when_the_installed_identity_is_missing(tmp_path, monkeypatch):
+    source = tmp_path / "new-api.env"
+    source.write_text("ROOT_PASSWORD=pw\n")
+    target = tmp_path / "sidecar.env"
+    target.write_text("NEWAPI_ADMIN_TOKEN=orphan\n")
+    monkeypatch.setattr(refresh, "login",
+                        lambda *a: {"token": "fresh", "user_id": 3, "flow_token": ""})
+    monkeypatch.setattr(refresh, "token_is_live", lambda base, token, user_id: token == "fresh")
+    assert refresh.main(["--newapi-env", str(source), "--target-env", str(target),
+                         "--if-live", "--apply"]) == 0
+    assert "NEWAPI_ADMIN_TOKEN=fresh" in target.read_text()

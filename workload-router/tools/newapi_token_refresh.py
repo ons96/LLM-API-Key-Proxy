@@ -304,6 +304,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--durable", action="store_true",
                         help="exchange a TOTP code for a never-expiring token")
     parser.add_argument("--apply", action="store_true", help="write the target env file")
+    parser.add_argument("--if-live", action="store_true",
+                        help="keep the installed token while it still authenticates")
     args = parser.parse_args(argv)
 
     try:
@@ -317,6 +319,19 @@ def main(argv: list[str] | None = None) -> int:
         if not password:
             names = ", ".join(sorted(values)) or "none"
             raise RefreshError("root password not found; keys present: " + names)
+        target = Path(args.target_env)
+        if args.if_live:
+            installed: dict[str, str] = {}
+            try:
+                installed = parse_env(target.read_text(encoding="utf-8", errors="replace"))
+            except OSError:
+                installed = {}
+            existing = installed.get(ADMIN_KEY, "").strip()
+            identity = (installed.get("NEWAPI_PROOF_ADMIN_USER_ID")
+                        or installed.get("NEWAPI_ADMIN_USER_ID") or "").strip()
+            if existing and identity.isdigit() and token_is_live(base, existing, int(identity)):
+                print("installed token is still live; nothing to do")
+                return 0
         session = login(base, args.username, password)
         token, user_id = session["token"], session["user_id"]
         source_label = "login-session"
@@ -349,7 +364,6 @@ def main(argv: list[str] | None = None) -> int:
         print("check only; pass --apply to install into " + args.target_env)
         return 0
 
-    target = Path(args.target_env)
     try:
         original = target.read_text(encoding="utf-8")
         info = target.stat()

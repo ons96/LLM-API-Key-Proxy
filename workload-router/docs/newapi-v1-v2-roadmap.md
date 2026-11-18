@@ -378,7 +378,7 @@ credential or traffic was changed, and LiteLLM stayed on `:8000`.
 
 ### What is already deployed
 
-- `newapi-sidecar-canary.service` is installed, **disabled**, bound to loopback
+- `newapi-sidecar-canary.service` is installed, **enabled**, bound to loopback
   `:8124`, `MemoryMax=128M`, `User=newapi`, pointed at
   `/opt/newapi-sidecar/releases/ec88ffd`.
 - `/etc/newapi-sidecar/sidecar.env` (0600) carries every required variable,
@@ -433,9 +433,22 @@ The bluesminds route was dropped because its upstream timed out, and
 `router/tools` stays out because of the alias collision above. The unit is still
 `disabled`, so a reboot stops it.
 
+**Boot survival, 2026-11-18 00:53Z.** `newapi-sidecar-canary-token.service`
+runs as root immediately before the canary: it reads the root password from
+`/opt/new-api/new-api.env`, completes the TOTP leg, writes the session token
+into `sidecar.env` behind a `.bak-token-*` copy and exits. It passes
+`--if-live`, so the check is one authenticated `GET /api/option/` and a token
+that still authenticates is left alone instead of burning a login. The canary
+carries a `Wants=`/`After=` drop-in on it, and both units are enabled.
+
+Verified by restarting `new-api`, which invalidates the previous session:
+`login ok user=1 token_source=2fa-login-session`, unit `Result=success`, then
+`health` 200 and a real completion (`content:"ok"`, `agnes-kios`, one attempt,
+78 tokens). LiteLLM stayed 200. A real reboot has not been exercised; the
+restart covers the part that used to fail, the expired session.
+
 The durable token is still not mintable: `POST /api/user/access_tokens` answers
-400 even with the catalog scopes and `X-Security-Proof` in place, so the
-installed credential is a ~15-minute login session. Until that is solved every
-boot needs one fresh login, and the refresh plus restart must run back-to-back
-with no other step-up traffic. Database copies (`sidecar.db.bak-*`) preserve
-the earlier three-route and one-route shapes.
+400 even with the catalog scopes and `X-Security-Proof` in place. That is now a
+convenience gap, not a boot gap: without it every boot still spends one login.
+Database copies (`sidecar.db.bak-*`) preserve the earlier three-route and
+one-route shapes.
