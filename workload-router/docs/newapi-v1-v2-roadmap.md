@@ -414,11 +414,34 @@ credential or traffic was changed, and LiteLLM stayed on `:8000`.
    (`bluesminds-canary`, `agnes-kios`, `agnes-crow`); the DB was copied to
    `sidecar.db.bak-trim-*` first. Choosing a canonical channel per alias is an
    operator decision, not a sidecar one.
-5. **Step-up limiter (open).** `POST /api/verify` begins returning HTTP 429
-   after repeated logins and proofs within a short window, and every channel
-   proof needs a fresh code from it. Nothing in `/api/option/` exposes that
-   limiter, so it must be waited out; a boot has to be the only step-up traffic
-   in its window. With the ledger at three routes a boot needs three proofs.
+5. **Step-up / login limiter (open).** `POST /api/user/login` and
+   `POST /api/verify` begin returning HTTP 429 after repeated attempts. Nothing
+   in `/api/option/` exposes it, there is no Redis (`redis_cli=no`), so the
+   counter lives in the process and a service restart is what would clear it.
+   Measured today: it survived 20+ minutes of quiet, and each further attempt
+   appears to extend it. The admin token is a short-lived login session
+   (written 00:08, rejected 401 by 00:28), so a boot has exactly one clean
+   window in which refresh + proofs must both fit.
+   Consequence: a boot is a two-minute operation that must not share its window
+   with any other step-up traffic, including a failed attempt.
+
+**Ledger state as of 2026-11-18 00:20Z:** the canary ledger holds one route,
+`bluesminds-canary`, to minimise proofs per boot. Two `cp` backups sit beside
+the database (`sidecar.db.bak-trim-*` with three routes, `sidecar.db.bak-single-*`
+with one), so restoring either earlier shape is a file copy.
+
+**Next attempt (no login while the lockout holds):** wait for a quiet window,
+then run the refresh and the boot back-to-back and touch nothing else:
+
+```bash
+sudo -n env NEWAPI_PROOF_BASE_URL=http://127.0.0.1:8001 \
+  NEWAPI_PROOF_TOTP_SECRET_FILE=/etc/newapi-channel-proof/totp.seed \
+  python3 /opt/newapi-sidecar/releases/7b9028f/tools/newapi_token_refresh.py \
+    --newapi-env /opt/new-api/new-api.env \
+    --target-env /etc/newapi-sidecar/sidecar.env --durable --apply
+sudo -n systemctl reset-failed newapi-sidecar-canary
+sudo -n systemctl start newapi-sidecar-canary
+```
 4. **Channel key proof**: installed, but a real boot needs one proof per audited
    channel per restart.
 5. `sidecar.env` is a systemd `EnvironmentFile` and is not shell-safe
