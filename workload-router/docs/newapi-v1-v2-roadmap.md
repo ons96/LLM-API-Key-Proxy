@@ -504,5 +504,42 @@ which the unit exhausted its start limit. Always apply with the release the
 canary actually runs — the DB was restored from
 `sidecar.db.bak-2route-20261118T015940Z` both times.
 
+## Live ladder, 2026-11-18 02:30Z
+
+All of this is on the VPS canary; LiteLLM stayed on `:8000` throughout.
+
+- **Second route and live failover.** With `agnes-kios` (KiosAPI, channel 10)
+  and `agnes-crow` (CrowLLM canonical, channel 11) both loaded, a profile
+  completion (`auto-coding`) returned 200 with `attempts: 2` — the first
+  provider failed and the second answered. That is real cross-provider
+  failover, not a single-route smoke test. The second route was then removed
+  again: two routes cost two channel-key proofs per boot, and the critical
+  limiter was already hot (below).
+- **Soak.** 200 authenticated `GET /v1/models` at 8 workers: 200/200 returned
+  200, p50 7.9 ms, p95 211 ms, 1.8 s wall. RSS 18,936 KiB before and 19,084 KiB
+  after, against the 128 MiB `MemoryMax`. This is discovery/leak evidence; it
+  is not sustained provider load.
+- **Rollback drill.** `systemctl stop newapi-sidecar-canary`: `:8124` stops
+  answering (000) while `:8000` and `:8001` stay 200; `systemctl start` brings
+  the canary back to 200. Clients are unaffected by the canary existing or not.
+- **Real reboot.** The VM rebooted (SSH back in ~64 s). `llm-gateway`
+  restarted, and it needs ~2 minutes: it accepts connections and returns 000
+  while it health-checks every provider, then serves `/health` 200. That is
+  startup latency, not a failure. `new-api` came up 200, the token unit spent
+  one login, and the canary came up `active` with `/health` 200 and a real
+  completion (`content:"ok"`, `agnes-kios`, one attempt, 79 tokens). The
+  recovery timer was active with a next elapse.
+
+**The 429 incident, resolved.** Diagnosing the durable token made repeated
+`/api/verify` calls, which tripped New-API's in-process critical limiter; the
+next canary boot then failed `POST /api/channel/<id>/key` with 429 and hit its
+start limit. Cooling down for 8 minutes did not clear it. Restarting `new-api`
+did, immediately — the counter is process state, there is no Redis. The canary
+then booted on one proof.
+
+Operational rule from this: never run an audit or a durable-token experiment
+while an unattended canary has to boot, and if a boot is failing on 429, restart
+`new-api` rather than waiting or retrying.
+
 Database copies (`sidecar.db.bak-*`) preserve the earlier three-route and
 one-route shapes.
