@@ -26,4 +26,8 @@ paths = [
   '''src/tests/conftest\.py''',
   # Test asserts that a fake sk-... key is redacted from an upstream error.
   '''tests/test_search_endpoint_261\.py''',
+  # gumroad-bundle/package-release.sh carries the credential-shape regexes it
+  # scans buyers' files with (sk-, ghp_, AKIA, private-key markers). The
+  # patterns themselves are the detector, not a credential (2026-11-21).
+  '''gumroad-bundle/package-release\.sh''',
 ]

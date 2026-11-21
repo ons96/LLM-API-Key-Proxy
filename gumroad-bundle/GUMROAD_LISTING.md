@@ -81,3 +81,29 @@ checks, then point one client through an SSH tunnel before considering HTTPS.
 This bundle removes setup ambiguity; it does not remove third-party account
 requirements or operational responsibility. Start with one host and a small
 number of credentials, verify one client call, and expand only after that works.
+
+## Store listing fields (Lemon Squeezy)
+
+The seller name is `spendwarden`. Paste these values into the product form. All
+fields that need a human (payout, tax, refund policy, support address) are
+marked TODO and must not be guessed.
+
+| Field | Value |
+|---|---|
+| Store name | spendwarden |
+| Product name | Free LLM Gateway Starter Kit -- Secure Self-Hosted Setup |
+| Product type | Digital download, single file (the release ZIP) |
+| Price | USD 19, then USD 29 per the Price section above |
+| License | Not a software license sale; the contents are setup materials. Copy: "Setup materials only. Gateway source is MIT and the rotator library is LGPL-3.0; see the public repository." |
+| Release file | `free-llm-gateway-starter-kit-v1.0.0.zip` plus its `.sha256` sibling |
+| Version string | v1.0.0, matching CHANGELOG.md |
+| Support address | TODO: a mailbox the seller controls. Do not ship without it. |
+| Refund policy | TODO: state the platform default in one sentence. |
+| Category | Developer tools |
+| Tags | llm, gateway, self-hosted, openai-compatible, setup |
+
+Before clicking publish: repackage with `bash package-release.sh` so the ZIP
+matches the current files, then confirm the printed SHA-256 against the value
+recorded on the task board. A stale archive is the one defect a buyer will
+notice immediately.
+
