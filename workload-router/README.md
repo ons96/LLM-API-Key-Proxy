@@ -26,7 +26,9 @@ Design: `docs/workload-router-architecture.md`. Session checkpoints: `STATE.md`.
 **Current design delta (read before changing routing behaviour):
 `docs/DESIGN-v2-verified-routing.md`** — verified-correct objective, cascade,
 shadow-priced quota, credit hazard model, placement. Reviewer instructions are
-in its section 0.
+in its section 0. Revision 3 (2026-11-17) makes money a first-class objective
+with a three-part cost vector (§2.1), lets paid routes exist behind a validated
+`free_only` flag (§6.5), and seeds cold-start priors from benchmarks (§7.3).
 
 ## New-API sidecar local verification
 
