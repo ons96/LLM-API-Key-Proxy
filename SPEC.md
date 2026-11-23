@@ -373,6 +373,8 @@ The former DESIGN.md (331L) scoped the dynamic-fallback subsystem. The former IN
 - `BUGS.md` -- known bugs snapshot (Jan 15 2026, item #2 resolved via #340)
 - `HANDOFF_OPUS_2026-06-24.md` -- dynamic_chain/distributed_gate/cost_efficiency wiring
 - `AGENTS.md` -- STALE (2026-02-05), historical only
+- `docs/archive/` -- superseded handoffs, one-off completion reports and setup
+  guides; kept for provenance only (20 files moved 2026-11-23)
 
 **Consolidated 2026-07-10:** former `DESIGN.md` (331L, dynamic-fallback subsystem) and `INTEGRATION_ROADMAP.md` (362L, evolution log) folded into this SPEC; original files deleted via `git rm`.
 
