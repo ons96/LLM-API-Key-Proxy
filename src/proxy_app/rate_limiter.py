@@ -27,6 +27,19 @@ REASON_PROVIDER_DOWN = "PROVIDER_DOWN"
 REASON_MODEL_UNAVAILABLE = "MODEL_UNAVAILABLE"
 REASON_TIMEOUT = "TIMEOUT"
 
+# Counter persistence (#377): request/token counters must survive a restart,
+# otherwise a fresh process starts every daily quota from zero.
+COUNTERS_FILE_NAME = "rate_counters.json"
+COUNTERS_FILE_VERSION = 1
+COUNTER_FIELDS = (
+    "requests_this_minute",
+    "requests_today",
+    "tokens_this_minute",
+    "tokens_today",
+    "last_reset_minute",
+    "last_reset_day",
+)
+
 # Active-day tracking constants
 ACTIVE_DAYS_FILE_VERSION = 1
 DEFAULT_ACTIVE_DAYS_WINDOW_DAYS = 12
@@ -92,7 +105,11 @@ class RateLimitTracker:
     default (path injectable for tests).
     """
 
-    def __init__(self, active_days_path: Optional[Path] = None):
+    def __init__(
+        self,
+        active_days_path: Optional[Path] = None,
+        counters_path: Optional[Path] = None,
+    ):
         self._usage: Dict[str, RateLimitStatus] = {}
         # Key-specific counters are kept separate so one key's limit never
         # blocks its siblings. Keys are identified by a short SHA-256
@@ -113,7 +130,13 @@ class RateLimitTracker:
             repo_root = Path(__file__).resolve().parent.parent.parent
             active_days_path = repo_root / "data" / "active_days.json"
         self._active_days_path: Optional[Path] = active_days_path
+        # Counter persistence (#377). Same directory as active days by default,
+        # so a tracker given a test path keeps its state out of the real data dir.
+        if counters_path is None:
+            counters_path = Path(active_days_path).parent / COUNTERS_FILE_NAME
+        self._counters_path: Optional[Path] = counters_path
         self._load_active_days()
+        self._load_counters()
 
     # ------------------------------------------------------------------ #
     # Active-days configuration + persistence                            #
@@ -147,6 +170,89 @@ class RateLimitTracker:
             logger.warning(
                 f"Failed to load active days from {self._active_days_path}: {e}"
             )
+
+    def _load_counters(self) -> None:
+        """Restore request/token counters written by the previous process (#377).
+
+        RPM/TPM counters are only meaningful inside their window, so a row whose
+        minute anchor already rolled is restored as zero instead of blocking a
+        request after a restart. Day anchors are kept: the normal daily reset
+        logic re-checks them on the next call against the configured window.
+        """
+        if not self._counters_path or not self._counters_path.exists():
+            return
+        try:
+            with open(self._counters_path, "r") as f:
+                data = json.load(f)
+        except Exception as e:
+            logger.warning(f"Failed to load counters from {self._counters_path}: {e}")
+            return
+        now = time.time()
+        restored = 0
+        for bucket_name, attr in (("usage", "_usage"), ("key_usage", "_key_usage")):
+            bucket = getattr(self, attr)
+            for key, row in (data.get(bucket_name) or {}).items():
+                if not isinstance(row, dict):
+                    continue
+                status = RateLimitStatus()
+                for name in (
+                    "requests_this_minute",
+                    "requests_today",
+                    "tokens_this_minute",
+                    "tokens_today",
+                ):
+                    value = row.get(name, 0)
+                    if isinstance(value, int) and value >= 0:
+                        setattr(status, name, value)
+                for name in ("last_reset_minute", "last_reset_day"):
+                    value = row.get(name, now)
+                    if isinstance(value, (int, float)):
+                        setattr(status, name, float(value))
+                if now - status.last_reset_minute > 60:
+                    status.requests_this_minute = 0
+                    status.tokens_this_minute = 0
+                    status.last_reset_minute = now
+                if any(
+                    (
+                        status.requests_this_minute,
+                        status.requests_today,
+                        status.tokens_this_minute,
+                        status.tokens_today,
+                    )
+                ):
+                    bucket[key] = status
+                    restored += 1
+        if restored:
+            logger.info(
+                f"Restored counters for {restored} scopes from {self._counters_path}"
+            )
+
+    def _save_counters(self) -> None:
+        """Atomically persist request/token counters. No-op if path unset."""
+        if not self._counters_path:
+            return
+        try:
+            self._counters_path.parent.mkdir(parents=True, exist_ok=True)
+
+            def dump(items: Dict[str, RateLimitStatus]) -> Dict[str, Any]:
+                return {
+                    key: {name: getattr(status, name) for name in COUNTER_FIELDS}
+                    for key, status in items.items()
+                }
+
+            payload: Dict[str, Any] = {
+                "version": COUNTERS_FILE_VERSION,
+                "usage": dump(self._usage),
+                "key_usage": dump(self._key_usage),
+            }
+            tmp = self._counters_path.with_suffix(
+                self._counters_path.suffix + ".tmp"
+            )
+            with open(tmp, "w") as f:
+                json.dump(payload, f, indent=2, sort_keys=True)
+            os.replace(tmp, self._counters_path)
+        except Exception as e:
+            logger.warning(f"Failed to save counters to {self._counters_path}: {e}")
 
     def _save_active_days(self) -> None:
         """Atomically persist active-day state to disk. No-op if path unset."""
@@ -366,18 +472,33 @@ class RateLimitTracker:
             try:
                 from rotator_library.telemetry import get_telemetry_manager
 
-                is_limited, retry_after_ms = get_telemetry_manager().check_rate_limit(
-                    prov_name, model
-                )
-                if is_limited and retry_after_ms and retry_after_ms > 0:
+                telemetry = get_telemetry_manager()
+                # Both persisted limit types matter: a usage cap recorded before
+                # a restart has to keep blocking afterwards, not just rpm (#377).
+                is_limited = False
+                retry_after_ms = 0
+                restored_reason = REASON_RATE_LIMIT
+                for limit_type, reason in (
+                    ("rpm", REASON_RATE_LIMIT),
+                    ("usage_cap", REASON_USAGE_CAP),
+                ):
+                    limited, retry = telemetry.check_rate_limit(
+                        prov_name, model, limit_type
+                    )
+                    if limited and retry and retry > retry_after_ms:
+                        is_limited, retry_after_ms = True, retry
+                        restored_reason = reason
+                if is_limited and retry_after_ms > 0:
                     restored_until = now + (retry_after_ms / 1000.0)
-                    status.rate_limited_until = restored_until
-                    status.block_reason = REASON_RATE_LIMIT
+                    status.rate_limited_until = max(
+                        status.rate_limited_until, restored_until
+                    )
+                    status.block_reason = restored_reason
                     logger.info(
-                        f"Restored persisted rate-limit block for {key} "
+                        f"Restored persisted {restored_reason} block for {key} "
                         f"(retry_after={retry_after_ms}ms)"
                     )
-                    return False, REASON_RATE_LIMIT
+                    return False, restored_reason
             except Exception as e:
                 logger.debug(f"Could not consult persisted rate limit: {e}")
 
@@ -508,6 +629,7 @@ class RateLimitTracker:
                 self._increment_requests(detail)
             # Stamp active day for this provider (no-op if not configured)
             await self.record_active_day(provider)
+            self._save_counters()
 
     async def record_tokens(
         self,
@@ -527,6 +649,7 @@ class RateLimitTracker:
                 detail = self._key_usage.setdefault(detail_key, RateLimitStatus())
                 detail.tokens_this_minute += token_count
                 detail.tokens_today += token_count
+            self._save_counters()
 
     async def record_rate_limit_hit(
         self,
