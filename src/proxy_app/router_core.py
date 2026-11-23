@@ -251,6 +251,81 @@ class ErrorCategory(Enum):
     PROVIDER_ERROR = "provider_error"  # Try next provider
 
 
+# #378: a 429 says "slow down", not "the allowance is spent". Throttling and
+# concurrency wording must never mark a finite-credit key exhausted, because a
+# transient 429 would then burn a one-time credit for a provider that was only
+# busy. These marker sets are the single source of that distinction, used both
+# for credit accounting and for usage-cap cooldowns.
+_THROTTLE_MARKERS = (
+    "rate limit",
+    "rate_limit",
+    "ratelimit",
+    "too many requests",
+    "concurrency",
+    "capacity",
+    "overloaded",
+    "temporarily",
+    "try again",
+    "slow down",
+    "busy",
+    "1302",  # GLM-specific concurrency error
+)
+_QUOTA_SUBJECTS = (
+    "quota",
+    "credit",
+    "allowance",
+    "billing",
+    "insufficient_quota",
+    "daily",  # "daily limit reached" is exhaustion, not speed
+)
+_QUOTA_BREACHES = (
+    "exceed",
+    "exhaust",
+    "insufficient",
+    "spent",
+    "used up",
+    "reached",
+    "out of",
+    "depleted",
+    "limit reached",
+)
+
+
+def quota_exhaustion_text(text: str) -> bool:
+    """True only when the message says the allowance is spent, not that the
+    upstream is busy (#378).
+
+    A throttle marker always wins: "rate limit reached" and "concurrency
+    exceeded" are backoff signals, never proof that a credit is gone. A quota
+    subject plus a breach verb is the narrowest wording that still catches the
+    real failures ("You exceeded your current quota", "daily limit reached",
+    "insufficient_quota", "billing hard limit").
+    """
+    lowered = (text or "").lower()
+    if not lowered:
+        return False
+    if any(marker in lowered for marker in _THROTTLE_MARKERS):
+        return False
+    has_subject = any(subject in lowered for subject in _QUOTA_SUBJECTS)
+    return has_subject and any(breach in lowered for breach in _QUOTA_BREACHES)
+
+
+def is_quota_exhaustion(error: Exception) -> bool:
+    """Structured-first wrapper around :func:`quota_exhaustion_text`.
+
+    Providers disagree about where the reason lives, so the structured fields
+    are read before the exception message: a body/code that names the condition
+    outranks any wording in ``str(error)``.
+    """
+    parts = []
+    for attr in ("body", "error_body", "response_text", "code"):
+        value = getattr(error, attr, None)
+        if value:
+            parts.append(str(value))
+    parts.append(str(error))
+    return quota_exhaustion_text(" ".join(parts))
+
+
 @dataclass
 class CapabilityRequirements:
     """Requirements extracted from incoming request."""
@@ -1502,9 +1577,11 @@ class RouterCore:
                 error_type,
                 api_key=api_key,
             )
-            # Map rate-limit errors to quota_exceeded for credit accounting.
-            # _classify_error already folds quota keywords into RATE_LIMIT, so any
-            # RATE_LIMIT likely indicates quota exhaustion for credit-tracked providers.
+            # Only a structured/daily exhaustion signal may mark a finite-credit
+            # key exhausted. A bare 429 is a throttle, and charging it as
+            # exhaustion would burn a one-time credit for a provider that was
+            # merely busy (#378).
+            exhausted = error_type == ErrorCategory.RATE_LIMIT and is_quota_exhaustion(e)
             try:
                 from rotator_library.telemetry import get_telemetry_manager
 
@@ -1512,9 +1589,7 @@ class RouterCore:
                     provider=candidate.provider,
                     api_key=api_key or "",
                     success=False,
-                    error_type="quota_exceeded"
-                    if error_type == ErrorCategory.RATE_LIMIT
-                    else None,
+                    error_type="quota_exceeded" if exhausted else None,
                     model=candidate.model,
                 )
             except Exception as telemetry_err:
@@ -2007,22 +2082,14 @@ class RouterCore:
     ) -> None:
         """Apply cooldown/blocking decisions based on classified errors."""
         if error_category == ErrorCategory.RATE_LIMIT:
-            reason = REASON_RATE_LIMIT
-            # Detect usage caps (permanent limits) vs temporary rate limits
-            if any(
-                keyword in error_text
-                for keyword in [
-                    "quota",
-                    "daily",
-                    "usage cap",
-                    "exceeded",
-                    "exhausted",
-                    "insufficient",
-                    "1302",  # GLM-specific usage error
-                    "concurrency",
-                ]
-            ):
-                reason = REASON_USAGE_CAP
+            # Usage caps (the allowance is spent) vs temporary throttling.
+            # Concurrency and rate-limit wording must not become a usage-cap
+            # block, or one busy minute looks like an exhausted provider (#378).
+            reason = (
+                REASON_USAGE_CAP
+                if quota_exhaustion_text(error_text)
+                else REASON_RATE_LIMIT
+            )
             # The per-key execution path already recorded the hit against the
             # exact key. Do not duplicate it as an aggregate, provider-wide
             # block when sibling keys can still serve the request.
