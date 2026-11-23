@@ -39,6 +39,17 @@ from pathlib import Path
 from typing import List, Dict, Any, AsyncGenerator, Optional, Union
 
 lib_logger = logging.getLogger("rotator_library")
+
+
+def preflight_allows(preflight: Optional[dict]) -> bool:
+    """Return True only when a preflight result explicitly grants dispatch.
+
+    ``RotatingClient.preflight_gate`` reports ``{"ok": bool, ...}``. Callers
+    used to read ``proceed`` with a ``True`` default, so a denied preflight
+    (shared cooldown or full concurrency slots) dispatched anyway (#379).
+    A missing/unexpected key now denies instead of allows.
+    """
+    return bool((preflight or {}).get("ok", False))
 # Ensure the logger is configured to propagate to the root logger
 # which is set up in main.py. This allows the main app to control
 # log levels and handlers centrally.
@@ -1480,7 +1491,7 @@ class RotatingClient:
                             # not be acquired, the inner preflight_skip flag short-circuits
                             # this attempt by raising below.
                             preflight = self.preflight_gate(provider, model)
-                            if not preflight.get("proceed", True):
+                            if not preflight_allows(preflight):
                                 skip_reason = preflight.get("reason", "gate_denied")
                                 lib_logger.debug(
                                     f"Preflight gate denied {provider}/{model}: "
@@ -1812,7 +1823,7 @@ class RotatingClient:
                             # not be acquired, the inner preflight_skip flag short-circuits
                             # this attempt by raising below.
                             preflight = self.preflight_gate(provider, model)
-                            if not preflight.get("proceed", True):
+                            if not preflight_allows(preflight):
                                 skip_reason = preflight.get("reason", "gate_denied")
                                 lib_logger.debug(
                                     f"Preflight gate denied {provider}/{model}: "
@@ -2688,7 +2699,7 @@ class RotatingClient:
                             # not be acquired, the inner preflight_skip flag short-circuits
                             # this attempt by raising below.
                             preflight = self.preflight_gate(provider, model)
-                            if not preflight.get("proceed", True):
+                            if not preflight_allows(preflight):
                                 skip_reason = preflight.get("reason", "gate_denied")
                                 lib_logger.debug(
                                     f"Preflight gate denied {provider}/{model}: "

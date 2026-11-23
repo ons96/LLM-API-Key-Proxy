@@ -6,6 +6,7 @@ Maintains OpenAI API compatibility throughout.
 """
 
 import asyncio
+import copy
 import time
 import json
 import logging
@@ -161,6 +162,68 @@ def _strip_cache_control(obj: Any) -> Any:
     return obj
 
 
+# Upper bound on an honored Retry-After hint. One long server hint must not
+# park a candidate (or hold a request) for hours (#383).
+MAX_RETRY_AFTER_S = int(os.environ.get("MAX_RETRY_AFTER_S", "300"))
+
+
+def _parse_retry_after(value: Any) -> Optional[int]:
+    """Parse a Retry-After header value into whole seconds.
+
+    Handles both RFC 7231 forms: delta-seconds (``"30"``) and HTTP-date
+    (``"Wed, 21 Oct 2026 07:28:00 GMT"``). Returns ``None`` when the value is
+    missing or unparseable so the caller can apply its own default; ``"0"``
+    parses to 0 rather than being replaced by the default (#383). The result
+    is clamped to ``[0, MAX_RETRY_AFTER_S]``.
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+
+    try:
+        seconds = float(text)
+    except ValueError:
+        try:
+            from datetime import timezone
+            from email.utils import parsedate_to_datetime
+
+            when = parsedate_to_datetime(text)
+            if when is None:
+                return None
+            if when.tzinfo is None:
+                when = when.replace(tzinfo=timezone.utc)
+            seconds = when.timestamp() - time.time()
+        except (TypeError, ValueError, OverflowError):
+            return None
+
+    if seconds != seconds:  # NaN
+        return None
+    return int(max(0.0, min(seconds, float(MAX_RETRY_AFTER_S))))
+
+
+def _retry_after_from_error(error: Exception) -> Optional[int]:
+    """Read Retry-After from whichever header container the error carries.
+
+    LiteLLM exposes ``error.response.headers``; adapters and raw httpx errors
+    may only expose ``error.headers`` (#383).
+    """
+    response = getattr(error, "response", None)
+    headers = getattr(response, "headers", None) if response is not None else None
+    if headers is None:
+        headers = getattr(error, "headers", None)
+    if headers is None:
+        return None
+    try:
+        value = headers.get("retry-after")
+        if value is None:
+            value = headers.get("Retry-After")
+    except AttributeError:
+        return None
+    return _parse_retry_after(value)
+
+
 class ProviderStatus(Enum):
     """Provider health status."""
 
@@ -174,7 +237,7 @@ class ProviderStatus(Enum):
 # cross-upstream retry layer (_stream_with_fallback advances candidates on
 # failure). This loop wraps ONLY the pre-stream adapter/litellm acquisition
 # call. Phase 2.A replaces hardcoded value with max_retries_for() per-request.
-MAX_UPSTREAM_RETRIES = int(os.environ.get("MAX_UPSTREAM_RETRIES", "2"))  # 2 = 1 retry
+MAX_UPSTREAM_RETRIES = int(os.environ.get("MAX_UPSTREAM_RETRIES", "2"))  # retries after the first attempt
 UPSTREAM_RETRY_BASE_MS = int(os.environ.get("UPSTREAM_RETRY_BASE_MS", "400"))
 
 
@@ -943,7 +1006,9 @@ class RouterCore:
 
         try:
             telemetry = get_telemetry_manager()
-            response_time_ms = int(response_time * 1000)
+            # All callers already pass milliseconds (see docstring). The old
+            # *1000 inflated stored latency 1000x and crushed TPS (#382).
+            response_time_ms = int(response_time)
             tps: Optional[float] = None
             if output_tokens > 0 and response_time_ms > 0:
                 tps = (output_tokens / response_time_ms) * 1000.0
@@ -1265,6 +1330,38 @@ class RouterCore:
 
         return limits
 
+    def _prepare_candidate_payload(
+        self,
+        request: Dict[str, Any],
+        candidate: ProviderCandidate,
+        request_id: str,
+    ) -> Dict[str, Any]:
+        """Build the per-candidate upstream payload.
+
+        Deep-copies the caller's request first: ``_strip_cache_control`` walks
+        nested structures, so sharing them across candidates mutated the
+        original payload (candidate A's strip removed candidate B's directives)
+        and leaked into retries (#386). An explicit caller ``max_tokens`` is
+        forwarded unchanged — provider/model limits belong to context
+        admission, not to a silent global rewrite (#372).
+        """
+        payload = copy.deepcopy(
+            {
+                k: v
+                for k, v in request.items()
+                if not k.startswith("_") and k != "stream"
+            }
+        )
+        payload["model"] = f"{candidate.provider}/{candidate.model}"
+        _strip_cache_control(payload)
+        # ponytail: stash prefix_hash so telemetry can upsert
+        # prefix_cache_state. _prefix_hash reads stable blocks (system prompt +
+        # tool schemas) from the untouched original request.
+        prefix_hash = self._prefix_hash(request)
+        if prefix_hash:
+            payload.setdefault("metadata", {})["prefix_hash"] = prefix_hash
+        return payload
+
     async def _execute_single_candidate(
         self, candidate: ProviderCandidate, request: Dict[str, Any], request_id: str
     ) -> Any:
@@ -1292,29 +1389,10 @@ class RouterCore:
                 # ... (search logic would go here)
                 pass
 
-            # Prepare request
-            # Remove router-specific fields
-            # Stream is passed separately to adapter, not in request
-            request_clean = {
-                k: v
-                for k, v in request.items()
-                if not k.startswith("_") and k != "stream"
-            }
-            requested_max_tokens = request_clean.get("max_tokens")
-            if isinstance(requested_max_tokens, int) and requested_max_tokens > 1024:
-                logger.info(
-                    f"[{request_id}] Capping max_tokens {requested_max_tokens} -> 1024 for provider fallback"
-                )
-                request_clean["max_tokens"] = 1024
-            request_clean["model"] = f"{candidate.provider}/{candidate.model}"
-            _strip_cache_control(request_clean)
-
-            # ponytail: stash prefix_hash so telemetry logger can upsert
-            # prefix_cache_state. _prefix_hash reads stable blocks (system
-            # prompt + tool schemas) — see helper cluster L1364.
-            ph = self._prefix_hash(request)
-            if ph:
-                request_clean.setdefault("metadata", {})["prefix_hash"] = ph
+            # Deep-copied, per-candidate sanitized payload (#386).
+            request_clean = self._prepare_candidate_payload(
+                request, candidate, request_id
+            )
 
             logger.info(
                 f"[{request_id}] Executing via {candidate.provider}/{candidate.model}"
@@ -1717,9 +1795,12 @@ class RouterCore:
             cur = conn.cursor()
             # Anthropic 5min default, Gemini 3-5min, OpenAI 1hr. 300s is the
             # conservative floor.
+            # #387: several rows can match one prefix hash; the newest one is
+            # the only defensible answer without an ORDER BY.
             cur.execute(
                 "SELECT provider, model, last_seen_ts FROM prefix_cache_state "
-                "WHERE prefix_hash = ? AND last_seen_ts > ?",
+                "WHERE prefix_hash = ? AND last_seen_ts > ? "
+                "ORDER BY last_seen_ts DESC LIMIT 1",
                 (prefix_hash, time.time() - 300),
             )
             row = cur.fetchone()
@@ -1831,16 +1912,10 @@ class RouterCore:
                 # Model/provider gone — skip immediately, never retry.
                 return ErrorCategory.PROVIDER_ERROR, None
             if status_code == 429:
-                retry_after = None
-                response = getattr(error, "response", None)
-                if response is not None:
-                    retry_after = response.headers.get("retry-after")
-                    if retry_after:
-                        try:
-                            retry_after = int(retry_after)
-                        except ValueError:
-                            retry_after = 10  # Fast fallback
-                return ErrorCategory.RATE_LIMIT, retry_after or 10
+                retry_after = _retry_after_from_error(error)
+                return ErrorCategory.RATE_LIMIT, (
+                    retry_after if retry_after is not None else 10
+                )
             if status_code in (500, 501, 502, 503, 504):
                 return ErrorCategory.TRANSIENT, None
             if status_code in (401, 403):
@@ -1870,16 +1945,10 @@ class RouterCore:
                 "capacity",
             ]
         ):
-            retry_after = None
-            response = getattr(error, "response", None)
-            if response:
-                retry_after = response.headers.get("retry-after")
-                if retry_after:
-                    try:
-                        retry_after = int(retry_after)
-                    except ValueError:
-                        retry_after = 10  # Fast fallback
-            return ErrorCategory.RATE_LIMIT, retry_after or 10
+            retry_after = _retry_after_from_error(error)
+            return ErrorCategory.RATE_LIMIT, (
+                retry_after if retry_after is not None else 10
+            )
 
         # Authentication errors
         if any(
@@ -2045,6 +2114,28 @@ class RouterCore:
                 for item in msg["content"]:
                     if isinstance(item, dict) and item.get("type") == "text":
                         all_content.append(item.get("text", ""))
+            # #380: assistant tool-call arguments are part of the prompt the
+            # upstream has to fit into its context window.
+            for tool_call in msg.get("tool_calls") or []:
+                if not isinstance(tool_call, dict):
+                    continue
+                arguments = (tool_call.get("function") or {}).get("arguments")
+                if isinstance(arguments, str):
+                    all_content.append(arguments)
+                elif arguments is not None:
+                    try:
+                        all_content.append(json.dumps(arguments, sort_keys=True))
+                    except (TypeError, ValueError):
+                        pass
+        # #380: tool/function schemas are sent on every request and can be tens
+        # of KB; the old estimator ignored them completely.
+        for schema_key in ("tools", "functions"):
+            schema = request.get(schema_key)
+            if schema:
+                try:
+                    all_content.append(json.dumps(schema, sort_keys=True))
+                except (TypeError, ValueError):
+                    pass
         req.min_context_tokens = int(sum(len(c) for c in all_content) / 4 * 1.2)
 
         return req
@@ -2054,6 +2145,9 @@ class RouterCore:
     ) -> List[ProviderCandidate]:
         """Get candidate providers for the requested model."""
         candidates = []
+        # #381: recorded so the caller can explain a no-fit chain instead of
+        # dispatching a candidate that already failed the context check.
+        self._last_oversized: list = []
 
         if model_id in self.virtual_models:
             # Virtual model - get configured candidates
@@ -2171,26 +2265,16 @@ class RouterCore:
                 if candidate.matches_requirements(requirements):
                     candidates.append(candidate)
 
-            # Fallback when all chain steps were oversized.
-            # ponytail: char/4 heuristic caps provider picks; largest
-            # cap wins. Replace with proper weighted selection if
-            # tiebreaking by quality matters later.
-            if not candidates and _oversized:
-                _caps = _load_provider_caps()
-                _best = max(
-                    _oversized,
-                    key=lambda x: _caps.get(x[0], {}).get("max_context_tokens", 0),
-                )
-                _best_cap = _caps.get(_best[0], {}).get("max_context_tokens", 0)
-                candidates.append(
-                    ProviderCandidate(
-                        provider=_best[0], model=_best[1], priority=5
-                    )
-                )
+            # #381: never reinstate an oversized candidate. Dispatching a
+            # request the provider cannot hold only burns an upstream call and
+            # returns a provider-side 400. The caller turns an empty result
+            # into a 400 naming the estimate and the largest cap seen.
+            self._last_oversized = list(_oversized)
+            if _oversized:
                 logger.warning(
-                    f"[{model_id}] all {len(_oversized)} chain steps "
-                    f"exceeded context window ({requirements.min_context_tokens} tokens); "
-                    f"fell back to {_best[0]}/{_best[1]} (cap {_best_cap})"
+                    f"[{model_id}] all {len(_oversized)} chain steps exceeded "
+                    f"context window ({requirements.min_context_tokens} tokens); "
+                    f"returning no candidates (#381)"
                 )
         else:
             # Direct model reference - parse provider/model format
@@ -2578,26 +2662,11 @@ class RouterCore:
             )
 
         try:
-            # Update model reference
-            request = request.copy()
-            request["model"] = f"{candidate.provider}/{candidate.model}"
-            request_clean = {
-                k: v
-                for k, v in request.items()
-                if not k.startswith("_") and k != "stream"
-            }
-            requested_max_tokens = request_clean.get("max_tokens")
-            if isinstance(requested_max_tokens, int) and requested_max_tokens > 1024:
-                logger.info(
-                    f"[{request_id}] Capping max_tokens {requested_max_tokens} -> 1024 for provider fallback"
-                )
-                request_clean["max_tokens"] = 1024
-            _strip_cache_control(request_clean)
-
-            # ponytail: stash prefix_hash for telemetry upsert (mirror non-stream)
-            ph = self._prefix_hash(request)
-            if ph:
-                request_clean.setdefault("metadata", {})["prefix_hash"] = ph
+            # Per-candidate deep-copied payload: model override + cache strip
+            # must not leak into other candidates (#386).
+            request_clean = self._prepare_candidate_payload(
+                request, candidate, request_id
+            )
 
             logger.info(
                 f"[{request_id}] Streaming {candidate.provider}/{candidate.model}"
@@ -2786,6 +2855,9 @@ class RouterCore:
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Execute streaming with fallback logic."""
         last_error = None
+        # #370: once a chunk reached the client, another upstream's completion
+        # can no longer be appended to it. Failover is safe only pre-output.
+        emitted = False
 
         for candidate in candidates:
             try:
@@ -2815,6 +2887,7 @@ class RouterCore:
                 async for chunk in self._execute_single_candidate_stream(
                     candidate, request_to_use, request_id
                 ):
+                    emitted = True
                     yield chunk
 
                 return
@@ -2831,6 +2904,14 @@ class RouterCore:
                     retry_after,
                     error_str,
                 )
+
+                if emitted:
+                    logger.error(
+                        f"[{request_id}] Stream candidate "
+                        f"{candidate.provider}/{candidate.model} failed after output "
+                        f"was emitted; not failing over (#370): {e}"
+                    )
+                    raise
 
                 logger.warning(
                     f"[{request_id}] Stream candidate {candidate.provider}/{candidate.model} failed "
@@ -2849,7 +2930,7 @@ class RouterCore:
         """Main routing entry point.
 
         If GATEWAY_RETRY_UNTIL_DONE=true and all candidates fail, retry the whole
-        chain with exponential backoff (max 3 retries, 2s/4s/8s).
+        chain with exponential backoff (max 3 attempts, 2s then 4s).
         """
         if os.getenv("GATEWAY_RETRY_UNTIL_DONE", "false").lower() == "true":
             return await self._route_with_retry(request, request_id, max_retries=3)
@@ -2858,7 +2939,12 @@ class RouterCore:
     async def _route_with_retry(
         self, request: Dict[str, Any], request_id: str, max_retries: int = 3
     ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
-        """Retry whole chain if all candidates fail. Backoff: 2s, 4s, 8s."""
+        """Retry whole chain if all candidates fail. Backoff: 2s, then 4s.
+
+        ``max_retries`` counts attempts; the last attempt does not sleep. Only
+        non-streaming failures reach here because ``_route_request_inner``
+        returns a lazy generator on the stream path (#385).
+        """
         last_err = None
         for attempt in range(1, max_retries + 1):
             try:
@@ -2896,6 +2982,8 @@ class RouterCore:
         """
         last_error = None
         stream = initial_stream
+        # #370: alias failover is only safe before the first emitted chunk.
+        emitted = False
 
         for idx, candidate_cfg in enumerate(candidates):
             if idx > 0:
@@ -2919,10 +3007,19 @@ class RouterCore:
 
             try:
                 async for chunk in stream:
+                    emitted = True
                     yield chunk
                 return
             except Exception as e:
                 last_error = e
+                if emitted:
+                    logger.error(
+                        f"[{request_id}] Alias chain stream: "
+                        f"{candidate_cfg['provider']}/{candidate_cfg['model']} "
+                        f"failed after output was emitted; not failing over "
+                        f"(#370): {e}"
+                    )
+                    raise
                 logger.warning(
                     f"[{request_id}] Alias chain stream: {candidate_cfg['provider']}/"
                     f"{candidate_cfg['model']} failed: {e}"
@@ -3016,6 +3113,18 @@ class RouterCore:
         candidates = await self._get_candidates(model_id, requirements)
 
         if not candidates:
+            oversized = getattr(self, "_last_oversized", None) or []
+            if oversized:
+                provider, model, cap = max(oversized, key=lambda item: item[2])
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Request does not fit any provider context window for "
+                        f"model {model_id}: estimated "
+                        f"{requirements.min_context_tokens} input tokens; largest "
+                        f"cap {cap} ({provider}/{model})"
+                    ),
+                )
             raise HTTPException(
                 status_code=400,
                 detail=f"No suitable providers found for model: {model_id}",
@@ -3242,12 +3351,10 @@ class RouterCore:
                     candidate, request, request_id
                 )
 
-                # Handle truncated responses (finish_reason='length') with continuation
-                if not request.get("stream"):
-                    response = await self._handle_truncated_response(
-                        response, request, request_id
-                    )
-
+                # #373: return the response as-is. Auto-continuation used to
+                # replace a truncated response (dropping its id, usage and tool
+                # calls) with a second call's output. Clients can handle
+                # finish_reason="length" themselves.
                 return response
 
             except Exception as e:
@@ -3297,63 +3404,6 @@ class RouterCore:
             raise HTTPException(
                 status_code=503, detail="All provider candidates failed"
             )
-
-    async def _handle_truncated_response(
-        self,
-        response: Dict[str, Any],
-        original_request: Dict[str, Any],
-        request_id: str,
-        max_depth: int = 1,
-    ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
-        """Detect finish_reason == 'length' and auto-continue up to max_depth."""
-
-        if not isinstance(response, dict):
-            return response
-
-        depth = original_request.get("_continuation_depth", 0)
-        if depth >= max_depth:
-            return response
-
-        choices = response.get("choices", [])
-        if not choices:
-            return response
-
-        finish_reason = choices[0].get("finish_reason")
-        if finish_reason != "length":
-            return response
-
-        message = choices[0].get("message") or {}
-        assistant_content = message.get("content")
-        if not assistant_content:
-            return response
-
-        # Skip auto-continuation for very short max_tokens (likely intentional short response)
-        requested_max_tokens = original_request.get("max_tokens", 0)
-        if requested_max_tokens > 0 and requested_max_tokens <= 50:
-            logger.info(
-                f"[{request_id}] finish_reason=length but max_tokens={requested_max_tokens} too low; skipping auto-continuation"
-            )
-            return response
-
-        # Build continuation request
-        new_messages = list(original_request.get("messages", []))
-        new_messages.append({"role": "assistant", "content": assistant_content})
-        new_messages.append(
-            {
-                "role": "user",
-                "content": "Continue exactly where you left off; do not repeat content.",
-            }
-        )
-
-        continuation_request = dict(original_request)
-        continuation_request["messages"] = new_messages
-        continuation_request["_continuation_depth"] = depth + 1
-
-        logger.info(
-            f"[{request_id}] finish_reason=length detected; issuing continuation #{depth + 1}"
-        )
-
-        return await self.route_request(continuation_request, request_id)
 
     def get_model_list(self) -> List[Dict[str, Any]]:
         """Get list of available models for /v1/models endpoint."""

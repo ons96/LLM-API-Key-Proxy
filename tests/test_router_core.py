@@ -347,17 +347,8 @@ class TestErrorClassification:
         assert usage[key]["block_reason"] == "RATE_LIMIT"
 
 
-class TestTruncatedContinuation:
-    @pytest.mark.asyncio
-    async def test_handle_truncated_response_returns_original_when_not_length(self):
-        router = RouterCore()
-        response = {
-            "choices": [{"finish_reason": "stop", "message": {"content": "done"}}]
-        }
-        request = {"messages": [{"role": "user", "content": "hi"}]}
-        result = await router._handle_truncated_response(response, request, "req-1")
-        assert result == response
-
+# #373 removed _handle_truncated_response entirely: a truncated response is
+# returned unchanged (see tests/test_routing_integrity_369.py).
 
 class TestRouterConfiguration:
     """Test router configuration loading."""
