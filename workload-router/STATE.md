@@ -2001,7 +2001,7 @@ network access.
 `QuotaLedger.grade_attempt` stored `verdict=unknown, grade=false` as
 `quality=0`, so an honest "no oracle" report raised the route's failure prior
 and `evidence()` counted it as a failure. That contradicts design v2 section
-2.1 invariant 1 ("unknown is not success ... priors stay put"). Unknown now
+invariant 1 (§2.3, formerly §2.1: "unknown is not success ... priors stay put"). Unknown now
 closes the attempt (verdict stored, regrade still refused) while leaving
 `quality` NULL, so neither alpha nor beta moves; operational failures and
 `timeout` still count as failures. Regression test added in
