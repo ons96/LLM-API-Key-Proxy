@@ -2203,7 +2203,14 @@ class RouterCore:
                     all_content.append(json.dumps(schema, sort_keys=True))
                 except (TypeError, ValueError):
                     pass
-        req.min_context_tokens = int(sum(len(c) for c in all_content) / 4 * 1.2)
+        estimated_input = int(sum(len(c) for c in all_content) / 4 * 1.2)
+        # #380: the upstream must hold the reply as well as the prompt. A caller
+        # max_tokens that pushes input+output past the window is rejected at
+        # admission instead of costing an upstream 400 after dispatch.
+        allowance = request.get("max_tokens") or request.get("max_completion_tokens")
+        if isinstance(allowance, int) and allowance > 0:
+            estimated_input += allowance
+        req.min_context_tokens = estimated_input
 
         return req
 

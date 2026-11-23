@@ -406,6 +406,27 @@ class TestContextAdmission:
         )
         assert with_args.min_context_tokens > base.min_context_tokens
 
+    def test_output_allowance_counts_toward_admission(self, tmp_path):
+        """#380: the reply must fit too, not only the prompt."""
+        router = _router(tmp_path)
+        messages = [{"role": "user", "content": "hi"}]
+        bare = router._extract_requirements({"messages": messages})
+        with_budget = router._extract_requirements(
+            {"messages": messages, "max_tokens": 1000}
+        )
+        assert with_budget.min_context_tokens == bare.min_context_tokens + 1000
+
+    def test_output_allowance_ignores_invalid_values(self, tmp_path):
+        """Unset, zero and non-integer budgets must not change the estimate."""
+        router = _router(tmp_path)
+        messages = [{"role": "user", "content": "hi"}]
+        bare = router._extract_requirements({"messages": messages})
+        for value in (0, -5, "1000", None):
+            req = router._extract_requirements(
+                {"messages": messages, "max_tokens": value}
+            )
+            assert req.min_context_tokens == bare.min_context_tokens
+
     @pytest.mark.asyncio
     async def test_no_fit_chain_raises_instead_of_dispatching(
         self, tmp_path, monkeypatch
