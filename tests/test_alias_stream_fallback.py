@@ -75,19 +75,17 @@ class TestAliasStreamingFallback:
         with patch_route_request(alias_router, _make_route_request(call_log)):
             result = await alias_router._route_request_inner(request, "req-stream")
             assert inspect.isasyncgen(result), "streaming alias must return an async generator"
-            chunks = [c async for c in result]
+            chunks = []
+            with pytest.raises(RuntimeError, match="provider A exploded mid-stream"):
+                async for chunk in result:
+                    chunks.append(chunk)
 
-        # Candidate A yields one chunk before dying; the wrapper forwards it,
-        # then fails over to B — same partial-output semantics as
-        # _stream_with_fallback for the virtual-model path. Before the fix,
-        # the mid-stream error propagated to the client and B was never tried.
-        assert chunks == [
-            {"delta": "partial-a"},
-            {"delta": "hello-from-b"},
-            {"delta": "-done"},
-        ]
-        assert call_log == ["provider_a/model-a", "provider_b/model-b"], (
-            "must try candidate A, then fail over to candidate B"
+        # #370: candidate A emitted a chunk before dying. Concatenating B's
+        # completion onto A's partial output would hand the client two
+        # completions glued together, so the error must surface instead.
+        assert chunks == [{"delta": "partial-a"}]
+        assert call_log == ["provider_a/model-a"], (
+            "must not start candidate B after candidate A emitted output"
         )
 
     @pytest.mark.asyncio
