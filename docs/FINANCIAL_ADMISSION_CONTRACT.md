@@ -2,12 +2,12 @@
 
 ## 1. Status, scope and decision
 
-- Contract version: 1; specified 2026-11-24.
+- Contract version: 1; specified 2026-11-24; Stage 2 review amendment below.
 - Owner of enablement/implementation approval: repository owner.
-- Baseline: main, 5acacda126d6f9385f8ca17f1e4d032a93442f36.
-- Status: SPECIFIED ONLY. No policy kernel or runtime integration exists yet.
-- Current authorization: this specification/handoff and implementation-status
-  update only. Implementing the following requires separate approval.
+- Historical specification baseline: main, 5acacda126d6f9385f8ca17f1e4d032a93442f36.
+- Status: kernel implemented, under corrective review; NOT runtime integration.
+- Current authorization: the owner's request to fix the Stage 2 review findings.
+  It does not authorize Stage 3, provider calls, deployment, commit or push.
 - Architecture is unchanged: workload-router is the brain, New-API is transport,
   and the legacy gateway remains rollback. This is not another router.
 
@@ -279,7 +279,7 @@ an alternative financial-admission API.
 
 ## 6. Strict validation and interfaces
 
-Public signatures to implement, not implemented code:
+Required public signatures:
 
 - evaluate_admission(target: FinancialTarget, policy: PolicyContext, *,
   now: int, expected_revision: str) -> AdmissionDecision
@@ -300,6 +300,11 @@ Validation rules:
   `[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`. model_id matches
   `[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}`, except the restricted N/A sentinel.
   No whitespace, wildcard, normalization, empty/missing or URL-based identity.
+  Review amendment: the model regex is necessary but not sufficient. A model
+  ID MUST NOT contain '://', regardless of scheme spelling or case. This closes
+  the regex/prose contradiction without weakening the original URL prohibition.
+  Namespace/model:tag spellings remain allowed; physical mapping still requires
+  the separately trusted singleton proof described in section 4.
 - credential_fingerprint and transport_binding are exactly 64 lowercase hex
   characters. Keyed requires a fingerprint; anonymous requires exactly None.
   Account identity is mandatory in both cases. UNKNOWN auth is invalid.
@@ -494,7 +499,7 @@ Specification self-review (same author, NOT an independent implementation review
 | Denial accidentally invokes LiteLLM fallback | Dedicated non-ValueError exception | Cross-path dispatch/fallback tests and disabled unsupported paths |
 | Opaque relay/no-key pool assumed safe | Explicit auth/principal and singleton proof; opaque closure denies | Independently verified target closure; otherwise remain disabled |
 | Stale context/time presented together | Kernel states caller trust dependency explicitly | Current policy manager, expiry, revocation and TOCTOU semantics |
-| Strong specification mistaken for deployed safety | SPECIFIED ONLY status; no runtime wiring | Separate implementation review, integration, release/account gates |
+| Strong specification mistaken for deployed safety | Synthetic kernel under review; no runtime wiring | Separate implementation review, integration, release/account gates |
 
 Fresh strong-model review after implementation must inspect the FULL diff and
 matrix, especially type coercion, zero arithmetic, proof completeness, record
@@ -539,15 +544,15 @@ Inputs: docs/PROJECT_AUDIT.md, docs/DEVELOPMENT_ROADMAP.md,
 docs/IMPLEMENTATION_STATUS.md, docs/ARCHITECTURE-DECISION-2026-11-22.md,
 and /home/osees/p0-engineering-plan-reference.md. Root CLAUDE.md is absent.
 
-Source checks supporting the boundary:
+Historical source checks supporting the original specification boundary:
 - src/proxy_app/router_core.py:1497-1510 and 2775-2788 catch ValueError into
   direct LiteLLM fallback.
 - workload-router/route_policy.py:87-90 and
   workload-router/quota_ledger.py:222-245 separate nominal money/credits without
   comprehensive account proof.
-- tests/support/financial_test_bootstrap.py has fixed suites, not a financial
-  suite yet; tests/conftest.py excludes only isolation self-tests from its
-  application telemetry fixture.
+- At specification time, tests/support/financial_test_bootstrap.py had no
+  financial suite and tests/conftest.py excluded only isolation self-tests.
+  Stage 2 has since added the bounded suite/exclusion; see implementation status.
 
 No credentials, live accounts, provider-manager rows, provider requests or network
 calls were used to write this specification. This session validates documents

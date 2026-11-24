@@ -9,12 +9,15 @@ from __future__ import annotations
 import copy
 import dataclasses
 import decimal
+import enum
+import inspect
 import subprocess
 import sys
 
 import pytest
 
 from financial_safety import (
+    AdmissionDecision,
     AuthenticationKind,
     DecisionCode,
     FinancialAdmissionDenied,
@@ -117,10 +120,13 @@ OPERATION_CASES = (
     ("search_basic", Operation.SEARCH_BASIC, "fixture-model"),
     ("search_advanced", Operation.SEARCH_ADVANCED, "fixture-model"),
     ("search_research", Operation.SEARCH_RESEARCH, "fixture-model"),
-    ("model_discovery", Operation.MODEL_DISCOVERY, "__not_applicable__"),
+    ("model_discovery", Operation.MODEL_DISCOVERY, "fixture-model"),
     ("token_count", Operation.TOKEN_COUNT, "fixture-model"),
-    ("credential_refresh", Operation.CREDENTIAL_REFRESH, "__not_applicable__"),
-    ("transport_audit", Operation.TRANSPORT_AUDIT, "__not_applicable__"),
+    ("credential_refresh", Operation.CREDENTIAL_REFRESH, "fixture-model"),
+    ("transport_audit", Operation.TRANSPORT_AUDIT, "fixture-model"),
+    ("discovery_na", Operation.MODEL_DISCOVERY, "__not_applicable__"),
+    ("refresh_na", Operation.CREDENTIAL_REFRESH, "__not_applicable__"),
+    ("audit_na", Operation.TRANSPORT_AUDIT, "__not_applicable__"),
 )
 
 
@@ -160,10 +166,70 @@ def policy(**overrides):
     return dataclasses.replace(POLICY, **overrides)
 
 
-def evaluate(target_value=TARGET, policy_value=POLICY, now=NOW, expected=REVISION):
-    return evaluate_admission(
+def evaluate(
+    target_value=TARGET, policy_value=POLICY, now=NOW, expected=REVISION
+) -> AdmissionDecision:
+    """Exercise S01/S02/S04/S05 for every parameterized matrix evaluation.
+
+    Individual tests still assert their independently expected outcomes. Repr
+    snapshots use synthetic test data only: opaque invalid objects and NaNs
+    cannot reliably be compared through deepcopy/equality.
+    """
+    inputs = (target_value, policy_value, now, expected)
+    snapshot = repr(inputs)
+    decision = evaluate_admission(
         target_value, policy_value, now=now, expected_revision=expected
     )
+    assert type(decision) is AdmissionDecision
+    assert type(decision.financially_eligible) is bool
+    assert type(decision.code) is DecisionCode
+    assert decision == evaluate_admission(
+        target_value, policy_value, now=now, expected_revision=expected
+    )
+    if decision.financially_eligible:
+        assert decision == require_admission(
+            target_value, policy_value, now=now, expected_revision=expected
+        )
+    else:
+        spy = DispatchSpy()
+        fallback_calls = []
+        with pytest.raises(FinancialAdmissionDenied) as caught:
+            try:
+                admitted = require_admission(
+                    target_value, policy_value, now=now, expected_revision=expected
+                )
+                spy.dispatch(target_value, admitted)
+            except ValueError:
+                fallback_calls.append("unexpected fallback")
+                raise
+        error = caught.value
+        assert type(error) is FinancialAdmissionDenied
+        assert error.decision == decision
+        message = "financial admission denied: " + decision.code.value
+        assert error.args == (message,)
+        assert str(error) == message
+        assert repr(error) == f"FinancialAdmissionDenied({message!r})"
+        assert spy.calls == fallback_calls == []
+        assert decision.max_monetary_charge is None
+        if decision.code in (DecisionCode.INVALID_INPUT, DecisionCode.INVALID_POLICY):
+            assert decision.policy_revision is decision.approval_id is None
+        else:
+            assert decision.policy_revision == policy_value.revision
+            before_match = (
+                DecisionCode.POLICY_INACTIVE,
+                DecisionCode.POLICY_REVISION_MISMATCH,
+                DecisionCode.APPROVAL_NOT_FOUND,
+            )
+            if decision.code in before_match:
+                assert decision.approval_id is None
+            else:
+                matched = next(
+                    item for item in policy_value.approvals
+                    if item.target == target_value
+                )
+                assert decision.approval_id == matched.approval_id
+    assert repr(inputs) == snapshot
+    return decision
 
 
 def assert_code(decision, code):
@@ -234,7 +300,10 @@ def test_a04_anonymous_target_with_explicit_principal_is_eligible():
     ids=[case[0] for case in OPERATION_CASES],
 )
 def test_a05_every_operation_matches_its_exact_profile(operation, model_id):
-    exact = target(operation=operation, model_id=model_id)
+    exact = target(
+        operation=operation, model_id=model_id,
+        dispatch_profile_id="fixture-profile-" + operation.value,
+    )
     assert_eligible(
         evaluate(exact, policy(approvals=(approval(target=exact),)))
     )
@@ -299,7 +368,8 @@ def test_f04_tiny_positive_component_is_nonzero(field):
 
 @pytest.mark.parametrize(
     "field",
-    ("cache_read_charge", "tool_charge", "search_charge", "other_charge"),
+    ("cache_read_charge", "cache_write_charge", "tool_charge",
+     "search_charge", "other_charge"),
 )
 def test_f05_positive_ancillary_component_with_free_quota_is_nonzero(field):
     decision = evaluate(
@@ -345,24 +415,23 @@ def test_f07_each_unproven_boundary_denies_under_each_funding_class(
 
 @pytest.mark.parametrize(
     "case_id,overrides,code",
-    (
+    tuple(
         (
-            "positive_charge",
-            {"money": money(input_charge=decimal.Decimal("0.01"))},
+            "positive_" + field,
+            {"money": money(**{field: decimal.Decimal("0.01")})},
             DecisionCode.NONZERO_MONETARY_BOUND,
-        ),
+        )
+        for field in MONEY_FIELDS
+    ) + tuple(
         (
-            "exhaustion_unproven",
-            {"boundary": boundary(exhaustion_zero=False)},
+            field + "_" + str(value),
+            {"boundary": boundary(**{field: value})},
             DecisionCode.UNPROVEN_NO_CHARGE_BOUNDARY,
-        ),
-        (
-            "expiry_unproven",
-            {"boundary": boundary(expiry_zero=None)},
-            DecisionCode.UNPROVEN_NO_CHARGE_BOUNDARY,
-        ),
+        )
+        for field in ("exhaustion_zero", "expiry_zero")
+        for value in (False, None)
     ),
-    ids=("positive_charge", "exhaustion_unproven", "expiry_unproven"),
+    ids=lambda item: item if type(item) is str else None,
 )
 def test_f08_promotional_credits_never_mask_a_real_charge(case_id, overrides, code):
     assert case_id
@@ -386,7 +455,8 @@ def test_f09_uncontrolled_transport_denies(field, value):
 
 
 @pytest.mark.parametrize("field", ("single_target_bound", "no_hidden_dispatch"))
-def test_f09_apparently_free_anonymous_relay_is_still_uncontrolled(field):
+@pytest.mark.parametrize("value", (False, None), ids=("false", "none"))
+def test_f09_apparently_free_anonymous_relay_is_still_uncontrolled(field, value):
     anonymous = target(
         authentication=AuthenticationKind.ANONYMOUS, credential_fingerprint=None
     )
@@ -397,7 +467,7 @@ def test_f09_apparently_free_anonymous_relay_is_still_uncontrolled(field):
                 approval(
                     target=anonymous,
                     funding=FundingClass.FREE_QUOTA,
-                    **{field: False},
+                    **{field: value},
                 ),
             )
         ),
@@ -516,15 +586,36 @@ def test_i06_not_applicable_model_is_rejected_outside_control_operations(operati
     assert_code(decision, DecisionCode.INVALID_INPUT)
 
 
-TARGET_IDENTITY_OVERRIDES = (
-    ("provider_empty", {"provider_id": ""}),
-    ("provider_wildcard", {"provider_id": "fixture-*"}),
-    ("provider_whitespace", {"provider_id": "fixture provider"}),
-    ("provider_non_ascii", {"provider_id": "fixtur\u00e9"}),
-    ("provider_too_long", {"provider_id": "p" * 129}),
-    ("fingerprint_uppercase", {"credential_fingerprint": "A" * 64}),
-    ("fingerprint_short", {"credential_fingerprint": "a" * 63}),
-    ("transport_uppercase", {"transport_binding": "B" * 64}),
+TARGET_IDENTITY_FIELDS = (
+    "provider_id", "model_id", "account_id", "dispatch_profile_id",
+)
+BAD_IDENTIFIERS = (
+    ("empty", ""), ("missing", None), ("wildcard", "fixture-*"),
+    ("space", "fixture value"), ("tab", "fixture\tvalue"),
+    ("newline", "fixture\nvalue"), ("non_ascii", "fixtur\u00e9"),
+    ("wrong_type", 3), ("subclass", StrSubclass("fixture")),
+)
+URL_MODEL_IDS = (
+    "https://provider.invalid/model", "http://provider.invalid/model",
+    "HTTPS://provider.invalid/model", "file:///fixture", "custom://fixture",
+)
+TARGET_IDENTITY_OVERRIDES = tuple(
+    (field + "_" + case, {field: value})
+    for field in TARGET_IDENTITY_FIELDS
+    for case, value in BAD_IDENTIFIERS + (
+        ("too_long", "x" * (257 if field == "model_id" else 129)),
+    )
+) + tuple(
+    (field + "_" + case, {field: value})
+    for field in ("credential_fingerprint", "transport_binding")
+    for case, value in (
+        ("uppercase", "A" * 64), ("short", "a" * 63), ("long", "a" * 65),
+        ("non_hex", "g" * 64), ("empty", ""), ("missing", None),
+        ("wrong_type", 3), ("subclass", StrSubclass("a" * 64)),
+    )
+) + tuple(
+    ("model_url_" + str(index), {"model_id": value})
+    for index, value in enumerate(URL_MODEL_IDS)
 )
 
 
@@ -546,11 +637,13 @@ def test_i07_malformed_record_identity_is_invalid_policy(overrides):
     assert_code(decision, DecisionCode.INVALID_POLICY)
 
 
-def test_i08_identifier_case_change_is_not_found():
-    assert_code(
-        evaluate(target(provider_id="Fixture-Provider")),
-        DecisionCode.APPROVAL_NOT_FOUND,
-    )
+@pytest.mark.parametrize(
+    "overrides",
+    ({field: getattr(TARGET, field).upper()} for field in TARGET_IDENTITY_FIELDS),
+    ids=TARGET_IDENTITY_FIELDS,
+)
+def test_i08_identifier_case_change_is_not_found(overrides):
+    assert_code(evaluate(target(**overrides)), DecisionCode.APPROVAL_NOT_FOUND)
 
 
 def test_i08_policy_generation_case_change_is_revision_mismatch():
@@ -592,12 +685,7 @@ def test_i08_policy_generation_case_change_is_revision_mismatch():
         ),
         (
             "target_subclass",
-            PolicySubclass(
-                schema_version=1,
-                revision=REVISION,
-                active=True,
-                approved_sources=POLICY.approved_sources,
-                revoked_approval_ids=POLICY.revoked_approval_ids,
+            policy(
                 approvals=(
                     approval(target=TargetSubclass(**dataclasses.asdict(TARGET))),
                 ),
