@@ -6,8 +6,9 @@
 - Owner of enablement/implementation approval: repository owner.
 - Historical specification baseline: main, 5acacda126d6f9385f8ca17f1e4d032a93442f36.
 - Status: kernel implemented, under corrective review; NOT runtime integration.
-- Current authorization: the owner's request to fix the Stage 2 review findings.
-  It does not authorize Stage 3, provider calls, deployment, commit or push.
+- Current authorization: the owner's request to fix the Stage 2 review findings,
+  followed by explicit authorization for a local review-checkpoint commit.
+  It does not authorize Stage 3, provider calls, deployment or push.
 - Architecture is unchanged: workload-router is the brain, New-API is transport,
   and the legacy gateway remains rollback. This is not another router.
 

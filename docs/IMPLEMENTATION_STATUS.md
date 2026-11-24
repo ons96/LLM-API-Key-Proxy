@@ -6,18 +6,26 @@
 - Completed implementation: Stage 1, hermetic financial-safety test verifier.
 - Completed implementation: Stage 2 kernel and review corrections, verified below.
   Follow-up independent review remains separate from production enablement.
-- Current authorization: owner requested fixes for all Stage 2 review findings.
-  Stage 3 and production integration are NOT started or authorized.
+- Current authorization: owner requested fixes for all Stage 2 review findings,
+  then explicitly authorized a local checkpoint commit for fresh review.
+  Stage 3, pushing and production integration are NOT authorized.
 - No production financial policy, router, provider adapter or runtime behavior
   changed. No real lane has been qualified or enabled.
 - Repository: /home/osees/CodingProjects/LLM-API-Key-Proxy.
 - Branch: feat/financial-admission-kernel.
 - Historical design baseline: 5acacda126d6f9385f8ca17f1e4d032a93442f36.
 - Corrective-task entry HEAD: 06f8f3a5affc5ad696a21d186c7db395195a4f8a (clean).
-- Latest observed HEAD: 74b38de01c91c73fd3fc3d4bbd803d2b9fa54ce5.
+- Pre-checkpoint HEAD: bcffc999fb4b79aa99f3b5c5700ca9cc58b99321.
+- Implementation verification HEAD: 74b38de01c91c73fd3fc3d4bbd803d2b9fa54ce5.
+- Local checkpoint: the commit containing this record, on the branch above.
+  Its parent is the pre-checkpoint HEAD; identify the checkpoint with git log.
 - The initial implementation was already committed at 71bd2ce. Another process
   committed b8808ff and 74b38de during corrections, including edits made here.
-  This agent did NOT commit, push, rewrite history, deploy or operate services.
+  It then committed the remaining correction files as bcffc99 during checkpoint
+  preparation. The 243-source manifest was unchanged across that commit.
+  The correcting agent did NOT commit during implementation, push, rewrite
+  history, deploy or operate services. The later local checkpoint is now
+  explicitly owner-authorized; it is not independent acceptance or a release.
   External commit authorization/push/deployment are not verified. Preserve the
   commits; do not automatically roll them back. Verification is bound to hashes
   and a stable source snapshot, not the former incorrect 'uncommitted main' claim.
@@ -127,6 +135,25 @@ checks, public-type/signature assertions, manual type review and diff checks are
 not measured coverage or a full static type/lint check. Real account/evidence,
 billing contracts, snapshot trust, production dispatch, privacy/auth/quota gates
 and external commit/push authorization remain unverified. Stage 3 is not started.
+
+## Owner-authorized local review checkpoint
+
+The owner requested a local commit after secret scanning so a fresh session can
+review a fixed revision. Another process committed the remaining four correction
+files (README, contract, implementation status and policy tests) as bcffc99;
+this local checkpoint records the owner's authorization and accurate provenance.
+The kernel URL fix is already in 74b38de. Review all corrections from 06f8f3a,
+not only the last commit, plus the complete kernel and unchanged verifier.
+
+No implementation changes were made for checkpointing. The 243-source manifest
+and policy/test hashes still match the verified snapshot above. Commit checks
+include the hermetic financial/legacy/sidecar suites, staged-diff secret scanning
+with redacted output, whitespace checks and exact staged-file scope.
+Checkpoint reruns: financial 754 passed in 3.61s; legacy 50 passed in 5.76s;
+sidecar 403 passed in 28.32s. All exited 0 with zero unexpected isolation denials;
+financial retained 44 expected denials. No push,
+service operation, signing-key access or deployment is authorized or performed.
+Fresh independent review remains required; Stage 3 remains off.
 
 ## Stage 1 exact changes
 
