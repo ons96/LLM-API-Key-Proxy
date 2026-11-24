@@ -1,5 +1,68 @@
 # LLM API Proxy with Virtual Models
 
+## Hermetic financial test verifier (Stage 1) and kernel suite (Stage 2)
+
+Run from the repository root using the existing Python 3.12 `venv`. No
+packages are installed or synchronized, and uv runs offline without loading
+its configuration or dotenv files:
+
+```sh
+uv --no-config --no-cache run --offline --no-project --no-env-file \
+  --python venv/bin/python -- venv/bin/python -I -S \
+  tests/support/financial_test_bootstrap.py --suite isolation
+```
+
+Repeat the same invocation with `--suite legacy`, `--suite sidecar` or
+`--suite financial`:
+
+- `isolation`: negative access tests plus permitted synthetic database, HTTP
+  and Python-child paths. This is not a production financial-policy test.
+- `legacy`: routing-integrity #369, alias-stream fallback, counter persistence
+  #377, transient-429 and task-telemetry tests (50 baseline tests).
+- `sidecar`: the complete `workload-router/tests` suite (403 baseline tests),
+  including fake-backed tests whose names contain `live`. No live verifier,
+  provider probe, New-API binary or installed-client executable is launched.
+- `financial`: every isolation self-test above plus the Stage 2 pure
+  financial-admission acceptance matrix. The kernel is stdlib-only and
+  answers financial eligibility only; it does not call providers, read
+  credentials, reserve quota or approve a real account. A green run means
+  the synthetic contract cases pass, not that production is financially safe.
+
+The runner requires Linux x86_64, Python 3.12, `unshare`, `ip`, and permitted
+unprivileged user/network/PID/mount namespaces. It fails closed if setup is
+unavailable; do not replace it with ordinary pytest to obtain a green result.
+`-I -S` must be present on the initial interpreter invocation: rejecting a
+bad invocation cannot undo interpreter startup hooks that already ran.
+
+Before pytest or application imports, the runner clears inherited environment
+values, snapshots Python source into a private read-only chroot, omits host
+homes/configuration/storage, and creates disposable tmpfs state. It supplies
+only an empty synthetic provider catalog, suppresses dotenv loading, redirects
+legacy default rate-counter paths, and disables pytest plugin autoload and
+cache/bytecode writes. No production financial policy is changed.
+
+Network admission is exact, not blanket loopback: disposable TCP listeners
+bound to `127.0.0.1:0` are explicitly registered by the runner's TCPServer
+adapter after activation. Other listeners must call
+`financial_test_bootstrap.GUARD.register_endpoint(listener)` after `listen()`.
+Unregistered connects/DNS, UDP and addressed Unix sockets are rejected; anonymous
+socketpairs are allowed. Python subprocesses are re-bootstrapped with `-I -S`
+and inherit only the current endpoint allowlist and sandbox resources. Shells,
+arbitrary executables, pass-through file descriptors and direct fork/exec/spawn
+paths are denied. Unexpected denials fail the run even when caught by code.
+
+Limits: this is a trusted-test/dependency verifier, not a hostile-code sandbox.
+Python/native internals could evade the cooperative endpoint/audit checks;
+kernel namespaces and the restricted filesystem still isolate host providers,
+credentials and storage. Child endpoint lists are launch-time snapshots, not
+cross-process revocation leases. Dependency directories are trusted read-only
+inputs; `.pth`/sitecustomize are not executed. The full legacy suite, production
+lifespan and installed release paths are not certified by these selected tests.
+A passing Stage 1 does not fix any production financial-safety bypass. A
+passing `financial` suite does not enable or qualify any real provider lane.
+
+Milestone status and remaining work: [IMPLEMENTATION_STATUS](docs/IMPLEMENTATION_STATUS.md).
+
 ## Core Feature: Agentic Coding with Automatic Fallback
 
 **WORKING VIRTUAL MODEL:** Use `coding-elite` for agentic coding tasks with automatic fallback between free providers.
