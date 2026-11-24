@@ -257,7 +257,9 @@ def _is_target(value: object) -> bool:
     if model_id == _NOT_APPLICABLE:
         if value.operation not in _CONTROL_OPERATIONS:
             return False
-    elif _MODEL_ID_RE.fullmatch(model_id) is None:
+    # The ID regex also admits scheme:// spellings. Those are destinations,
+    # not opaque physical model identities; the contract forbids them separately.
+    elif "://" in model_id or _MODEL_ID_RE.fullmatch(model_id) is None:
         return False
     if value.authentication is AuthenticationKind.KEYED:
         if not _is_digest(value.credential_fingerprint):
