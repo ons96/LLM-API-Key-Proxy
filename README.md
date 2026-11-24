@@ -74,7 +74,7 @@ Milestone status and remaining work: [IMPLEMENTATION_STATUS](docs/IMPLEMENTATION
 
 ### Available Virtual Models for OpenCode:
 
-#### ✅ coding-elite (Recommended for Agentic Coding)
+#### [ok] coding-elite (Recommended for Agentic Coding)
 - **Primary Use:** Agentic coding, complex code generation, debugging
 - **Fallback Chain:**
   1. Groq (llama-3.3-70b-versatile) - Free, fast, high quality
@@ -105,8 +105,8 @@ Milestone status and remaining work: [IMPLEMENTATION_STATUS](docs/IMPLEMENTATION
 
 When using virtual models like `coding-elite`:
 1. Request goes to priority 1 provider (Groq)
-2. If rate limited/down → automatically try next provider (Gemini)
-3. If still down → try fallback provider (G4F)
+2. If rate limited/down -> automatically try next provider (Gemini)
+3. If still down -> try fallback provider (G4F)
 4. No manual intervention needed - seamless failover
 
 ## Configuration
@@ -164,7 +164,7 @@ TAVILY_API_KEY=your_tavily_api_key_here
 # Get your key at: https://tavily.com/
 ```
 
-**Web search fallback order:** DuckDuckGo → Brave → Tavily (falls back automatically if one fails)
+**Web search fallback order:** DuckDuckGo -> Brave -> Tavily (falls back automatically if one fails)
 
 ## Deployment
 
@@ -208,7 +208,7 @@ To use this gateway in OpenCode (AI coding assistant):
 3. Server URL format: `http://127.0.0.1:8000/v1`
 
 4. Available models for OpenCode:
-   - `coding-elite` - Best for agentic coding (Groq → Gemini → G4F fallback)
+   - `coding-elite` - Best for agentic coding (Groq -> Gemini -> G4F fallback)
    - `coding-fast` - Quick coding tasks
    - `chat-smart` - High intelligence reasoning
    - `chat-fast` - Low latency chat
@@ -223,7 +223,7 @@ The gateway provides **intelligent virtual models** that automatically select th
 **coding-elite** - Best agentic coding performance
 - Minimum 70.0 SWE-bench score required
 - Scoring: 80% agentic + 15% TPS + 5% availability
-- Fallback order: Claude Opus 4.5 → Gemini 3 Pro → GPT-5.2 → GPT-4o → ...
+- Fallback order: Claude Opus 4.5 -> Gemini 3 Pro -> GPT-5.2 -> GPT-4o -> ...
 
 **coding-smart** - Smart coding with balanced performance  
 - Minimum 65.0 SWE-bench score required
@@ -240,7 +240,7 @@ The gateway provides **intelligent virtual models** that automatically select th
 - Intelligence score priority (Chatbot Arena, MMLU, etc.)
 - Best for complex reasoning and analysis
 
-**chat-fast** - Efficient chat (intelligence ÷ response time)
+**chat-fast** - Efficient chat (intelligence / response time)
 - Efficiency ratio: Intelligence / Response Time
 - Best models that are both smart AND fast
 - Gemini 2 Flash, Mistral Medium 3.1, Llama 4 Scout
@@ -326,11 +326,11 @@ curl http://localhost:8000/stats
 
 | Model | Status | Primary Provider |
 |-------|--------|------------------|
-| coding-elite | ✅ Working | Groq |
-| coding-fast | ✅ Working | Groq |
-| chat-smart | ⚠️ Known Issue | Groq (config issue) |
-| chat-fast | ✅ Working | Groq |
-| router/best-coding | ⚠️ Known Issue | Multiple providers |
+| coding-elite | [ok] Working | Groq |
+| coding-fast | [ok] Working | Groq |
+| chat-smart | [warn] Known Issue | Groq (config issue) |
+| chat-fast | [ok] Working | Groq |
+| router/best-coding | [warn] Known Issue | Multiple providers |
 
 **For agentic coding in OpenCode:** Use `coding-elite`
 
@@ -339,12 +339,12 @@ curl http://localhost:8000/stats
 The gateway includes comprehensive telemetry tracking via SQLite database (`/tmp/llm_proxy_telemetry.db`):
 
 **Tracked Metrics:**
-- ✅ API calls with timing (response time, time-to-first-token)
-- ✅ Success/failure rates per provider
-- ✅ Token usage (input/output) and tokens-per-second
-- ✅ Cost estimates per request
-- ✅ Provider health status and failure rates
-- ✅ Rate limit tracking per provider
+- [ok] API calls with timing (response time, time-to-first-token)
+- [ok] Success/failure rates per provider
+- [ok] Token usage (input/output) and tokens-per-second
+- [ok] Cost estimates per request
+- [ok] Provider health status and failure rates
+- [ok] Rate limit tracking per provider
 
 **Database Location:** `/tmp/llm_proxy_telemetry.db`
 
