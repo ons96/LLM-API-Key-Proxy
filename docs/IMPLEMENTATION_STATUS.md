@@ -229,3 +229,26 @@ enforcement) requires separate owner authorization and must not start from this
 record. Contract contradictions and integration trust questions belong with a
 strong reasoning model. Neither this record nor the passing pure kernel certifies
 production financial safety or permits enabling a real provider lane.
+
+## Mechanical traceability check (automated; not independent review)
+
+Run 2026-11-24 on commit 71bd2ce. Reproducible, and explicitly not the
+independent approval required above: it proves naming coverage, not that each
+assertion tests what the matrix names.
+
+- Contract section 8 matrix rows: 47; unique IDs: 47.
+- Case IDs with no matching `test_<id>_*` function: 0.
+- Test functions not mapped to a matrix ID: 0 (53 functions = 47 cases plus
+  six cases with a second test).
+- Case IDs with more than one test: F09, I04, I07, I08, P07, T02.
+- `DecisionCode` values: 17; never named in the policy tests: 0; absent from
+  the contract: 0.
+- Contract prohibitions: no `xfail`, `pytest.skip`, `skipif` or policy
+  monkeypatch in tests/test_financial_safety.py. The only `socket` reference is
+  the S06 failing-spy replacement, which S06 requires.
+- Documented `--suite financial` invocation re-run before recording this:
+  389 passed, expected_denials=44, unexpected_denials=0, exit 0.
+
+The mapping is by test-function name (`test_a01_...` is case A01). An ID with a
+test is not proof that the test is correct; assertion-level review remains open
+for the independent reviewer.
