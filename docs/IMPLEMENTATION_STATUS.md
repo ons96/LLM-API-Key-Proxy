@@ -272,3 +272,26 @@ parametrizations rather than the test names:
 This is still not the independent review. It checks that each named dimension
 is exercised; it does not re-derive whether each expected code follows from
 section 7.
+
+### Precedence re-derivation (2026-11-24)
+
+Mechanical comparison of `evaluate_admission` in src/financial_safety.py against
+the table in contract section 7: both yield the same 17-entry order from
+INVALID_INPUT through ELIGIBLE (consecutive duplicates collapsed), matched
+programmatically by AST line order. Every P10 case was additionally read against
+section 7 and expects the first-failure code; the eleven combinations cover
+invalid-input/invalid-policy, inactive/revision-mismatch, mismatch/absent,
+revoked/expired, expired/untrusted, unknown-funding/nonzero,
+incomplete/unknown-bound, unknown-bound/nonzero, nonzero/unproven,
+unproven/uncontrolled.
+
+The implemented order and the asserted first failures are correct. This does not
+judge whether section 7 is the right policy, and it is not independent sign-off.
+
+### Root markdown fold (2026-11-24)
+
+Six single-reference handoffs moved from the root to docs/archive/:
+FINAL_COMPLETION_REPORT, FINAL_TYPE_SAFETY_FIXES, PERMANENT_HTTPS_SETUP,
+VPS_STATUS, HTTPS_SETUP_GUIDE, LSP_FIXES_SUMMARY. Root markdown 26 -> 20 and the
+relative-link scan still reports 0 broken. HANDOFF_OPUS_2026-06-24.md and
+ROUTER_DOCUMENTATION.md stay at the root because SPEC.md links them directly.
