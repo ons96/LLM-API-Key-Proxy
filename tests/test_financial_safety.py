@@ -416,6 +416,7 @@ def test_f09_apparently_free_anonymous_relay_is_still_uncontrolled(field):
         {"provider_id": "other-provider"},
         {"model_id": "other-model"},
         {"account_id": "other-account"},
+        {"credential_fingerprint": "c" * 64},
         {
             "authentication": AuthenticationKind.ANONYMOUS,
             "credential_fingerprint": None,
@@ -424,8 +425,8 @@ def test_f09_apparently_free_anonymous_relay_is_still_uncontrolled(field):
         {"dispatch_profile_id": "other-profile"},
         {"transport_binding": "c" * 64},
     ),
-    ids=("provider", "model", "account", "authentication", "operation", "profile",
-         "transport"),
+    ids=("provider", "model", "account", "fingerprint", "authentication",
+         "operation", "profile", "transport"),
 )
 def test_i01_any_identity_change_is_not_found(overrides):
     decision = evaluate(target(**overrides))

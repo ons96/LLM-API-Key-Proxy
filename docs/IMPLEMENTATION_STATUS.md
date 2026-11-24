@@ -238,9 +238,9 @@ assertion tests what the matrix names.
 
 - Contract section 8 matrix rows: 47; unique IDs: 47.
 - Case IDs with no matching `test_<id>_*` function: 0.
-- Test functions not mapped to a matrix ID: 0 (53 functions = 47 cases plus
-  six cases with a second test).
-- Case IDs with more than one test: F09, I04, I07, I08, P07, T02.
+- Test functions not mapped to a matrix ID: 0 (54 functions = 47 cases plus
+  seven cases with a second test).
+- Case IDs with more than one test: F09, I01, I04, I07, I08, P07, T02.
 - `DecisionCode` values: 17; never named in the policy tests: 0; absent from
   the contract: 0.
 - Contract prohibitions: no `xfail`, `pytest.skip`, `skipif` or policy
@@ -252,3 +252,23 @@ assertion tests what the matrix names.
 The mapping is by test-function name (`test_a01_...` is case A01). An ID with a
 test is not proof that the test is correct; assertion-level review remains open
 for the independent reviewer.
+
+### Assertion-level pass (2026-11-24)
+
+Checked the "each field / each class / each case" claims against the actual
+parametrizations rather than the test names:
+
+- `MONEY_FIELDS` 8, `BOUNDARY_FIELDS` 4, `ELIGIBLE_FUNDING` 3: F02-F04 and N01
+  cover all eight money fields; F07 covers 4 boundary fields x 3 funding classes
+  x 2 falsey values = 24; A01 covers all three eligible classes.
+- `PRECEDENCE_CASES` covers the eleven section 7 combinations; `DENIAL_CASES`
+  backs S01.
+- One real gap found and fixed: I01 claimed eight independent identity changes
+  (provider, model, account, authentication, fingerprint, operation, profile,
+  transport) but parametrized only seven, with no standalone fingerprint change.
+  Keyed fingerprint change is now its own case and must deny with
+  APPROVAL_NOT_FOUND. Suite after the fix: 390 passed.
+
+This is still not the independent review. It checks that each named dimension
+is exercised; it does not re-derive whether each expected code follows from
+section 7.
