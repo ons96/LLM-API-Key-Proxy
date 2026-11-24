@@ -145,7 +145,12 @@ async def test_stream_error_chunk_is_sanitized(monkeypatch):
     async for chunk in response.body_iterator:
         body += chunk.decode() if isinstance(chunk, bytes) else chunk
 
-    assert "data: [DONE]" in body
+    # #371: a failed stream must not end with the success sentinel or with
+    # finish_reason "stop" -- that made a dead stream indistinguishable from a
+    # finished answer. The sanitisation assertions below are unchanged.
+    assert "data: [DONE]" not in body
+    assert '"finish_reason": "stop"' not in body
+    assert '"finish_reason": "error"' in body
     assert SECRET not in body
     assert "internal-gw.corp" not in body
     # The user still sees a meaningful in-band error message.

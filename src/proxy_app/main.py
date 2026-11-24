@@ -1191,22 +1191,34 @@ async def chat_completions(
                             }
                         ],
                     }
+                    # #371: this used to end with finish_reason "stop" and
+                    # data: [DONE], which is byte-identical to a successful
+                    # answer, so every client scored a dead stream as a
+                    # completed call. Terminal failure now ends with an
+                    # explicit "error" finish reason and no success sentinel;
+                    # the OpenAI SDKs end iteration at EOF and treat a chunk
+                    # with an error finish_reason as a failed completion.
                     final_chunk = {
                         "id": request_id,
                         "object": "chat.completion.chunk",
                         "created": int(time.time()),
                         "model": request_data.get("model", "unknown"),
+                        "error": {
+                            "message": error_text,
+                            "type": "gateway_stream_error",
+                            "code": "stream_failed",
+                            "request_id": request_id,
+                        },
                         "choices": [
                             {
                                 "index": 0,
                                 "delta": {},
-                                "finish_reason": "stop",
+                                "finish_reason": "error",
                             }
                         ],
                     }
                     yield f"data: {json.dumps(error_chunk)}\n\n"
                     yield f"data: {json.dumps(final_chunk)}\n\n"
-                    yield "data: [DONE]\n\n"
             return StreamingResponse(_sse_wrap(result), media_type="text/event-stream")
         _record_task_request("success", result_obj=result if isinstance(result, dict) else None)
         # ponytail: serialize litellm ModelResponse to dict before FastAPI return.
