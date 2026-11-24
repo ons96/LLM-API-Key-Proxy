@@ -4,16 +4,129 @@
 
 - Updated: 2026-11-24 (UTC).
 - Completed implementation: Stage 1, hermetic financial-safety test verifier.
-- Completed implementation: Stage 2, pure financial-admission kernel and its
-  bounded acceptance suite, under the authorization recorded in
-  [FINANCIAL_ADMISSION_CONTRACT.md](FINANCIAL_ADMISSION_CONTRACT.md), sections
-  5-9. Stage 3 and production integration are NOT started or authorized.
+- Completed implementation: Stage 2 kernel and review corrections, verified below.
+  Follow-up independent review remains separate from production enablement.
+- Current authorization: owner requested fixes for all Stage 2 review findings.
+  Stage 3 and production integration are NOT started or authorized.
 - No production financial policy, router, provider adapter or runtime behavior
   changed. No real lane has been qualified or enabled.
 - Repository: /home/osees/CodingProjects/LLM-API-Key-Proxy.
-- Branch: main.
-- Baseline/current HEAD: 5acacda126d6f9385f8ca17f1e4d032a93442f36.
-- Implementation is uncommitted. No commit, push, deployment or service operation.
+- Branch: feat/financial-admission-kernel.
+- Historical design baseline: 5acacda126d6f9385f8ca17f1e4d032a93442f36.
+- Corrective-task entry HEAD: 06f8f3a5affc5ad696a21d186c7db395195a4f8a (clean).
+- Latest observed HEAD: 74b38de01c91c73fd3fc3d4bbd803d2b9fa54ce5.
+- The initial implementation was already committed at 71bd2ce. Another process
+  committed b8808ff and 74b38de during corrections, including edits made here.
+  This agent did NOT commit, push, rewrite history, deploy or operate services.
+  External commit authorization/push/deployment are not verified. Preserve the
+  commits; do not automatically roll them back. Verification is bound to hashes
+  and a stable source snapshot, not the former incorrect 'uncommitted main' claim.
+
+## Stage 2 review corrections and verified snapshot
+
+The owner requested these corrections after ACCEPT WITH REQUIRED FIXES. The
+correcting agent authored the original contract and now these fixes; this is
+self-review, NOT fresh independent implementation acceptance.
+
+### Exact corrections
+
+- src/financial_safety.py: reject any model ID containing '://'. No monetary,
+  funding, trust, validation-precedence or runtime behavior was relaxed.
+- docs/FINANCIAL_ADMISSION_CONTRACT.md: reviewed, stricter section 6 clarification
+  resolves the regex/prose contradiction; lifecycle wording acknowledges the
+  implementation. Required DTOs/APIs, zero-money invariant and Stage 3 gates
+  are unchanged. The owner authorized fixing this finding, not enabling lanes.
+- tests/test_financial_safety.py: expanded missing variants and isolated masked
+  tests. Its shared evaluate harness now exercises BOTH public APIs for every
+  matrix evaluation and checks every denial's zero dispatch/fallback calls,
+  exact exception, safe metadata, determinism and unchanged synthetic inputs.
+- S06 installs failing spies BEFORE fresh import, not only afterward. It checks
+  allowed imports statically and dynamically, spies on file/environment/DB/
+  logging/process/network/clock APIs, and runs eligible plus all denial-code
+  branches. Its 24 separate synthetic canaries prove the spies block attempted
+  side effects BEFORE execution. The actual policy is never patched/replaced.
+  CPython open_code delegates to _io.open; only get_data's trusted loader reads
+  are allowed there, still under the original filesystem guard.
+- README.md documents the URL restriction and expanded test guarantee.
+- This status corrects branch/commit/provenance claims. PROJECT_STATUS.md and
+  archive moves were external work; they were preserved, not undone or expanded.
+
+Files changed relative to corrective-task entry 06f8f3a: the five above. The
+verifier, conftest, isolation self-tests, audit/roadmap, production code/configs,
+package/deployment files and provider-manager data were not changed by fixes.
+External commits captured some edits; use the entry-to-worktree diff AND the
+remaining uncommitted diff, not only HEAD-to-worktree, to review the whole fix.
+
+### Required-variant traceability
+
+All 47 section 8 IDs retain named tests; this map explains the former gaps,
+not merely the presence of function names. Original required rows remain.
+
+| IDs | Corrective coverage |
+| --- | --- |
+| A05 | All 10 operations with distinct exact profiles; 3 separate N/A controls; namespace and length boundaries |
+| F05/F08/F09 | Both cache fields plus tool/search/other; each promotional charge and exhaustion/expiry False/None; both relay flags False/None |
+| I07/I08 | Every target/record/revision ID, registry ID elements and both digests; malformed types/lengths/characters/case; matching URL approval and unrelated URL records before/after match |
+| P01 | Each input DTO subclass, separately with exact outer policy; raw/missing nested DTOs; enum/string/class/foreign-enum cases; scalar subclasses and prohibited conversion callbacks; container subclasses |
+| P07/P09 | Distinct expired/revoked duplicate cases; each malformed collection element/container; collection over-limits and exact limits; schema/active types |
+| T02 | Every invalid timestamp kind at now, verified_at, valid_from and valid_until; all ordering comparisons; valid epoch extremes |
+| N01-N03/F04 | Original eight-field numeric matrix; more currency/unit/proof kinds; tiny positives under restrictive Decimal contexts without flags/rounding |
+| S01/S02/S04/S05 | Shared invariants applied to every denied matrix variant, not 18 representative outcomes; sensitive malformed canaries; all six DTOs frozen/slotted/required and exact annotations/signatures |
+| S03/S06 | Fixed truthiness error across all denial codes; pre-import and evaluation spies plus negative self-check canaries |
+
+A01-A04/A06, F01-F04/F06-F07, I01-I06, P02-P06/P08/P10, T01/T03 and S07-S08
+remain directly asserted. The shared harness adds safety assertions without
+replacing individual expected-code assertions or weakening the actual policy.
+
+### Final verification
+
+The exact three commands in the Stage 2 verification section were executed
+through the unchanged hermetic bootstrap, using the existing venv and offline
+uv. Only registered disposable private-network fixtures were permitted.
+
+- financial: 754 passed in 3.82s (709 kernel + 45 isolation tests), exit 0;
+  unexpected_denials=0, expected_denials=44.
+- legacy: 50 passed in 5.50s, exit 0; unexpected_denials=0, expected_denials=0.
+- sidecar: 403 passed in 28.57s, exit 0; unexpected_denials=0, expected_denials=0.
+- No required tests skipped/xfail; no raw-pytest fallback or guard weakening.
+- HEAD was 74b38de01c91c73fd3fc3d4bbd803d2b9fa54ce5 before AND after all runs.
+  All 243 source inputs copied by the verifier were hashed before the runs and
+  checked after EACH suite. No source changed during that verification interval.
+
+Source manifest SHA-256 (sorted path-to-hash JSON):
+93734ec058568315f972ada3c4d0855696bce845f667565cdb4006233052215b
+
+Artifact SHA-256 values:
+- src/financial_safety.py:
+  b0bb7451a044a3dd016f9eaf24e4b8675de89ce9fd30e77f593b1af681931e54
+- tests/test_financial_safety.py:
+  bc34a239c15ecdf7a1734f37455e38c0d269259a71d1d489210fe05c1f492884
+- tests/support/financial_test_bootstrap.py (unchanged):
+  f77cc16e93d8d3df31e8aa90aef137d5ee27d8c7a5daa058c93da7e5e1a23da2
+- tests/conftest.py (unchanged):
+  6a4f96f82397dd4dc707e301f7122b375deccd42a325a88498c205e5f2bd155a
+- tests/test_financial_test_isolation.py (unchanged):
+  4d950fa2a5b84016f67bb479bb7123df105851c478345038a5568e41d58cb633
+
+Development failures were visible: URL regressions first produced 10 failures
+and 504 passes with zero unexpected isolation denials. The corrected policy
+resolved those. Stronger S06 initially rejected CPython's own loader delegation;
+its loader-only allowance was corrected, not its application spies removed.
+An intermediate 724-case suite passed before the final expansions above.
+
+Static checks on the final diff passed: in-memory compilation/tabnanny, ASCII
+and whitespace checks, Python 88-column checks, child-source compilation and
+`git diff --check 06f8f3a`. All 78 test functions map to the 47 required IDs; this
+naming check supplements, not replaces, the variant assertions above. The full
+five-file entry-to-worktree diff was read and self-reviewed. No code changes
+followed the final suite runs; recorded code/guard/audit hashes still match.
+
+Remaining limitations: no installed ruff/black/mypy/pyright/coverage tool and no
+installation/download was attempted. In-memory syntax/tabnanny, ASCII/new-line
+checks, public-type/signature assertions, manual type review and diff checks are
+not measured coverage or a full static type/lint check. Real account/evidence,
+billing contracts, snapshot trust, production dispatch, privacy/auth/quota gates
+and external commit/push authorization remain unverified. Stage 3 is not started.
 
 ## Stage 1 exact changes
 
@@ -135,10 +248,11 @@ uv --no-config --no-cache run --offline --no-project --no-env-file --python venv
 uv --no-config --no-cache run --offline --no-project --no-env-file --python venv/bin/python -- venv/bin/python -I -S tests/support/financial_test_bootstrap.py --suite sidecar
 ```
 
-Results:
+Results reported by the original implementer (historical, not current fixes):
 - financial: 389 passed in 2.31s; 0 unexpected / 44 expected isolation denials.
-  Includes all 45 isolation self-tests and the new 344 synthetic kernel cases.
-  No skipped, xfailed or required case omitted.
+  Includes all 45 isolation self-tests and the original 344 kernel cases.
+  No skips/xfails reported. Independent review subsequently found missing field
+  variants; these counts did NOT prove complete acceptance-matrix coverage.
 - legacy: 50 passed in 7.53s; 0 unexpected denials.
 - sidecar: 403 passed in 29.95s; 0 unexpected denials.
 - No raw pytest, weakened isolation or permissive fallback was used. All exit
@@ -150,10 +264,13 @@ ASCII/88-column/whitespace checks over the new and edited Python files, plus
 in the venv; none was downloaded. Those checks were not run and are not claimed.
 
 Self-review findings and limitations:
-- Implemented contract sections 5-9 as written. No genuine contradiction was
-  found and nothing was relaxed to obtain green tests. Duplicate approval IDs and
-  duplicate exact targets (including expired/revoked records) invalidate the
-  whole context before lookup. Malformed unrelated records also invalidate it.
+- The initial implementer claimed sections 5-9 were complete with no
+  contradiction. Independent review found a model-regex/URL-prohibition
+  contradiction and incomplete regression coverage. The corrective pass above
+  supersedes that claim; section 6 now explicitly rejects any '://' model ID.
+  This is a stricter clarification, not a relaxation of financial requirements.
+  Duplicate approval IDs and targets (including expired/revoked records) still
+  invalidate the whole context before lookup.
 - Monetary tests use exact Decimal comparison only; no float conversion,
   quantization, tolerance or rounding. Non-finite and negative bounds are
   malformed policy, not nonzero charges. Denials never claim an observed charge.
@@ -212,23 +329,15 @@ implementation and verification sections above now supersede it.
   an implementation that does not exist. Real account proof and runtime
   enforcement remain unresolved, as do all listed production bypasses.
 
-## Next milestone (requires separate approval)
+## Next gate (requires separate approval)
 
-Implement Stage 2 exactly from
-[FINANCIAL_ADMISSION_CONTRACT.md](FINANCIAL_ADMISSION_CONTRACT.md), sections 5-9.
-The six-file scope is: new src/financial_safety.py, new policy tests, bounded
-financial-suite/fixture changes, README invocation and this status artifact.
-Depend on Stage 1; preserve its guards and do not edit the contract to weaken
-failed tests. No runtime wiring, metadata auto-approval or real account inspection.
-
-Stage 2 is implemented and awaiting an independent strong-model review of the
-full diff, acceptance matrix and the commands/results recorded above. The
-implementer's own review is implementation self-review, not independent approval.
-Stage 3 (evidence/snapshot trust, physical-dispatch wiring or any runtime
-enforcement) requires separate owner authorization and must not start from this
-record. Contract contradictions and integration trust questions belong with a
-strong reasoning model. Neither this record nor the passing pure kernel certifies
-production financial safety or permits enabling a real provider lane.
+Finish review of the verified Stage 2 correction diff and return it for a
+fresh implementation review. The correcting agent's self-review is NOT
+independent acceptance. Stage 3 (evidence/snapshot trust, physical-dispatch wiring
+or runtime enforcement) remains separately owner-gated. Neither this record nor
+passing synthetic tests qualifies any real account or enables a provider lane.
+No additional router, quota engine, credential access or production integration
+is authorized by the Stage 2 correction request.
 
 ## Mechanical traceability check (automated; not independent review)
 
@@ -269,9 +378,9 @@ parametrizations rather than the test names:
   Keyed fingerprint change is now its own case and must deny with
   APPROVAL_NOT_FOUND. Suite after the fix: 390 passed.
 
-This is still not the independent review. It checks that each named dimension
-is exercised; it does not re-derive whether each expected code follows from
-section 7.
+This was still not independent review. It checked selected named dimensions,
+but the later independent pass found timestamp/type/import-time gaps. The
+corrective verification above supersedes its completeness implications.
 
 ### Precedence re-derivation (2026-11-24)
 

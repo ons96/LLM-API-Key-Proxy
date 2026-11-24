@@ -138,6 +138,52 @@ class StrSubclass(str):
     pass
 
 
+class IntSubclass(int):
+    pass
+
+
+class TupleSubclass(tuple):
+    pass
+
+
+class FrozenSetSubclass(frozenset):
+    pass
+
+
+class ApprovalSubclass(FinancialApproval):
+    pass
+
+
+class BoundsSubclass(MonetaryBounds):
+    pass
+
+
+class BoundarySubclass(NoChargeBoundary):
+    pass
+
+
+class ForeignEnum(str, enum.Enum):
+    KEYED = "keyed"
+    CHAT = "chat_completion"
+    NON_BILLABLE = "non_billable"
+
+
+class Coercible:
+    """A malformed scalar whose conversion/comparison must never be invoked."""
+
+    def __eq__(self, other: object) -> bool:
+        raise AssertionError("unexpected equality callback")
+
+    def __bool__(self) -> bool:
+        raise AssertionError("unexpected truthiness callback")
+
+    def __str__(self) -> str:
+        raise AssertionError("unexpected string callback")
+
+    def __int__(self) -> int:
+        raise AssertionError("unexpected integer callback")
+
+
 class TargetSubclass(FinancialTarget):
     pass
 
@@ -285,6 +331,7 @@ def test_a03_negative_zero_is_an_exact_zero(field):
 
 def test_a04_anonymous_target_with_explicit_principal_is_eligible():
     anonymous = target(
+        account_id="fixture-public-principal",
         authentication=AuthenticationKind.ANONYMOUS, credential_fingerprint=None
     )
     assert_eligible(
@@ -458,6 +505,7 @@ def test_f09_uncontrolled_transport_denies(field, value):
 @pytest.mark.parametrize("value", (False, None), ids=("false", "none"))
 def test_f09_apparently_free_anonymous_relay_is_still_uncontrolled(field, value):
     anonymous = target(
+        account_id="fixture-public-principal",
         authentication=AuthenticationKind.ANONYMOUS, credential_fingerprint=None
     )
     decision = evaluate(
@@ -775,16 +823,16 @@ def test_p07_duplicate_approval_ids_are_invalid():
 
 
 @pytest.mark.parametrize(
-    "second",
+    "second,revoked",
     (
-        approval(approval_id="fixture-approval-2"),
-        approval(approval_id="fixture-approval-2", valid_until=1100),
-        approval(approval_id="fixture-approval-2", valid_until=1100),
+        (approval(approval_id="fixture-approval-2"), frozenset()),
+        (approval(approval_id="fixture-approval-2", valid_until=1100), frozenset()),
+        (approval(approval_id="fixture-approval-2"),
+         frozenset({"fixture-approval-2"})),
     ),
     ids=("duplicate_target", "duplicate_expired_target", "duplicate_revoked_target"),
 )
-def test_p07_duplicate_targets_are_invalid_even_when_inactive(second):
-    revoked = frozenset({APPROVAL_ID, "fixture-approval-2"})
+def test_p07_duplicate_targets_are_invalid_even_when_inactive(second, revoked):
     assert_code(
         evaluate(
             policy_value=policy(
@@ -830,6 +878,12 @@ def test_p08_malformed_unrelated_record_invalidates_the_context():
         ),
         dataclasses.replace(POLICY, approved_sources=frozenset({SOURCE, 3})),
         dataclasses.replace(POLICY, approvals=(3,)),
+        policy(revoked_approval_ids=frozenset({3})),
+        policy(schema_version=None),
+        policy(schema_version=1.0),
+        policy(schema_version="1"),
+        policy(schema_version=IntSubclass(1)),
+        policy(active=object()),
     ),
     ids=(
         "schema_zero",
@@ -844,6 +898,12 @@ def test_p08_malformed_unrelated_record_invalidates_the_context():
         "approvals_exceeded",
         "source_element_type",
         "approval_element_type",
+        "revoked_element_type",
+        "schema_none",
+        "schema_float",
+        "schema_string",
+        "schema_subclass",
+        "active_object",
     ),
 )
 def test_p09_schema_collection_and_element_limits(policy_value):
@@ -1009,8 +1069,9 @@ def test_t01_validity_window_boundaries(now, code):
 
 @pytest.mark.parametrize(
     "now",
-    (-1, True, 1500.0, "1500", None, 253402300800),
-    ids=("negative", "bool", "float", "string", "none", "out_of_range"),
+    (-1, True, False, 1500.0, "1500", None, 253402300800, IntSubclass(NOW)),
+    ids=("negative", "bool_true", "bool_false", "float", "string", "none",
+         "out_of_range", "int_subclass"),
 )
 def test_t02_malformed_now_is_invalid_input(now):
     assert_code(evaluate(now=now), DecisionCode.INVALID_INPUT)
@@ -1020,10 +1081,12 @@ def test_t02_malformed_now_is_invalid_input(now):
     "overrides",
     (
         {"verified_at": 1001},
+        {"verified_at": 2000},
         {"valid_from": 2000, "valid_until": 2000},
         {"valid_from": 2001},
     ),
-    ids=("verified_after_from", "empty_window", "from_after_until"),
+    ids=("verified_after_from", "verified_at_until", "empty_window",
+         "from_after_until"),
 )
 def test_t02_bad_policy_time_ordering_is_invalid_policy(overrides):
     malformed = approval(**overrides)
@@ -1087,10 +1150,19 @@ def test_n01_malformed_monetary_values_are_invalid_policy(field, value):
     (
         {"currency": "EUR"},
         {"currency": None},
+        {"currency": ""},
+        {"currency": "usd"},
+        {"currency": 0},
+        {"currency": StrSubclass("USD")},
         {"unit": "currency_per_token"},
         {"unit": None},
+        {"unit": ""},
+        {"unit": 0},
+        {"unit": StrSubclass("currency_per_attempt")},
     ),
-    ids=("currency_unsupported", "currency_missing", "unit_per_token", "unit_missing"),
+    ids=("currency_unsupported", "currency_missing", "currency_empty",
+         "currency_case", "currency_int", "currency_subclass", "unit_per_token",
+         "unit_missing", "unit_empty", "unit_int", "unit_subclass"),
 )
 def test_n02_currency_and_unit_must_match_the_contract(overrides):
     malformed = approval(money=money(**overrides))
@@ -1105,6 +1177,7 @@ INVALID_BOOLEANS = (
     ("one", 1),
     ("string", "true"),
     ("object", object()),
+    ("coercible", Coercible()),
 )
 
 BOOLEAN_LOCATIONS = (
@@ -1396,44 +1469,131 @@ def test_s05_evaluation_is_deterministic_and_inputs_stay_immutable():
 
 
 CHILD_SOURCE = r'''
+import ast
+import builtins
 import dataclasses
 import decimal
 import enum
+import io
+import _io
+import logging
+import os
+import pathlib
 import re
+import sqlite3
+import subprocess
 import sys
+import time
+import typing
+import socket
 
-before = set(sys.modules)
-import financial_safety as fs
-added = set(sys.modules) - before
-assert added == {"financial_safety"}, sorted(added)
-assert not any(
-    name == "proxy_app"
-    or name.startswith("proxy_app.")
-    or name == "src.proxy_app"
-    or name.startswith("src.proxy_app.")
-    or name == "rotator_library"
-    or name.startswith("rotator_library.")
-    for name in sys.modules
-)
+source_path = "/repo/src/financial_safety.py"
+source = pathlib.Path(source_path).read_text()
+allowed = {"dataclasses", "decimal", "enum", "re", "typing"}
+for node in ast.walk(ast.parse(source)):
+    if isinstance(node, ast.Import):
+        assert all(alias.name in allowed for alias in node.names)
+    elif isinstance(node, ast.ImportFrom):
+        assert node.level == 0 and node.module in allowed
+
+spy_calls = []
+loader_depth = 0
+original_open_code = _io.open_code
+original_io_open = _io.open
+original_import = builtins.__import__
+original_print = builtins.print
+logger = logging.getLogger("synthetic-spy")
 
 
 def fail(*args, **kwargs):
-    raise AssertionError("unexpected side effect")
+    spy_calls.append("blocked")
+    raise AssertionError("unexpected application side effect")
 
 
-import builtins
-import logging
-import os
-import socket
-import subprocess
-import time
+def loader_open_code(path):
+    # Only the real loader may read source, not module-body open_code calls.
+    # Guard.path's filesystem checks still execute for every loader read.
+    global loader_depth
+    caller = sys._getframe(1)
+    if (caller.f_globals.get("__name__") not in {
+        "importlib._bootstrap_external", "_frozen_importlib_external",
+    } or caller.f_code.co_name != "get_data"):
+        return fail()
+    loader_depth += 1
+    try:
+        return original_open_code(path)
+    finally:
+        loader_depth -= 1
 
-builtins.open = fail
-os.getenv = fail
-time.time = fail
-socket.socket = fail
-subprocess.Popen = fail
-logging.getLogger = fail
+
+def guarded_metadata(original):
+    def guarded(*args, **kwargs):
+        if loader_depth:
+            return original(*args, **kwargs)
+        return fail()
+    return guarded
+
+
+def audited_import(name, globals=None, locals=None, fromlist=(), level=0):
+    caller = sys._getframe(1)
+    if caller.f_globals.get("__name__") in {
+        "financial_safety", "_financial_side_effect_probe",
+    } and (level or name not in allowed):
+        return fail()
+    return original_import(name, globals, locals, fromlist, level)
+
+
+class ForbiddenEnvironment:
+    __getitem__ = __contains__ = __iter__ = __len__ = fail
+    get = keys = values = items = copy = fail
+    __setitem__ = __delitem__ = fail
+
+
+# Spies precede the fresh import. No policy function is patched or replaced.
+# Only normal import-loader reads remain allowed, under the existing guard.
+builtins.__import__ = audited_import
+builtins.open = builtins.print = fail
+io.open = fail
+# CPython open_code delegates dynamically to _io.open. Keep that loader-only
+# read under Guard.path; direct _io.open calls still fail outside loader_depth.
+_io.open = guarded_metadata(original_io_open)
+io.open_code = _io.open_code = loader_open_code
+os.environ = ForbiddenEnvironment()
+for name in ("getenv", "putenv", "unsetenv", "open", "system", "fork",
+             "forkpty", "execv", "execve", "posix_spawn", "posix_spawnp"):
+    if hasattr(os, name):
+        setattr(os, name, fail)
+for name in ("stat", "lstat", "fstat", "readlink", "listdir", "scandir",
+             "getcwd"):
+    setattr(os, name, guarded_metadata(getattr(os, name)))
+for name in ("time", "monotonic", "monotonic_ns", "perf_counter",
+             "perf_counter_ns", "process_time", "thread_time", "sleep"):
+    setattr(time, name, fail)
+for name in ("socket", "socketpair", "create_connection", "getaddrinfo",
+             "gethostbyname", "gethostbyaddr", "gethostname"):
+    setattr(socket, name, fail)
+for name in ("Popen", "run", "call", "check_call", "check_output"):
+    setattr(subprocess, name, fail)
+for name in ("getLogger", "log", "debug", "info", "warning", "error",
+             "exception", "critical", "basicConfig"):
+    setattr(logging, name, fail)
+for name in ("log", "debug", "info", "warning", "error", "exception",
+             "critical", "_log", "handle"):
+    setattr(logging.Logger, name, fail)
+for name in ("open", "read_text", "read_bytes", "write_text", "write_bytes",
+             "stat", "exists", "resolve", "iterdir", "glob", "rglob"):
+    setattr(pathlib.Path, name, fail)
+sqlite3.connect = fail
+
+before = set(sys.modules)
+import financial_safety as fs
+assert set(sys.modules) - before == {"financial_safety"}
+assert not any(
+    name.split(".")[0] in {"proxy_app", "rotator_library"}
+    or name.startswith(("src.proxy_app", "src.rotator_library"))
+    for name in sys.modules
+)
+assert spy_calls == []
 
 fingerprint = "a" * 64
 transport = "b" * 64
@@ -1493,7 +1653,91 @@ decision = fs.evaluate_admission(
 )
 assert decision.financially_eligible is True
 assert decision.code is fs.DecisionCode.ELIGIBLE
-print("s06-ok")
+assert fs.require_admission(
+    target, policy, now=1500, expected_revision="fixture-policy-1"
+) == decision
+
+for changed in (
+    dataclasses.replace(approval, funding=fs.FundingClass.UNKNOWN),
+    dataclasses.replace(approval, funding=fs.FundingClass.BILLABLE),
+    dataclasses.replace(approval, money=dataclasses.replace(
+        money, coverage_complete=None)),
+    dataclasses.replace(approval, money=dataclasses.replace(money, input_charge=None)),
+    dataclasses.replace(approval, money=dataclasses.replace(
+        money, input_charge=decimal.Decimal("0.01"))),
+    dataclasses.replace(approval, boundary=dataclasses.replace(
+        boundary, exhaustion_zero=None)),
+    dataclasses.replace(approval, single_target_bound=None),
+):
+    current = dataclasses.replace(policy, approvals=(changed,))
+    denied = fs.evaluate_admission(
+        target, current, now=1500, expected_revision="fixture-policy-1")
+    assert denied.financially_eligible is False
+    try:
+        fs.require_admission(
+            target, current, now=1500, expected_revision="fixture-policy-1")
+    except fs.FinancialAdmissionDenied as error:
+        assert error.decision == denied
+    else:
+        raise AssertionError("denial was ignored")
+assert spy_calls == []
+
+# Also exercise validation, lookup and lifecycle denials while spies are active.
+for current_target, current_policy, now, revision in (
+    (dataclasses.replace(target, provider_id=""), policy, 1500, "fixture-policy-1"),
+    (target, policy, False, "fixture-policy-1"),
+    (target, policy, 1500, ""),
+    (target, None, 1500, "fixture-policy-1"),
+    (target, dataclasses.replace(policy, active=False), 1500, "fixture-policy-1"),
+    (target, policy, 1500, "fixture-policy-2"),
+    (target, dataclasses.replace(policy, approvals=()), 1500, "fixture-policy-1"),
+    (target, dataclasses.replace(policy,
+        revoked_approval_ids=frozenset({"fixture-approval"})),
+     1500, "fixture-policy-1"),
+    (target, policy, 999, "fixture-policy-1"),
+    (target, policy, 2000, "fixture-policy-1"),
+    (target, dataclasses.replace(policy, approved_sources=frozenset()),
+     1500, "fixture-policy-1"),
+):
+    denied = fs.evaluate_admission(
+        current_target, current_policy, now=now, expected_revision=revision)
+    assert denied.financially_eligible is False
+    try:
+        fs.require_admission(
+            current_target, current_policy, now=now, expected_revision=revision)
+    except fs.FinancialAdmissionDenied as error:
+        assert error.decision == denied
+    else:
+        raise AssertionError("denial was ignored")
+assert spy_calls == []
+
+# Prove the spies can actually reject synthetic module-body calls, including
+# already-loaded forbidden imports. These are separate test canaries, never a
+# replacement/patch of financial_safety. Every operation is blocked BEFORE I/O.
+canaries = (
+    "open(source_path)", "io.open(source_path)", "_io.open_code(source_path)",
+    "pathlib.Path(source_path).read_text()", "os.open(source_path, 0)",
+    "os.listdir('/repo')", "os.environ.get('SYNTHETIC')",
+    "os.environ['SYNTHETIC']", "os.getenv('SYNTHETIC')",
+    "time.time()", "time.monotonic()", "time.perf_counter()",
+    "time.process_time()", "time.thread_time()", "socket.socket()",
+    "socket.getaddrinfo('synthetic.invalid', 443)",
+    "subprocess.Popen(['synthetic-denied'])", "os.system('synthetic-denied')",
+    "sqlite3.connect(':memory:')", "logging.getLogger('synthetic')",
+    "logging.warning('synthetic')", "logger.warning('synthetic')",
+    "print('synthetic')", "__import__('os')",
+)
+for payload in canaries:
+    before_count = len(spy_calls)
+    namespace = dict(globals(), __name__="_financial_side_effect_probe")
+    try:
+        exec(compile(payload, "<side-effect-canary>", "exec"), namespace)
+    except AssertionError as error:
+        assert str(error) == "unexpected application side effect"
+    else:
+        raise AssertionError("spy failed to reject canary")
+    assert len(spy_calls) == before_count + 1
+original_print("s06-ok")
 '''
 
 
@@ -1527,3 +1771,346 @@ def test_s07_ancillary_reference_price_does_not_change_eligibility():
 def test_s08_allowance_observations_do_not_change_the_financial_decision(observation):
     assert observation["allowance"]
     assert_eligible(evaluate())
+
+
+# Supplemental exhaustive field variants. S01/S02/S04/S05 are also enforced
+# by evaluate() above for every denied evaluation in these and the original rows.
+
+
+@pytest.mark.parametrize("field", ("approval_id", "source_id", "evidence_ref"))
+@pytest.mark.parametrize(
+    "value", [item[1] for item in BAD_IDENTIFIERS] + ["x" * 129],
+    ids=[item[0] for item in BAD_IDENTIFIERS] + ["too_long"],
+)
+def test_i07_each_record_identifier_is_strict(field, value):
+    assert_code(
+        evaluate(policy_value=policy(approvals=(approval(**{field: value}),))),
+        DecisionCode.INVALID_POLICY,
+    )
+
+
+@pytest.mark.parametrize(
+    "value", [item[1] for item in BAD_IDENTIFIERS] + ["x" * 129],
+    ids=[item[0] for item in BAD_IDENTIFIERS] + ["too_long"],
+)
+def test_i07_policy_and_expected_revision_identity_are_strict(value):
+    assert_code(evaluate(expected=value), DecisionCode.INVALID_INPUT)
+    assert_code(evaluate(policy_value=policy(revision=value)),
+                DecisionCode.INVALID_POLICY)
+
+
+@pytest.mark.parametrize("field", ("approved_sources", "revoked_approval_ids"))
+@pytest.mark.parametrize(
+    "value", [item[1] for item in BAD_IDENTIFIERS] + ["x" * 129],
+    ids=[item[0] for item in BAD_IDENTIFIERS] + ["too_long"],
+)
+def test_p09_each_registry_identifier_element_is_strict(field, value):
+    assert_code(evaluate(policy_value=policy(**{field: frozenset({value})})),
+                DecisionCode.INVALID_POLICY)
+
+
+@pytest.mark.parametrize("field", ("approved_sources", "revoked_approval_ids"))
+@pytest.mark.parametrize(
+    "container", (None, [], set(), (), {}, FrozenSetSubclass()),
+    ids=("none", "list", "set", "tuple", "dict", "frozenset_subclass"),
+)
+def test_p01_registry_containers_require_exact_frozensets(field, container):
+    assert_code(evaluate(policy_value=policy(**{field: container})),
+                DecisionCode.INVALID_POLICY)
+
+
+@pytest.mark.parametrize(
+    "container", (None, [], set(), frozenset(), {}, TupleSubclass((APPROVAL,))),
+    ids=("none", "list", "set", "frozenset", "dict", "tuple_subclass"),
+)
+def test_p01_approval_container_requires_exact_tuple(container):
+    assert_code(evaluate(policy_value=policy(approvals=container)),
+                DecisionCode.INVALID_POLICY)
+
+
+@pytest.mark.parametrize(
+    "value", (None, {}, TARGET, MONEY, object()),
+    ids=("none", "dict", "wrong_target_dto", "wrong_money_dto", "object"),
+)
+def test_p09_approval_elements_require_exact_approval_dtos(value):
+    assert_code(evaluate(policy_value=policy(approvals=(value,))),
+                DecisionCode.INVALID_POLICY)
+
+
+@pytest.mark.parametrize(
+    "kind", ("target", "approval", "money", "boundary", "policy"),
+)
+def test_p01_each_input_dto_subclass_is_rejected_without_masking(kind):
+    originals = {
+        "target": (TargetSubclass, TARGET),
+        "approval": (ApprovalSubclass, APPROVAL),
+        "money": (BoundsSubclass, MONEY),
+        "boundary": (BoundarySubclass, BOUNDARY),
+        "policy": (PolicySubclass, POLICY),
+    }
+    cls, original = originals[kind]
+    subclass = cls(**{
+        field.name: getattr(original, field.name)
+        for field in dataclasses.fields(original)
+    })
+    if kind == "target":
+        assert_code(evaluate(subclass), DecisionCode.INVALID_INPUT)
+        malformed = approval(target=subclass)
+    elif kind == "policy":
+        assert_code(evaluate(policy_value=subclass), DecisionCode.INVALID_POLICY)
+        return
+    elif kind == "approval":
+        malformed = subclass
+    else:
+        malformed = approval(**{kind: subclass})
+    # The outer policy and every OTHER component are exact valid runtime types.
+    assert_code(evaluate(policy_value=policy(approvals=(malformed,))),
+                DecisionCode.INVALID_POLICY)
+
+
+@pytest.mark.parametrize("kind", ("target", "approval", "money", "boundary"))
+@pytest.mark.parametrize("shape", ("dict", "none"))
+def test_p01_nested_dtos_cannot_be_raw_dicts_or_missing(kind, shape):
+    original = {"target": TARGET, "approval": APPROVAL,
+                "money": MONEY, "boundary": BOUNDARY}[kind]
+    value = dataclasses.asdict(original) if shape == "dict" else None
+    if kind == "target":
+        assert_code(evaluate(value), DecisionCode.INVALID_INPUT)
+        malformed = approval(target=value)
+    elif kind == "approval":
+        malformed = value
+    else:
+        malformed = approval(**{kind: value})
+    assert_code(evaluate(policy_value=policy(approvals=(malformed,))),
+                DecisionCode.INVALID_POLICY)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    (
+        ("authentication", "keyed"), ("authentication", ForeignEnum.KEYED),
+        ("authentication", None), ("authentication", AuthenticationKind),
+        ("operation", "chat_completion"), ("operation", ForeignEnum.CHAT),
+        ("operation", None), ("operation", Operation),
+    ),
+    ids=("auth_string", "auth_foreign_enum", "auth_none", "auth_class",
+         "op_string", "op_foreign_enum", "op_none", "op_class"),
+)
+def test_p01_target_enums_are_not_coerced(field, value):
+    changed = target(**{field: value})
+    assert_code(evaluate(changed), DecisionCode.INVALID_INPUT)
+    assert_code(evaluate(policy_value=policy(approvals=(approval(target=changed),))),
+                DecisionCode.INVALID_POLICY)
+
+
+@pytest.mark.parametrize(
+    "value", ("non_billable", ForeignEnum.NON_BILLABLE, None, FundingClass),
+    ids=("string", "foreign_enum", "none", "enum_class"),
+)
+def test_p01_funding_enum_is_not_coerced(value):
+    assert_code(evaluate(policy_value=policy(approvals=(approval(funding=value),))),
+                DecisionCode.INVALID_POLICY)
+
+
+@pytest.mark.parametrize(
+    "field", TARGET_IDENTITY_FIELDS + ("credential_fingerprint", "transport_binding"),
+)
+def test_p01_target_scalar_callbacks_are_never_invoked(field):
+    assert_code(evaluate(target(**{field: Coercible()})), DecisionCode.INVALID_INPUT)
+
+
+@pytest.mark.parametrize("field", MONEY_FIELDS)
+def test_p01_money_scalar_callbacks_are_never_invoked(field):
+    assert_code(evaluate(policy_value=policy(
+        approvals=(approval(money=money(**{field: Coercible()})),),
+    )), DecisionCode.INVALID_POLICY)
+
+
+@pytest.mark.parametrize("field", ("verified_at", "valid_from", "valid_until"))
+@pytest.mark.parametrize(
+    "value", (-1, True, False, 1500.0, "1500", None, 253402300800,
+              IntSubclass(NOW)),
+    ids=("negative", "true", "false", "float", "string", "none",
+         "out_of_range", "int_subclass"),
+)
+def test_t02_each_approval_timestamp_has_exact_type_and_range(field, value):
+    assert_code(evaluate(policy_value=policy(approvals=(approval(**{field: value}),))),
+                DecisionCode.INVALID_POLICY)
+
+
+@pytest.mark.parametrize(
+    "start,end,now", ((0, 1, 0), (253402300798, 253402300799, 253402300798)),
+    ids=("lower_epoch_bound", "upper_epoch_bound"),
+)
+def test_a02_timestamp_extremes_remain_valid(start, end, now):
+    current = policy(approvals=(approval(
+        verified_at=start, valid_from=start, valid_until=end,
+    ),))
+    assert_eligible(evaluate(policy_value=current, now=now))
+
+
+@pytest.mark.parametrize("field", MONEY_FIELDS)
+def test_f04_tiny_positive_bounds_are_not_rounded_by_decimal_context(field):
+    value = decimal.Decimal("1e-1000")
+    with decimal.localcontext() as context:
+        context.prec = 1
+        context.Emin = context.Emax = 0
+        for signal in (decimal.Inexact, decimal.Rounded, decimal.Underflow):
+            context.traps[signal] = True
+        flags = context.flags.copy()
+        assert_code(evaluate(policy_value=policy(
+            approvals=(approval(money=money(**{field: value})),),
+        )), DecisionCode.NONZERO_MONETARY_BOUND)
+        assert context.flags == flags
+
+
+@pytest.mark.parametrize("field", TARGET_IDENTITY_FIELDS)
+def test_a05_namespace_and_maximum_length_ids_are_allowed(field):
+    value = "x" * (256 if field == "model_id" else 128)
+    exact = target(**{field: value})
+    assert_eligible(evaluate(exact, policy(approvals=(approval(target=exact),))))
+    if field == "model_id":
+        exact = target(model_id="fixture-namespace/model:tag")
+        assert_eligible(evaluate(exact, policy(approvals=(approval(target=exact),))))
+
+
+@pytest.mark.parametrize("field", ("approved_sources", "revoked_approval_ids",
+                                  "approvals"))
+def test_p09_collection_limit_itself_is_structurally_valid(field):
+    if field == "approved_sources":
+        value = frozenset({SOURCE} | {f"source-{i}" for i in range(63)})
+    elif field == "revoked_approval_ids":
+        value = frozenset(f"revoked-{i}" for i in range(1024))
+    else:
+        value = (APPROVAL,) + tuple(
+            approval(approval_id=f"approval-{i}", target=target(model_id=f"model-{i}"))
+            for i in range(1023)
+        )
+    assert_eligible(evaluate(policy_value=policy(**{field: value})))
+
+
+@pytest.mark.parametrize(
+    "location", ("target", "policy", "expected_revision", "money", "evidence"),
+)
+def test_s04_malformed_sensitive_canaries_are_not_echoed(location):
+    canary = "synthetic prompt credential proof private error!"
+    if location == "target":
+        decision = evaluate(target(account_id=canary))
+    elif location == "policy":
+        decision = evaluate(policy_value=policy(revision=canary))
+    elif location == "expected_revision":
+        decision = evaluate(expected=canary)
+    else:
+        changed = (approval(money=money(input_charge=canary))
+                   if location == "money" else approval(evidence_ref=canary))
+        decision = evaluate(policy_value=policy(approvals=(changed,)))
+    assert_code(decision, DecisionCode.INVALID_INPUT if location in
+                ("target", "expected_revision") else DecisionCode.INVALID_POLICY)
+    assert canary not in repr(decision)
+
+
+@pytest.mark.parametrize(
+    "instance", (TARGET, MONEY, BOUNDARY, APPROVAL, POLICY,
+                 AdmissionDecision(True, DecisionCode.ELIGIBLE, REVISION,
+                                   APPROVAL_ID, decimal.Decimal(0))),
+    ids=("target", "money", "boundary", "approval", "policy", "decision"),
+)
+def test_s05_all_public_dtos_are_frozen_slotted_and_have_required_fields(instance):
+    cls = type(instance)
+    assert cls.__dataclass_params__.frozen
+    assert not hasattr(instance, "__dict__")
+    values = {field.name: getattr(instance, field.name)
+              for field in dataclasses.fields(instance)}
+    for field in dataclasses.fields(instance):
+        assert field.default is field.default_factory is dataclasses.MISSING
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            setattr(instance, field.name, object())
+        with pytest.raises(TypeError):
+            cls(**{name: value for name, value in values.items() if name != field.name})
+    with pytest.raises((AttributeError, TypeError)):
+        instance.extra_field = "rejected"
+
+
+@pytest.mark.parametrize("function", (evaluate_admission, require_admission))
+def test_s05_public_signatures_have_no_defaults_or_escape_hatches(function):
+    signature = inspect.signature(function)
+    parameters = signature.parameters
+    assert tuple(parameters) == ("target", "policy", "now", "expected_revision")
+    for name, parameter in parameters.items():
+        assert parameter.default is inspect.Parameter.empty
+        assert parameter.kind is (inspect.Parameter.KEYWORD_ONLY if name in
+                                  ("now", "expected_revision") else
+                                  inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    assert signature.return_annotation is AdmissionDecision
+    assert FinancialAdmissionDenied.__bases__ == (Exception,)
+
+
+@pytest.mark.parametrize(
+    "case_id,target_value,policy_value,now,expected,code",
+    DENIAL_CASES, ids=[case[0] for case in DENIAL_CASES],
+)
+def test_s03_every_denial_code_has_fixed_truthiness_rejection(
+    case_id, target_value, policy_value, now, expected, code,
+):
+    assert case_id
+    decision = evaluate(target_value, policy_value, now, expected)
+    assert_code(decision, code)
+    with pytest.raises(TypeError) as caught:
+        bool(decision)
+    assert str(caught.value) == (
+        "AdmissionDecision has no truth value; inspect financially_eligible"
+    )
+
+
+@pytest.mark.parametrize("model_id", URL_MODEL_IDS)
+def test_i07_url_model_is_rejected_even_with_matching_zero_money_approval(model_id):
+    exact = target(model_id=model_id)
+    context = policy(approvals=(approval(target=exact),))
+    assert_code(evaluate(exact, context), DecisionCode.INVALID_INPUT)
+
+
+@pytest.mark.parametrize("model_id", URL_MODEL_IDS)
+@pytest.mark.parametrize("position", (0, 1), ids=("before_match", "after_match"))
+def test_p08_unrelated_url_record_invalidates_the_whole_context(model_id, position):
+    unrelated = approval(approval_id="unrelated", target=target(model_id=model_id))
+    records = [APPROVAL]
+    records.insert(position, unrelated)
+    assert_code(evaluate(policy_value=policy(approvals=tuple(records))),
+                DecisionCode.INVALID_POLICY)
+
+
+@pytest.mark.parametrize(
+    "instance", (TARGET, MONEY, BOUNDARY, APPROVAL, POLICY,
+                 AdmissionDecision(True, DecisionCode.ELIGIBLE, REVISION,
+                                   APPROVAL_ID, decimal.Decimal(0))),
+    ids=("target", "money", "boundary", "approval", "policy", "decision"),
+)
+def test_s05_dto_annotations_match_the_normative_types(instance):
+    schemas = {
+        FinancialTarget: (
+            str, str, str, AuthenticationKind, str | None, Operation, str, str,
+        ),
+        MonetaryBounds: (str, str, bool | None) + (decimal.Decimal | None,) * 8,
+        NoChargeBoundary: (bool | None,) * 4,
+        FinancialApproval: (
+            str, FinancialTarget, FundingClass, MonetaryBounds, NoChargeBoundary,
+            int, int, int, str, str, bool | None, bool | None,
+        ),
+        PolicyContext: (
+            int, str, bool, frozenset[str], frozenset[str],
+            tuple[FinancialApproval, ...],
+        ),
+        AdmissionDecision: (bool, DecisionCode, str | None, str | None,
+                            decimal.Decimal | None),
+    }
+    assert tuple(field.type for field in dataclasses.fields(instance)) == (
+        schemas[type(instance)]
+    )
+
+
+@pytest.mark.parametrize("function", (evaluate_admission, require_admission))
+def test_s05_api_parameter_annotations_match_the_contract(function):
+    parameters = inspect.signature(function).parameters
+    assert tuple(parameter.annotation for parameter in parameters.values()) == (
+        FinancialTarget, PolicyContext, int, str,
+    )

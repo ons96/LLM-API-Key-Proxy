@@ -11,14 +11,14 @@
 - Architecture is unchanged: workload-router is the brain, New-API is transport,
   and the legacy gateway remains rollback. This is not another router.
 
-Decision: implement a pure, stdlib-only financial eligibility evaluator next.
+Decision: retain the pure, stdlib-only financial eligibility evaluator.
 It consumes a resolved target and a trusted, immutable policy context. It does
 not discover providers, read credentials, infer account funding or make calls.
 A faster capable coding model can implement this bounded contract; a fresh
 strong-model review must follow before accepting its implementation.
 
-Normative words MUST, MUST NOT and SHOULD below are requirements for that
-future implementation. This contract supersedes the historical plan only for
+Normative words MUST, MUST NOT and SHOULD below are implementation requirements.
+This contract supersedes the historical plan only for
 Stage 2's kernel boundary. The audit/roadmap still govern later integration.
 
 ## 2. Financial invariant and important distinctions
@@ -555,5 +555,7 @@ Historical source checks supporting the original specification boundary:
   Stage 2 has since added the bounded suite/exclusion; see implementation status.
 
 No credentials, live accounts, provider-manager rows, provider requests or network
-calls were used to write this specification. This session validates documents
-and preservation only; prior Stage 1 test results are not rerun/certified here.
+calls were used in the original specification session. That session validated
+only documents/preservation and did not rerun Stage 1. Current corrective-test
+results are recorded separately in docs/IMPLEMENTATION_STATUS.md; they approve
+no real account, evidence source or runtime integration.

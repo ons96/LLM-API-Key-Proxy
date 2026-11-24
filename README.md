@@ -27,6 +27,11 @@ Repeat the same invocation with `--suite legacy`, `--suite sidecar` or
   answers financial eligibility only; it does not call providers, read
   credentials, reserve quota or approve a real account. A green run means
   the synthetic contract cases pass, not that production is financially safe.
+  Model IDs must be opaque identities, not URLs: `://` is rejected while
+  namespace/model:tag identifiers remain supported. Every matrix denial also
+  checks that admission cannot reach the in-memory dispatch/fallback spies.
+  Import-time and evaluation-time side-effect spies run inside the guarded
+  Python child; only normal import-loader source reads are permitted.
 
 The runner requires Linux x86_64, Python 3.12, `unshare`, `ip`, and permitted
 unprivileged user/network/PID/mount namespaces. It fails closed if setup is
