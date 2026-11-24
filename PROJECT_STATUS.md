@@ -169,4 +169,4 @@ antigravity/claude-sonnet-4-5
 
 ## Next Steps
 
-See [INTEGRATION_ROADMAP.md](INTEGRATION_ROADMAP.md) for detailed Phase 2 implementation requirements.
+See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) for the current roadmap and remaining work.
