@@ -157,11 +157,12 @@ Fix: `TIMESTAMP_CASES` now uses malformed values that are numerically inside
 that field's own ordering window (for example `verified_at=900.0`, `"900"`,
 `IntSubclass(900)`), so ordering still passes and only the exact-type/range
 check can deny. Booleans and negatives are supplied with ordering-valid
-companions. Values that cannot be isolated at all - a negative `valid_from`, or
-an out-of-range bound that no companion can satisfy - are kept in a separate
-`NON_ISOLATING_TIMESTAMP_CASES` test whose docstring states the ordering check
-co-denies; they are retained for regression value but are not cited as proof of
-the per-field check.
+companions. Values that cannot be isolated at all - a negative `valid_from` or
+`valid_until`, an out-of-range bound that no companion can satisfy, and
+`valid_until=False` (since `False == 0` makes `valid_from < valid_until`
+unsatisfiable) - are kept in a separate `NON_ISOLATING_TIMESTAMP_CASES` test
+whose comment states the ordering check co-denies. They are retained for
+regression value but are not cited as proof of the per-field check.
 
 ### P07 - expired/revoked duplicate approval IDs were not covered
 
@@ -178,25 +179,33 @@ which also asserts no dispatch, no fallback, safe metadata and determinism.
 ### Mutation evidence
 
 The stronger tests were checked against deliberately weakened copies of the
-kernel executed in memory (no file was modified):
+kernel in `/tmp` copies (no repository file was modified):
 
-- coerced `verified_at` (`int(value)` when not a bool): T02 was the only failing
-  guard, mutant returned `eligible`;
-- approval-ID uniqueness skipped for records valid only until 1100: mutant
-  returned `eligible` for the expired duplicate and for the revoked duplicate.
+- coerced `verified_at` (`int(value)` when not a bool): the mutant returned
+  `eligible` for the float, string and `IntSubclass` variants; only the T02
+  isolating test failed (3 failed, 752 passed);
+- approval-ID uniqueness skipped for records valid only until 1100, or whose ID
+  is revoked: both duplicate-ID cases failed. The expired duplicate returned
+  `eligible`; the revoked duplicate returned `APPROVAL_REVOKED` rather than the
+  required `INVALID_POLICY`, because an isolated uniqueness-only mutation cannot
+  reach eligibility for a revoked ID (2 failed, 753 passed).
 
 Both mutants are now rejected by the tests above. These mutants are synthetic
 proof that the tests bite; they are not evidence about production behaviour.
 
 ### Verification (fresh, this session)
 
-- financial: 755 passed in 3.28s, exit 0; unexpected_denials=0,
-  expected_denials=44 (709 kernel + 45 isolation + 1 net new case).
-- legacy: 50 passed in 4.86s, exit 0; unexpected_denials=0.
-- sidecar: 403 passed in 27.91s, exit 0; unexpected_denials=0.
-- A 244-input manifest including `pytest.ini` was hashed before and after each
-  suite; it did not change. Only `tests/test_financial_safety.py` and this file
-  differ from the review checkpoint.
+- financial: 756 passed in 4.09s, exit 0; unexpected_denials=0,
+  expected_denials=44 (711 kernel + 45 isolation tests; two net new cases
+  versus the 754-test checkpoint).
+- legacy: 50 passed in 7.68s, exit 0; unexpected_denials=0.
+- sidecar: 403 passed in 29.69s, exit 0; unexpected_denials=0.
+- A 287-file tracked manifest of `src`, `tests`, `workload-router` and
+  `pytest.ini` was hashed before the runs and after each suite; it did not
+  change. Only `tests/test_financial_safety.py` and this file differ from the
+  review checkpoint.
+- A third `/tmp` mutant that accepts `valid_until=False` and skips ordering for
+  it is now rejected by the new non-isolating case (1 failed, 755 passed).
 - Static checks: in-memory compile, ASCII and 88-column checks on the edited
   test file. No ruff/black/mypy/pyright/coverage tool was installed or invoked,
   so no lint, type-check or coverage result is claimed.

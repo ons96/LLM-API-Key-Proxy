@@ -1951,8 +1951,10 @@ def test_p01_money_scalar_callbacks_are_never_invoked(field):
 
 # Each malformed timestamp is numerically inside that field's own ordering
 # window, so a regression in the exact-type check cannot be masked by the
-# separate verified_at <= valid_from < valid_until comparison. Negative and
-# zero booleans are omitted where any companion would breach that ordering.
+# separate verified_at <= valid_from < valid_until comparison. Variants where
+# no companion can keep that ordering hold (negative valid_from/valid_until, an
+# oversized bound, valid_until=False because False == 0) live in
+# NON_ISOLATING_TIMESTAMP_CASES.
 TIMESTAMP_CASES = (
     ("verified_at", -1, {}, "negative"),
     ("verified_at", True, {}, "true"),
@@ -1991,15 +1993,20 @@ def test_t02_each_approval_timestamp_has_exact_type_and_range(
     )
 
 
-# These range variants cannot be isolated: no companion timestamps can satisfy
-# verified_at <= valid_from < valid_until while the field is out of range, so
-# the ordering check co-denies. They still prove the context is rejected, but
-# the isolating test above is what proves the per-field range/type check.
+# These variants cannot be isolated: no companion timestamps can satisfy
+# verified_at <= valid_from < valid_until while the field is out of range, or
+# while valid_until is False (False == 0, so valid_from < valid_until is
+# unsatisfiable for every nonnegative valid_from). The ordering check therefore
+# co-denies, and this test proves only that the context is rejected. The
+# isolating test above is what proves the per-field range/type check; these
+# cases are retained so a regression still fails somewhere. T02 requires the
+# bool kind for all three approval timestamps, including this one.
 NON_ISOLATING_TIMESTAMP_CASES = (
     ("verified_at", 253402300800, {}),
     ("valid_from", -1, {}),
     ("valid_from", 253402300800, {}),
     ("valid_until", -1, {}),
+    ("valid_until", False, {"verified_at": 0, "valid_from": 0}),
 )
 
 
