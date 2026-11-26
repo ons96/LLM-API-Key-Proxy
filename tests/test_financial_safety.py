@@ -812,12 +812,35 @@ def test_p06_missing_evidence_identity_is_invalid_policy(overrides):
     )
 
 
-def test_p07_duplicate_approval_ids_are_invalid():
-    second = approval(
-        target=target(model_id="other-model"), approval_id=APPROVAL_ID
-    )
+@pytest.mark.parametrize(
+    "second,revoked",
+    (
+        (
+            approval(approval_id=APPROVAL_ID, target=target(model_id="other-model")),
+            frozenset(),
+        ),
+        (
+            approval(
+                approval_id=APPROVAL_ID,
+                target=target(model_id="other-model"),
+                valid_until=1100,
+            ),
+            frozenset(),
+        ),
+        (
+            approval(approval_id=APPROVAL_ID, target=target(model_id="other-model")),
+            frozenset({APPROVAL_ID}),
+        ),
+    ),
+    ids=("duplicate_id", "duplicate_expired_id", "duplicate_revoked_id"),
+)
+def test_p07_duplicate_approval_ids_are_invalid(second, revoked):
     assert_code(
-        evaluate(policy_value=policy(approvals=(APPROVAL, second))),
+        evaluate(
+            policy_value=policy(
+                approvals=(APPROVAL, second), revoked_approval_ids=revoked
+            )
+        ),
         DecisionCode.INVALID_POLICY,
     )
 
@@ -1926,16 +1949,71 @@ def test_p01_money_scalar_callbacks_are_never_invoked(field):
     )), DecisionCode.INVALID_POLICY)
 
 
-@pytest.mark.parametrize("field", ("verified_at", "valid_from", "valid_until"))
-@pytest.mark.parametrize(
-    "value", (-1, True, False, 1500.0, "1500", None, 253402300800,
-              IntSubclass(NOW)),
-    ids=("negative", "true", "false", "float", "string", "none",
-         "out_of_range", "int_subclass"),
+# Each malformed timestamp is numerically inside that field's own ordering
+# window, so a regression in the exact-type check cannot be masked by the
+# separate verified_at <= valid_from < valid_until comparison. Negative and
+# zero booleans are omitted where any companion would breach that ordering.
+TIMESTAMP_CASES = (
+    ("verified_at", -1, {}, "negative"),
+    ("verified_at", True, {}, "true"),
+    ("verified_at", False, {}, "false"),
+    ("verified_at", 900.0, {}, "float"),
+    ("verified_at", "900", {}, "string"),
+    ("verified_at", None, {}, "none"),
+    ("verified_at", IntSubclass(900), {}, "int_subclass"),
+    ("valid_from", 1000.0, {}, "float"),
+    ("valid_from", "1000", {}, "string"),
+    ("valid_from", None, {}, "none"),
+    ("valid_from", IntSubclass(1000), {}, "int_subclass"),
+    ("valid_from", True, {"verified_at": 0, "valid_until": 2}, "true"),
+    ("valid_from", False, {"verified_at": 0, "valid_until": 1}, "false"),
+    ("valid_until", 2000.0, {}, "float"),
+    ("valid_until", "2000", {}, "string"),
+    ("valid_until", None, {}, "none"),
+    ("valid_until", IntSubclass(2000), {}, "int_subclass"),
+    ("valid_until", 253402300800, {}, "out_of_range"),
+    ("valid_until", True, {"verified_at": 0, "valid_from": 0}, "true"),
 )
-def test_t02_each_approval_timestamp_has_exact_type_and_range(field, value):
-    assert_code(evaluate(policy_value=policy(approvals=(approval(**{field: value}),))),
-                DecisionCode.INVALID_POLICY)
+
+
+@pytest.mark.parametrize(
+    "field,value,companions",
+    [case[:3] for case in TIMESTAMP_CASES],
+    ids=[case[0] + "-" + case[3] for case in TIMESTAMP_CASES],
+)
+def test_t02_each_approval_timestamp_has_exact_type_and_range(
+    field, value, companions
+):
+    malformed = approval(**companions, **{field: value})
+    assert_code(
+        evaluate(policy_value=policy(approvals=(malformed,))),
+        DecisionCode.INVALID_POLICY,
+    )
+
+
+# These range variants cannot be isolated: no companion timestamps can satisfy
+# verified_at <= valid_from < valid_until while the field is out of range, so
+# the ordering check co-denies. They still prove the context is rejected, but
+# the isolating test above is what proves the per-field range/type check.
+NON_ISOLATING_TIMESTAMP_CASES = (
+    ("verified_at", 253402300800, {}),
+    ("valid_from", -1, {}),
+    ("valid_from", 253402300800, {}),
+    ("valid_until", -1, {}),
+)
+
+
+@pytest.mark.parametrize(
+    "field,value,companions",
+    NON_ISOLATING_TIMESTAMP_CASES,
+    ids=[case[0] + "-" + str(case[1]) for case in NON_ISOLATING_TIMESTAMP_CASES],
+)
+def test_t02_out_of_range_timestamp_denies_with_ordering_companion(
+    field, value, companions
+):
+    malformed = approval(**companions, **{field: value})
+    decision = evaluate(policy_value=policy(approvals=(malformed,)))
+    assert_code(decision, DecisionCode.INVALID_POLICY)
 
 
 @pytest.mark.parametrize(

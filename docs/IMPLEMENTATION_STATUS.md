@@ -6,6 +6,9 @@
 - Completed implementation: Stage 1, hermetic financial-safety test verifier.
 - Completed implementation: Stage 2 kernel and review corrections, verified below.
   Follow-up independent review remains separate from production enablement.
+- Open review findings being closed: the two Medium test-coverage gaps from the
+  first independent Stage 2 review (T02 masking, P07 expired/revoked duplicate
+  IDs). See "Review follow-up" below. No kernel/production code changed.
 - Current authorization: owner requested fixes for all Stage 2 review findings,
   then explicitly authorized a local checkpoint commit for fresh review.
   Stage 3, pushing and production integration are NOT authorized.
@@ -135,6 +138,72 @@ checks, public-type/signature assertions, manual type review and diff checks are
 not measured coverage or a full static type/lint check. Real account/evidence,
 billing contracts, snapshot trust, production dispatch, privacy/auth/quota gates
 and external commit/push authorization remain unverified. Stage 3 is not started.
+
+## Stage 2 review follow-up: closing the two Medium test gaps
+
+Second-pass fixes for the two Medium findings in the first independent Stage 2
+review. Test-only: `src/financial_safety.py`, the contract, the verifier,
+conftest, isolation self-tests and production code are unchanged. This is again
+the correcting agent's own work, NOT independent acceptance.
+
+### T02 - timestamp type/range checks were masked by the ordering check
+
+Finding: every malformed timestamp was paired with values that also broke
+`verified_at <= valid_from < valid_until`. A per-field type/range regression
+could therefore still produce `INVALID_POLICY` via the ordering check, so the
+test proved only that the context was rejected, not that the type check ran.
+
+Fix: `TIMESTAMP_CASES` now uses malformed values that are numerically inside
+that field's own ordering window (for example `verified_at=900.0`, `"900"`,
+`IntSubclass(900)`), so ordering still passes and only the exact-type/range
+check can deny. Booleans and negatives are supplied with ordering-valid
+companions. Values that cannot be isolated at all - a negative `valid_from`, or
+an out-of-range bound that no companion can satisfy - are kept in a separate
+`NON_ISOLATING_TIMESTAMP_CASES` test whose docstring states the ordering check
+co-denies; they are retained for regression value but are not cited as proof of
+the per-field check.
+
+### P07 - expired/revoked duplicate approval IDs were not covered
+
+Finding: duplicate IDs were tested only for active records; expired/revoked
+variants existed only for duplicate *targets* with different IDs. An
+implementation that skipped ID uniqueness for expired/revoked records was
+untested.
+
+Fix: `test_p07_duplicate_approval_ids_are_invalid` is parameterized over
+`duplicate_id`, `duplicate_expired_id` and `duplicate_revoked_id`, each using a
+distinct valid target. All require `INVALID_POLICY` through the shared harness,
+which also asserts no dispatch, no fallback, safe metadata and determinism.
+
+### Mutation evidence
+
+The stronger tests were checked against deliberately weakened copies of the
+kernel executed in memory (no file was modified):
+
+- coerced `verified_at` (`int(value)` when not a bool): T02 was the only failing
+  guard, mutant returned `eligible`;
+- approval-ID uniqueness skipped for records valid only until 1100: mutant
+  returned `eligible` for the expired duplicate and for the revoked duplicate.
+
+Both mutants are now rejected by the tests above. These mutants are synthetic
+proof that the tests bite; they are not evidence about production behaviour.
+
+### Verification (fresh, this session)
+
+- financial: 755 passed in 3.28s, exit 0; unexpected_denials=0,
+  expected_denials=44 (709 kernel + 45 isolation + 1 net new case).
+- legacy: 50 passed in 4.86s, exit 0; unexpected_denials=0.
+- sidecar: 403 passed in 27.91s, exit 0; unexpected_denials=0.
+- A 244-input manifest including `pytest.ini` was hashed before and after each
+  suite; it did not change. Only `tests/test_financial_safety.py` and this file
+  differ from the review checkpoint.
+- Static checks: in-memory compile, ASCII and 88-column checks on the edited
+  test file. No ruff/black/mypy/pyright/coverage tool was installed or invoked,
+  so no lint, type-check or coverage result is claimed.
+
+Still unverified: independent acceptance, real account/evidence proof, billing
+contracts, snapshot trust, production dispatch and the auth/quota/privacy/
+transport gates. Stage 3 is not started and remains separately owner-gated.
 
 ## Owner-authorized local review checkpoint
 
