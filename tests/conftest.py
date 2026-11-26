@@ -25,7 +25,7 @@ os.environ["SKIP_REAL_DEAD_PROVIDERS"] = "true"
 
 
 @pytest.fixture(autouse=True)
-def _isolated_telemetry(tmp_path):
+def _isolated_telemetry(tmp_path, request):
     """Give every test a fresh telemetry DB.
 
     The telemetry manager is a process-global singleton backed by a SQLite file
@@ -35,6 +35,15 @@ def _isolated_telemetry(tmp_path):
     providers" / 503). Pointing the singleton at a fresh DB per test keeps
     tests independent.
     """
+    if request.node.path.name in (
+        "test_financial_test_isolation.py",
+        "test_financial_safety.py",
+    ):
+        # Verifier self-tests and the pure financial kernel must run without
+        # importing the application at all.
+        yield
+        return
+
     import rotator_library.telemetry as telemetry_mod
 
     telemetry_mod._telemetry_manager = telemetry_mod.TelemetryManager(
@@ -123,7 +132,27 @@ def sample_vision_request():
 
 # Configure pytest-asyncio
 def pytest_configure(config):
-    """Configure pytest with custom markers."""
+    """Configure markers and test-only default storage after bootstrap admission."""
+    if os.environ.get("FINANCIAL_TEST_SUITE") == "legacy":
+        from financial_test_bootstrap import GUARD
+        import importlib
+        import tempfile
+
+        if GUARD is None:
+            raise RuntimeError("legacy verifier must install isolation before imports")
+        for name in ("src.proxy_app.rate_limiter", "proxy_app.rate_limiter"):
+            tracker = importlib.import_module(name).RateLimitTracker
+            original = tracker.__init__
+
+            def isolated_init(self, active_days_path=None, counters_path=None,
+                              _original=original):
+                if active_days_path is None:
+                    directory = Path(tempfile.mkdtemp(prefix="rate-"))
+                    active_days_path = directory / "active_days.json"
+                _original(self, active_days_path, counters_path)
+
+            tracker.__init__ = isolated_init
+
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )

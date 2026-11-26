@@ -1,12 +1,80 @@
 # LLM API Proxy with Virtual Models
 
+## Hermetic financial test verifier (Stage 1) and kernel suite (Stage 2)
+
+Run from the repository root using the existing Python 3.12 `venv`. No
+packages are installed or synchronized, and uv runs offline without loading
+its configuration or dotenv files:
+
+```sh
+uv --no-config --no-cache run --offline --no-project --no-env-file \
+  --python venv/bin/python -- venv/bin/python -I -S \
+  tests/support/financial_test_bootstrap.py --suite isolation
+```
+
+Repeat the same invocation with `--suite legacy`, `--suite sidecar` or
+`--suite financial`:
+
+- `isolation`: negative access tests plus permitted synthetic database, HTTP
+  and Python-child paths. This is not a production financial-policy test.
+- `legacy`: routing-integrity #369, alias-stream fallback, counter persistence
+  #377, transient-429 and task-telemetry tests (50 baseline tests).
+- `sidecar`: the complete `workload-router/tests` suite (403 baseline tests),
+  including fake-backed tests whose names contain `live`. No live verifier,
+  provider probe, New-API binary or installed-client executable is launched.
+- `financial`: every isolation self-test above plus the Stage 2 pure
+  financial-admission acceptance matrix. The kernel is stdlib-only and
+  answers financial eligibility only; it does not call providers, read
+  credentials, reserve quota or approve a real account. A green run means
+  the synthetic contract cases pass, not that production is financially safe.
+  Model IDs must be opaque identities, not URLs: `://` is rejected while
+  namespace/model:tag identifiers remain supported. Every matrix denial also
+  checks that admission cannot reach the in-memory dispatch/fallback spies.
+  Import-time and evaluation-time side-effect spies run inside the guarded
+  Python child; only normal import-loader source reads are permitted.
+
+The runner requires Linux x86_64, Python 3.12, `unshare`, `ip`, and permitted
+unprivileged user/network/PID/mount namespaces. It fails closed if setup is
+unavailable; do not replace it with ordinary pytest to obtain a green result.
+`-I -S` must be present on the initial interpreter invocation: rejecting a
+bad invocation cannot undo interpreter startup hooks that already ran.
+
+Before pytest or application imports, the runner clears inherited environment
+values, snapshots Python source into a private read-only chroot, omits host
+homes/configuration/storage, and creates disposable tmpfs state. It supplies
+only an empty synthetic provider catalog, suppresses dotenv loading, redirects
+legacy default rate-counter paths, and disables pytest plugin autoload and
+cache/bytecode writes. No production financial policy is changed.
+
+Network admission is exact, not blanket loopback: disposable TCP listeners
+bound to `127.0.0.1:0` are explicitly registered by the runner's TCPServer
+adapter after activation. Other listeners must call
+`financial_test_bootstrap.GUARD.register_endpoint(listener)` after `listen()`.
+Unregistered connects/DNS, UDP and addressed Unix sockets are rejected; anonymous
+socketpairs are allowed. Python subprocesses are re-bootstrapped with `-I -S`
+and inherit only the current endpoint allowlist and sandbox resources. Shells,
+arbitrary executables, pass-through file descriptors and direct fork/exec/spawn
+paths are denied. Unexpected denials fail the run even when caught by code.
+
+Limits: this is a trusted-test/dependency verifier, not a hostile-code sandbox.
+Python/native internals could evade the cooperative endpoint/audit checks;
+kernel namespaces and the restricted filesystem still isolate host providers,
+credentials and storage. Child endpoint lists are launch-time snapshots, not
+cross-process revocation leases. Dependency directories are trusted read-only
+inputs; `.pth`/sitecustomize are not executed. The full legacy suite, production
+lifespan and installed release paths are not certified by these selected tests.
+A passing Stage 1 does not fix any production financial-safety bypass. A
+passing `financial` suite does not enable or qualify any real provider lane.
+
+Milestone status and remaining work: [IMPLEMENTATION_STATUS](docs/IMPLEMENTATION_STATUS.md).
+
 ## Core Feature: Agentic Coding with Automatic Fallback
 
 **WORKING VIRTUAL MODEL:** Use `coding-elite` for agentic coding tasks with automatic fallback between free providers.
 
 ### Available Virtual Models for OpenCode:
 
-#### ✅ coding-elite (Recommended for Agentic Coding)
+#### [ok] coding-elite (Recommended for Agentic Coding)
 - **Primary Use:** Agentic coding, complex code generation, debugging
 - **Fallback Chain:**
   1. Groq (llama-3.3-70b-versatile) - Free, fast, high quality
@@ -37,8 +105,8 @@
 
 When using virtual models like `coding-elite`:
 1. Request goes to priority 1 provider (Groq)
-2. If rate limited/down → automatically try next provider (Gemini)
-3. If still down → try fallback provider (G4F)
+2. If rate limited/down -> automatically try next provider (Gemini)
+3. If still down -> try fallback provider (G4F)
 4. No manual intervention needed - seamless failover
 
 ## Configuration
@@ -96,7 +164,7 @@ TAVILY_API_KEY=your_tavily_api_key_here
 # Get your key at: https://tavily.com/
 ```
 
-**Web search fallback order:** DuckDuckGo → Brave → Tavily (falls back automatically if one fails)
+**Web search fallback order:** DuckDuckGo -> Brave -> Tavily (falls back automatically if one fails)
 
 ## Deployment
 
@@ -140,7 +208,7 @@ To use this gateway in OpenCode (AI coding assistant):
 3. Server URL format: `http://127.0.0.1:8000/v1`
 
 4. Available models for OpenCode:
-   - `coding-elite` - Best for agentic coding (Groq → Gemini → G4F fallback)
+   - `coding-elite` - Best for agentic coding (Groq -> Gemini -> G4F fallback)
    - `coding-fast` - Quick coding tasks
    - `chat-smart` - High intelligence reasoning
    - `chat-fast` - Low latency chat
@@ -155,7 +223,7 @@ The gateway provides **intelligent virtual models** that automatically select th
 **coding-elite** - Best agentic coding performance
 - Minimum 70.0 SWE-bench score required
 - Scoring: 80% agentic + 15% TPS + 5% availability
-- Fallback order: Claude Opus 4.5 → Gemini 3 Pro → GPT-5.2 → GPT-4o → ...
+- Fallback order: Claude Opus 4.5 -> Gemini 3 Pro -> GPT-5.2 -> GPT-4o -> ...
 
 **coding-smart** - Smart coding with balanced performance  
 - Minimum 65.0 SWE-bench score required
@@ -172,7 +240,7 @@ The gateway provides **intelligent virtual models** that automatically select th
 - Intelligence score priority (Chatbot Arena, MMLU, etc.)
 - Best for complex reasoning and analysis
 
-**chat-fast** - Efficient chat (intelligence ÷ response time)
+**chat-fast** - Efficient chat (intelligence / response time)
 - Efficiency ratio: Intelligence / Response Time
 - Best models that are both smart AND fast
 - Gemini 2 Flash, Mistral Medium 3.1, Llama 4 Scout
@@ -258,11 +326,11 @@ curl http://localhost:8000/stats
 
 | Model | Status | Primary Provider |
 |-------|--------|------------------|
-| coding-elite | ✅ Working | Groq |
-| coding-fast | ✅ Working | Groq |
-| chat-smart | ⚠️ Known Issue | Groq (config issue) |
-| chat-fast | ✅ Working | Groq |
-| router/best-coding | ⚠️ Known Issue | Multiple providers |
+| coding-elite | [ok] Working | Groq |
+| coding-fast | [ok] Working | Groq |
+| chat-smart | [warn] Known Issue | Groq (config issue) |
+| chat-fast | [ok] Working | Groq |
+| router/best-coding | [warn] Known Issue | Multiple providers |
 
 **For agentic coding in OpenCode:** Use `coding-elite`
 
@@ -271,12 +339,12 @@ curl http://localhost:8000/stats
 The gateway includes comprehensive telemetry tracking via SQLite database (`/tmp/llm_proxy_telemetry.db`):
 
 **Tracked Metrics:**
-- ✅ API calls with timing (response time, time-to-first-token)
-- ✅ Success/failure rates per provider
-- ✅ Token usage (input/output) and tokens-per-second
-- ✅ Cost estimates per request
-- ✅ Provider health status and failure rates
-- ✅ Rate limit tracking per provider
+- [ok] API calls with timing (response time, time-to-first-token)
+- [ok] Success/failure rates per provider
+- [ok] Token usage (input/output) and tokens-per-second
+- [ok] Cost estimates per request
+- [ok] Provider health status and failure rates
+- [ok] Rate limit tracking per provider
 
 **Database Location:** `/tmp/llm_proxy_telemetry.db`
 
