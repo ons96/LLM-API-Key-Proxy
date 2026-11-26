@@ -153,16 +153,21 @@ Finding: every malformed timestamp was paired with values that also broke
 could therefore still produce `INVALID_POLICY` via the ordering check, so the
 test proved only that the context was rejected, not that the type check ran.
 
-Fix: `TIMESTAMP_CASES` now uses malformed values that are numerically inside
-that field's own ordering window (for example `verified_at=900.0`, `"900"`,
-`IntSubclass(900)`), so ordering still passes and only the exact-type/range
-check can deny. Booleans and negatives are supplied with ordering-valid
-companions. Values that cannot be isolated at all - a negative `valid_from` or
-`valid_until`, an out-of-range bound that no companion can satisfy, and
-`valid_until=False` (since `False == 0` makes `valid_from < valid_until`
-unsatisfiable) - are kept in a separate `NON_ISOLATING_TIMESTAMP_CASES` test
-whose comment states the ordering check co-denies. They are retained for
-regression value but are not cited as proof of the per-field check.
+Fix: `TIMESTAMP_CASES` now uses malformed values that sit inside that field's
+own ordering window (for example `verified_at=900.0`, `"900"`,
+`IntSubclass(900)`), so the separate ordering comparison cannot produce the
+expected `INVALID_POLICY` by itself. Numeric, bool and int-subclass values keep
+that comparison true, so only the exact-type/range check can deny. The string
+and `None` values instead raise `TypeError` from an unguarded comparison, which
+fails the test rather than silently yielding `INVALID_POLICY`; a removed type
+check is still detected either way. Booleans and negatives are supplied with
+ordering-valid companions. Values that cannot be isolated at all - a negative
+`valid_from` or `valid_until`, an out-of-range bound that no companion can
+satisfy, and `valid_until=False` (since `False == 0` makes
+`valid_from < valid_until` unsatisfiable) - are kept in a separate
+`NON_ISOLATING_TIMESTAMP_CASES` test whose comment states the ordering check
+co-denies. They are retained for regression value but are not cited as proof of
+the per-field check.
 
 ### P07 - expired/revoked duplicate approval IDs were not covered
 
@@ -179,19 +184,29 @@ which also asserts no dispatch, no fallback, safe metadata and determinism.
 ### Mutation evidence
 
 The stronger tests were checked against deliberately weakened copies of the
-kernel in `/tmp` copies (no repository file was modified):
+kernel in `/tmp` copies (no repository file was modified). The 752/753 pass
+totals below sum to 755 and were recorded against the earlier 755-case
+snapshot, not against 2a64c24; the failed cases and decision outcomes are the
+durable claim, and the totals are superseded by the current-snapshot reruns
+below.
 
 - coerced `verified_at` (`int(value)` when not a bool): the mutant returned
   `eligible` for the float, string and `IntSubclass` variants; only the T02
-  isolating test failed (3 failed, 752 passed);
+  isolating test failed (historical 755-case run: 3 failed, 752 passed);
 - approval-ID uniqueness skipped for records valid only until 1100, or whose ID
   is revoked: both duplicate-ID cases failed. The expired duplicate returned
   `eligible`; the revoked duplicate returned `APPROVAL_REVOKED` rather than the
   required `INVALID_POLICY`, because an isolated uniqueness-only mutation cannot
-  reach eligibility for a revoked ID (2 failed, 753 passed).
+  reach eligibility for a revoked ID (historical 755-case run: 2 failed,
+  753 passed).
 
 Both mutants are now rejected by the tests above. These mutants are synthetic
 proof that the tests bite; they are not evidence about production behaviour.
+
+Current-snapshot rerun on 2a64c24 (756-case suite, `/tmp` copies only):
+coerced `verified_at` 3 failed / 753 passed; skipped ID uniqueness 2 failed /
+754 passed; `valid_until=False` bypass 1 failed / 755 passed. Each run exited 1
+with unexpected_denials=0 and expected_denials=44.
 
 ### Verification (fresh, this session)
 
@@ -205,7 +220,9 @@ proof that the tests bite; they are not evidence about production behaviour.
   change. Only `tests/test_financial_safety.py` and this file differ from the
   review checkpoint.
 - A third `/tmp` mutant that accepts `valid_until=False` and skips ordering for
-  it is now rejected by the new non-isolating case (1 failed, 755 passed).
+  it is now rejected by the new non-isolating case (1 failed, 755 passed; a
+  756-case total, matching the current-snapshot rerun in the mutation
+  evidence above).
 - Static checks: in-memory compile, ASCII and 88-column checks on the edited
   test file. No ruff/black/mypy/pyright/coverage tool was installed or invoked,
   so no lint, type-check or coverage result is claimed.

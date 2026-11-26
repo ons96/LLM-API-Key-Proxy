@@ -1949,11 +1949,15 @@ def test_p01_money_scalar_callbacks_are_never_invoked(field):
     )), DecisionCode.INVALID_POLICY)
 
 
-# Each malformed timestamp is numerically inside that field's own ordering
-# window, so a regression in the exact-type check cannot be masked by the
-# separate verified_at <= valid_from < valid_until comparison. Variants where
-# no companion can keep that ordering hold (negative valid_from/valid_until, an
-# oversized bound, valid_until=False because False == 0) live in
+# Each malformed timestamp stays inside that field's own ordering window, so the
+# separate verified_at <= valid_from < valid_until comparison cannot produce the
+# expected INVALID_POLICY on its own. Numeric, bool and int-subclass values keep
+# the raw comparison true, so only the exact-type/range check can deny. The
+# string and None values instead raise TypeError from an unguarded comparison,
+# which fails the test rather than yielding INVALID_POLICY, so removing the
+# exact-type check is still detected. Variants that no companion can keep
+# ordering-valid (negative valid_from/valid_until, an oversized bound,
+# valid_until=False because False == 0) live in
 # NON_ISOLATING_TIMESTAMP_CASES.
 TIMESTAMP_CASES = (
     ("verified_at", -1, {}, "negative"),
