@@ -1,0 +1,71 @@
+name: Code Scanning (CodeQL)
+
+# Trial gate for ons96/task-board#854 ("trial free-tier dev tools, adopt if
+# signal > noise").
+#
+# CodeQL is the only candidate that needs no third-party account: code scanning
+# is free on public repositories, the SARIF upload uses the workflow's own
+# GITHUB_TOKEN, and the only scope involved is the job-level
+# `security-events: write` below. No GitHub App install, no OAuth consent, no
+# vendor that can read this repository.
+#
+# The query pack is `security-and-quality` rather than the default security
+# set on purpose: the trial measures true-positive rate and pre-merge catch
+# rate, and the quality queries are the part that could plausibly drown the
+# signal. If the two-week log shows the quality findings are noise, drop to
+# `security-extended` instead of deleting the gate.
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "src/**"
+      - "scripts/**"
+      - "tests/**"
+      - ".github/workflows/codeql.yml"
+  pull_request:
+    branches: [main, master]
+    paths:
+      - "src/**"
+      - "scripts/**"
+      - "tests/**"
+      - ".github/workflows/codeql.yml"
+  schedule:
+    # Weekly full-tree sweep: only a scheduled run covers code that no PR
+    # touches, which is where stale findings accumulate.
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      # Required to upload SARIF to the code scanning API. Nothing is written
+      # back to the repository.
+      security-events: write
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@74c1aea9df7c0f02e9b7bfe4a8935abf2e5e3aa6  # v3
+        with:
+          languages: python
+          queries: security-and-quality
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@74c1aea9df7c0f02e9b7bfe4a8935abf2e5e3aa6  # v3
+        with:
+          category: "/language:python"
