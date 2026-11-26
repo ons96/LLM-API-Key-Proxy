@@ -9,11 +9,13 @@ name: Code Scanning (CodeQL)
 # `security-events: write` below. No GitHub App install, no OAuth consent, no
 # vendor that can read this repository.
 #
-# The query pack is `security-and-quality` rather than the default security
-# set on purpose: the trial measures true-positive rate and pre-merge catch
-# rate, and the quality queries are the part that could plausibly drown the
-# signal. If the two-week log shows the quality findings are noise, drop to
-# `security-extended` instead of deleting the gate.
+# `security-extended`, not `security-and-quality`. The trial started on the
+# wider pack to see what it produced, and the first full-tree scan on main
+# answered that immediately: 428 alerts, 365 of them unrated quality findings
+# (166 unused imports, 88 empty excepts, 43 unused locals). That volume cannot
+# be triaged and would bury the findings that matter for a proxy holding
+# provider keys (36 clear-text-logging-sensitive-data, 10 weak hashing).
+# Dropping the quality queries is the change the trial's own data asked for.
 
 on:
   push:
@@ -65,7 +67,7 @@ jobs:
         uses: github/codeql-action/init@915412ff23e8b7659517e607487dbeae018f2934  # v4
         with:
           languages: python
-          queries: security-and-quality
+          queries: security-extended
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@915412ff23e8b7659517e607487dbeae018f2934  # v4
