@@ -1,0 +1,33 @@
+name: Meta-loop config surface guard
+description: Fail when a meta-loop candidate changes anything outside config/.
+
+inputs:
+  base:
+    description: Base ref or commit the candidate is diffed against.
+    required: false
+    default: origin/main
+  head:
+    description: Candidate ref. Leave empty to check the current workspace (commit path).
+    required: false
+    default: ""
+  script:
+    description: Path to the guard script to run.
+    required: false
+    default: scripts/check_meta_loop_config_surface.py
+
+runs:
+  using: composite
+  steps:
+    - name: Guard candidate against the config surface
+      shell: bash
+      env:
+        GUARD_BASE: ${{ inputs.base }}
+        GUARD_HEAD: ${{ inputs.head }}
+        GUARD_SCRIPT: ${{ inputs.script }}
+      run: |
+        set -euo pipefail
+        if [ -n "${GUARD_HEAD}" ]; then
+          python3 "${GUARD_SCRIPT}" --base "${GUARD_BASE}" --head "${GUARD_HEAD}"
+        else
+          python3 "${GUARD_SCRIPT}" --base "${GUARD_BASE}"
+        fi
