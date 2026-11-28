@@ -106,6 +106,14 @@ jobs:
           NUMBER=$(echo "$pr" | jq -r '.number')
           TITLE=$(echo "$pr" | jq -r '.title')
 
+          if [ -f scripts/check_protected_paths.py ]; then
+            FILES=$(gh pr view "$NUMBER" --repo "${{ matrix.repo }}" --json files --jq '.files[].path')
+            if ! printf '%s\n' "$FILES" | python3 scripts/check_protected_paths.py --paths-from-stdin; then
+              echo "Skipping PR #$NUMBER: protected paths changed; human review required"
+              continue
+            fi
+          fi
+
           if [ "$DRY_RUN" == "true" ]; then
             echo "[DRY RUN] Would merge PR #$NUMBER: $TITLE"
           else

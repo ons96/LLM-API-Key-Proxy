@@ -1,0 +1,18 @@
+# Immutable verifier (#1422).
+#
+# The meta-loop may never rewrite the evaluator or its tests. These paths are
+# the verifier authority and every change to them requires human review.
+# GitHub branch protection must require the "protected-paths" check from
+# .github/workflows/verifier.yml so a PR touching these paths cannot merge
+# without a human approving review.
+
+/tests/                                  @ons96
+/scripts/replay_routing.py              @ons96
+/scripts/golden/                        @ons96
+/scripts/quality_floor.py               @ons96
+/scripts/verify.py                      @ons96
+/scripts/check_protected_paths.py       @ons96
+/src/proxy_app/telemetry/               @ons96
+/.github/workflows/                     @ons96
+/.github/actions/                       @ons96
+/.github/CODEOWNERS                     @ons96
